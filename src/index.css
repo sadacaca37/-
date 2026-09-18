@@ -1,0 +1,342 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Retro Arcade Font Family */
+  .font-arcade {
+    font-family: 'Jua', 'Noto Sans KR', sans-serif;
+  }
+
+  .font-pixel {
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  /* Pastel Arcade 3D Button Shadows */
+  .arcade-btn-pink {
+    background: #f472b6;
+    border: 2px solid #db2777;
+    box-shadow: 0 4px 0 #be185d;
+    transition: all 0.1s ease;
+  }
+  .arcade-btn-pink:hover {
+    background: #f43f5e;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 #9f1239;
+  }
+  .arcade-btn-pink:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #9f1239;
+  }
+
+  .arcade-btn-sky {
+    background: #38bdf8;
+    border: 2px solid #0284c7;
+    box-shadow: 0 4px 0 #0369a1;
+    transition: all 0.1s ease;
+  }
+  .arcade-btn-sky:hover {
+    background: #0ea5e9;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 #075985;
+  }
+  .arcade-btn-sky:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #075985;
+  }
+
+  .arcade-btn-yellow {
+    background: #fbbf24;
+    border: 2px solid #d97706;
+    box-shadow: 0 4px 0 #b45309;
+    color: #451a03;
+    transition: all 0.1s ease;
+  }
+  .arcade-btn-yellow:hover {
+    background: #f59e0b;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 #92400e;
+  }
+  .arcade-btn-yellow:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #92400e;
+  }
+
+  .arcade-btn-mint {
+    background: #2dd4bf;
+    border: 2px solid #0d9488;
+    box-shadow: 0 4px 0 #0f766e;
+    transition: all 0.1s ease;
+  }
+  .arcade-btn-mint:hover {
+    background: #14b8a6;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 #115e59;
+  }
+  .arcade-btn-mint:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #115e59;
+  }
+
+  .arcade-card-glow {
+    box-shadow: 0 10px 25px -5px rgba(244, 114, 182, 0.15), 0 8px 10px -6px rgba(56, 189, 248, 0.12);
+  }
+
+  .arcade-neon-border-pink {
+    border-color: #fbcfe8;
+    box-shadow: 0 0 15px rgba(244, 114, 182, 0.25);
+  }
+
+  .arcade-neon-border-sky {
+    border-color: #bae6fd;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+  }
+
+  .arcade-neon-border-mint {
+    border-color: #99f6e4;
+    box-shadow: 0 0 15px rgba(45, 212, 191, 0.25);
+  }
+
+  .arcade-dot-bg {
+    background-color: #fffdf9;
+    background-image:
+      radial-gradient(at 12% 10%, rgba(254, 240, 138, 0.38) 0px, transparent 40%),
+      radial-gradient(at 88% 12%, rgba(254, 205, 211, 0.42) 0px, transparent 45%),
+      radial-gradient(at 50% 85%, rgba(186, 230, 253, 0.45) 0px, transparent 50%),
+      radial-gradient(#fed7aa 1.2px, transparent 1.2px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 22px 22px;
+    background-attachment: fixed;
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.03); }
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  @keyframes floatSlow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  .animate-float {
+    animation: floatSlow 3s ease-in-out infinite;
+  }
+
+  /* Tamagotchi EXP Growth & Transform Animations */
+  @keyframes petExpGrow {
+    0% {
+      transform: scale(1) rotate(0deg);
+    }
+    20% {
+      transform: scale(1.22) rotate(-4deg) translateY(-8px);
+      filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.8));
+    }
+    40% {
+      transform: scale(0.95) rotate(3deg) translateY(2px);
+    }
+    60% {
+      transform: scale(1.12) rotate(-2deg) translateY(-4px);
+    }
+    80% {
+      transform: scale(0.98) rotate(1deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      filter: none;
+    }
+  }
+
+  .animate-pet-grow {
+    animation: petExpGrow 0.75s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes petLevelUpPulse {
+    0% {
+      transform: scale(0.8);
+      filter: brightness(1.5) drop-shadow(0 0 25px rgba(251, 191, 36, 1));
+    }
+    50% {
+      transform: scale(1.28);
+      filter: brightness(1.3) drop-shadow(0 0 35px rgba(244, 63, 94, 0.8));
+    }
+    100% {
+      transform: scale(1);
+      filter: none;
+    }
+  }
+
+  .animate-pet-levelup {
+    animation: petLevelUpPulse 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes floatExpBadge {
+    0% {
+      opacity: 0;
+      transform: translateY(10px) scale(0.6);
+    }
+    20% {
+      opacity: 1;
+      transform: translateY(-8px) scale(1.2);
+    }
+    80% {
+      opacity: 1;
+      transform: translateY(-38px) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-50px) scale(0.8);
+    }
+  }
+
+  .animate-float-exp {
+    animation: floatExpBadge 1.2s ease-out forwards;
+  }
+
+  @keyframes petIdleBreath {
+    0%, 100% {
+      transform: scale(1) translateY(0);
+    }
+    50% {
+      transform: scale(1.02, 0.98) translateY(1.5px);
+    }
+  }
+
+  .animate-pet-idle {
+    animation: petIdleBreath 3s ease-in-out infinite;
+  }
+
+  @keyframes tailWag {
+    0%, 100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(-10deg);
+    }
+    75% {
+      transform: rotate(12deg);
+    }
+  }
+
+  .animate-tail-wag {
+    transform-origin: 135px 140px;
+    animation: tailWag 1s ease-in-out infinite;
+  }
+
+  @keyframes earTwitch {
+    0%, 90%, 100% {
+      transform: rotate(0deg);
+    }
+    93% {
+      transform: rotate(-6deg);
+    }
+    97% {
+      transform: rotate(6deg);
+    }
+  }
+
+  .animate-ear-twitch {
+    transform-origin: 100px 50px;
+    animation: earTwitch 3.5s ease-in-out infinite;
+  }
+
+  @keyframes auraSpinGlow {
+    0% {
+      transform: rotate(0deg) scale(1);
+      opacity: 0.7;
+    }
+    50% {
+      transform: rotate(180deg) scale(1.08);
+      opacity: 0.95;
+    }
+    100% {
+      transform: rotate(360deg) scale(1);
+      opacity: 0.7;
+    }
+  }
+
+  .animate-aura-spin {
+    transform-origin: 100px 100px;
+    animation: auraSpinGlow 8s linear infinite;
+  }
+
+  /* Realistic 3D Book Page Turning CSS Animations */
+  /* Smooth Authentic Book Page Flip Transitions */
+  @keyframes pageFlipNext {
+    0% {
+      opacity: 0.9;
+      transform: perspective(1400px) rotateY(-12deg) scale(0.99);
+      box-shadow: inset 20px 0 25px -10px rgba(40, 20, 10, 0.15);
+      filter: brightness(0.97);
+    }
+    50% {
+      opacity: 0.96;
+      transform: perspective(1400px) rotateY(-4deg) scale(0.996);
+      box-shadow: inset 10px 0 15px -5px rgba(40, 20, 10, 0.08);
+      filter: brightness(0.99);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(1400px) rotateY(0deg) scale(1);
+      box-shadow: none;
+      filter: brightness(1);
+    }
+  }
+
+  @keyframes pageFlipPrev {
+    0% {
+      opacity: 0.9;
+      transform: perspective(1400px) rotateY(12deg) scale(0.99);
+      box-shadow: inset -20px 0 25px -10px rgba(40, 20, 10, 0.15);
+      filter: brightness(0.97);
+    }
+    50% {
+      opacity: 0.96;
+      transform: perspective(1400px) rotateY(4deg) scale(0.996);
+      box-shadow: inset -10px 0 15px -5px rgba(40, 20, 10, 0.08);
+      filter: brightness(0.99);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(1400px) rotateY(0deg) scale(1);
+      box-shadow: none;
+      filter: brightness(1);
+    }
+  }
+
+  .animate-page-turn-next {
+    transform-origin: left center;
+    animation: pageFlipNext 0.45s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }
+
+  .animate-page-turn-prev {
+    transform-origin: right center;
+    animation: pageFlipPrev 0.45s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }
+
+  /* Authentic Manuscript Paper (Clean Plain Paper without Ruled Lines) */
+  .notebook-ruled-paper {
+    background-color: #FAF7EE;
+    background-image: none;
+  }
+
+  /* Book Cover Vintage Hardcover Leather (Warm Cognac/Mahogany with Gold Embellishment) */
+  .book-leather-binding {
+    background: radial-gradient(circle at 50% 15%, #4A2E1B 0%, #361E10 50%, #24130A 100%);
+    box-shadow:
+      0 18px 40px -8px rgba(50, 25, 10, 0.45),
+      0 0 0 2px #8C532B,
+      0 0 0 5px #24130A,
+      inset 0 0 22px rgba(0, 0, 0, 0.6);
+  }
+}
