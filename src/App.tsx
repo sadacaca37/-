@@ -21,6 +21,7 @@ import { LeaderboardView } from './components/views/LeaderboardView';
 import { TamagotchiView } from './components/views/TamagotchiView';
 import { PlaygroundHome } from './components/views/playground/PlaygroundHome';
 import { MiniGamesHubView } from './components/views/MiniGamesHubView';
+import { PastelFooter } from './components/views/PastelQuestHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
 import { PracticeWindowContainer } from './components/PracticeWindowContainer';
 import { soundManager } from './utils/sound';
@@ -376,7 +377,7 @@ export default function App() {
   const pendingStudentsCount = usersDb.filter((u) => !u.isApproved && u.role !== 'master').length;
 
   return (
-    <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg`}>
+    <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg ${isPopupMode ? '' : 'retro-cursor'}`}>
       {/* Navigation Header with Creator Credit - Hidden in standalone popup window */}
       {!isPopupMode && (
         <Navbar
@@ -628,36 +629,12 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer: 타닥타닥 타자랜드 김은경 제작자 - Hidden in standalone popup window */}
+      {/* Footer: QUEST COMPLETE (김은경 제작자) - Hidden in standalone popup window */}
       {!isPopupMode && (
-        <footer className="mt-auto border-t-2 border-pink-200 bg-white/95 backdrop-blur-md py-4 px-4 text-center text-xs text-slate-600 shadow-xs">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-pink-500 font-bold text-base">🐾</span>
-              <span className="font-black text-slate-900 font-arcade text-sm sm:text-base tracking-wide">
-                타닥타닥 타자랜드
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="font-black text-pink-600 font-arcade text-xs sm:text-sm bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-200 shadow-2xs">
-                김은경 제작자
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-slate-500 font-bold">
-              {currentUser?.role === 'master' && (
-                <>
-                  <button
-                    onClick={() => setIsMasterOpen(true)}
-                    className="text-pink-600 hover:text-pink-700 underline font-black cursor-pointer"
-                  >
-                    👑 마스터 관리실 (학생 승인/비밀번호)
-                  </button>
-                  <span>•</span>
-                </>
-              )}
-              <span>투명 손가락 위치 가이드 • 타자 모험 아케이드</span>
-            </div>
-          </div>
-        </footer>
+        <PastelFooter
+          isMaster={currentUser?.role === 'master'}
+          onOpenMaster={() => setIsMasterOpen(true)}
+        />
       )}
 
       {/* Auth Modal (Login / Register with Approval Notice) */}

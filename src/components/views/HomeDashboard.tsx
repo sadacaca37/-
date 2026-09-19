@@ -35,6 +35,7 @@ import { CharacterAvatar, DEFAULT_AVATAR_CONFIG } from '../CharacterAvatar';
 import { StudentProgressCard } from '../StudentProgressCard';
 import { LastPracticeGuideCard } from '../LastPracticeGuideCard';
 import { PracticePerformanceChart } from '../PracticePerformanceChart';
+import { PastelQuestHome } from './PastelQuestHome';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { 
   getUserPracticeHistory, 
@@ -147,83 +148,18 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   };
 
-  const trainingCards = [
-    {
-      mode: 'key-practice' as AppMode,
-      title: '1단계: 자리 연습',
-      tag: '새 창 · 키보드 동시 보기',
-      badge: '새 창 모드 + 키보드 동시',
-      desc: '기본 홈포지션부터 윗자리, 아랫자리, 쌍자음까지 새 창에서 키보드 자판과 사람 손가락 위치를 동시에 보며 마스터!',
-      icon: Keyboard,
-      level: '1~8단계 체계적 훈련',
-      color: 'sky',
-      border: 'border-sky-300 hover:border-sky-500 ring-2 ring-sky-100',
-      bgIcon: 'bg-sky-100 text-sky-600',
-    },
-    {
-      mode: 'word-practice' as AppMode,
-      title: '2단계: 낱말 연습',
-      tag: '새 창 · 키보드 동시 보기',
-      badge: '새 창 모드 + 키보드 동시',
-      desc: '초등 필수 어휘, 동물, 음식, 과학, 영단어를 새 창에서 가상 키보드 자판과 동시 매칭하며 타이핑!',
-      icon: BookOpen,
-      level: '한글/영어 어휘 테마',
-      color: 'mint',
-      border: 'border-teal-300 hover:border-teal-500 ring-2 ring-teal-100',
-      bgIcon: 'bg-teal-100 text-teal-600',
-    },
-    {
-      mode: 'sentence-practice' as AppMode,
-      title: '3단계: 짧은 글 (5분)',
-      tag: '새 창 5분 마라톤',
-      badge: '새 창 모드',
-      desc: '지혜로운 속담과 명언, 동시, 과학 문장뿐 아니라 영문 명언까지! 독립된 새 창에서 5분 연속 완주로 실력 업그레이드!',
-      icon: FileText,
-      level: '속담/명언/동시/과학',
-      color: 'pink',
-      border: 'border-pink-300 hover:border-pink-500',
-      bgIcon: 'bg-pink-100 text-pink-600',
-    },
-    {
-      mode: 'long-practice' as AppMode,
-      title: '4단계: 긴 글 연습',
-      tag: '새 창 명작 완독',
-      badge: '새 창 모드',
-      desc: '황순원의 <소나기>, 생텍쥐페리의 <어린 왕자>, 윤동주의 <별 헤는 밤>, <I Have a Dream> 등 독립된 새 창에서 한/영 명문장 완독!',
-      icon: FileText,
-      level: '한글/영어 명작 소설 & 수필',
-      color: 'purple',
-      border: 'border-indigo-300 hover:border-indigo-500 ring-2 ring-indigo-100',
-      bgIcon: 'bg-indigo-100 text-indigo-600',
-    },
-    {
-      mode: 'knowledge-hub' as AppMode,
-      title: '스페셜: 팡팡 지식 타자',
-      tag: '3대 지식 랜드',
-      badge: '수도 · 역사 · 가사',
-      desc: '세계 수도 71개국 정복, 조선 왕조 27대 국왕 족보 & 업적, K-POP 명곡 가사 챌린지 3대 코스를 미니게임처럼 즐겨보세요!',
-      icon: GraduationCap,
-      level: '세계지리 · 한국사 & 업적 · 명곡 가사 BGM 풀코스',
-      color: 'purple',
-      border: 'border-purple-300 hover:border-purple-500 ring-2 ring-purple-100',
-      bgIcon: 'bg-purple-100 text-purple-700',
-    },
-    {
-      mode: 'leaderboard' as AppMode,
-      title: '5단계: 명예의 전당 (랭킹)',
-      tag: '실시간 타수 순위표',
-      badge: '명예의 전당',
-      desc: '전체 학생 실시간 타자 속도 순위와 동물 칭호 티어를 확인하고 최고 기록에 도전하세요!',
-      icon: Trophy,
-      level: '실시간 타자 랭킹 순위표',
-      color: 'yellow',
-      border: 'border-amber-300 hover:border-amber-500 ring-2 ring-amber-100',
-      bgIcon: 'bg-amber-100 text-amber-700',
-    },
-  ];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
+      {/* PASTEL ISOMETRIC QUEST HOME (hero · player bar · quests · game zone) */}
+      <PastelQuestHome
+        currentUser={currentUser}
+        records={allUserRecords}
+        onSelectMode={onSelectMode}
+        onOpenAuth={onOpenAuth}
+        onOpenProfile={onOpenProfile}
+      />
+
       {/* STUDENT CURRICULUM ROADMAP & PROGRESS SECTION */}
       <StudentProgressCard
         currentUser={currentUser}
@@ -385,52 +321,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         )}
       </div>
 
-      {/* TRAINING STAGES & MODES LIST */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2.5 h-6 bg-sky-500 rounded-full"></div>
-          <h2 className="text-lg font-black text-slate-900 font-arcade">단계별 타자 학습 코스</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {trainingCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={card.mode}
-                onClick={() => onSelectMode(card.mode)}
-                className={`group relative p-5 bg-white rounded-3xl border-2 ${card.border} shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4 hover:-translate-y-1`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-3 rounded-2xl ${card.bgIcon}`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-black px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                      {card.badge}
-                    </span>
-                  </div>
-
-                  <span className="text-[11px] font-black tracking-wider uppercase text-slate-600 mb-1 block">
-                    {card.tag}
-                  </span>
-                  <h3 className="text-base font-black text-slate-900 mb-1.5 group-hover:text-sky-600 transition-colors">
-                    {card.title}
-                  </h3>
-                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    {card.desc}
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-extrabold text-slate-700">
-                  <span>{card.level}</span>
-                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600 group-hover:translate-x-1 transition-all" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 };

@@ -132,9 +132,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-pink-200 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-[#B2EBF2] shadow-xs">
       {/* Topmost Cute Announcement Strip */}
-      <div className="bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 text-white text-[11px] sm:text-xs font-black py-1 px-3 text-center flex items-center justify-center gap-2 shadow-xs">
+      <div className="bg-gradient-to-r from-[#4DD0E1] via-[#29B6F6] to-[#AB47BC] text-white text-[11px] sm:text-xs font-black py-1 px-3 text-center flex items-center justify-center gap-2 shadow-xs">
         <span className="animate-bounce">✨</span>
         <span className="bg-white/20 px-2.5 py-0.5 rounded-full border border-white/40 font-black">
           🐾 팡팡 타자랜드
