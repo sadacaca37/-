@@ -254,7 +254,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 22px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('✨ 타닥타닥 타자랜드 타자 성적표 ✨', 480, 100);
+  ctx.fillText('✨ 타자팡팡 타자 성적표 ✨', 480, 100);
 
   ctx.font = '900 36px "Malgun Gothic", sans-serif';
   ctx.fillText(`${report.periodTitle}`, 480, 150);
@@ -519,7 +519,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   ctx.fillStyle = '#94A3B8';
   ctx.font = 'bold 15px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('타닥타닥 타자랜드 • 4개월간의 꾸준한 타자 훈련이 평생 가는 올바른 컴퓨터 습관을 만듭니다!', 480, 1245);
+  ctx.fillText('타자팡팡 • 4개월간의 꾸준한 타자 훈련이 평생 가는 올바른 컴퓨터 습관을 만듭니다!', 480, 1245);
 
   // Convert to Blob & Data URL
   return new Promise((resolve) => {

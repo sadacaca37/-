@@ -158,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="tp-nav-title font-arcade text-lg sm:text-2xl font-black text-slate-800 tracking-tight group-hover:text-pink-600 transition-colors">
-                  <span className="tp-nav-title-a">타닥타닥</span> <span className="tp-nav-title-b text-pink-500">타자랜드</span>
+                  <span className="tp-nav-title-a">타자</span><span className="tp-nav-title-b text-pink-500">팡팡</span>
                 </span>
                 <span className="tp-nav-badge hidden md:inline-block px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[10px] font-black border border-pink-300">
                   PASTEL ARCADE
