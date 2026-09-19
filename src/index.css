@@ -1500,3 +1500,10 @@
 .tp-skin [class*='rounded-full'][class*='px-'][class*='text-'] { border-radius: 6px !important; }
 /* keep playground game stages untouched */
 .tp-skin canvas { border-radius: 0; }
+/* practice opened inside the page (popup blocked): keep the top menu visible */
+.tp-practice--inline {
+  position: relative; inset: auto;
+  height: calc(100vh - 190px); min-height: 560px;
+  border-radius: 16px; border: 4px solid #6ff6ff;
+  box-shadow: 0 0 18px rgba(111, 246, 255, 0.4), 0 8px 0 #070a24;
+}

@@ -352,7 +352,8 @@ export default function App() {
   const handleSelectMode = (mode: AppMode) => {
     if (isPracticeMode(mode)) {
       if (!isPopupMode) {
-        // Open dedicated popup browser window ONLY
+        // Open dedicated popup browser window; if the browser blocks popups, open it inside this page
+        let opened = false;
         try {
           const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
           const popup = window.open(
@@ -362,9 +363,14 @@ export default function App() {
           );
           if (popup) {
             popup.focus();
+            opened = true;
           }
         } catch (e) {
           console.warn('Popup window open error or blocked:', e);
+        }
+        if (!opened) {
+          setCurrentMode(mode);
+          window.scrollTo({ top: 0 });
         }
         // Exclusively opens in new window, leaving underlying original mode intact
         return;

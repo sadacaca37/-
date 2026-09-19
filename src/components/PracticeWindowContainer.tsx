@@ -24,6 +24,7 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
   const areaRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const passes = useRef(0);
+  const isPopupWindow = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
   const [fit, setFit] = useState({ scale: 1, top: 0, width: 1200 });
 
   const measure = useCallback(() => {
@@ -89,7 +90,7 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
   };
 
   return (
-    <div className="tp-practice">
+    <div className={`tp-practice ${isPopupWindow ? '' : 'tp-practice--inline'}`}>
       {/* wooden HUD title bar */}
       <div className="tp-practice-bar">
         <span className="tp-practice-logo">
