@@ -476,3 +476,30 @@ export const PastelFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
     </div>
   </footer>
 );
+
+/* ================================================================== */
+/*  RetroFrame – game-style frame + hanging title for dashboard blocks  */
+/* ================================================================== */
+export const RetroFrame: React.FC<{
+  variant: 'sky' | 'wood' | 'arcade' | 'grass';
+  tag: string;
+  title: string;
+  children: React.ReactNode;
+}> = ({ variant, tag, title, children }) => (
+  <section className={`rq-frame rq-frame--${variant}`}>
+    <div className="rq-frame-head">
+      <span className="rq-frame-tag">{tag}</span>
+      <span className="rq-frame-title">{title}</span>
+    </div>
+    {variant === 'arcade' && (
+      <>
+        <Pixel grid={STAR} pal={STAR_PAL} size={22} className="rq-frame-deco rq-frame-deco--l rq-twinkle" />
+        <Pixel grid={COIN} pal={COIN_PAL} size={20} className="rq-frame-deco rq-frame-deco--r rq-spin" />
+      </>
+    )}
+    {variant === 'sky' && (
+      <Pixel grid={HEART} pal={{ K: '#8a1030', R: '#ff5470' }} size={22} className="rq-frame-deco rq-frame-deco--r rq-hop" />
+    )}
+    <div className="rq-frame-inner">{children}</div>
+  </section>
+);

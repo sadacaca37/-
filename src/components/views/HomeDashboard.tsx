@@ -35,7 +35,7 @@ import { CharacterAvatar, DEFAULT_AVATAR_CONFIG } from '../CharacterAvatar';
 import { StudentProgressCard } from '../StudentProgressCard';
 import { LastPracticeGuideCard } from '../LastPracticeGuideCard';
 import { PracticePerformanceChart } from '../PracticePerformanceChart';
-import { PastelQuestHome } from './PastelQuestHome';
+import { PastelQuestHome, RetroFrame } from './PastelQuestHome';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { 
   getUserPracticeHistory, 
@@ -160,25 +160,32 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         onOpenProfile={onOpenProfile}
       />
 
+      <RetroFrame variant="sky" tag="PLAYER STATUS" title="내 타자 능력치">
       {/* STUDENT CURRICULUM ROADMAP & PROGRESS SECTION */}
       <StudentProgressCard
         currentUser={currentUser}
         onSelectMode={onSelectMode}
         onOpenHistory={onOpenHistory}
       />
+      </RetroFrame>
 
+      <RetroFrame variant="wood" tag="CONTINUE?" title="이어하기">
       {/* LAST PRACTICED STAGE RE-TYPING & RESUME GUIDE CARD */}
       <LastPracticeGuideCard
         currentUser={currentUser}
         onSelectMode={onSelectMode}
       />
+      </RetroFrame>
 
+      <RetroFrame variant="arcade" tag="SCORE BOARD" title="성장 그래프">
       {/* RECHARTS WEEKLY / MONTHLY PRACTICE PERFORMANCE CHART */}
       <PracticePerformanceChart
         records={allUserRecords}
         userName={currentUser?.name || '학생'}
       />
+      </RetroFrame>
 
+      <RetroFrame variant="grass" tag="SAVE DATA" title="최근 타자 기록">
       {/* RECENT TYPING HISTORY QUICK STRIP */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-md">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -320,7 +327,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         )}
       </div>
-
+      </RetroFrame>
     </div>
   );
 };
