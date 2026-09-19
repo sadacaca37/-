@@ -285,8 +285,13 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Background
+      // Background: warm paper inside a wooden crate (classic merge-fruit look)
       ctx.clearRect(0, 0, BOX_WIDTH, BOX_HEIGHT);
+      const bgG = ctx.createLinearGradient(0, 0, 0, BOX_HEIGHT);
+      bgG.addColorStop(0, '#fff6dc'); bgG.addColorStop(1, '#ffe6b3');
+      ctx.fillStyle = bgG; ctx.fillRect(0, 0, BOX_WIDTH, BOX_HEIGHT);
+      ctx.fillStyle = 'rgba(232,170,90,0.14)';
+      for (let yy = 0; yy < BOX_HEIGHT; yy += 24) for (let xx = (yy / 24) % 2 ? 12 : 0; xx < BOX_WIDTH; xx += 24) ctx.fillRect(xx, yy, 12, 12);
 
       // Dead Line
       ctx.save();
@@ -518,7 +523,7 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-3 sm:p-5 flex flex-col items-center select-none animate-in fade-in duration-300 rounded-3xl bg-gradient-to-b from-[#FDE8B5] via-[#F8D288] to-[#F5C776] shadow-xl border-4 border-[#E2A64E]">
+    <div className="sk max-w-4xl mx-auto p-3 sm:p-5 flex flex-col items-center select-none animate-in fade-in duration-300 rounded-3xl bg-gradient-to-b from-[#FDE8B5] via-[#F8D288] to-[#F5C776] shadow-xl border-4 border-[#E2A64E]">
       {/* Top Header Bar */}
       <div className="w-full flex items-center justify-between mb-3 px-2">
         <button

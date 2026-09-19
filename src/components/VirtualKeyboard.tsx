@@ -643,41 +643,27 @@ const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
                     id={`vk-key-${key.code}`}
                     className={`h-10 sm:h-12 ${widthClass} rounded-xl sm:rounded-2xl border-2 flex flex-col justify-between p-1 transition-all duration-150 cursor-default select-none relative ${keyStateStyles}`}
                   >
-                    {/* Top Row inside Keycap: Shift char or empty */}
-                    <div className="flex items-center justify-between w-full leading-none">
-                      {key.charKoShift && key.charKoShift !== key.charKo ? (
-                        <span className={`text-[9px] sm:text-[11px] font-black text-rose-500/90 leading-none ${isTarget ? 'text-amber-900 font-extrabold' : ''}`}>
-                          {key.charKoShift}
-                        </span>
-                      ) : (
-                        <span></span>
-                      )}
-
-                      {/* Display / Function Key Text */}
-                      {key.display && (
-                        <span className="text-[9px] sm:text-xs font-black truncate text-center w-full text-slate-700">
-                          {key.display}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bottom Row inside Keycap: Main Korean Char & English Char */}
-                    {!key.display && (
-                      <div className="flex items-baseline justify-between w-full leading-none mt-auto">
-                        {/* Main Hangul Char */}
-                        <span className={`text-xs sm:text-base font-black leading-none ${isTarget ? 'text-slate-950 font-black' : 'text-slate-800'}`}>
+                    {/* Keycap legends: main character centered, shift / English in the corners */}
+                    {key.display ? (
+                      <span className="absolute inset-0 flex items-center justify-center px-1 text-[9px] sm:text-xs font-black text-slate-700 text-center leading-none">
+                        {key.display}
+                      </span>
+                    ) : (
+                      <>
+                        {key.charKoShift && key.charKoShift !== key.charKo && (
+                          <span className={`absolute top-0.5 left-1 text-[8px] sm:text-[10px] font-black leading-none text-rose-500/90 ${isTarget ? 'text-amber-900' : ''}`}>
+                            {key.charKoShift}
+                          </span>
+                        )}
+                        <span className={`absolute inset-0 flex items-center justify-center text-sm sm:text-lg font-black leading-none ${isTarget ? 'text-slate-950' : 'text-slate-800'}`}>
                           {key.charKo}
                         </span>
-
-                        {/* English / Secondary char */}
                         {key.charEn && key.charEn !== key.charKo && (
-                          <span className={`text-[8px] sm:text-[10px] font-bold leading-none ${
-                            isTarget ? 'text-amber-900 font-black' : 'text-slate-400'
-                          }`}>
+                          <span className={`absolute bottom-0.5 right-1 text-[8px] sm:text-[10px] font-bold leading-none ${isTarget ? 'text-amber-900 font-black' : 'text-slate-400'}`}>
                             {key.charEn.toUpperCase()}
                           </span>
                         )}
-                      </div>
+                      </>
                     )}
                   </div>
                 );

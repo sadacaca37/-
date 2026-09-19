@@ -1,412 +1,222 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, RotateCcw, ArrowLeft, Trophy, Sparkles, ArrowUp } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
+import { ArcadeShell, overlay, rr, useBest } from './games/ArcadeShell';
 
-interface JellyRunnerGameProps {
-  onBack?: () => void;
-}
+/* Side-scrolling endless runner: jump (double jump) over forks, slide under bars,
+   collect jelly beans; energy drains over time and potions refill it. */
+const W = 760;
+const H = 400;
+const GROUND = 320;
 
-interface Obstacle {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  type: 'spike' | 'pit' | 'flying';
-}
+type Ob = { x: number; kind: 'spike' | 'spike2' | 'bar' | 'potion'; used?: boolean };
+type Jelly = { x: number; y: number; big?: boolean; got?: boolean };
 
-interface Item {
-  id: number;
-  x: number;
-  y: number;
-  type: 'star' | 'candy';
-  collected: boolean;
-}
-
-const CANVAS_WIDTH = 480;
-const CANVAS_HEIGHT = 280;
-const GROUND_Y = 220;
-
-export const JellyRunnerGame: React.FC<JellyRunnerGameProps> = ({ onBack }) => {
-  const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameover'>('idle');
-  const [distance, setDistance] = useState<number>(0);
-  const [score, setScore] = useState<number>(0);
-  const [highScore, setHighScore] = useState<number>(() => {
-    try {
-      return Number(localStorage.getItem('jelly_runner_high_score') || '0');
-    } catch {
-      return 0;
-    }
+export const JellyRunnerGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+  const cv = useRef<HTMLCanvasElement>(null);
+  const [best, saveBest] = useBest('tp_runner_best');
+  const [score, setScore] = useState(0);
+  const g = useRef({
+    state: 'title' as 'title' | 'play' | 'over',
+    y: GROUND, vy: 0, jumps: 0, slide: false, slideT: 0,
+    speed: 6, dist: 0, score: 0, hp: 1, hurt: 0,
+    obs: [] as Ob[], jel: [] as Jelly[], nextX: 900,
+    last: 0, t: 0, pops: [] as { x: number; y: number; t: number; txt: string }[],
   });
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animRef = useRef<number | null>(null);
-
-  // Player state
-  const playerRef = useRef<{
-    x: number;
-    y: number;
-    vy: number;
-    isGrounded: boolean;
-    jumpCount: number;
-    invincibleTimer: number;
-  }>({
-    x: 60,
-    y: GROUND_Y - 32,
-    vy: 0,
-    isGrounded: true,
-    jumpCount: 0,
-    invincibleTimer: 0,
-  });
-
-  // World elements
-  const obstaclesRef = useRef<Obstacle[]>([]);
-  const itemsRef = useRef<Item[]>([]);
-  const speedRef = useRef<number>(4);
-  const nextItemId = useRef<number>(1);
-  const frameCountRef = useRef<number>(0);
+  const start = useCallback(() => {
+    const s = g.current;
+    Object.assign(s, { state: 'play', y: GROUND, vy: 0, jumps: 0, slide: false, slideT: 0, speed: 6, dist: 0, score: 0, hp: 1, hurt: 0, obs: [], jel: [], nextX: 700, pops: [] });
+    setScore(0);
+    try { soundManager.play('click'); } catch {}
+  }, []);
 
   const jump = useCallback(() => {
-    if (gameState !== 'playing') return;
+    const s = g.current;
+    if (s.state !== 'play') { start(); return; }
+    if (s.jumps < 2) { s.vy = s.jumps === 0 ? -13.5 : -11.5; s.jumps++; s.slide = false; try { soundManager.play('pop' as any); } catch {} }
+  }, [start]);
+  const slide = useCallback((on: boolean) => {
+    const s = g.current;
+    if (s.state !== 'play') return;
+    s.slide = on && s.y >= GROUND;
+  }, []);
 
-    const p = playerRef.current;
-    if (p.jumpCount < 2) {
-      p.vy = -7.6;
-      p.isGrounded = false;
-      p.jumpCount++;
-      soundManager.play('click');
-    }
-  }, [gameState]);
-
-  const startGame = () => {
-    playerRef.current = {
-      x: 60,
-      y: GROUND_Y - 32,
-      vy: 0,
-      isGrounded: true,
-      jumpCount: 0,
-      invincibleTimer: 0,
-    };
-    obstaclesRef.current = [];
-    itemsRef.current = [];
-    speedRef.current = 4.2;
-    frameCountRef.current = 0;
-    setDistance(0);
-    setScore(0);
-    setGameState('playing');
-    soundManager.playSuccess();
-  };
-
-  // Keyboard controls
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
-        e.preventDefault();
-        if (gameState === 'idle') startGame();
-        else if (gameState === 'playing') jump();
+    const down = (e: KeyboardEvent) => {
+      if ([' ', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
+      if (e.repeat) return;
+      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'j' || e.key === 'J') jump();
+      if (e.key === 'ArrowDown' || e.key === 'f' || e.key === 'F') slide(true);
+      if (e.key === 'Enter' && g.current.state !== 'play') start();
+    };
+    const up = (e: KeyboardEvent) => { if (e.key === 'ArrowDown' || e.key === 'f' || e.key === 'F') slide(false); };
+    window.addEventListener('keydown', down); window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, [jump, slide, start]);
+
+  useEffect(() => {
+    const c = cv.current!; const ctx = c.getContext('2d')!;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
+    let raf = 0;
+
+    const genChunk = () => {
+      const s = g.current;
+      const x = s.nextX;
+      const r = Math.random();
+      if (r < 0.34) {
+        s.obs.push({ x, kind: 'spike' });
+        for (let i = 0; i < 5; i++) s.jel.push({ x: x - 80 + i * 40, y: GROUND - 60 - Math.sin((i / 4) * Math.PI) * 70 });
+      } else if (r < 0.52) {
+        s.obs.push({ x, kind: 'spike2' });
+        for (let i = 0; i < 7; i++) s.jel.push({ x: x - 110 + i * 40, y: GROUND - 70 - Math.sin((i / 6) * Math.PI) * 120 });
+      } else if (r < 0.8) {
+        s.obs.push({ x, kind: 'bar' });
+        for (let i = 0; i < 5; i++) s.jel.push({ x: x - 40 + i * 30, y: GROUND - 22 });
+      } else {
+        for (let i = 0; i < 6; i++) s.jel.push({ x: x + i * 36, y: GROUND - 30, big: i === 5 });
+        if (Math.random() < 0.45) s.obs.push({ x: x + 120, kind: 'potion' });
       }
+      s.nextX += 300 + Math.random() * 220 - Math.min(80, s.dist / 800);
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, jump]);
-
-  // Main game loop
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    let isRunning = true;
-
-    const loop = () => {
-      if (!isRunning) return;
-
-      frameCountRef.current++;
-      const p = playerRef.current;
-      const currentSpeed = speedRef.current;
-
-      // Update distance & speed
-      if (frameCountRef.current % 5 === 0) {
-        setDistance((d) => d + 1);
+    const drawHero = (x: number, y: number, sliding: boolean, t: number, hurt: number) => {
+      // round gummy jelly bear-like blob (original)
+      if (hurt > 0 && Math.floor(t / 80) % 2) return;
+      ctx.save(); ctx.translate(x, y);
+      const run = Math.sin(t / 60);
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(0, 0, 22, 5, 0, 0, Math.PI * 2); ctx.fill();
+      const bw = sliding ? 50 : 38, bh = sliding ? 26 : 44;
+      ctx.fillStyle = '#ff7eb6'; rr(ctx, -bw / 2, -bh, bw, bh, sliding ? 12 : 16); ctx.fill();
+      ctx.strokeStyle = '#7a1e4a'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; rr(ctx, -bw / 2 + 6, -bh + 5, 10, bh * 0.4, 5); ctx.fill();
+      if (!sliding) {
+        ctx.fillStyle = '#ff7eb6'; ctx.beginPath(); ctx.arc(-12, -bh + 2, 7, 0, Math.PI * 2); ctx.arc(12, -bh + 2, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#7a1e4a'; ctx.fillRect(-12 + run * 3, -6, 8, 6); ctx.fillRect(4 - run * 3, -6, 8, 6);
       }
-      if (frameCountRef.current % 400 === 0) {
-        speedRef.current = Math.min(8.5, speedRef.current + 0.3);
-      }
+      ctx.fillStyle = '#1b2340';
+      ctx.fillRect(4, -bh + (sliding ? 8 : 14), 4, 6); ctx.fillRect(13, -bh + (sliding ? 8 : 14), 4, 6);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(5, -bh + (sliding ? 8 : 14), 2, 2); ctx.fillRect(14, -bh + (sliding ? 8 : 14), 2, 2);
+      ctx.fillStyle = '#ff3b6b'; ctx.fillRect(8, -bh + (sliding ? 17 : 24), 6, 2);
+      ctx.restore();
+    };
+    const jellyBean = (x: number, y: number, big?: boolean) => {
+      const r = big ? 13 : 8;
+      ctx.fillStyle = big ? '#ffd700' : '#6ff6ff';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 1.2, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = big ? '#8a5a00' : '#0b5a6b'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(x - r * 0.4, y - r * 0.6, r * 0.35, r * 0.5);
+    };
 
-      // Physics (Gravity & Jump)
-      p.vy += 0.42; // gravity
-      p.y += p.vy;
-
-      if (p.y >= GROUND_Y - 32) {
-        p.y = GROUND_Y - 32;
-        p.vy = 0;
-        p.isGrounded = true;
-        p.jumpCount = 0;
-      }
-
-      if (p.invincibleTimer > 0) p.invincibleTimer--;
-
-      // Spawn obstacles (every 90-140 frames)
-      if (frameCountRef.current % Math.floor(Math.max(65, 120 - distance * 0.05)) === 0) {
-        const rand = Math.random();
-        if (rand < 0.6) {
-          // Candy Spike
-          obstaclesRef.current.push({
-            x: CANVAS_WIDTH + 20,
-            y: GROUND_Y - 28,
-            width: 24,
-            height: 28,
-            type: 'spike',
-          });
-        } else {
-          // Flying Bat / Obstacle
-          obstaclesRef.current.push({
-            x: CANVAS_WIDTH + 20,
-            y: GROUND_Y - 65,
-            width: 26,
-            height: 22,
-            type: 'flying',
-          });
-        }
-      }
-
-      // Spawn Star & Candy items
-      if (frameCountRef.current % 45 === 0) {
-        itemsRef.current.push({
-          id: nextItemId.current++,
-          x: CANVAS_WIDTH + 20,
-          y: GROUND_Y - (Math.random() < 0.5 ? 40 : 80),
-          type: Math.random() < 0.85 ? 'star' : 'candy',
-          collected: false,
+    const frame = (ts: number) => {
+      const s = g.current;
+      const dt = s.last ? Math.min(40, ts - s.last) / 16.67 : 1; s.last = ts; s.t = ts;
+      if (s.state === 'play') {
+        s.speed = 6 + Math.min(6, s.dist / 2500);
+        const dx = s.speed * dt;
+        s.dist += dx;
+        s.hp -= 0.0009 * dt * (1 + s.dist / 20000);
+        s.hurt = Math.max(0, s.hurt - dt);
+        s.vy += 0.75 * dt; s.y += s.vy * dt;
+        if (s.y >= GROUND) { s.y = GROUND; s.vy = 0; s.jumps = 0; }
+        s.obs.forEach((o) => (o.x -= dx)); s.jel.forEach((j) => (j.x -= dx)); s.nextX -= dx;
+        while (s.nextX < W + 200) genChunk();
+        s.obs = s.obs.filter((o) => o.x > -80); s.jel = s.jel.filter((j) => j.x > -30 && !j.got);
+        const hx = 150, hTop = s.slide ? s.y - 26 : s.y - 44;
+        s.jel.forEach((j) => {
+          if (Math.abs(j.x - hx) < 24 && j.y > hTop - 12 && j.y < s.y + 6) {
+            j.got = true; s.score += j.big ? 50 : 10; if (j.big) s.hp = Math.min(1, s.hp + 0.03);
+            s.pops.push({ x: j.x, y: j.y, t: 500, txt: j.big ? '+50' : '+10' });
+          }
         });
+        s.obs.forEach((o) => {
+          if (o.used) return;
+          const near = Math.abs(o.x - hx) < (o.kind === 'spike2' ? 40 : 26);
+          if (!near) return;
+          if (o.kind === 'potion') { if (s.y > GROUND - 90) { o.used = true; s.hp = Math.min(1, s.hp + 0.25); s.pops.push({ x: o.x, y: GROUND - 60, t: 700, txt: 'HP UP!' }); try { soundManager.play('success' as any); } catch {} } return; }
+          const hit = o.kind === 'bar' ? !s.slide : s.y > GROUND - (o.kind === 'spike2' ? 64 : 40);
+          if (hit && s.hurt <= 0) { o.used = true; s.hp -= 0.22; s.hurt = 50; try { soundManager.play('error'); } catch {} }
+        });
+        if (s.hp <= 0) { s.hp = 0; s.state = 'over'; saveBest(s.score + Math.floor(s.dist / 10)); }
+        s.pops.forEach((p) => (p.t -= dt * 16.67)); s.pops = s.pops.filter((p) => p.t > 0);
+        if (Math.floor(ts / 200) !== Math.floor((ts - 16) / 200)) setScore(s.score + Math.floor(s.dist / 10));
       }
 
-      // Move obstacles & collision check
-      const toRemoveObstacles: number[] = [];
-      for (let i = 0; i < obstaclesRef.current.length; i++) {
-        const obs = obstaclesRef.current[i];
-        obs.x -= currentSpeed;
-
-        // Collision box check
-        const playerBox = { x: p.x + 4, y: p.y + 4, w: 24, h: 24 };
-        const obsBox = { x: obs.x, y: obs.y, w: obs.width, h: obs.height };
-
-        if (
-          playerBox.x < obsBox.x + obsBox.w &&
-          playerBox.x + playerBox.w > obsBox.x &&
-          playerBox.y < obsBox.y + obsBox.h &&
-          playerBox.y + playerBox.h > obsBox.y
-        ) {
-          if (p.invincibleTimer <= 0) {
-            // Hit!
-            soundManager.playError();
-            setGameState('gameover');
-            return;
+      // sky & parallax
+      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#7fd0ff'); sky.addColorStop(1, '#fff0c9');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+      const par = (f: number, col: string, hgt: number, wid: number) => {
+        ctx.fillStyle = col; const off = (s.dist * f) % wid;
+        for (let x = -off - wid; x < W + wid; x += wid) { ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.quadraticCurveTo(x + wid / 2, GROUND - hgt, x + wid, GROUND); ctx.fill(); }
+      };
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      for (let i = 0; i < 5; i++) { const x = (i * 190 - (s.dist * 0.1)) % (W + 200); const xx = x < -120 ? x + W + 200 : x; rr(ctx, xx, 40 + (i % 3) * 30, 90, 22, 11); ctx.fill(); rr(ctx, xx + 20, 28 + (i % 3) * 30, 44, 22, 11); ctx.fill(); }
+      par(0.2, '#b6e39a', 150, 320); par(0.45, '#8bd36c', 90, 220);
+      // candy trees
+      for (let i = 0; i < 6; i++) { const x = ((i * 170 - s.dist * 0.6) % (W + 170) + W + 170) % (W + 170) - 60; ctx.fillStyle = '#b8783b'; ctx.fillRect(x + 18, GROUND - 60, 8, 60); ctx.fillStyle = i % 2 ? '#ff9ac2' : '#ffd36b'; ctx.beginPath(); ctx.arc(x + 22, GROUND - 70, 24, 0, Math.PI * 2); ctx.fill(); }
+      // ground tiles
+      const off = s.dist % 40;
+      ctx.fillStyle = '#5fc649'; ctx.fillRect(0, GROUND, W, 14);
+      ctx.fillStyle = '#c98a4b'; ctx.fillRect(0, GROUND + 14, W, H - GROUND - 14);
+      ctx.fillStyle = '#a86b33'; for (let x = -off; x < W; x += 40) ctx.fillRect(x, GROUND + 26, 20, 8);
+      ctx.fillStyle = '#3fa535'; for (let x = -off; x < W; x += 20) ctx.fillRect(x, GROUND + 10, 10, 4);
+      // obstacles
+      s.obs.forEach((o) => {
+        if (o.kind === 'spike' || o.kind === 'spike2') {
+          const n = o.kind === 'spike' ? 1 : 2, hh = o.kind === 'spike' ? 40 : 64;
+          for (let i = 0; i < n; i++) {
+            const x = o.x - (n * 18) + i * 36;
+            ctx.fillStyle = '#9aa7b8'; ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x + 18, GROUND - hh); ctx.lineTo(x + 36, GROUND); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = '#dfe6ef'; ctx.beginPath(); ctx.moveTo(x + 18, GROUND - hh); ctx.lineTo(x + 24, GROUND - hh / 2); ctx.lineTo(x + 18, GROUND - hh / 2); ctx.fill();
           }
+        } else if (o.kind === 'bar') {
+          ctx.fillStyle = '#8a5a2e'; ctx.fillRect(o.x - 34, GROUND - 150, 8, 150 - 36); ctx.fillRect(o.x + 26, GROUND - 150, 8, 150 - 36);
+          ctx.fillStyle = '#ff4f5e'; rr(ctx, o.x - 44, GROUND - 76, 88, 36, 8); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+          ctx.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) ctx.fillRect(o.x - 38 + i * 22, GROUND - 70, 10, 24);
+        } else if (!o.used) {
+          ctx.fillStyle = '#ff4f5e'; rr(ctx, o.x - 12, GROUND - 76, 24, 30, 8); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(o.x - 3, GROUND - 70, 6, 18); ctx.fillRect(o.x - 9, GROUND - 64, 18, 6);
         }
-
-        if (obs.x + obs.width < -20) {
-          toRemoveObstacles.push(i);
-        }
-      }
-      obstaclesRef.current = obstaclesRef.current.filter((_, idx) => !toRemoveObstacles.includes(idx));
-
-      // Move items & collect check
-      for (const item of itemsRef.current) {
-        item.x -= currentSpeed;
-        if (!item.collected) {
-          const dx = (p.x + 16) - item.x;
-          const dy = (p.y + 16) - item.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 26) {
-            item.collected = true;
-            soundManager.play('pop');
-            const bonus = item.type === 'candy' ? 100 : 20;
-            if (item.type === 'candy') {
-              p.invincibleTimer = 180; // 3s rainbow boost
-            }
-            setScore((s) => {
-              const ns = s + bonus;
-              if (ns > highScore) {
-                setHighScore(ns);
-                try {
-                  localStorage.setItem('jelly_runner_high_score', String(ns));
-                } catch {}
-              }
-              return ns;
-            });
-          }
-        }
-      }
-      itemsRef.current = itemsRef.current.filter((item) => item.x > -20 && !item.collected);
-
-      // Render Canvas
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          // Sky gradient
-          const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-          sky.addColorStop(0, '#312e81'); // indigo
-          sky.addColorStop(1, '#831843'); // pink
-          ctx.fillStyle = sky;
-          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-          // Candy Ground
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
-          ctx.fillStyle = '#ec4899';
-          ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, 4);
-
-          // Draw Items
-          for (const item of itemsRef.current) {
-            ctx.font = '18px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(item.type === 'candy' ? '🍬' : '⭐', item.x, item.y);
-          }
-
-          // Draw Obstacles
-          for (const obs of obstaclesRef.current) {
-            if (obs.type === 'spike') {
-              ctx.font = '22px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'bottom';
-              ctx.fillText('🔺', obs.x + obs.width / 2, obs.y + obs.height + 2);
-            } else {
-              ctx.font = '20px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('🦇', obs.x + obs.width / 2, obs.y + obs.height / 2);
-            }
-          }
-
-          // Draw Jelly Player
-          ctx.save();
-          const isBoosted = p.invincibleTimer > 0;
-          if (isBoosted) {
-            ctx.shadowColor = '#facc15';
-            ctx.shadowBlur = 15;
-          }
-
-          ctx.font = '32px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(isBoosted ? '🌈' : '🍮', p.x + 16, p.y + 16);
-          ctx.restore();
-        }
-      }
-
-      animRef.current = requestAnimationFrame(loop);
+      });
+      s.jel.forEach((j) => !j.got && jellyBean(j.x, j.y, j.big));
+      drawHero(150, s.y, s.slide, ts, s.hurt);
+      s.pops.forEach((p) => { ctx.fillStyle = '#ffffff'; ctx.font = "14px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.strokeText(p.txt, p.x, p.y - (500 - p.t) / 20); ctx.fillText(p.txt, p.x, p.y - (500 - p.t) / 20); });
+      // energy bar (heart + gauge)
+      ctx.fillStyle = '#1b2340'; rr(ctx, 16, 14, 300, 26, 8); ctx.fill();
+      ctx.fillStyle = s.hp > 0.3 ? '#ff5fae' : '#ff4f5e'; rr(ctx, 42, 19, Math.max(0, 268 * s.hp), 16, 5); ctx.fill();
+      ctx.fillStyle = '#ff4f5e'; ctx.font = "20px sans-serif"; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('♥', 20, 28);
+      ctx.fillStyle = '#1b2340'; ctx.font = "18px 'Galmuri11', monospace"; ctx.textAlign = 'right';
+      ctx.fillText(`${Math.floor(s.dist / 10)}m`, W - 16, 28);
+      if (s.state === 'title') overlay(ctx, W, H, '젤리 점프 러너', 'SPACE 점프(2단) · ↓ 슬라이드', '#ff9ac2');
+      if (s.state === 'over') overlay(ctx, W, H, 'FINISH!', `${s.score + Math.floor(s.dist / 10)}점 · SPACE 다시`, '#ffd700');
+      raf = requestAnimationFrame(frame);
     };
-
-    animRef.current = requestAnimationFrame(loop);
-    return () => {
-      isRunning = false;
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-  }, [gameState, distance, highScore]);
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [saveBest]);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 flex flex-col items-center select-none animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="w-full flex items-center justify-between mb-3">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>놀이터 홈</span>
-        </button>
-
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🏃</span>
-          <h1 className="text-xl sm:text-2xl font-black font-arcade text-white tracking-wider">
-            젤리 점프 러너 (Jelly Runner)
-          </h1>
-        </div>
-
-        <button
-          onClick={startGame}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>재시작</span>
-        </button>
-      </div>
-
-      {/* Main Canvas & Overlay */}
-      <div className="relative p-2 rounded-3xl bg-slate-950 border-4 border-pink-500 shadow-2xl overflow-hidden">
-        {/* Top Hud Bar */}
-        <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur-xs border border-white/10 text-white font-mono text-xs">
-          <div className="flex items-center gap-3">
-            <span className="text-pink-400 font-black">거리: {distance}m</span>
-            <span className="text-amber-400 font-black">점수: {score}P</span>
-          </div>
-          <div className="text-slate-300 flex items-center gap-1">
-            <Trophy className="w-3 h-3 text-amber-400" />
-            <span>BEST: {highScore}P</span>
-          </div>
-        </div>
-
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          onClick={jump}
-          className="rounded-2xl cursor-pointer touch-none block"
-        />
-
-        {/* Start Overlay */}
-        {gameState === 'idle' && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs rounded-3xl flex flex-col items-center justify-center p-6 text-center">
-            <div className="text-5xl mb-2 animate-bounce">🍮✨</div>
-            <h2 className="text-2xl font-black text-white font-arcade mb-1">
-              젤리 점프 러너
-            </h2>
-            <p className="text-xs text-slate-300 max-w-xs mb-4 leading-relaxed">
-              장애물을 뛰어넘고 별과 무지개 사탕을 모아 최고 거리를 달성하세요! (2단 점프 가능)
-            </p>
-            <button
-              onClick={startGame}
-              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-black text-sm shadow-lg active:scale-95 transition cursor-pointer"
-            >
-              달리기 시작! [SPACE]
-            </button>
-          </div>
-        )}
-
-        {/* Game Over Overlay */}
-        {gameState === 'gameover' && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xs rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95">
-            <div className="text-4xl mb-2">💥</div>
-            <h2 className="text-2xl font-black text-rose-500 font-arcade mb-1">GAME OVER</h2>
-            <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800 my-2 w-48 text-center">
-              <div className="text-xs text-slate-400">달린 거리</div>
-              <div className="text-xl font-black text-pink-400 font-mono">{distance} m</div>
-              <div className="text-xs text-slate-400 mt-1">최종 점수</div>
-              <div className="text-lg font-black text-amber-400 font-mono">{score} P</div>
-            </div>
-            <button
-              onClick={startGame}
-              className="px-8 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-black text-sm shadow-lg active:scale-95 transition cursor-pointer"
-            >
-              다시 달리기 [SPACE]
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Jump Control for Touch */}
-      <div className="mt-3 w-full max-w-xs sm:hidden">
-        <button
-          onClick={jump}
-          disabled={gameState !== 'playing'}
-          className="w-full py-4 rounded-2xl bg-pink-600 active:bg-pink-500 text-white font-black text-base shadow-lg cursor-pointer flex items-center justify-center gap-2"
-        >
-          <ArrowUp className="w-5 h-5" />
-          <span>점프 (2단 점프)</span>
-        </button>
-      </div>
-    </div>
+    <ArcadeShell
+      title="젤리 점프 러너"
+      subtitle="RUN · JUMP · SLIDE"
+      tone="#ff9ac2"
+      score={score}
+      best={Math.max(best, score)}
+      onBack={onBack}
+      onRestart={start}
+      controls={
+        <>
+          <button className="ac-pad ac-pad--big ac-pad--blue" onPointerDown={() => slide(true)} onPointerUp={() => slide(false)} onPointerLeave={() => slide(false)}>
+            ⬇ 슬라이드 <small>(↓)</small>
+          </button>
+          <button className="ac-pad ac-pad--big ac-pad--pink" onPointerDown={jump}>
+            ⬆ 점프 <small>(SPACE)</small>
+          </button>
+        </>
+      }
+    >
+      <canvas ref={cv} style={{ width: W, maxWidth: '100%', aspectRatio: `${W} / ${H}` }} />
+    </ArcadeShell>
   );
 };

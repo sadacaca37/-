@@ -1,394 +1,200 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, RotateCcw, ArrowLeft, Trophy, Sparkles, Flame, Check } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
+import { ArcadeShell, overlay, rr, useBest } from './games/ArcadeShell';
 
-interface TanghuluGameProps {
-  onBack?: () => void;
-}
+/* Street-stall cooking game: fruits roll along the belt; press SPACE when the fruit the
+   order needs is under the skewer. Five fruits → mash SPACE to coat in sugar → serve! */
+const W = 720;
+const H = 440;
+const ZONE_X = 360;
+const BELT_Y = 300;
 
-interface FruitItem {
-  id: number;
-  type: string;
-  name: string;
-  emoji: string;
-  color: string;
-  x: number;
-  speed: number;
-}
+type Kind = 'straw' | 'grape' | 'orange' | 'blue' | 'tomato';
+const FRUIT: Record<Kind, { name: string; col: string; dark: string; r: number }> = {
+  straw: { name: '딸기', col: '#ff4f6e', dark: '#9c1030', r: 20 },
+  grape: { name: '샤인머스캣', col: '#a8e05a', dark: '#4a7a1a', r: 16 },
+  orange: { name: '귤', col: '#ffa12e', dark: '#9a5200', r: 21 },
+  blue: { name: '블루베리', col: '#5a6cff', dark: '#1f2a8a', r: 14 },
+  tomato: { name: '방울토마토', col: '#ff3b3b', dark: '#8a1010', r: 17 },
+};
+const KINDS = Object.keys(FRUIT) as Kind[];
 
-const AVAILABLE_FRUITS = [
-  { type: 'strawberry', name: '딸기', emoji: '🍓', color: 'text-rose-500' },
-  { type: 'muscat', name: '샤인머스캣', emoji: '🍇', color: 'text-lime-500' },
-  { type: 'orange', name: '통귤', emoji: '🍊', color: 'text-orange-500' },
-  { type: 'blueberry', name: '블루베리', emoji: '🫐', color: 'text-indigo-500' },
-  { type: 'tomato', name: '방울토마토', emoji: '🍅', color: 'text-red-500' },
-];
-
-export const TanghuluGame: React.FC<TanghuluGameProps> = ({ onBack }) => {
-  const [gameState, setGameState] = useState<'idle' | 'skewering' | 'coating' | 'completed' | 'gameover'>('idle');
-  const [score, setScore] = useState<number>(0);
-  const [stage, setStage] = useState<number>(1);
-  const [highScore, setHighScore] = useState<number>(() => {
-    try {
-      return Number(localStorage.getItem('tanghulu_high_score') || '0');
-    } catch {
-      return 0;
-    }
+export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+  const cv = useRef<HTMLCanvasElement>(null);
+  const [best, saveBest] = useBest('tp_tanghulu_best');
+  const [score, setScore] = useState(0);
+  const g = useRef({
+    state: 'title' as 'title' | 'skewer' | 'glaze' | 'serve' | 'over',
+    order: [] as Kind[], stick: [] as Kind[],
+    belt: [] as { x: number; k: Kind; hit?: number }[],
+    spawn: 0, speed: 2.2, lives: 3, score: 0, served: 0,
+    glaze: 0, glazeT: 0, serveT: 0, shake: 0, last: 0,
+    msg: '' as string, msgT: 0,
   });
 
-  // Skewer recipe: 5 fruits required
-  const [recipe, setRecipe] = useState<string[]>([]);
-  const [skewered, setSkewered] = useState<string[]>([]);
-  const [glazeProgress, setGlazeProgress] = useState<number>(0);
-
-  // Moving fruits on the conveyor track
-  const [fruits, setFruits] = useState<FruitItem[]>([]);
-  const nextFruitId = useRef<number>(1);
-  const animRef = useRef<number | null>(null);
-
-  // Generate target recipe
-  const generateRecipe = useCallback((stg: number) => {
-    const list: string[] = [];
-    for (let i = 0; i < 5; i++) {
-      const rand = AVAILABLE_FRUITS[Math.floor(Math.random() * AVAILABLE_FRUITS.length)];
-      list.push(rand.type);
-    }
-    return list;
+  const newOrder = () => {
+    const s = g.current;
+    s.order = Array.from({ length: 5 }, () => KINDS[Math.floor(Math.random() * KINDS.length)]);
+    s.stick = []; s.belt = []; s.spawn = 0; s.state = 'skewer';
+  };
+  const start = useCallback(() => {
+    const s = g.current;
+    Object.assign(s, { lives: 3, score: 0, served: 0, speed: 2.2 });
+    newOrder(); setScore(0);
+    try { soundManager.play('click'); } catch {}
   }, []);
 
-  const startGame = () => {
-    setScore(0);
-    setStage(1);
-    const newRecipe = generateRecipe(1);
-    setRecipe(newRecipe);
-    setSkewered([]);
-    setGlazeProgress(0);
-    setFruits([]);
-    setGameState('skewering');
-    soundManager.playSuccess();
-  };
-
-  const nextStage = () => {
-    const nextStg = stage + 1;
-    setStage(nextStg);
-    setRecipe(generateRecipe(nextStg));
-    setSkewered([]);
-    setGlazeProgress(0);
-    setFruits([]);
-    setGameState('skewering');
-    soundManager.playSuccess();
-  };
-
-  // Fruit spawner & movement loop
-  useEffect(() => {
-    if (gameState !== 'skewering') return;
-
-    let lastSpawn = Date.now();
-    const spawnInterval = Math.max(700, 1500 - stage * 80);
-    const baseSpeed = 2.4 + stage * 0.35;
-
-    const loop = () => {
-      const now = Date.now();
-
-      // Spawn new fruit
-      if (now - lastSpawn > spawnInterval) {
-        lastSpawn = now;
-        const randomFruit = AVAILABLE_FRUITS[Math.floor(Math.random() * AVAILABLE_FRUITS.length)];
-        setFruits((prev) => [
-          ...prev,
-          {
-            id: nextFruitId.current++,
-            type: randomFruit.type,
-            name: randomFruit.name,
-            emoji: randomFruit.emoji,
-            color: randomFruit.color,
-            x: 0, // starts from left
-            speed: baseSpeed,
-          },
-        ]);
-      }
-
-      // Move fruits across track (width: ~340px)
-      setFruits((prev) =>
-        prev
-          .map((f) => ({ ...f, x: f.x + f.speed }))
-          .filter((f) => f.x < 380) // remove offscreen
-      );
-
-      animRef.current = requestAnimationFrame(loop);
-    };
-
-    animRef.current = requestAnimationFrame(loop);
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-  }, [gameState, stage]);
-
-  // Attempt to skewer the current aligned fruit
-  const handleSkewer = useCallback(() => {
-    if (gameState !== 'skewering') return;
-
-    // Target zone is centered between x=140 and x=200
-    const targetZoneMin = 135;
-    const targetZoneMax = 205;
-
-    const hitIndex = fruits.findIndex((f) => f.x >= targetZoneMin && f.x <= targetZoneMax);
-
-    if (hitIndex !== -1) {
-      const hitFruit = fruits[hitIndex];
-      const neededFruitType = recipe[skewered.length];
-
-      // Remove hit fruit
-      setFruits((prev) => prev.filter((_, idx) => idx !== hitIndex));
-
-      if (hitFruit.type === neededFruitType) {
-        // Perfect match!
-        soundManager.play('pop');
-        const nextSkewered = [...skewered, hitFruit.type];
-        setSkewered(nextSkewered);
-        setScore((s) => s + 50 * stage);
-
-        // Check if skewer is complete (5 fruits)
-        if (nextSkewered.length === 5) {
-          soundManager.playSuccess();
-          setGameState('coating');
-        }
-      } else {
-        // Wrong fruit! Penalty
-        soundManager.playError();
-        setScore((s) => Math.max(0, s - 30));
-      }
+  const action = useCallback(() => {
+    const s = g.current;
+    if (s.state === 'title' || s.state === 'over') { start(); return; }
+    if (s.state === 'glaze') { s.glaze = Math.min(1, s.glaze + 0.075); try { soundManager.play('pop' as any); } catch {} return; }
+    if (s.state !== 'skewer') return;
+    const need = s.order[s.stick.length];
+    const inZone = s.belt.find((f) => !f.hit && Math.abs(f.x - ZONE_X) < 28);
+    if (inZone && inZone.k === need) {
+      inZone.hit = 1; s.stick.push(inZone.k); s.score += 20;
+      s.msg = 'GOOD!'; s.msgT = 500;
+      try { soundManager.play('pop' as any); } catch {}
+      if (s.stick.length === 5) { s.state = 'glaze'; s.glaze = 0; s.glazeT = 3200; }
     } else {
-      // Missed completely!
-      soundManager.playClick();
+      s.lives--; s.shake = 12; s.msg = inZone ? '다른 과일!' : 'MISS!'; s.msgT = 700;
+      try { soundManager.play('error'); } catch {}
+      if (s.lives <= 0) { s.state = 'over'; saveBest(s.score); }
     }
-  }, [gameState, fruits, recipe, skewered, stage]);
+    setScore(s.score);
+  }, [start, saveBest]);
 
-  // Coating phase: tap to glaze sugar syrup
-  const handleCoat = useCallback(() => {
-    if (gameState !== 'coating') return;
-
-    soundManager.play('pop');
-    setGlazeProgress((prev) => {
-      const next = prev + 15;
-      if (next >= 100) {
-        // Completed tanghulu!
-        soundManager.play('achievement');
-        const stageBonus = 300 * stage;
-        setScore((s) => {
-          const total = s + stageBonus;
-          if (total > highScore) {
-            setHighScore(total);
-            try {
-              localStorage.setItem('tanghulu_high_score', String(total));
-            } catch {}
-          }
-          return total;
-        });
-        setGameState('completed');
-        return 100;
-      }
-      return next;
-    });
-  }, [gameState, stage, highScore]);
-
-  // Keyboard controls
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (gameState === 'idle') startGame();
-        else if (gameState === 'skewering') handleSkewer();
-        else if (gameState === 'coating') handleCoat();
-        else if (gameState === 'completed') nextStage();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) action(); }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [action]);
+
+  useEffect(() => {
+    const c = cv.current!; const ctx = c.getContext('2d')!;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
+    let raf = 0;
+
+    const fruit = (x: number, y: number, k: Kind, glazeA = 0) => {
+      const f = FRUIT[k];
+      ctx.fillStyle = f.col; ctx.strokeStyle = f.dark; ctx.lineWidth = 3;
+      if (k === 'straw') {
+        ctx.beginPath(); ctx.moveTo(x - f.r, y - f.r * 0.5); ctx.quadraticCurveTo(x, y - f.r * 1.1, x + f.r, y - f.r * 0.5); ctx.quadraticCurveTo(x + f.r * 0.6, y + f.r, x, y + f.r * 1.1); ctx.quadraticCurveTo(x - f.r * 0.6, y + f.r, x - f.r, y - f.r * 0.5); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff59d'; for (let i = 0; i < 6; i++) ctx.fillRect(x - 9 + (i % 3) * 8, y - 4 + Math.floor(i / 3) * 9, 2, 3);
+        ctx.fillStyle = '#3fa535'; ctx.beginPath(); ctx.moveTo(x - 10, y - f.r * 0.7); ctx.lineTo(x, y - f.r * 1.2); ctx.lineTo(x + 10, y - f.r * 0.7); ctx.fill();
+      } else if (k === 'grape') {
+        ctx.beginPath(); ctx.ellipse(x, y, f.r, f.r * 1.15, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(x, y, f.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        if (k === 'orange') { ctx.fillStyle = '#3fa535'; ctx.fillRect(x - 2, y - f.r - 4, 4, 6); }
+        if (k === 'tomato') { ctx.fillStyle = '#3fa535'; ctx.beginPath(); ctx.arc(x, y - f.r + 2, 5, 0, Math.PI * 2); ctx.fill(); }
+        if (k === 'blue') { ctx.fillStyle = f.dark; ctx.fillRect(x - 3, y - f.r + 2, 6, 3); }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.beginPath(); ctx.ellipse(x - f.r * 0.35, y - f.r * 0.35, f.r * 0.25, f.r * 0.35, -0.6, 0, Math.PI * 2); ctx.fill();
+      if (glazeA > 0) {
+        ctx.fillStyle = `rgba(255,236,170,${0.55 * glazeA})`; ctx.beginPath(); ctx.arc(x, y, f.r + 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,255,255,${0.9 * glazeA})`; ctx.fillRect(x + f.r * 0.2, y - f.r * 0.6, 4, 4);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, handleSkewer, handleCoat, nextStage]);
+    const frame = (ts: number) => {
+      const s = g.current;
+      const dt = s.last ? Math.min(40, ts - s.last) : 16; s.last = ts;
+      const k = dt / 16.67;
+      if (s.state === 'skewer') {
+        s.spawn -= dt;
+        if (s.spawn <= 0) {
+          const need = s.order[s.stick.length];
+          const kind = Math.random() < 0.42 ? need : KINDS[Math.floor(Math.random() * KINDS.length)];
+          s.belt.push({ x: -30, k: kind }); s.spawn = Math.max(520, 1100 - s.served * 60) + Math.random() * 300;
+        }
+        s.belt.forEach((f) => (f.x += s.speed * k * (f.hit ? 0 : 1)));
+        s.belt = s.belt.filter((f) => f.x < W + 40 && !f.hit);
+      } else if (s.state === 'glaze') {
+        s.glazeT -= dt; s.glaze = Math.max(0, s.glaze - 0.0006 * dt);
+        if (s.glaze >= 1) { s.state = 'serve'; s.serveT = 1400; s.served++; s.score += 100 + s.served * 20; s.speed = Math.min(6, 2.2 + s.served * 0.35); setScore(s.score); try { soundManager.play('achievement' as any); } catch {} }
+        else if (s.glazeT <= 0) { s.lives--; s.msg = '설탕 실패!'; s.msgT = 900; if (s.lives <= 0) { s.state = 'over'; saveBest(s.score); } else { newOrder(); } }
+      } else if (s.state === 'serve') {
+        s.serveT -= dt; if (s.serveT <= 0) newOrder();
+      }
+      s.msgT -= dt; s.shake = Math.max(0, s.shake - k);
+
+      ctx.save();
+      if (s.shake) ctx.translate((Math.random() - 0.5) * s.shake, 0);
+      // stall wall
+      ctx.fillStyle = '#fff3d6'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ffe2b0'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, 60, 20, BELT_Y - 90);
+      // awning stripes
+      for (let i = 0; i < W / 40 + 1; i++) { ctx.fillStyle = i % 2 ? '#ffffff' : '#ff5fae'; ctx.beginPath(); ctx.moveTo(i * 40, 0); ctx.lineTo(i * 40 + 40, 0); ctx.lineTo(i * 40 + 40, 38); ctx.arc(i * 40 + 20, 38, 20, 0, Math.PI); ctx.fill(); }
+      ctx.strokeStyle = '#7a1e4a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 38); ctx.lineTo(W, 38); ctx.stroke();
+      // order ticket
+      ctx.fillStyle = '#ffffff'; rr(ctx, 20, 76, 250, 92, 10); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#1b2340'; ctx.font = "14px 'Galmuri11', monospace"; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(`주문서 #${s.served + 1}`, 34, 86);
+      s.order.forEach((o, i) => { fruit(52 + i * 46, 136, o); if (i < s.stick.length) { ctx.strokeStyle = '#3fa535'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(38 + i * 46, 136); ctx.lineTo(48 + i * 46, 148); ctx.lineTo(68 + i * 46, 122); ctx.stroke(); } });
+      if (s.state === 'skewer' && s.order[s.stick.length]) { ctx.strokeStyle = '#ff5fae'; ctx.lineWidth = 3; ctx.strokeRect(30 + s.stick.length * 46, 112, 44, 48); }
+      // lives
+      ctx.font = "24px sans-serif"; ctx.textAlign = 'right'; ctx.fillStyle = '#ff4f5e';
+      ctx.fillText('♥'.repeat(Math.max(0, s.lives)) + '♡'.repeat(3 - Math.max(0, s.lives)), W - 20, 80);
+      // skewer holder + stick
+      const stickTop = 90, stickBot = BELT_Y - 30;
+      ctx.fillStyle = '#d9a86a'; ctx.fillRect(ZONE_X - 3, stickTop, 6, stickBot - stickTop);
+      ctx.strokeStyle = '#8a5a2e'; ctx.lineWidth = 2; ctx.strokeRect(ZONE_X - 3, stickTop, 6, stickBot - stickTop);
+      const ga = s.state === 'glaze' ? s.glaze : s.state === 'serve' ? 1 : 0;
+      s.stick.forEach((kk, i) => fruit(ZONE_X, stickBot - 22 - i * 34, kk, ga));
+      // conveyor belt
+      ctx.fillStyle = '#3a3f55'; ctx.fillRect(0, BELT_Y, W, 44);
+      ctx.fillStyle = '#50566b'; const off = (ts / 16 * (s.state === 'skewer' ? s.speed : 0)) % 30; for (let x = -off; x < W; x += 30) ctx.fillRect(x, BELT_Y + 6, 16, 32);
+      ctx.fillStyle = '#1b2340'; ctx.fillRect(0, BELT_Y + 44, W, 8);
+      // target zone
+      ctx.strokeStyle = s.state === 'skewer' ? '#ffd700' : 'rgba(255,215,0,0.3)'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(ZONE_X - 30, BELT_Y - 46, 60, 90); ctx.setLineDash([]);
+      s.belt.forEach((f) => fruit(f.x, BELT_Y - 18, f.k));
+      // counter
+      ctx.fillStyle = '#b8783b'; ctx.fillRect(0, BELT_Y + 52, W, H - BELT_Y - 52);
+      ctx.fillStyle = '#8a5a2e'; for (let x = 0; x < W; x += 60) ctx.fillRect(x, BELT_Y + 52, 4, H - BELT_Y - 52);
+      // glaze meter
+      if (s.state === 'glaze') {
+        ctx.fillStyle = 'rgba(11,14,42,0.35)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffffff'; rr(ctx, W / 2 - 200, 186, 400, 80, 14); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.fillStyle = '#1b2340'; ctx.font = "18px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('SPACE 연타! 설탕 코팅!', W / 2, 208);
+        ctx.fillStyle = '#eee'; rr(ctx, W / 2 - 180, 228, 360, 22, 8); ctx.fill();
+        ctx.fillStyle = '#ffd36b'; rr(ctx, W / 2 - 180, 228, 360 * s.glaze, 22, 8); ctx.fill();
+        ctx.fillStyle = '#ff4f5e'; ctx.fillRect(W / 2 - 180, 254, 360 * Math.max(0, s.glazeT / 3200), 4);
+      }
+      if (s.state === 'serve') {
+        ctx.fillStyle = '#ffd700'; ctx.font = "40px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 6; ctx.strokeStyle = '#1b2340'; ctx.strokeText('완성! 판매 완료 ✨', W / 2, 60 + 170); ctx.fillText('완성! 판매 완료 ✨', W / 2, 60 + 170);
+      }
+      if (s.msgT > 0) { ctx.font = "22px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.fillStyle = s.msg === 'GOOD!' ? '#3fa535' : '#ff4f5e'; ctx.lineWidth = 5; ctx.strokeStyle = '#fff'; ctx.strokeText(s.msg, ZONE_X, BELT_Y - 70); ctx.fillText(s.msg, ZONE_X, BELT_Y - 70); }
+      ctx.restore();
+      if (s.state === 'title') overlay(ctx, W, H, '탕후루 가게', '과일이 노란 칸에 오면 SPACE!', '#ff9ac2');
+      if (s.state === 'over') overlay(ctx, W, H, '영업 종료!', `${s.score}점 · SPACE 다시`, '#ffd700');
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [saveBest]);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 flex flex-col items-center select-none animate-in fade-in duration-300">
-      {/* Top Header */}
-      <div className="w-full flex items-center justify-between mb-3">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>놀이터 홈</span>
+    <ArcadeShell
+      title="탕후루 마스터"
+      subtitle="SKEWER · GLAZE · SERVE"
+      tone="#ff5fae"
+      score={score}
+      best={Math.max(best, score)}
+      onBack={onBack}
+      onRestart={start}
+      controls={
+        <button className="ac-pad ac-pad--big ac-pad--pink" onPointerDown={action}>
+          🍡 꽂기 / 코팅 <small>(SPACE)</small>
         </button>
-
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🍡</span>
-          <h1 className="text-xl sm:text-2xl font-black font-arcade text-white tracking-wider">
-            탕후루 마스터 (Tanghulu)
-          </h1>
-        </div>
-
-        <button
-          onClick={startGame}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>재시작</span>
-        </button>
-      </div>
-
-      {/* Main Game Card */}
-      <div className="w-full max-w-lg bg-slate-900 border-4 border-amber-400 rounded-3xl p-5 shadow-2xl space-y-4">
-        {/* Top Info Bar */}
-        <div className="flex items-center justify-between bg-slate-950 px-4 py-2.5 rounded-2xl border border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-arcade">
-              STAGE {stage}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-xs font-black text-amber-400 font-mono">
-              SCORE: {score.toLocaleString()}
-            </div>
-            <div className="text-xs font-black text-slate-400 font-mono">
-              BEST: {highScore.toLocaleString()}
-            </div>
-          </div>
-        </div>
-
-        {/* Target Recipe Display */}
-        <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center">
-          <div className="text-[11px] font-black text-amber-300 font-arcade mb-2">
-            🎯 주문 레시피 (순서대로 꽂아주세요!)
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            {recipe.map((fType, idx) => {
-              const fruit = AVAILABLE_FRUITS.find((f) => f.type === fType);
-              const isDone = idx < skewered.length;
-              const isCurrent = idx === skewered.length;
-
-              return (
-                <div
-                  key={idx}
-                  className={`w-12 h-14 rounded-xl flex flex-col items-center justify-center border-2 transition-all ${
-                    isDone
-                      ? 'bg-emerald-950/70 border-emerald-500 scale-95 opacity-50'
-                      : isCurrent
-                      ? 'bg-amber-500/20 border-amber-400 scale-110 shadow-lg ring-2 ring-amber-300'
-                      : 'bg-slate-900 border-slate-800'
-                  }`}
-                >
-                  <span className="text-2xl">{fruit?.emoji}</span>
-                  <span className="text-[9px] font-bold text-slate-300">{fruit?.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Conveyor Belt Track */}
-        {gameState === 'skewering' && (
-          <div className="relative h-44 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl border-2 border-slate-800 overflow-hidden flex flex-col justify-between p-2">
-            {/* Target Aim Zone in Center */}
-            <div className="absolute left-[135px] top-0 bottom-0 w-[70px] bg-amber-400/10 border-x-2 border-dashed border-amber-400 pointer-events-none flex items-center justify-center">
-              <span className="text-[10px] font-black text-amber-300 font-arcade opacity-70">
-                HIT ZONE
-              </span>
-            </div>
-
-            {/* Conveyor Moving Belt */}
-            <div className="relative h-20 w-full mt-4">
-              {fruits.map((f) => (
-                <div
-                  key={f.id}
-                  className="absolute top-2 -translate-x-1/2 flex flex-col items-center animate-bounce"
-                  style={{ left: `${f.x}px` }}
-                >
-                  <span className="text-3xl filter drop-shadow-md">{f.emoji}</span>
-                  <span className="text-[9px] font-bold text-white bg-slate-900/80 px-1 rounded-sm">
-                    {f.name}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Skewer Launcher at Bottom */}
-            <div className="flex flex-col items-center justify-center pb-2">
-              <div className="w-1.5 h-10 bg-amber-600 rounded-full shadow-md" />
-              <button
-                onClick={handleSkewer}
-                className="mt-1 px-8 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-xs shadow-lg cursor-pointer active:scale-95 transition"
-              >
-                꼬치 꽂기! [SPACE]
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Coating Glaze Phase */}
-        {gameState === 'coating' && (
-          <div className="bg-gradient-to-b from-amber-950/60 to-slate-950 p-6 rounded-2xl border-2 border-amber-400 text-center space-y-4 animate-in zoom-in-95">
-            <div className="text-3xl animate-bounce">🍯✨</div>
-            <h3 className="text-lg font-black text-amber-300 font-arcade">
-              바삭바삭 설탕 코팅 시럽 바르기!
-            </h3>
-            <p className="text-xs text-slate-300">
-              버튼을 연속으로 눌러 100%까지 설탕 코팅을 완성하세요!
-            </p>
-
-            {/* Glaze Gauge */}
-            <div className="w-full bg-slate-950 h-5 rounded-full border border-amber-500/50 overflow-hidden p-0.5">
-              <div
-                className="h-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-200 rounded-full transition-all duration-150 shadow-inner"
-                style={{ width: `${glazeProgress}%` }}
-              />
-            </div>
-
-            <button
-              onClick={handleCoat}
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-sm shadow-xl active:scale-95 transition cursor-pointer"
-            >
-              설탕 시럽 붓기! 🍯 ({glazeProgress}%)
-            </button>
-          </div>
-        )}
-
-        {/* Completed Phase */}
-        {gameState === 'completed' && (
-          <div className="bg-slate-950 p-6 rounded-2xl border-2 border-emerald-500 text-center space-y-3 animate-in zoom-in-95">
-            <div className="text-4xl animate-bounce">🍡✨👑</div>
-            <h3 className="text-xl font-black text-emerald-400 font-arcade">
-              반짝반짝 명품 탕후루 완성!
-            </h3>
-            <p className="text-xs text-slate-300">
-              손님이 너무 좋아해요! 보너스 +{300 * stage}점을 획득했습니다!
-            </p>
-            <button
-              onClick={nextStage}
-              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm shadow-lg active:scale-95 transition cursor-pointer"
-            >
-              다음 스테이지 도전! [SPACE]
-            </button>
-          </div>
-        )}
-
-        {/* Start Overlay */}
-        {gameState === 'idle' && (
-          <div className="bg-slate-950 p-8 rounded-2xl border-2 border-amber-500 text-center space-y-3">
-            <div className="text-5xl animate-bounce">🍡</div>
-            <h2 className="text-2xl font-black text-white font-arcade">탕후루 마스터</h2>
-            <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
-              주문 순서에 맞는 과일이 지나갈 때 타이밍 맞춰 꼬치를 꽂고 달콤한 설탕을 입혀보세요!
-            </p>
-            <button
-              onClick={startGame}
-              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-black text-sm shadow-lg active:scale-95 transition cursor-pointer"
-            >
-              가게 오픈하기! [SPACE]
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      }
+    >
+      <canvas ref={cv} style={{ width: W, maxWidth: '100%', aspectRatio: `${W} / ${H}` }} />
+    </ArcadeShell>
   );
 };

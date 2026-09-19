@@ -49,7 +49,7 @@ export const KEYBOARD_LAYOUT: KeyData[][] = [
     { code: 'KeyL', charKo: 'ㅣ', charEn: 'l', charEnShift: 'L', finger: 'right-ring', fingerName: '오른약지', hand: 'right' },
     { code: 'Semicolon', charKo: ';', charKoShift: ':', charEn: ';', charEnShift: ':', finger: 'right-pinky', fingerName: '오른새끼', hand: 'right' },
     { code: 'Quote', charKo: '\'', charKoShift: '"', charEn: '\'', charEnShift: '"', finger: 'right-pinky', fingerName: '오른새끼', hand: 'right' },
-    { code: 'Enter', charKo: 'Enter', charEn: 'Enter', display: 'Enter ↵', width: 'w-18 sm:w-24', finger: 'right-pinky', fingerName: '오른새끼', hand: 'right' },
+    { code: 'Enter', charKo: 'Enter', charEn: 'Enter', display: 'Enter ↵', width: 'w-16 sm:w-20', finger: 'right-pinky', fingerName: '오른새끼', hand: 'right' },
   ],
   // Bottom Row (ZXCV)
   [
