@@ -565,11 +565,11 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
   };
 
   return (
-    <div className="space-y-2 animate-in fade-in duration-200">
+    <div className="h-full flex flex-col justify-between overflow-hidden p-1 sm:p-2 select-none">
       {/* ========================================================================= */}
       {/* 1. ULTRA-COMPACT TOOLBAR: Book Selector + Piano + MyChew all in one */}
       {/* ========================================================================= */}
-      <div className="bg-white/95 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-stone-200 shadow-xs flex flex-wrap items-center justify-between gap-2 select-none">
+      <div className="bg-white/95 backdrop-blur-xs rounded-xl px-2.5 py-1.5 border border-stone-200 shadow-xs flex flex-wrap items-center justify-between gap-1.5 select-none shrink-0">
         {/* Left: Book Meta & Selection */}
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center border border-amber-200 shrink-0">
@@ -696,7 +696,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       {/* ========================================================================= */}
       {/* 2. AUTHENTIC BOOK HARDCOVER CASING */}
       {/* ========================================================================= */}
-      <div className="book-leather-binding p-3 sm:p-5 lg:p-6 rounded-[2rem] relative select-none">
+      <div className="flex-1 min-h-0 book-leather-binding p-2 sm:p-3 rounded-2xl relative select-none flex flex-col justify-between my-1">
         {/* Antique Brass Corner Ornaments */}
         <div className="absolute top-2.5 left-2.5 w-6 h-6 border-t-2 border-l-2 border-amber-400/80 rounded-tl-lg pointer-events-none shadow-2xs" />
         <div className="absolute top-2.5 right-2.5 w-6 h-6 border-t-2 border-r-2 border-amber-400/80 rounded-tr-lg pointer-events-none shadow-2xs" />
@@ -707,10 +707,10 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
         <div className="absolute inset-2 sm:inset-3 rounded-[1.7rem] border border-amber-500/20 pointer-events-none" />
 
         {/* Real Book Pages Depth / Stacked Paper Deckle Edges */}
-        <div className="relative rounded-xl overflow-hidden shadow-[0_8px_24px_rgba(55,25,10,0.3),3px_0_0_#F0EAE1,5px_0_0_#E4DCCE] border border-[#DDD3C2]">
+        <div className="flex-1 min-h-0 relative rounded-xl overflow-hidden shadow-[0_8px_24px_rgba(55,25,10,0.3),3px_0_0_#F0EAE1,5px_0_0_#E4DCCE] border border-[#DDD3C2] flex flex-col">
           
           {/* Book Spread Container (Left & Right equal height) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch min-h-[350px] lg:h-[390px] relative bg-[#FAF7EE]">
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 items-stretch relative bg-[#FAF7EE] overflow-hidden">
             
             {/* Realistic Book Spine Crease Divider */}
             <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-8 -ml-4 pointer-events-none z-20 book-spine-crease" />
@@ -754,42 +754,57 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 </div>
               </div>
 
-              {/* READING CONTAINER: 왼쪽 원문 영역 */}
+              {/* READING CONTAINER: 왼쪽 원문 영역 (줄간격 및 행 정렬 완벽 동기화) */}
               <div 
                 ref={readingContainerRef}
                 onScroll={handleReadingScroll}
-                className="h-[250px] min-h-[250px] max-h-[250px] overflow-y-scroll scrollbar-thin my-1 p-3.5 sm:p-4 rounded-xl bg-[#FAF7EE] border-2 border-[#DDD3C2] shadow-2xs select-none"
+                className="h-[260px] min-h-[260px] max-h-[260px] overflow-y-scroll scrollbar-thin my-1 p-3.5 sm:p-4 rounded-xl bg-[#FAF7EE] border-2 border-[#DDD3C2] shadow-2xs select-none"
               >
-                <div className="text-sm sm:text-base font-serif leading-[2.1] text-[#2A231F] break-keep whitespace-pre-wrap tracking-normal">
-                  {targetPageText.split('').map((char, charIdx) => {
-                    const isTyped = charIdx < inputVal.length;
-                    const isCurrent = charIdx === inputVal.length;
+                <div className="text-sm sm:text-base font-serif leading-[2.2] text-[#2A231F] space-y-1">
+                  {(() => {
+                    const lines = targetPageText.split('\n');
+                    let charCounter = 0;
 
-                    let borderClass = 'border-b-2 border-transparent pb-0.5';
-                    if (isTyped) {
-                      borderClass = 'border-b-2 border-[#2A231F] pb-0.5';
-                    } else if (isCurrent) {
-                      borderClass = 'border-b-2 border-amber-800 animate-pulse pb-0.5';
-                    }
+                    return lines.map((lineStr, lineIdx) => {
+                      const lineStartCharIdx = charCounter;
+                      const lineEndCharIdx = lineStartCharIdx + lineStr.length;
+                      charCounter = lineEndCharIdx + 1; // +1 for newline character
 
-                    if (char === '\n') {
                       return (
-                        <span key={charIdx} id={`long-char-${charIdx}`}>
-                          {'\n'}
-                        </span>
-                      );
-                    }
+                        <div key={lineIdx} className="min-h-[2.2rem] leading-[2.2] flex flex-wrap items-baseline break-keep">
+                          {lineStr.split('').map((char, cIdx) => {
+                            const absoluteCharIdx = lineStartCharIdx + cIdx;
+                            const isTyped = absoluteCharIdx < inputVal.length;
+                            const isCurrent = absoluteCharIdx === inputVal.length;
 
-                    return (
-                      <span
-                        key={charIdx}
-                        id={`long-char-${charIdx}`}
-                        className={`${borderClass} text-[#2A231F] inline`}
-                      >
-                        {char}
-                      </span>
-                    );
-                  })}
+                            let charStyle = 'text-[#2A231F]';
+                            if (isTyped) {
+                              charStyle = 'bg-amber-800/15 text-amber-950 font-bold rounded-xs';
+                            } else if (isCurrent) {
+                              charStyle = 'bg-amber-400 text-stone-900 font-black animate-pulse rounded-xs px-0.5 ring-1 ring-amber-500';
+                            }
+
+                            return (
+                              <span
+                                key={cIdx}
+                                id={`long-char-${absoluteCharIdx}`}
+                                className={`inline-block transition-colors ${charStyle}`}
+                              >
+                                {char === ' ' ? '\u00A0' : char}
+                              </span>
+                            );
+                          })}
+
+                          {/* Show enter prompt when user is at newline position */}
+                          {inputVal.length === lineEndCharIdx && lineIdx < lines.length - 1 && (
+                            <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.2 rounded-xs bg-amber-600 text-white text-[10px] font-sans font-black animate-bounce shadow-2xs">
+                              ↵ Enter
+                            </span>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
@@ -875,12 +890,12 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 </div>
               </div>
 
-              {/* AUTHENTIC PLAIN PARCHMENT MANUSCRIPT AREA */}
+              {/* AUTHENTIC PLAIN PARCHMENT MANUSCRIPT AREA (원문과 행간 높이 100% 일치) */}
               <div 
                 ref={writingContainerRef}
                 onClick={() => inputRef.current?.focus()}
                 onScroll={handleWritingScroll}
-                className="h-[250px] min-h-[250px] max-h-[250px] rounded-xl p-3.5 sm:p-4 cursor-text relative my-1 overflow-y-scroll scrollbar-thin transition-colors bg-[#FAF7EE] border-2 border-[#54321A] ring-1 ring-[#381F0D]/40 shadow-[inset_0_2px_8px_rgba(40,20,5,0.08),0_4px_12px_rgba(45,20,5,0.06)]"
+                className="h-[260px] min-h-[260px] max-h-[260px] rounded-xl p-3.5 sm:p-4 cursor-text relative my-1 overflow-y-scroll scrollbar-thin transition-colors bg-[#FAF7EE] border-2 border-[#DDD3C2] shadow-2xs"
               >
                 {/* Transparent textarea capturing keystrokes and multiline enter */}
                 <textarea
@@ -888,24 +903,36 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                   value={inputVal}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  className="absolute opacity-0 inset-0 w-full h-full cursor-text z-20 resize-none p-3.5 sm:p-4 font-serif text-sm sm:text-base leading-[2.1]"
+                  className="absolute opacity-0 inset-0 w-full h-full cursor-text z-20 resize-none p-3.5 sm:p-4 font-serif text-sm sm:text-base leading-[2.2]"
                   autoFocus
                   spellCheck={false}
                   autoComplete="off"
                 />
 
-                {/* Manuscript Handwriting Display */}
-                <div className="relative z-10 select-none">
+                {/* Manuscript Handwriting Display - 줄별 높이 및 위치 완벽 동기화 */}
+                <div className="relative z-10 select-none font-serif text-sm sm:text-base leading-[2.2] text-[#2A231F] space-y-1">
                   {inputVal.length === 0 ? (
-                    <div className="font-serif text-sm sm:text-base leading-[2.1] text-stone-400 break-keep whitespace-pre-wrap tracking-normal">
+                    <div className="min-h-[2.2rem] leading-[2.2] flex items-center text-stone-400">
                       <span>왼쪽 원문을 보며 이곳에 타이핑하세요...</span>
-                      <span className="inline-block w-0.5 h-4 bg-amber-800 animate-pulse ml-1 align-middle" />
+                      <span className="inline-block w-0.5 h-4.5 bg-amber-800 animate-pulse ml-1 align-middle" />
                     </div>
                   ) : (
-                    <div className="font-serif text-sm sm:text-base leading-[2.1] text-[#2A231F] break-keep whitespace-pre-wrap tracking-normal">
-                      {inputVal}
-                      <span className="inline-block w-0.5 h-4 bg-amber-800 animate-pulse ml-0.5 align-middle" />
-                    </div>
+                    (() => {
+                      const inputLines = inputVal.split('\n');
+                      const targetLines = targetPageText.split('\n');
+
+                      return inputLines.map((lineText, idx) => {
+                        const isCurrentTypingLine = idx === inputLines.length - 1;
+                        return (
+                          <div key={idx} className="min-h-[2.2rem] leading-[2.2] flex flex-wrap items-baseline break-keep">
+                            <span>{lineText}</span>
+                            {isCurrentTypingLine && (
+                              <span className="inline-block w-0.5 h-4.5 bg-amber-800 animate-pulse ml-0.5 align-middle" />
+                            )}
+                          </div>
+                        );
+                      });
+                    })()
                   )}
 
                   {inputVal === targetPageText && stats.errorCount === 0 && (

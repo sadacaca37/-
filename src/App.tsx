@@ -166,12 +166,7 @@ const getInitialMode = (): AppMode => {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlMode = params.get('mode') as AppMode;
-      const isPopup = params.get('popup') === 'true';
       if (urlMode) {
-        // Practice modes are exclusively viewed in dedicated popup window
-        if (['key-practice', 'word-practice', 'sentence-practice', 'long-practice'].includes(urlMode) && !isPopup) {
-          return 'home';
-        }
         return urlMode;
       }
     } catch {}
@@ -180,6 +175,9 @@ const getInitialMode = (): AppMode => {
 };
 
 export default function App() {
+  // Detect standalone popup window mode (?popup=true)
+  const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
+
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
@@ -201,7 +199,18 @@ export default function App() {
   // Initialize DB and sessions
   useEffect(() => {
     try {
-      // 1. Users DB (Permanently fixed across updates, registered students never lost)
+      // 1. Current User Session (Synchronously available for instant popup rendering)
+      const savedUser = localStorage.getItem('typang_current_user');
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+      }
+
+      // Fast-path for popup window: skip heavy server network calls to launch instantly without stutter
+      if (isPopupMode) {
+        return;
+      }
+
+      // 2. Users DB (Permanently fixed across updates, registered students never lost)
       const localFixedUsers = userPersistenceManager.getLocalUsers();
       if (localFixedUsers.length > 0) {
         setUsersDb(localFixedUsers);
@@ -218,12 +227,6 @@ export default function App() {
           setUsersDb(merged);
         }
       }).catch(() => {});
-
-      // 2. Current User Session
-      const savedUser = localStorage.getItem('typang_current_user');
-      if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser));
-      }
 
       // 3. Hall of Fame Leaderboard - Reset on the 1st of every month
       const now = new Date();
@@ -258,7 +261,7 @@ export default function App() {
     } catch {
       // Fallback
     }
-  }, []);
+  }, [isPopupMode]);
 
   const handleToggleSound = () => {
     const next = soundManager.toggleMute();
@@ -341,42 +344,19 @@ export default function App() {
     localStorage.removeItem('typang_leaderboard');
   };
 
-  // Detect standalone popup window mode (?popup=true)
-  const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
-
-  const isPracticeMode = (mode: AppMode): mode is 'key-practice' | 'word-practice' | 'sentence-practice' | 'long-practice' => {
-    return ['key-practice', 'word-practice', 'sentence-practice', 'long-practice'].includes(mode);
-  };
-
   const handleSelectMode = (mode: AppMode) => {
-    if (isPracticeMode(mode)) {
-      if (!isPopupMode) {
-        // Open dedicated popup browser window ONLY
-        try {
-          const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
-          const popup = window.open(
-            url,
-            `typang_practice_${mode}`,
-            'width=1320,height=880,left=80,top=40,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
-          );
-          if (popup) {
-            popup.focus();
-          }
-        } catch (e) {
-          console.warn('Popup window open error or blocked:', e);
-        }
-        // Exclusively opens in new window, leaving underlying original mode intact
-        return;
-      }
-    }
+    soundManager.play('click');
     setCurrentMode(mode);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Count pending students for Master badge
   const pendingStudentsCount = usersDb.filter((u) => !u.isApproved && u.role !== 'master').length;
 
   return (
-    <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg`}>
+    <div className={`min-h-screen ${isPopupMode ? 'bg-[#0A0B1A] text-slate-100' : 'arcade-space-bg text-slate-100'} flex flex-col font-sans relative`}>
       {/* Navigation Header with Creator Credit - Hidden in standalone popup window */}
       {!isPopupMode && (
         <Navbar
@@ -410,7 +390,8 @@ export default function App() {
           ? 'max-w-7xl px-2 sm:px-4 py-1.5 sm:py-2.5 mx-auto'
           : 'max-w-7xl px-3 sm:px-6 lg:px-8 py-6 mx-auto'
       }`}>
-        {currentMode === 'home' && (
+        {/* Render Home Dashboard as the base view unless in standalone popup window */}
+        {(!isPopupMode && (currentMode === 'home' || ['key-practice', 'word-practice', 'sentence-practice', 'long-practice', 'transcription-challenge'].includes(currentMode))) && (
           <HomeDashboard
             onSelectMode={handleSelectMode}
             currentUser={currentUser}
@@ -441,6 +422,7 @@ export default function App() {
             <KeyPracticeView
               currentUser={currentUser}
               onRecordScore={handleRecordScore}
+              onClose={() => setCurrentMode('home')}
             />
           </PracticeWindowContainer>
         )}
@@ -457,6 +439,7 @@ export default function App() {
             <WordPracticeView
               currentUser={currentUser}
               onRecordScore={handleRecordScore}
+              onClose={() => setCurrentMode('home')}
             />
           </PracticeWindowContainer>
         )}
@@ -534,89 +517,165 @@ export default function App() {
         )}
 
         {currentMode === 'mini-games' && (
-          <MiniGamesHubView
-            onSelectMode={(mode) => setCurrentMode(mode)}
+          isPopupMode ? (
+            <PracticeWindowContainer
+              mode="mini-games"
+              title="미니 타자 아케이드 모음"
+              stepNumber="🎮"
+              icon="🕹️"
+              onClose={() => window.close()}
+            >
+              <div className="flex-1 w-full h-full overflow-y-auto">
+                <MiniGamesHubView
+                  onSelectMode={(mode) => setCurrentMode(mode)}
+                  currentUser={currentUser}
+                />
+              </div>
+            </PracticeWindowContainer>
+          ) : (
+            <MiniGamesHubView
+              onSelectMode={(mode) => handleSelectMode(mode)}
+              currentUser={currentUser}
+            />
+          )
+        )}
+
+        {currentMode === 'playground' && (
+          <PlaygroundHome
             currentUser={currentUser}
+            onSelectMode={handleSelectMode}
+            onOpenProfile={handleOpenProfile}
           />
         )}
 
         {currentMode === 'tamagotchi' && (
-          <TamagotchiView
-            currentUser={currentUser}
-            onOpenProfile={() => setIsProfileOpen(true)}
-            onBack={() => setCurrentMode('mini-games')}
-          />
-        )}
-
-        {currentMode === 'playground' && (
-          currentUser ? (
-            <PlaygroundHome
-              currentUser={currentUser}
-              onSelectMode={(mode) => setCurrentMode(mode)}
-              onOpenProfile={() => setIsProfileOpen(true)}
-            />
+          isPopupMode ? (
+            <PracticeWindowContainer
+              mode="tamagotchi"
+              title="타자 다마고치 키우기"
+              stepNumber="🐣"
+              icon="🐾"
+              onClose={() => setCurrentMode('mini-games')}
+            >
+              <TamagotchiView
+                currentUser={currentUser}
+                onOpenProfile={() => setIsProfileOpen(true)}
+                onBack={() => setCurrentMode('mini-games')}
+              />
+            </PracticeWindowContainer>
           ) : (
-            <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-2 border-pink-300 shadow-xl text-center space-y-5 animate-fade-in">
-              <div className="w-16 h-16 rounded-3xl bg-pink-100 text-pink-500 mx-auto flex items-center justify-center text-3xl shadow-inner">
-                🎡
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-slate-900 font-arcade">
-                  놀이터는 로그인 후 이용 가능합니다!
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                  자리 연습, 낱말 연습, 짧은 글, 긴 글, 지식 타자, 미니게임은 로그인 없이도 바로 즐길 수 있습니다.<br />
-                  <strong>놀이터(기본 플레이 &amp; 펀펀 플레이)</strong>는 내 포인트와 기록 관리를 위해 로그인이 필요합니다.
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <button
-                  onClick={() => setIsAuthOpen(true)}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
-                >
-                  ✨ 로그인 / 회원가입 하러 가기
-                </button>
-                <button
-                  onClick={() => setCurrentMode('home')}
-                  className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all cursor-pointer"
-                >
-                  홈으로 돌아가기
-                </button>
-              </div>
-            </div>
+            <TamagotchiView
+              currentUser={currentUser}
+              onOpenProfile={() => setIsProfileOpen(true)}
+              onBack={() => setCurrentMode('mini-games')}
+            />
           )
         )}
 
+        {currentMode === 'playground' && (
+          <div className="w-full h-full">
+            <PlaygroundHome
+              currentUser={currentUser}
+              onSelectMode={(mode) => handleSelectMode(mode)}
+              onOpenProfile={() => setIsProfileOpen(true)}
+            />
+          </div>
+        )}
+
         {currentMode === 'word-crush' && (
-          <WordCrushView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          isPopupMode ? (
+            <PracticeWindowContainer
+              mode="word-crush"
+              title="워드 크러쉬 (단어 터뜨리기)"
+              stepNumber="🍬"
+              icon="✨"
+              onClose={() => setCurrentMode('mini-games')}
+            >
+              <WordCrushView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+                onBack={() => setCurrentMode('mini-games')}
+              />
+            </PracticeWindowContainer>
+          ) : (
+            <WordCrushView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          )
         )}
 
         {currentMode === 'mole-game' && (
-          <MoleGameView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          isPopupMode ? (
+            <PracticeWindowContainer
+              mode="mole-game"
+              title="두더지 타자 잡기"
+              stepNumber="🔨"
+              icon="🦔"
+              onClose={() => setCurrentMode('mini-games')}
+            >
+              <MoleGameView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+                onBack={() => setCurrentMode('mini-games')}
+              />
+            </PracticeWindowContainer>
+          ) : (
+            <MoleGameView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          )
         )}
 
         {currentMode === 'rain-game' && (
-          <RainGameView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          isPopupMode ? (
+            <PracticeWindowContainer
+              mode="rain-game"
+              title="산성비 (단어 소나기)"
+              stepNumber="🌧️"
+              icon="☔"
+              onClose={() => setCurrentMode('mini-games')}
+            >
+              <RainGameView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+                onBack={() => setCurrentMode('mini-games')}
+              />
+            </PracticeWindowContainer>
+          ) : (
+            <RainGameView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          )
         )}
 
         {currentMode === 'shortcut-quiz' && (
-          <ShortcutQuizView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          isPopupMode ? (
+            <PracticeWindowContainer
+              mode="shortcut-quiz"
+              title="단축키 스피드 퀴즈"
+              stepNumber="⚡"
+              icon="⌨️"
+              onClose={() => setCurrentMode('mini-games')}
+            >
+              <ShortcutQuizView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+                onBack={() => setCurrentMode('mini-games')}
+              />
+            </PracticeWindowContainer>
+          ) : (
+            <ShortcutQuizView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          )
         )}
 
         {currentMode === 'leaderboard' && (
@@ -630,31 +689,31 @@ export default function App() {
 
       {/* Footer: 타닥타닥 타자랜드 김은경 제작자 - Hidden in standalone popup window */}
       {!isPopupMode && (
-        <footer className="mt-auto border-t-2 border-pink-200 bg-white/95 backdrop-blur-md py-4 px-4 text-center text-xs text-slate-600 shadow-xs">
+        <footer className="mt-auto border-t-4 border-black bg-[#0F1026] text-[#FFD700] py-4 px-4 text-center text-xs font-pixel shadow-[0_-4px_0_#082F49] select-none">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-pink-500 font-bold text-base">🐾</span>
-              <span className="font-black text-slate-900 font-arcade text-sm sm:text-base tracking-wide">
-                타닥타닥 타자랜드
+              <span className="text-base animate-bounce">🕹️</span>
+              <span className="font-black text-white font-pixel text-xs sm:text-sm tracking-wide">
+                타닥타닥 <span className="text-[#00D2FF]">타자랜드</span>
               </span>
-              <span className="text-slate-300">|</span>
-              <span className="font-black text-pink-600 font-arcade text-xs sm:text-sm bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-200 shadow-2xs">
+              <span className="text-slate-600">|</span>
+              <span className="font-black text-[#FFD700] font-pixel text-[11px] sm:text-xs bg-[#24170E] px-2.5 py-1 rounded-xs border-2 border-[#E5B55A] shadow-[1px_1px_0_#000]">
                 김은경 제작자
               </span>
             </div>
-            <div className="flex items-center gap-3 text-slate-500 font-bold">
+            <div className="flex items-center gap-3 text-slate-400 font-pixel text-[11px]">
               {currentUser?.role === 'master' && (
                 <>
                   <button
                     onClick={() => setIsMasterOpen(true)}
-                    className="text-pink-600 hover:text-pink-700 underline font-black cursor-pointer"
+                    className="text-[#FF4757] hover:text-red-400 underline font-black cursor-pointer"
                   >
                     👑 마스터 관리실 (학생 승인/비밀번호)
                   </button>
                   <span>•</span>
                 </>
               )}
-              <span>투명 손가락 위치 가이드 • 타자 모험 아케이드</span>
+              <span className="text-[#78E08F]">[CREDIT: 99] 16-BIT RETRO ARCADE STUDIO</span>
             </div>
           </div>
         </footer>

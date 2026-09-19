@@ -24,7 +24,15 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
   isFullView = false,
   onToggleFullView,
 }) => {
-  const isMaster = currentUser?.role === 'master';
+  const isMaster = 
+    currentUser?.role === 'master' || 
+    currentUser?.studentId === 'master' || 
+    currentUser?.name === '마스터' || 
+    currentUser?.name?.includes('마스터') ||
+    currentUser?.id === 'master_admin_1' ||
+    currentUser?.id?.includes('master') ||
+    (typeof window !== 'undefined' && Boolean(localStorage.getItem('typang_master_key') || localStorage.getItem('typang_master_session')));
+
   const [remainingSeconds, setRemainingSeconds] = useState(playgroundManager.getRemainingSeconds());
   const [points, setPoints] = useState(pointsManager.getBalance());
   const [isPaused, setIsPaused] = useState(!playgroundManager.isTimerRunning());

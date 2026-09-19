@@ -31,6 +31,7 @@ import {
 } from '../utils/curriculumManager';
 import { notifyStudentRegistered, typangSync, cleanDigits, getLast4 } from '../utils/excelStudentManager';
 import { typangApi } from '../utils/apiClient';
+import { ParchmentModalContainer } from './ParchmentModalContainer';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -327,52 +328,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-8 shadow-2xl border-4 border-sky-200 relative my-8 arcade-card-glow max-h-[92vh] flex flex-col">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-colors cursor-pointer"
-          title="닫기"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="text-center mb-5 shrink-0">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 border-2 border-sky-300 shadow-sm mb-2">
-            <Sparkles className="w-6 h-6 text-sky-500 animate-spin" style={{ animationDuration: '6s' }} />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-arcade">
-            {activeTab === 'login' && '학생 로그인'}
-            {activeTab === 'register' && '학생 간편 등록'}
-            {activeTab === 'forgot-pw' && '비밀번호 찾기 & 재설정'}
-            {activeTab === 'register-master' && '마스터(선생님) 등록'}
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            {activeTab === 'login' && '부모님 전화번호와 뒷자리 4자리로 간편하게 로그인하세요!'}
-            {activeTab === 'register' && '아이디 없이 부모님 전화번호만 입력하면 자동 등록됩니다! (비밀번호: 뒷 4자리)'}
-            {activeTab === 'forgot-pw' && '이메일 인증 또는 선생님 마스터키로 비밀번호를 안전하게 찾으세요.'}
-            {activeTab === 'register-master' && '선생님 전용 마스터키와 비밀번호를 안전하게 등록 및 관리합니다.'}
-          </p>
-        </div>
-
+    <ParchmentModalContainer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        activeTab === 'login' ? '학생 로그인' :
+        activeTab === 'register' ? '학생 간편 등록' :
+        activeTab === 'forgot-pw' ? '비밀번호 찾기 & 재설정' :
+        '마스터(선생님) 등록'
+      }
+      subtitle={
+        activeTab === 'login' ? '부모님 전화번호와 뒷자리 4자리로 간편하게 로그인하세요!' :
+        activeTab === 'register' ? '아이디 없이 부모님 전화번호만 입력하면 자동 등록됩니다! (비밀번호: 뒷 4자리)' :
+        activeTab === 'forgot-pw' ? '이메일 인증 또는 선생님 마스터키로 비밀번호를 안전하게 찾으세요.' :
+        '선생님 전용 마스터키와 비밀번호를 안전하게 등록 및 관리합니다.'
+      }
+      badge="AUTH SCROLL"
+      icon={<Sparkles className="w-5 h-5 text-[#D97706]" />}
+      maxWidth="max-w-lg"
+    >
+      <div className="flex flex-col h-full space-y-3">
         {/* Main Tabs Navigation */}
-        <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-4 border border-slate-200 shrink-0 gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex bg-[#E6D7B9] p-1.5 rounded-xl border-2 border-[#784E3D] shrink-0 gap-1.5 overflow-x-auto no-scrollbar shadow-[inset_1px_1px_2px_rgba(0,0,0,0.15)]">
           <button
             type="button"
             onClick={() => {
               setActiveTab('login');
               clearMessages();
             }}
-            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-xs text-xs font-pixel transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               activeTab === 'login'
-                ? 'bg-sky-500 text-white shadow-md'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'retro-wood-btn text-[#FFD700]'
+                : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
             }`}
           >
             <LogIn className="w-3.5 h-3.5" />
-            <span>로그인</span>
+            <span>[로그인]</span>
           </button>
 
           <button
@@ -381,14 +372,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setActiveTab('register');
               clearMessages();
             }}
-            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-xs text-xs font-pixel transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               activeTab === 'register'
-                ? 'bg-pink-500 text-white shadow-md'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'retro-wood-btn text-[#FFD700]'
+                : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>학생 등록</span>
+            <span>[학생 등록]</span>
           </button>
 
           <button
@@ -397,14 +388,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setActiveTab('forgot-pw');
               clearMessages();
             }}
-            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-xs text-xs font-pixel transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               activeTab === 'forgot-pw'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'retro-wood-btn text-[#FFD700]'
+                : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>비번 찾기</span>
+            <span>[비번 찾기]</span>
           </button>
         </div>
 
@@ -483,11 +474,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Student Name (Registration) */}
               {activeTab === 'register' && (
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1">
-                    학생 이름 <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-extrabold text-[#451A03] mb-1 font-arcade">
+                    학생 이름 <span className="text-rose-600">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#784E3D]">
                       <User className="w-4 h-4" />
                     </div>
                     <input
@@ -495,7 +486,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="학생 이름 입력 (예: 김하늘)"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-500 focus:ring-4 focus:ring-pink-100 text-xs sm:text-sm font-bold bg-pink-50/40 outline-hidden"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg retro-parchment-input text-xs sm:text-sm font-bold"
                       required={activeTab === 'register'}
                     />
                   </div>
@@ -505,11 +496,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Parent Phone (Registration) - NO separate ID needed! */}
               {activeTab === 'register' && (
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1">
-                    부모님 전화번호 <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-extrabold text-[#451A03] mb-1 font-arcade">
+                    부모님 전화번호 <span className="text-rose-600">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#784E3D]">
                       <Phone className="w-4 h-4" />
                     </div>
                     <input
@@ -517,11 +508,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={parentPhone}
                       onChange={(e) => setParentPhone(e.target.value)}
                       placeholder="부모님 전화번호 (예: 010-1234-5678)"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-500 focus:ring-4 focus:ring-pink-100 text-xs sm:text-sm font-bold bg-pink-50/40 outline-hidden"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg retro-parchment-input text-xs sm:text-sm font-bold"
                       required={activeTab === 'register'}
                     />
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                  <p className="text-[11px] text-[#784E3D]/80 mt-1 font-arcade font-bold">
                     * 별도의 아이디는 없으며, 이 전화번호가 학생의 고유 식별 번호가 됩니다.
                   </p>
                 </div>
@@ -529,19 +520,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {/* Auto Password Info Box (Registration) */}
               {activeTab === 'register' && (
-                <div className="p-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl border-2 border-pink-200 flex items-center justify-between shadow-2xs">
+                <div className="p-3 bg-[#EAD8B7] rounded-xl border-2 border-[#784E3D] flex items-center justify-between shadow-[inset_1px_1px_2px_rgba(0,0,0,0.15)]">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center font-bold text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-[#784E3D] text-[#FFD700] flex items-center justify-center font-bold text-sm border border-[#3E2419]">
                       🔑
                     </div>
                     <div>
-                      <div className="text-xs font-black text-pink-900">비밀번호 자동 지정</div>
-                      <div className="text-[10px] text-slate-600 font-medium">
+                      <div className="text-xs font-black text-[#451A03] font-arcade">비밀번호 자동 지정</div>
+                      <div className="text-[10px] text-[#784E3D] font-bold font-arcade">
                         부모님 전화번호 뒷자리 4자리로 자동 등록
                       </div>
                     </div>
                   </div>
-                  <div className="px-3 py-1 bg-white rounded-xl border-2 border-pink-300 font-mono font-black text-sm text-pink-600 shadow-2xs">
+                  <div className="px-3 py-1 bg-[#FFFDF5] rounded-md border-2 border-[#784E3D] font-mono font-black text-sm text-[#B45309] shadow-xs">
                     {cleanDigits(parentPhone).length >= 4 ? getLast4(parentPhone) : '••••'}
                   </div>
                 </div>
@@ -550,11 +541,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Identifier for Login (Student Name or Master) */}
               {activeTab === 'login' && (
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1">
-                    학생 이름 <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-extrabold text-[#451A03] mb-1 font-arcade">
+                    학생 이름 <span className="text-rose-600">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#784E3D]">
                       <User className="w-4 h-4" />
                     </div>
                     <input
@@ -565,11 +556,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         setStudentId(val);
                       }}
                       placeholder="학생 이름 입력 (예: 김철수) 또는 선생님: master"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 border-sky-100 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 text-xs sm:text-sm font-bold bg-sky-50/40 outline-hidden"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg retro-parchment-input text-xs sm:text-sm font-bold"
                       required
                     />
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                  <p className="text-[10px] text-[#784E3D]/80 mt-1 font-arcade font-bold">
                     * 가입 시 등록한 학생 이름을 입력하세요. (선생님/관리자: master)
                   </p>
                 </div>
@@ -578,19 +569,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Grade Selection (Only for registration) */}
               {activeTab === 'register' && (
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1">
+                  <label className="block text-xs font-extrabold text-[#451A03] mb-1 font-arcade">
                     학년 선택
                   </label>
-                  <div className="grid grid-cols-6 gap-1.5 bg-sky-50/60 p-1.5 rounded-2xl border-2 border-sky-100">
+                  <div className="grid grid-cols-6 gap-1.5 bg-[#E6D7B9] p-1.5 rounded-xl border-2 border-[#784E3D]">
                     {[1, 2, 3, 4, 5, 6].map((g) => (
                       <button
                         key={g}
                         type="button"
                         onClick={() => setGrade(g)}
-                        className={`py-2 text-center rounded-xl text-xs font-black transition-all cursor-pointer ${
+                        className={`py-1.5 text-center rounded-xs text-xs font-pixel transition-all cursor-pointer ${
                           grade === g
-                            ? 'bg-pink-500 text-white shadow-xs ring-2 ring-pink-200 scale-105'
-                            : 'bg-white text-slate-700 hover:bg-pink-50'
+                            ? 'retro-gold-btn text-[#451A03] scale-105'
+                            : 'bg-[#FFFDF5] text-[#5C3A21] hover:bg-[#FDE68A] border border-[#784E3D]'
                         }`}
                       >
                         {g}학년
@@ -604,12 +595,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {activeTab === 'login' && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-extrabold text-slate-700">
-                      비밀번호 (학부모 전화번호 뒷자리 4개) <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-extrabold text-[#451A03] font-arcade">
+                      비밀번호 (학부모 전화번호 뒷자리 4개) <span className="text-rose-600">*</span>
                     </label>
                   </div>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#784E3D]">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -618,12 +609,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="학부모 전화번호 뒷 4자리 (예: 2222)"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 border-sky-100 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 text-xs sm:text-sm font-bold bg-sky-50/40 outline-hidden font-mono tracking-widest"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg retro-parchment-input text-xs sm:text-sm font-bold tracking-widest"
                       required
                     />
                   </div>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-[10px] text-slate-400 font-medium">
+                    <p className="text-[10px] text-[#784E3D]/80 font-arcade font-bold">
                       학부모님 전화번호의 마지막 4자리입니다.
                     </p>
                     <button
@@ -632,7 +623,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         setActiveTab('forgot-pw');
                         clearMessages();
                       }}
-                      className="text-[11px] text-purple-600 hover:text-purple-700 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-[#B45309] hover:text-[#78350F] font-bold hover:underline cursor-pointer font-arcade"
                     >
                       비밀번호를 잊으셨나요?
                     </button>
@@ -643,19 +634,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Submit Button */}
               <button
                 type="submit"
-                className={`w-full py-3 px-4 rounded-2xl text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  activeTab === 'login' ? 'arcade-btn-sky' : 'arcade-btn-pink'
-                }`}
+                className="w-full py-3 px-4 rounded-lg retro-gold-btn text-[#451A03] font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-[0_4px_0_#78350F]"
               >
                 {activeTab === 'login' ? (
                   <>
                     <LogIn className="w-4 h-4" />
-                    <span>부모님 전화번호로 로그인</span>
+                    <span className="font-pixel">[ 로그인 완료 및 시작 ]</span>
                   </>
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4" />
-                    <span>간편 등록 완료 및 타자 시작</span>
+                    <span className="font-pixel">[ 간편 등록 완료 및 타자 시작 ]</span>
                   </>
                 )}
               </button>
@@ -933,13 +922,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="mt-4 pt-3 border-t border-slate-100 text-center flex items-center justify-between text-xs text-slate-400 shrink-0">
+        <div className="mt-3 pt-2.5 border-t-2 border-[#784E3D]/25 text-center flex items-center justify-between text-xs text-[#784E3D] shrink-0 font-arcade">
           <span>선생님이신가요?</span>
-          <span className="text-slate-500 font-bold">
-            이름에 <strong className="text-pink-600 font-black font-mono">'master'</strong> 입력 후 비밀번호로 로그인
+          <span className="font-bold">
+            이름에 <strong className="text-[#B45309] font-black font-pixel text-sm">[master]</strong> 입력 후 비밀번호로 로그인
           </span>
         </div>
       </div>
-    </div>
+    </ParchmentModalContainer>
   );
 };

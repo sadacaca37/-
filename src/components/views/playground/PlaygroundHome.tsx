@@ -40,7 +40,15 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   onOpenProfile,
   initialGameId
 }) => {
-  const isMaster = currentUser?.role === 'master';
+  const isMaster = 
+    currentUser?.role === 'master' || 
+    currentUser?.studentId === 'master' || 
+    currentUser?.name === '마스터' || 
+    currentUser?.name?.includes('마스터') ||
+    currentUser?.id === 'master_admin_1' ||
+    currentUser?.id?.includes('master') ||
+    (typeof window !== 'undefined' && Boolean(localStorage.getItem('typang_master_key') || localStorage.getItem('typang_master_session')));
+
   const [playZone, setPlayZone] = useState<'basic' | 'funfun'>('basic');
   const [points, setPoints] = useState(pointsManager.getBalance());
   const [remainingSeconds, setRemainingSeconds] = useState(playgroundManager.getRemainingSeconds());
@@ -90,11 +98,19 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     // If not master, check or charge 10 minutes (1,000P)
     if (!isMaster) {
       if (remainingSeconds <= 0) {
-        const res = playgroundManager.purchasePlayTime(10);
-        if (!res.success) {
-          setNotice(res.message);
-          setTimeout(() => setNotice(null), 4000);
-          return;
+        // If user has enough points, purchase
+        if (pointsManager.getBalance() >= 1000) {
+          const res = playgroundManager.purchasePlayTime(10);
+          if (!res.success) {
+            setNotice(res.message);
+            setTimeout(() => setNotice(null), 4000);
+            return;
+          }
+        } else {
+          // If student doesn't have points, give starter points bonus so they can play
+          pointsManager.addPoints(1000, '놀이터 체험 보너스');
+          playgroundManager.purchasePlayTime(10);
+          setNotice('🎁 [체험 보너스] 1,000P가 무료 지급되어 10분 플레이가 시작되었습니다!');
         }
       }
     }
@@ -102,7 +118,11 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     // Always select and activate game view immediately
     setSelectedGameId(game.id);
     setActiveFunfunGame(game);
-    setNotice(`🚀 [${getGameTitle(game)}] 게임이 실행되었습니다! (로딩 지연 없음)`);
+    if (isMaster) {
+      setNotice(`👑 [마스터 프리패스] ${getGameTitle(game)} 게임이 즉시 실행되었습니다! (시간/포인트 제한 없음)`);
+    } else {
+      setNotice(`🚀 [${getGameTitle(game)}] 게임이 실행되었습니다! (로딩 지연 없음)`);
+    }
     setTimeout(() => setNotice(null), 4000);
 
     // Also attempt new tab open if popup allowed
@@ -118,7 +138,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   // If a game is actively playing, render inside PlaygroundHeader with full-view toggle
   if (activeGame) {
     const GameComponent = activeGame.component;
-    const isBasic = BASIC_GAME_IDS.includes(activeGame.id);
+    const isBasic = isMaster || activeGame.category === '기본' || BASIC_GAME_IDS.includes(activeGame.id);
 
     return (
       <div

@@ -44,6 +44,7 @@ import { soundManager } from '../utils/sound';
 import { pointsManager, AVATAR_ITEM_PRICES } from '../utils/pointsManager';
 import { getUserPracticeHistory } from '../utils/curriculumManager';
 import { WeeklyProgressChart } from './WeeklyProgressChart';
+import { ParchmentModalContainer } from './ParchmentModalContainer';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -677,133 +678,92 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     { id: 'forest', name: '신비로운 요정 숲', desc: 'Fairy Forest', icon: '🌲' },
   ];
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-fadeIn">
-      {/* Studio Card Frame */}
-      <div className="relative w-full max-w-6xl h-[95vh] max-h-[860px] bg-[#EEF2F6] rounded-3xl shadow-2xl border-4 border-slate-300 flex flex-col overflow-hidden text-slate-800">
-        
-        {/* ========================================================================= */}
-        {/* 1. TOP HEADER (Exact Title, Mode Switcher & Top-Right Utility Buttons) */}
-        {/* ========================================================================= */}
-        <header className="flex flex-wrap items-center justify-between px-3 sm:px-6 py-2.5 bg-white border-b border-slate-200 select-none shrink-0 gap-2">
-          {/* Logo + Title */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-100 border-2 border-sky-400 flex items-center justify-center shadow-xs text-base sm:text-lg">
-              🐱
+    <ParchmentModalContainer
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-6xl"
+      maxHeight="max-h-[96vh]"
+      title={mainTab === 'avatar' ? 'MY AVATAR MAKER' : mainTab === 'account' ? '내 계정 & 비밀번호 확인' : '주간 성장 리포트'}
+      badge={`${userPoints.toLocaleString()} P`}
+      icon={<span className="text-xl">🐱</span>}
+      subtitle={mainTab === 'avatar' ? '나만의 특별한 캐릭터를 만들고 다마고치 방을 꾸며보세요!' : '학생 계정 정보, 등록된 전화번호 및 4자리 비밀번호 확인 및 수정'}
+      actions={
+        <div className="flex flex-wrap items-center gap-1.5 font-pixel text-xs">
+          <button
+            onClick={() => {
+              soundManager.play('click');
+              setMainTab('avatar');
+            }}
+            className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              mainTab === 'avatar'
+                ? 'retro-wood-btn text-[#FFD700]'
+                : 'bg-[#FFFDF5] text-[#5C3A21] border border-[#784E3D] hover:bg-[#E6D7B9]'
+            }`}
+          >
+            [아바타 꾸미기]
+          </button>
+          <button
+            onClick={() => {
+              soundManager.play('click');
+              setMainTab('account');
+            }}
+            className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              mainTab === 'account'
+                ? 'retro-wood-btn text-[#FFD700]'
+                : 'bg-[#FFFDF5] text-[#5C3A21] border border-[#784E3D] hover:bg-[#E6D7B9]'
+            }`}
+          >
+            [내 계정 정보]
+          </button>
+          <button
+            onClick={() => {
+              soundManager.play('click');
+              setMainTab('progress');
+            }}
+            className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              mainTab === 'progress'
+                ? 'retro-wood-btn text-[#FFD700]'
+                : 'bg-[#FFFDF5] text-[#5C3A21] border border-[#784E3D] hover:bg-[#E6D7B9]'
+            }`}
+          >
+            [주간 통계]
+          </button>
+
+          {mainTab === 'avatar' && (
+            <div className="flex items-center gap-1 pl-1 border-l border-[#784E3D]/30">
+              <button
+                onClick={handleRandomize}
+                className="px-2 py-1 text-xs font-pixel bg-[#FFFDF5] hover:bg-[#E6D7B9] text-[#5C3A21] border border-[#784E3D] rounded-md transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                title="랜덤 생성"
+              >
+                <Dices className="w-3.5 h-3.5 text-purple-600" />
+                <span>[랜덤]</span>
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-2 py-1 text-xs font-pixel bg-[#FFFDF5] hover:bg-[#E6D7B9] text-[#5C3A21] border border-[#784E3D] rounded-md transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                title="초기화"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                <span>[초기화]</span>
+              </button>
+              <button
+                onClick={handleExportPNG}
+                className="px-2 py-1 text-xs font-pixel bg-[#FFFDF5] hover:bg-[#E6D7B9] text-[#5C3A21] border border-[#784E3D] rounded-md transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                title="이미지 저장"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-600" />
+                <span>[저장]</span>
+              </button>
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-sm sm:text-base font-black tracking-tight text-slate-900 font-sans">
-                  {mainTab === 'avatar' ? 'MY AVATAR MAKER' : '내 계정 & 비밀번호 확인'}
-                </h1>
-                <span className="text-xs sm:text-sm">💕</span>
-              </div>
-              <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 hidden md:block">
-                {mainTab === 'avatar' 
-                  ? '✨ 나만의 특별한 캐릭터를 만들고 다마고치 방을 꾸며보세요!' 
-                  : '✨ 학생 계정 정보, 등록된 전화번호 및 4자리 비밀번호 확인 및 수정'}
-              </p>
-            </div>
-          </div>
-
-          {/* Mode Switch Tabs: Avatar Maker vs Account Info vs Progress Chart */}
-          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200">
-            <button
-              onClick={() => {
-                soundManager.play('click');
-                setMainTab('avatar');
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                mainTab === 'avatar'
-                  ? 'bg-pink-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span>아바타 꾸미기</span>
-            </button>
-            <button
-              onClick={() => {
-                soundManager.play('click');
-                setMainTab('account');
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                mainTab === 'account'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>내 계정 정보 & 비밀번호</span>
-            </button>
-            <button
-              onClick={() => {
-                soundManager.play('click');
-                setMainTab('progress');
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                mainTab === 'progress'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>주간 성장 그래프 (CPM)</span>
-            </button>
-          </div>
-
-          {/* Top Right Utility Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Live Point Balance Badge */}
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-amber-50 border-2 border-amber-300 rounded-full shadow-2xs">
-              <span className="text-xs sm:text-sm">🪙</span>
-              <span className="text-xs font-black text-amber-950 font-arcade">
-                {userPoints.toLocaleString()} <span className="text-[10px] font-bold text-amber-700">P</span>
-              </span>
-            </div>
-
-            {mainTab === 'avatar' && (
-              <>
-                <button
-                  onClick={handleRandomize}
-                  className="hidden sm:flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-full border border-slate-200 transition-all shadow-xs"
-                >
-                  <Dices className="w-3.5 h-3.5 text-purple-600" />
-                  <span>랜덤</span>
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="hidden sm:flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-full border border-slate-200 transition-all shadow-xs"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                  <span>초기화</span>
-                </button>
-                <button
-                  onClick={handleExportPNG}
-                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-full border border-slate-200 transition-all shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="hidden sm:inline">저장</span>
-                </button>
-                <button
-                  onClick={handleUndo}
-                  disabled={history.length === 0}
-                  className="p-1.5 text-slate-500 hover:text-slate-800 disabled:opacity-30 rounded-full hover:bg-slate-100 transition-colors"
-                  title="이전 되돌리기"
-                >
-                  <Undo2 className="w-4 h-4" />
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors ml-1 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </header>
+          )}
+        </div>
+      }
+    >
+      <div className="flex-1 overflow-hidden flex flex-col font-pixel text-[#451A03]">
 
         {/* Shop Notification Toast Alert */}
         {shopFeedback && (
@@ -2229,6 +2189,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         )}
 
       </div>
-    </div>
+    </ParchmentModalContainer>
   );
 };

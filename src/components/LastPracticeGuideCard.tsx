@@ -3,17 +3,18 @@ import {
   RotateCcw, 
   Play, 
   Sparkles, 
-  Keyboard, 
-  BookOpen, 
-  FileText, 
   Target, 
   Clock,
   Zap,
-  Flame
+  Flame,
+  Keyboard,
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { AppMode, UserSession, PracticeHistoryRecord } from '../types';
 import { dailyMissionsManager, LastPracticeLocation } from '../utils/dailyMissionsManager';
 import { getUserPracticeHistory } from '../utils/curriculumManager';
+import { RetroStageIcon } from './RetroStageIcons';
 
 interface LastPracticeGuideCardProps {
   currentUser: UserSession | null;
@@ -166,8 +167,23 @@ export const LastPracticeGuideCard: React.FC<LastPracticeGuideCardProps> = ({
     }
   };
 
-  const modeDetails = getModeDetails(activePractice?.mode || 'key-practice');
-  const IconComponent = modeDetails.icon;
+  // Mode stage number mapping for RetroStageIcon
+  const getStageNumber = (mode: AppMode): 1 | 2 | 3 | 4 | 5 => {
+    switch (mode) {
+      case 'key-practice':
+        return 1;
+      case 'word-practice':
+        return 2;
+      case 'sentence-practice':
+        return 3;
+      case 'long-practice':
+        return 4;
+      default:
+        return 5;
+    }
+  };
+
+  const stageNum = getStageNumber(activePractice?.mode || 'key-practice');
 
   const handleStartShortcut = () => {
     dailyMissionsManager.saveLastPractice({
@@ -183,55 +199,57 @@ export const LastPracticeGuideCard: React.FC<LastPracticeGuideCardProps> = ({
   };
 
   return (
-    <div className="bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 border-3 border-amber-200/90 shadow-xl relative overflow-hidden space-y-5 transition-all duration-300 hover:shadow-2xl">
-      {/* Decorative bright ambient glow */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-amber-200/30 via-rose-200/20 to-sky-200/20 rounded-bl-full pointer-events-none -z-0"></div>
-      <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-gradient-to-tr from-sky-200/20 via-pink-200/20 to-transparent rounded-full pointer-events-none -z-0"></div>
+    <div className="parchment-scroll rounded-2xl p-5 sm:p-7 border-4 border-[#784E3D] shadow-[0_8px_0_#3E2419,0_12px_24px_rgba(0,0,0,0.35)] relative overflow-hidden space-y-5">
+      {/* Corner Metal Rivets */}
+      <span className="absolute top-2.5 left-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
+      <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
+      <span className="absolute bottom-2.5 left-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
+      <span className="absolute bottom-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
 
       {/* Top Header Strip with Korean / English Language Selector */}
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-100 pb-4">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[#784E3D]/30 pb-4">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white text-xs font-black shadow-xs flex items-center gap-1.5 animate-pulse-soft">
+          <span className="px-3.5 py-1 rounded-md bg-[#784E3D] text-[#FFD700] text-xs font-pixel border border-[#3E2419] shadow-[2px_2px_0_#3E2419] flex items-center gap-1.5">
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>직전 연습 단계 바로가기</span>
+            <span>[직전 연습 단계 바로가기]</span>
           </span>
 
           {/* 한글 / 영어 선택 탭 */}
-          <div className="inline-flex p-1 rounded-2xl bg-amber-100/80 border border-amber-300 gap-1 shadow-2xs">
+          <div className="inline-flex p-1 rounded-xl bg-[#E6D7B9] border-2 border-[#784E3D] gap-1 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
             <button
               type="button"
               onClick={() => setSelectedLang('ko')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-pixel transition-all flex items-center gap-1.5 cursor-pointer ${
                 selectedLang === 'ko'
-                  ? 'bg-sky-500 text-white shadow-xs scale-102'
-                  : 'text-slate-700 hover:bg-white/80'
+                  ? 'retro-wood-btn text-[#FFD700]'
+                  : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
               }`}
             >
-              <span>🇰🇷 한글</span>
-              <span className="text-[10px] opacity-90">직전 단계</span>
+              <span>🇰🇷 [한글]</span>
+              <span className="text-[10px] opacity-90 font-mono">ST.{stageNum}</span>
             </button>
             <button
               type="button"
               onClick={() => setSelectedLang('en')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-pixel transition-all flex items-center gap-1.5 cursor-pointer ${
                 selectedLang === 'en'
-                  ? 'bg-indigo-600 text-white shadow-xs scale-102'
-                  : 'text-slate-700 hover:bg-white/80'
+                  ? 'retro-wood-btn text-[#FFD700]'
+                  : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
               }`}
             >
-              <span>🇺🇸 영어</span>
-              <span className="text-[10px] opacity-90">직전 단계</span>
+              <span>🇺🇸 [영어]</span>
+              <span className="text-[10px] opacity-90 font-mono">ST.{stageNum}</span>
             </button>
           </div>
         </div>
 
         {activePractice && timeFormatted ? (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span>{selectedLang === 'ko' ? '한글' : '영어'} 최근 연습: <strong className="text-slate-700 font-bold">{timeFormatted}</strong></span>
+          <div className="flex items-center gap-1.5 text-xs text-[#5C3A21] font-arcade font-bold">
+            <Clock className="w-3.5 h-3.5 text-[#B45309]" />
+            <span>{selectedLang === 'ko' ? '한글' : '영어'} 최근 연습: <strong className="text-[#451A03] font-black">{timeFormatted}</strong></span>
           </div>
         ) : (
-          <div className="text-xs text-amber-700 font-bold bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
+          <div className="text-xs text-[#92400E] font-pixel font-bold bg-[#FEF3C7] px-2.5 py-1 rounded-md border border-[#B45309]">
             ✨ {selectedLang === 'ko' ? '한글' : '영어'} 모드 선택됨
           </div>
         )}
@@ -240,29 +258,29 @@ export const LastPracticeGuideCard: React.FC<LastPracticeGuideCardProps> = ({
       {/* Main Interactive Guide Area */}
       <div className="relative z-10">
         {/* Last practiced stage summary card */}
-        <div className="bg-gradient-to-br from-amber-50/70 via-rose-50/40 to-sky-50/50 rounded-2xl p-4 sm:p-6 border-2 border-amber-200/80 shadow-xs space-y-4">
+        <div className="bg-[#FFFDF5] rounded-xl p-4 sm:p-6 border-3 border-[#784E3D] shadow-[3px_3px_0_#784E3D] space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${modeDetails.colorClass} text-white flex items-center justify-center shadow-md shrink-0`}>
-                <IconComponent className="w-7 h-7" />
+              <div className="shrink-0 p-1 bg-[#E6D7B9] rounded-xl border-2 border-[#784E3D] shadow-xs">
+                <RetroStageIcon stage={stageNum} size={56} />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2.5 py-0.5 rounded-md text-xs font-black border ${modeDetails.badgeClass}`}>
+                  <span className="px-2 py-0.5 rounded-xs text-[11px] font-pixel font-black border border-[#784E3D] bg-[#E6D7B9] text-[#451A03]">
                     {activePractice.modeTitle}
                   </span>
-                  <span className={`px-2.5 py-0.5 rounded-md text-xs font-black border ${
-                    selectedLang === 'ko' ? 'bg-sky-100 text-sky-800 border-sky-300' : 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                  <span className={`px-2 py-0.5 rounded-xs text-[11px] font-pixel font-black border border-black text-white ${
+                    selectedLang === 'ko' ? 'bg-[#38B6FF]' : 'bg-[#6366F1]'
                   }`}>
-                    {selectedLang === 'ko' ? '🇰🇷 한글 모드' : '🇺🇸 영어 모드'}
+                    {selectedLang === 'ko' ? '🇰🇷 한글' : '🇺🇸 영어'}
                   </span>
                   {activePractice.isDefault && (
-                    <span className="px-2.5 py-0.5 rounded-md bg-amber-200 text-amber-900 text-[11px] font-black">
-                      추천 시작 단계
+                    <span className="px-2 py-0.5 rounded-xs bg-[#FEF3C7] border border-[#B45309] text-[#92400E] text-[10px] font-pixel font-black">
+                      추천 시작
                     </span>
                   )}
                 </div>
-                <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mt-1.5">
+                <h3 className="text-base sm:text-lg font-black text-[#451A03] font-arcade tracking-tight mt-1.5">
                   {activePractice.stageTitle}
                 </h3>
               </div>
@@ -271,25 +289,25 @@ export const LastPracticeGuideCard: React.FC<LastPracticeGuideCardProps> = ({
 
           {/* Performance Stats of Last Practice */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-            <div className="bg-white/90 rounded-2xl p-3.5 border border-amber-100 shadow-2xs">
-              <span className="text-xs font-bold text-slate-500 block">직전 타수 (속도)</span>
-              <span className="text-lg font-black text-sky-600 flex items-center gap-1.5 mt-1">
-                <Zap className="w-5 h-5 text-sky-500" />
+            <div className="bg-[#FFFDF5] rounded-lg p-3 border-2 border-[#784E3D] shadow-xs">
+              <span className="text-[11px] font-pixel text-[#5C3A21] block">직전 타수 (SPEED)</span>
+              <span className="text-lg font-mono font-black text-[#0369A1] flex items-center gap-1.5 mt-1">
+                <Zap className="w-4 h-4 text-[#0284C7]" />
                 {activePractice.cpm > 0 ? `${activePractice.cpm} CPM` : '도전 대기'}
               </span>
             </div>
-            <div className="bg-white/90 rounded-2xl p-3.5 border border-amber-100 shadow-2xs">
-              <span className="text-xs font-bold text-slate-500 block">직전 정확도</span>
-              <span className="text-lg font-black text-emerald-600 flex items-center gap-1.5 mt-1">
-                <Target className="w-5 h-5 text-emerald-500" />
+            <div className="bg-[#FFFDF5] rounded-lg p-3 border-2 border-[#784E3D] shadow-xs">
+              <span className="text-[11px] font-pixel text-[#5C3A21] block">직전 정확도 (ACC)</span>
+              <span className="text-lg font-mono font-black text-[#047857] flex items-center gap-1.5 mt-1">
+                <Target className="w-4 h-4 text-[#059669]" />
                 {activePractice.isDefault ? '100%' : `${activePractice.accuracy}%`}
               </span>
             </div>
-            <div className="col-span-2 sm:col-span-1 bg-white/90 rounded-2xl p-3.5 border border-amber-100 shadow-2xs flex flex-col justify-center">
-              <span className="text-xs font-bold text-slate-500 block">추천 목표</span>
-              <span className="text-xs sm:text-sm font-black text-amber-700 flex items-center gap-1.5 mt-1">
-                <Flame className="w-4 h-4 text-amber-500" />
-                {activePractice.accuracy < 95 && !activePractice.isDefault ? '정확도 95% 이상 달성' : '타수 +20타 올리기'}
+            <div className="col-span-2 sm:col-span-1 bg-[#FFFDF5] rounded-lg p-3 border-2 border-[#784E3D] shadow-xs flex flex-col justify-center">
+              <span className="text-[11px] font-pixel text-[#5C3A21] block">추천 목표 (TARGET)</span>
+              <span className="text-xs font-pixel font-black text-[#B45309] flex items-center gap-1.5 mt-1">
+                <Flame className="w-4 h-4 text-[#D97706]" />
+                {activePractice.accuracy < 95 && !activePractice.isDefault ? '정확도 95% 이상' : '타수 +20타 올리기'}
               </span>
             </div>
           </div>
@@ -299,22 +317,22 @@ export const LastPracticeGuideCard: React.FC<LastPracticeGuideCardProps> = ({
             <button
               type="button"
               onClick={handleStartShortcut}
-              className={`flex-1 px-6 py-3.5 rounded-2xl ${modeDetails.btnClass} font-black text-sm sm:text-base shadow-md transition-all duration-200 active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer border-2 border-white/50`}
+              className="flex-1 px-6 py-3 rounded-xl retro-gold-btn text-[#451A03] font-pixel text-sm sm:text-base font-black shadow-[0_4px_0_#78350F] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2.5 cursor-pointer"
             >
-              <Play className="w-5 h-5 fill-white" />
+              <Play className="w-4 h-4 fill-[#451A03]" />
               <span>
-                🎯 {selectedLang === 'ko' ? '한글' : '영어'} 직전 단계 바로가기 (원클릭 시작)
+                [ 🕹️ {selectedLang === 'ko' ? '한글' : '영어'} 직전 단계 바로 시작 ]
               </span>
             </button>
 
             <button
               type="button"
               onClick={handleStartShortcut}
-              className="px-5 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border border-slate-300 shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              className="px-4 py-3 rounded-xl bg-[#E6D7B9] hover:bg-[#DDD0B0] text-[#5C3A21] border-2 border-[#784E3D] shadow-[2px_2px_0_#784E3D] font-pixel text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               title="처음부터 다시 연습합니다"
             >
-              <RotateCcw className="w-4 h-4 text-slate-500" />
-              <span>처음부터 재도전</span>
+              <RotateCcw className="w-3.5 h-3.5 text-[#784E3D]" />
+              <span>[처음부터]</span>
             </button>
           </div>
         </div>

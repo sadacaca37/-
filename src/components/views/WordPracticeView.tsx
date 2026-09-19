@@ -5,7 +5,9 @@ import { getKeyGuideForChar, getActiveKeystrokeGuide, countKeystrokes, isHangulP
 import { soundManager } from '../../utils/sound';
 import { VirtualKeyboard } from '../VirtualKeyboard';
 import { TypingStats, UserSession, LeaderboardEntry } from '../../types';
-import { RotateCcw, Award, ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles, Shuffle, CheckCircle2 } from 'lucide-react';
+import { RotateCcw, Award, ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles, Shuffle, CheckCircle2, Heart, X } from 'lucide-react';
+import { CrtParchmentScroll } from '../CrtParchmentScroll';
+import { CrtRobotMascot } from '../CrtRobotMascot';
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { recordPracticeHistory } from '../../utils/curriculumManager';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
@@ -19,6 +21,7 @@ interface WordPracticeViewProps {
   onRecordScore?: (entry: Omit<LeaderboardEntry, 'id' | 'date'>) => void;
   initialLanguage?: 'ko' | 'en';
   initialCategoryId?: string;
+  onClose?: () => void;
 }
 
 export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
@@ -26,6 +29,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   onRecordScore,
   initialLanguage = 'ko',
   initialCategoryId,
+  onClose,
 }) => {
   const savedLastPractice = useMemo(() => dailyMissionsManager.getLastPractice(currentUser?.id), [currentUser]);
 
@@ -90,6 +94,12 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const [showSetResultModal, setShowSetResultModal] = useState(false);
   const [starEarnedThisSet, setStarEarnedThisSet] = useState(false);
   const [currentStarsCount, setCurrentStarsCount] = useState(() => starMissionManager.getState(currentUser?.id).stars);
+  const [isMuted, setIsMuted] = useState(() => soundManager.getMuted());
+
+  const toggleSound = () => {
+    const next = soundManager.toggleMute();
+    setIsMuted(next);
+  };
 
   const [inputVal, setInputVal] = useState('');
   const [activeKeyCode, setActiveKeyCode] = useState<string | null>(null);
@@ -108,6 +118,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   });
 
   const [isFinished, setIsFinished] = useState(false);
+  const [maxCpm, setMaxCpm] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +145,9 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
           const cpm = Math.round((prev.totalKeystrokes / elapsedSec) * 60);
           const totalAttempts = prev.correctCount + prev.errorCount;
           const accuracy = totalAttempts > 0 ? Math.round((prev.correctCount / totalAttempts) * 100) : 100;
+          if (cpm > 0) {
+            setMaxCpm((prevMax) => Math.max(prevMax, cpm));
+          }
           return {
             ...prev,
             elapsedSeconds: elapsedSec,
@@ -425,411 +439,318 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const progressPercent = Math.round(((wordIndex) / TOTAL_TRIALS) * 100);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
-      {/* 10 Star Progress & MyChew Mission Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-pink-50 via-teal-50 to-emerald-50 p-3.5 sm:p-4 rounded-2xl border-2 border-teal-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl animate-bounce">🍬</span>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black text-teal-800">5분 집중 낱말 연습 코스</span>
-              <span className="text-[11px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                1회 약 5분 소요 (50단어)
-              </span>
-              <span className="text-[11px] font-black text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300">
-                마이쮸 미션: 정확도 90% 이상 통과 시 지급!
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-600 font-medium mt-0.5">
-              5분 동안 한 단어씩 바른 손가락 위치로 리듬감 있게 타이핑해보세요!
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 코스 선택기 */}
-          <div className="flex bg-white/90 p-1 rounded-xl border border-slate-200 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('3min'); handleReset(); }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                practiceCourse === '3min' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              ⏱️ 3분 (30단어)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('5min'); handleReset(); }}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                practiceCourse === '5min' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              ⚡ 5분 표준 (50단어)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('10min'); handleReset(); }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                practiceCourse === '10min' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🏆 10분 심화 (100단어)
-            </button>
-          </div>
-
-          {/* 진행도 & 시간 표시기 */}
-          <div className="flex items-center gap-2 bg-white/90 px-3 py-1.5 rounded-xl border border-teal-200 shadow-2xs">
-            <span className="text-amber-500 text-sm">⭐</span>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 font-bold">진행도</span>
-              <span className="font-mono font-black text-xs text-teal-800">
-                {wordIndex + 1}/{TOTAL_TRIALS} ({Math.round(((wordIndex) / TOTAL_TRIALS) * 100)}%)
-              </span>
-            </div>
-            <div className="h-6 w-px bg-slate-200 mx-1" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 font-bold">경과 시간</span>
-              <span className="font-mono font-black text-xs text-emerald-700">
-                {Math.floor(stats.elapsedSeconds / 60)}분 {String(stats.elapsedSeconds % 60).padStart(2, '0')}초
-              </span>
-            </div>
-          </div>
-
-          {wordIndex >= 10 && (
-            <button
-              type="button"
-              onClick={finishPractice}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-xs cursor-pointer flex items-center gap-1 active:scale-95"
-              title="지금까지 연습한 결과로 완료하고 보상을 확인합니다"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>완료하기 ({wordIndex}개 완료)</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Top Header & Language Selector */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-          <h2 className="text-base sm:text-lg font-black text-slate-800 tracking-tight flex items-center gap-1.5">
-            <span>낱말 연습</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 font-bold border border-teal-200">
-              {currentCategory.name}
-            </span>
-          </h2>
-        </div>
-
-        {/* Simultaneous Keyboard Badge, Language Tabs & Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-500/10 text-teal-700 border border-teal-400/50 text-xs font-black shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-            <span>⌨️ 키보드 동시 보기 [ON]</span>
-          </div>
-
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => {
-                setLanguage('ko');
-                setSelectedCatId(KOREAN_WORD_PRACTICE_CATEGORIES[0].id);
-                handleReset();
-              }}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
-                language === 'ko' ? 'bg-teal-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>🇰🇷 한글 낱말</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLanguage('en');
-                setSelectedCatId(ENGLISH_WORD_PRACTICE_CATEGORIES[0].id);
-                handleReset();
-              }}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
-                language === 'en' ? 'bg-indigo-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>🇺🇸 영어 낱말</span>
-            </button>
-          </div>
-
-          {/* Random Question Shuffle Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setShuffledWords(shuffleWordsList(currentCategory.words));
-              setWordIndex(0);
-              setInputVal('');
-              handleReset();
-            }}
-            className="px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-            title="낱말 순서를 무작위로 섞어 랜덤하게 문제를 제시합니다"
-          >
-            <Shuffle className="w-3.5 h-3.5 text-purple-600" />
-            <span>🎲 낱말 랜덤 출제</span>
-          </button>
-
-          {/* Quick Re-type Button */}
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-            title="현재 단계를 처음부터 다시 칩니다"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-            <span>이 단계 다시 치기</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="w-full max-w-5xl mx-auto flex flex-col justify-between select-none relative font-pixel">
       {/* =========================================================================
-          CLASSIC HANCOM TYPING CONSOLE CASING (As seen in the screenshot)
+          AUTHENTIC CRT ARCADE CABINET (As per user reference image)
          ========================================================================= */}
-      <div className="bg-gradient-to-b from-slate-200 via-slate-100 to-slate-300 p-2.5 sm:p-4 rounded-3xl border-4 border-slate-300 shadow-2xl relative">
-        {/* Top Status Strip: 진행도 / 오타수 / 정확도 / 타수 */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl px-3 sm:px-4 py-1.5 border border-slate-300 shadow-xs mb-2 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm font-black text-slate-700">
-          {/* 진행도 */}
-          <div className="flex items-center gap-2">
-            <span className="text-slate-600">진행도</span>
-            <div className="w-24 sm:w-36 bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300 p-0.5">
-              <div
-                className="bg-gradient-to-r from-teal-400 to-emerald-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="w-8 text-right font-black text-slate-800 text-xs">{progressPercent}%</span>
-          </div>
+      <div className="w-full bg-[#4A3222] p-2 sm:p-3 rounded-2xl sm:rounded-3xl border-4 sm:border-[6px] border-[#24150E] shadow-[0_16px_32px_rgba(0,0,0,0.8),inset_2px_2px_0_#7C583F,inset_-2px_-2px_0_#24150E] relative flex flex-col justify-between overflow-hidden">
+        {/* Metal Screws / Rivets */}
+        <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219] shadow-xs z-30" />
+        <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219] shadow-xs z-30" />
+        <span className="absolute bottom-2 left-2 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219] shadow-xs z-30" />
+        <span className="absolute bottom-2 right-2 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219] shadow-xs z-30" />
 
-          {/* 오타수 */}
-          <div className="flex items-center gap-2">
-            <span className="text-slate-600">오타수</span>
-            <div className="px-2.5 py-0.5 bg-slate-100 border border-slate-300 rounded-md font-mono font-black text-rose-600 text-xs min-w-[32px] text-center shadow-inner">
-              {stats.errorCount}
-            </div>
-          </div>
-
-          {/* 정확도 */}
-          <div className="flex items-center gap-2">
-            <span className="text-slate-600">정확도</span>
-            <div className="w-20 sm:w-28 bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300 p-0.5">
-              <div
-                className="bg-gradient-to-r from-sky-400 to-blue-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${stats.accuracy}%` }}
-              />
-            </div>
-            <span className="w-8 text-right font-black text-slate-800 text-xs">{stats.accuracy}%</span>
-          </div>
-
-          {/* 타수 / CPM */}
-          <div className="flex items-center gap-2">
-            <span className="text-slate-600">속도</span>
-            <span className="font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs font-black">
-              {stats.cpm} <span className="text-[10px] text-slate-500">타/분</span>
+        {/* 1. TOP CABINET MARQUEE & HANGING WOODEN SIGN */}
+        <div className="flex flex-col items-center shrink-0 mb-1.5 relative z-20">
+          {/* Top Metal Badge: TYPANG CRT-PRO 1994 */}
+          <div className="px-4 py-0.5 rounded-md bg-[#1E293B] border-2 border-[#E5B55A] shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1.5 -mt-1">
+            <span className="text-[10px] sm:text-[11px] font-black font-pixel text-[#FFE600] tracking-widest drop-shadow-[0_1px_2px_#000]">
+              ★ TYPANG CRT-PRO 1994 ★
             </span>
           </div>
-        </div>
 
-        {/* =========================================================================
-            CYAN AQUA DISPLAY PANEL (Classic Hancom Screen)
-           ========================================================================= */}
-        <div className="bg-gradient-to-r from-sky-400 via-cyan-400 to-sky-400 rounded-2xl p-2.5 sm:p-3.5 border-3 border-sky-500 shadow-inner flex flex-col md:flex-row items-center justify-between gap-3 relative overflow-hidden mb-2.5">
-          {/* Subtle Cyber / Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent pointer-events-none" />
-
-          {/* Left / Center: Target Word Card & Next Word Preview */}
-          <div className="flex-1 flex items-center justify-center md:justify-start gap-4 sm:gap-6 w-full z-10">
-            {/* Left Dotted Arrows */}
-            <div className="hidden sm:flex flex-col text-sky-200/80 font-mono text-sm select-none">
-              <span>◀ ◀</span>
-              <span>◀ ◀</span>
+          {/* Hanging Metal Chain Links */}
+          <div className="w-full max-w-md flex justify-between px-8 sm:px-12 -my-0.5 z-10">
+            <div className="flex flex-col items-center">
+              <span className="w-1.5 h-2 bg-gradient-to-b from-[#94A3B8] to-[#475569] rounded-xs border border-black/60 shadow-xs" />
+              <span className="w-1.5 h-2 bg-gradient-to-b from-[#94A3B8] to-[#475569] rounded-xs border border-black/60 shadow-xs -mt-0.5" />
             </div>
-
-            {/* Target Big Word Card (Elevated Silver/White Box) */}
-            <div 
-              onClick={() => inputRef.current?.focus()}
-              className="bg-gradient-to-b from-white to-slate-100 rounded-2xl p-2.5 sm:p-3.5 border-3 border-slate-300 shadow-[0_6px_16px_rgba(0,0,0,0.15)] min-w-[180px] sm:min-w-[220px] text-center cursor-text relative"
-            >
-              {/* Target Word Text */}
-              <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-wider select-none mb-1">
-                {currentWord.split('').map((char, index) => {
-                  let charState: 'matched' | 'composing' | 'error' | 'pending' = 'pending';
-                  if (index < inputVal.length - 1) {
-                    charState = inputVal[index] === char ? 'matched' : 'error';
-                  } else if (index === inputVal.length - 1) {
-                    if (inputVal[index] === char) {
-                      charState = 'matched';
-                    } else if (isHangulPrefix(char, inputVal[index])) {
-                      charState = 'composing';
-                    } else {
-                      charState = 'error';
-                    }
-                  }
-
-                  return (
-                    <span
-                      key={index}
-                      className={
-                        charState === 'matched'
-                          ? 'text-teal-600'
-                          : charState === 'composing'
-                          ? 'text-sky-600 underline decoration-sky-400 decoration-2 underline-offset-4'
-                          : charState === 'error'
-                          ? 'text-rose-500'
-                          : 'text-slate-800'
-                      }
-                    >
-                      {char}
-                    </span>
-                  );
-                })}
-              </div>
-
-              {/* Typing Line & Blinking Cursor Area */}
-              <div className="min-h-[32px] flex items-center justify-center text-xl sm:text-2xl font-black text-teal-600 font-mono">
-                <span>{inputVal}</span>
-                <span className="inline-block w-2.5 h-6 bg-slate-900 ml-0.5 animate-pulse rounded-xs" />
-              </div>
-
-              {/* Hidden Real Input */}
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputVal}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                className="opacity-0 absolute inset-0 w-full h-full cursor-text"
-                autoFocus
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-              />
-            </div>
-
-            {/* Next Word Preview on Aqua Background */}
-            <div className="flex items-center gap-2 select-none">
-              <div className="text-sky-200/90 font-mono text-lg">
-                ◀
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] sm:text-xs font-black text-sky-100 tracking-tight">다음 낱말</span>
-                <span className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
-                  {nextWord || '완주 직전!'}
-                </span>
-              </div>
+            <div className="flex flex-col items-center">
+              <span className="w-1.5 h-2 bg-gradient-to-b from-[#94A3B8] to-[#475569] rounded-xs border border-black/60 shadow-xs" />
+              <span className="w-1.5 h-2 bg-gradient-to-b from-[#94A3B8] to-[#475569] rounded-xs border border-black/60 shadow-xs -mt-0.5" />
             </div>
           </div>
 
-          {/* Right Side: Stage Setting (단계 설정), Mini Keyboard, Stage Buttons [1]~[8] */}
-          <div className="bg-white/90 backdrop-blur-md rounded-xl p-3 border-2 border-sky-300 shadow-md flex flex-col items-center gap-2 z-10 w-full md:w-auto">
-            {/* Header: ◀ 단계 설정 ▶ */}
-            <div className="flex items-center justify-between w-full gap-2 text-xs font-black text-slate-800">
-              <button
-                type="button"
-                onClick={handlePrevStage}
-                className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                title="이전 단계"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <span className="tracking-tight text-slate-900 font-extrabold">단계 설정</span>
-              <button
-                type="button"
-                onClick={handleNextStage}
-                className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                title="다음 단계"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Mini Keyboard Diagram with Active Red Keys */}
-            <div className="bg-slate-800 p-1.5 rounded-lg border border-slate-700 shadow-inner">
-              <div className="space-y-0.5">
-                {/* Row 1 */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(12)].map((_, i) => (
-                    <div key={i} className="w-2.5 h-2 bg-slate-600 rounded-xs" />
-                  ))}
-                </div>
-                {/* Row 2 (Top Row) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(11)].map((_, i) => {
-                    const isRed = (currentStageNum === 2 && i < 5) || (currentStageNum === 3 && i >= 5);
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Row 3 (Home Row) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(10)].map((_, i) => {
-                    const isRed = currentStageNum === 1 || (currentStageNum === 8 && i % 2 === 0);
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs animate-pulse' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Row 4 (Bottom Row) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(9)].map((_, i) => {
-                    const isRed = (currentStageNum === 4 && i < 4) || (currentStageNum === 5 && i >= 4);
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
-                </div>
+          {/* Hanging Wooden Signboard (HUD Header) */}
+          <div className="w-full max-w-3xl bg-gradient-to-b from-[#B87D4B] via-[#8C5832] to-[#5C341A] px-2.5 sm:px-4 py-1.5 rounded-xl border-3 border-[#2A160A] shadow-[0_4px_8px_rgba(0,0,0,0.6),inset_1px_1px_0_#DF9E67] flex items-center justify-between gap-1.5 sm:gap-2 z-20 flex-wrap sm:flex-nowrap">
+            {/* Left: 3 Red Pixel Hearts & Language Toggle */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-0.5">
+                <span className="text-red-500 drop-shadow-[0_1px_2px_#000] text-xs sm:text-sm animate-pulse">❤️</span>
+                <span className="text-red-500 drop-shadow-[0_1px_2px_#000] text-xs sm:text-sm animate-pulse">❤️</span>
+                <span className="text-red-500 drop-shadow-[0_1px_2px_#000] text-xs sm:text-sm">❤️</span>
+              </div>
+              <div className="flex bg-[#20130D] p-0.5 rounded border border-[#8C6219]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLanguage('ko');
+                    setSelectedCatId(KOREAN_WORD_PRACTICE_CATEGORIES[0].id);
+                    handleReset();
+                  }}
+                  className={`px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-pixel font-bold cursor-pointer transition-all ${
+                    language === 'ko' ? 'bg-[#FFE600] text-black shadow-xs font-black' : 'text-amber-200 hover:text-white'
+                  }`}
+                >
+                  한글
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLanguage('en');
+                    setSelectedCatId(ENGLISH_WORD_PRACTICE_CATEGORIES[0].id);
+                    handleReset();
+                  }}
+                  className={`px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-pixel font-bold cursor-pointer transition-all ${
+                    language === 'en' ? 'bg-[#FFE600] text-black shadow-xs font-black' : 'text-amber-200 hover:text-white'
+                  }`}
+                >
+                  EN
+                </button>
               </div>
             </div>
 
-            {/* Stage Selector Buttons [1] ~ [8] */}
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((stageNum) => {
-                const isSelected = currentStageNum === stageNum;
-                return (
+            {/* Center: Stage Title & 1-8 Stage Number Selection Tabs */}
+            <div className="flex items-center gap-1.5 sm:gap-2 justify-center flex-wrap">
+              <span className="text-xs sm:text-sm font-black font-arcade text-[#FFE57F] tracking-wide drop-shadow-[0_2px_0_#2A160A] whitespace-nowrap">
+                2단계: 낱말 연습
+              </span>
+              {/* Interactive Stage Selector (1~8단계) */}
+              <div className="flex items-center gap-1 bg-[#20130D]/80 p-0.5 rounded-lg border border-[#8C6219]">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((stageNum) => (
                   <button
                     key={stageNum}
                     type="button"
                     onClick={() => selectStageByNumber(stageNum)}
-                    className={`w-5 h-5 sm:w-6 sm:h-6 rounded text-[11px] sm:text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
-                      isSelected
-                        ? 'bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-md ring-1 ring-orange-300 font-extrabold scale-110'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                    className={`w-5 h-5 sm:w-6 sm:h-5 rounded text-[10px] sm:text-[11px] font-pixel font-black transition-all cursor-pointer flex items-center justify-center ${
+                      currentStageNum === stageNum
+                        ? 'bg-[#FFE600] text-black shadow-[0_1px_0_#996600] scale-105 font-black'
+                        : 'bg-[#4A3222] text-amber-200 hover:bg-[#63442E] hover:text-white border border-[#2A160A]'
                     }`}
+                    title={`제 ${stageNum} 단계`}
                   >
                     {stageNum}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
+
+            {/* Right: Shuffle + Sound + Re-try + Close Button */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShuffledWords(shuffleWordsList(currentCategory.words));
+                  setWordIndex(0);
+                  setInputVal('');
+                  handleReset();
+                }}
+                className="p-1 rounded-md bg-[#3E2419] hover:bg-[#523121] text-[#FFE57F] border border-[#24150E] transition-all cursor-pointer shadow-xs"
+                title="낱말 순서 랜덤 섞기"
+              >
+                <Shuffle className="w-3.5 h-3.5 text-purple-300" />
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="p-1 rounded-md bg-[#3E2419] hover:bg-[#523121] text-[#FFE57F] border border-[#24150E] transition-all cursor-pointer shadow-xs"
+                title="처음부터 다시 치기"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleSound}
+                className="p-1 rounded-md bg-[#3E2419] hover:bg-[#523121] text-[#FFE57F] border border-[#24150E] transition-all cursor-pointer shadow-xs"
+                title={isMuted ? '소리 켜기' : '소리 끄기'}
+              >
+                {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+              </button>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1 rounded-md bg-[#E11D48] hover:bg-[#BE123C] text-white border border-black transition-all cursor-pointer shadow-xs"
+                  title="닫기 (ESC)"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 2. RECESSED CRT SCREEN DISPLAY (Cyan/Aqua Blue Glass) */}
+        <div className="bg-[#121624] p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border-4 border-[#1E2333] shadow-[inset_0_4px_16px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col justify-between mb-1.5">
+          {/* Cyan Sky Screen Background */}
+          <div className="bg-gradient-to-b from-[#1EA8E8] via-[#29B6F6] to-[#0288D1] rounded-lg p-2 sm:p-2.5 border-2 border-[#0369A1] relative overflow-hidden flex flex-col items-center">
+            {/* Scanlines Effect */}
+            <div className="crt-scanline-overlay pointer-events-none opacity-25" />
+
+            {/* Stage Title Sub-badge: Dedicated Non-overlapping Header */}
+            <div className="z-10 mb-1">
+              <div className="bg-[#0369A1]/85 backdrop-blur-xs px-3 py-0.5 rounded-full border border-sky-200/40 text-[10px] sm:text-[11px] font-pixel text-white font-bold tracking-wide shadow-xs">
+                {currentCategory.name} ({wordIndex + 1} / {TOTAL_TRIALS})
+              </div>
+            </div>
+
+            {/* Target Word Parchment Scroll & Next Word Preview */}
+            <div className="flex items-center justify-center gap-3 sm:gap-6 my-1 z-10 w-full">
+              {/* Main Golden Parchment Scroll */}
+              <div 
+                onClick={() => inputRef.current?.focus()}
+                className="cursor-text"
+              >
+                <CrtParchmentScroll
+                  theme="gold"
+                  isLarge={true}
+                  text={currentWord}
+                  renderCustomContent={
+                    <div className="flex flex-col items-center justify-center">
+                      {/* Highlighted Word Characters */}
+                      <div className="text-3xl sm:text-4xl md:text-5xl font-black font-arcade tracking-wider select-none [text-shadow:_0_0_12px_rgba(255,215,0,0.8),_2px_2px_0_#FFF]">
+                        {currentWord.split('').map((char, index) => {
+                          let charState: 'matched' | 'composing' | 'error' | 'pending' = 'pending';
+                          if (index < inputVal.length - 1) {
+                            charState = inputVal[index] === char ? 'matched' : 'error';
+                          } else if (index === inputVal.length - 1) {
+                            if (inputVal[index] === char) {
+                              charState = 'matched';
+                            } else if (isHangulPrefix(char, inputVal[index])) {
+                              charState = 'composing';
+                            } else {
+                              charState = 'error';
+                            }
+                          }
+
+                          return (
+                            <span
+                              key={index}
+                              className={
+                                charState === 'matched'
+                                  ? 'text-[#059669]'
+                                  : charState === 'composing'
+                                  ? 'text-[#0284C7] underline decoration-[#0284C7] decoration-3 underline-offset-4'
+                                  : charState === 'error'
+                                  ? 'text-[#E11D48]'
+                                  : 'text-[#2A160A]'
+                              }
+                            >
+                              {char}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Typed String & Cursor */}
+                      <div className="min-h-[22px] flex items-center justify-center text-lg sm:text-xl font-black text-[#047857] font-mono mt-0.5">
+                        <span>{inputVal}</span>
+                        <span className="inline-block w-2 h-4 bg-[#2A160A] ml-0.5 animate-pulse rounded-xs" />
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* Hidden Native Input */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputVal}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  className="opacity-0 absolute inset-0 w-full h-full cursor-text"
+                  autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                />
+              </div>
+
+              {/* Next Word Preview Scroll */}
+              <div className="hidden sm:block">
+                <CrtParchmentScroll
+                  theme="blue"
+                  isLarge={false}
+                  text={nextWord}
+                />
+              </div>
+            </div>
+
+            {/* Status Metrics Bar under Scrolls: 실시간 타수, 최고 타수, 정확도 */}
+            <div className="w-full max-w-xl bg-[#0B1120]/85 backdrop-blur-xs rounded-xl px-3 py-1.5 border-2 border-sky-400/50 shadow-[0_0_12px_rgba(0,210,255,0.2)] flex items-center justify-between gap-1.5 text-xs font-pixel text-white z-10 mt-1 flex-wrap sm:flex-nowrap">
+              {/* 진행도 */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-sky-200 text-[10px] font-bold">진행</span>
+                <div className="w-14 sm:w-20 bg-[#1E293B] h-2.5 rounded-full overflow-hidden border border-sky-400/40">
+                  <div
+                    className="bg-gradient-to-r from-[#00F0FF] to-[#00FF66] h-full rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <span className="font-mono text-[10px] text-[#00F0FF] font-black">{progressPercent}%</span>
+              </div>
+
+              {/* 실시간 타수 (Neon Cyan Badge) */}
+              <div className="flex items-center gap-1 text-[10px] bg-sky-950/80 border border-sky-400/70 px-2 py-0.5 rounded-md shadow-[0_0_8px_rgba(0,210,255,0.25)] shrink-0">
+                <span className="text-[#00D2FF] font-black">⚡ 실시간 타수</span>
+                <span className="font-mono text-[#00F0FF] font-black">
+                  {stats.cpm} <span className="text-[9px] text-sky-300 font-normal">CPM</span>
+                </span>
+              </div>
+
+              {/* 최고 타수 (Neon Gold Badge) */}
+              <div className="flex items-center gap-1 text-[10px] bg-amber-950/80 border border-amber-400/70 px-2 py-0.5 rounded-md shadow-[0_0_8px_rgba(255,215,0,0.25)] shrink-0">
+                <span className="text-[#FFD700] font-black">👑 최고 타수</span>
+                <span className="font-mono text-[#FFE600] font-black">
+                  {Math.max(stats.cpm, maxCpm)} <span className="text-[9px] text-amber-200 font-normal">CPM</span>
+                </span>
+              </div>
+
+              {/* 정확도 (Neon Emerald Badge) */}
+              <div className="flex items-center gap-1 text-[10px] bg-emerald-950/80 border border-emerald-400/70 px-2 py-0.5 rounded-md shadow-[0_0_8px_rgba(16,185,129,0.25)] shrink-0">
+                <span className="text-[#10B981] font-black">🎯 정확도</span>
+                <span className="font-mono text-[#00FF66] font-black">
+                  {stats.accuracy}%
+                </span>
+              </div>
+
+              {/* 오타 */}
+              <div className="flex items-center gap-1 text-[10px] shrink-0">
+                <span className="text-rose-300">💔 오타</span>
+                <span className="px-1.5 py-0.2 bg-rose-950/80 border border-rose-500 rounded font-mono font-black text-rose-400">
+                  {stats.errorCount}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. TARGET FINGER & KEY GUIDE BANNER (가이드 글) */}
+        <div className="flex justify-center my-1.5 relative z-20 shrink-0">
+          <div className="px-5 py-1 rounded-full bg-[#20130D] border-2 border-[#E5B55A] shadow-[0_3px_6px_rgba(0,0,0,0.6)] flex items-center gap-2">
+            <span className="text-xs sm:text-sm font-black font-pixel text-[#FFE57F] tracking-wide">
+              목표 손가락 : {targetGuide?.finger || '검지손가락'}
+            </span>
+            {targetGuide?.charDisplay && (
+              <span className="px-2 py-0.2 rounded bg-[#FFE600] text-black font-black text-[10px] font-pixel">
+                '{targetGuide.charDisplay}' 키
+              </span>
+            )}
           </div>
         </div>
 
         {/* Finished Overlay if practice completed */}
         {isFinished && (
-          <div className="mb-4 p-6 bg-white/95 backdrop-blur-md rounded-2xl border-2 border-emerald-300 shadow-xl text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 border border-emerald-300 shadow-xs">
-              <Award className="w-8 h-8" />
+          <div className="mb-4 p-5 bg-[#1E293B]/95 backdrop-blur-md rounded-2xl border-2 border-emerald-400 shadow-xl text-center space-y-3 animate-in zoom-in-95 duration-200 z-40">
+            <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto text-emerald-400 border border-emerald-400 shadow-xs">
+              <Award className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+              <h3 className="text-xl sm:text-2xl font-black text-[#FFE600] font-pixel">
                 🎉 '{currentCategory.name}' 완주 성공!
               </h3>
-              <p className="text-xs text-slate-600 font-bold mt-1">
-                평균 속도 <strong className="text-emerald-600 font-black">{stats.cpm} CPM</strong> | 정확도 <strong className="text-emerald-600 font-black">{stats.accuracy}%</strong> | +50P 획득!
+              <p className="text-xs text-slate-300 font-pixel mt-1">
+                평균 속도 <strong className="text-emerald-400 font-black">{stats.cpm} CPM</strong> | 정확도 <strong className="text-emerald-400 font-black">{stats.accuracy}%</strong> | +50P 획득!
               </p>
             </div>
 
@@ -845,15 +766,15 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
             <div className="flex items-center justify-center gap-3 pt-2">
               <button
                 onClick={handleReset}
-                className="px-5 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer border border-amber-300 shadow-xs"
+                className="px-4 py-2 rounded-xl bg-[#4A3222] hover:bg-[#5C3F2B] text-[#FFE57F] font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer border border-[#E5B55A] shadow-xs"
               >
-                <RotateCcw className="w-4 h-4 text-amber-700" />
+                <RotateCcw className="w-4 h-4 text-amber-400" />
                 <span>🎯 직전 단계 다시 치기 (재도전)</span>
               </button>
 
               <button
                 onClick={handleNextStage}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer hover:opacity-95"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer hover:opacity-95"
               >
                 <span>다음 단계로 이동</span>
                 <ChevronRight className="w-4 h-4" />
@@ -862,20 +783,25 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
           </div>
         )}
 
-        {/* =========================================================================
-            CLASSIC HANCOM VIRTUAL KEYBOARD WITH ORANGE HAND OUTLINES
-           ========================================================================= */}
-        <VirtualKeyboard
-          activeKeyCode={activeKeyCode}
-          targetKey={targetGuide?.charDisplay || targetGuide?.code}
-          targetKeyCode={targetGuide?.code}
-          targetFinger={targetGuide?.finger}
-          needsShift={targetGuide?.shift}
-          lastFingerUsed={lastFingerUsed}
-          isCorrectLastKey={isCorrectLastKey}
-          isCorrect={isCorrectLastKey}
-          showHandsOverlay={true}
-        />
+        {/* 4. VIRTUAL KEYBOARD WITH HANDS OVERLAY */}
+        <div className="relative z-10 shrink-0">
+          <VirtualKeyboard
+            activeKeyCode={activeKeyCode}
+            targetKey={targetGuide?.charDisplay || targetGuide?.code}
+            targetKeyCode={targetGuide?.code}
+            targetFinger={targetGuide?.finger}
+            needsShift={targetGuide?.shift}
+            lastFingerUsed={lastFingerUsed}
+            isCorrectLastKey={isCorrectLastKey}
+            isCorrect={isCorrectLastKey}
+            showHandsOverlay={true}
+          />
+        </div>
+
+        {/* 5. CRT ROBOT MASCOT IN BOTTOM-LEFT (with tip speech bubble per redesign image 2) */}
+        <div className="absolute left-2.5 bottom-2 z-30 pointer-events-none sm:pointer-events-auto">
+          <CrtRobotMascot showSpeechBubble={true} />
+        </div>
       </div>
 
       {/* Practice Set Result Modal: Displays CPM, error count, and star accumulation */}

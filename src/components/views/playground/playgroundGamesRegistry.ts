@@ -10,8 +10,6 @@ import { LastWarGameWrapper } from './games/LastWarGameWrapper';
 import { PonpokoGameWrapper } from './games/PonpokoGameWrapper';
 import { BubbleBobbleGameWrapper } from './games/BubbleBobbleGameWrapper';
 import { SuperMarioGameWrapper } from './games/SuperMarioGameWrapper';
-import { AirplaneShootingGame } from './games/AirplaneShootingGame';
-import { PocketKartGame } from './games/PocketKartGame';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -115,22 +113,6 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '🍄',
     description: '마리오 & 루이지 버섯 왕국 모험 횡스크롤 액션',
     component: SuperMarioGameWrapper,
-  },
-  {
-    id: 'app-airplane-shooting',
-    title: '비행기 슈팅 (1945 Air Combat)',
-    category: '펀펀',
-    icon: '✈️',
-    description: '1945 레트로 공중전 & 거대 보스 격파 슈팅 (GitHub 정식 복원판)',
-    component: AirplaneShootingGame,
-  },
-  {
-    id: 'app-pocket-kart',
-    title: '카트라이더 (포켓 카트 GP)',
-    category: '펀펀',
-    icon: '🏎️',
-    description: '드리프트와 아이템 승부의 포켓 카트 그랑프리 (GitHub 정식 복원판)',
-    component: PocketKartGame,
   },
 ];
 

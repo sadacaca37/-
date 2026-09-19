@@ -138,32 +138,35 @@ export const StudentProgressCard: React.FC<StudentProgressCardProps> = ({
   }, [records, selectedLanguage, currentUser]);
 
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-7 border-3 border-sky-200 shadow-xl relative overflow-hidden space-y-6 arcade-card-glow">
-      {/* Background Decorative Pattern */}
-      <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-sky-100/50 via-purple-100/30 to-transparent rounded-bl-full pointer-events-none -z-0"></div>
+    <div className="parchment-scroll rounded-2xl p-5 sm:p-7 border-4 border-[#784E3D] shadow-[0_8px_0_#3E2419,0_12px_24px_rgba(0,0,0,0.35)] relative overflow-hidden space-y-6">
+      {/* Corner Metal Rivets */}
+      <span className="absolute top-2.5 left-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
+      <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
+      <span className="absolute bottom-2.5 left-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
+      <span className="absolute bottom-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#E5B55A] border border-[#8C6219]" />
 
       {/* Header Info with Language Filter Tab */}
-      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b-2 border-[#784E3D]/30 pb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-3.5 py-1 rounded-full bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-600 text-white text-xs font-black shadow-xs flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-md bg-[#784E3D] text-[#FFD700] text-xs font-pixel border border-[#3E2419] shadow-[2px_2px_0_#3E2419] flex items-center gap-1.5">
               <BarChart3 className="w-3.5 h-3.5" />
               <span>{currentUser ? `${currentUser.name} 학생 실시간 타자 통계` : '나의 실시간 타자 통계'}</span>
             </span>
-            <span className={`px-2.5 py-0.5 rounded-full border text-xs font-extrabold flex items-center gap-1 ${stats.tierColor}`}>
-              <Sparkles className="w-3.5 h-3.5" />
+            <span className="px-2.5 py-0.5 rounded-md bg-[#FFFDF5] border-2 border-[#784E3D] text-xs font-pixel text-[#451A03] flex items-center gap-1 shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-[#D97706]" />
               <span>{stats.tierTitle}</span>
             </span>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-2 flex items-center gap-2 flex-wrap">
+          <h2 className="text-lg sm:text-xl font-black text-[#451A03] font-arcade mt-2 flex items-center gap-2 flex-wrap">
             <span>
               {currentUser ? (
                 <>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-indigo-600">
-                    {currentUser.name} 학생
+                  <span className="text-[#B45309]">
+                    [{currentUser.name} 학생]
                   </span>
-                  <span>의 타수 · 최고 타수 · 정확도 통계</span>
+                  <span> 실시간 타수 · 최고 타수 · 정확도 분석</span>
                 </>
               ) : (
                 '타자 속도 · 최고 타수 · 정확도 종합 분석 통계'
@@ -174,46 +177,46 @@ export const StudentProgressCard: React.FC<StudentProgressCardProps> = ({
 
         {/* Language Filter Segmented Controls */}
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-          <div className="inline-flex p-1 rounded-2xl bg-slate-100 border border-slate-200 gap-1 shadow-2xs">
+          <div className="inline-flex p-1 rounded-xl bg-[#E6D7B9] border-2 border-[#784E3D] gap-1 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
             <button
               type="button"
               onClick={() => setSelectedLanguage('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-pixel transition-all cursor-pointer ${
                 selectedLanguage === 'all'
-                  ? 'bg-white text-slate-900 shadow-xs scale-102 border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'retro-wood-btn text-[#FFD700]'
+                  : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
               }`}
             >
-              전체 통계
+              [전체]
             </button>
             <button
               type="button"
               onClick={() => setSelectedLanguage('ko')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-pixel transition-all cursor-pointer ${
                 selectedLanguage === 'ko'
-                  ? 'bg-sky-500 text-white shadow-xs scale-102'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'retro-wood-btn text-[#FFD700]'
+                  : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
               }`}
             >
-              🇰🇷 한글
+              🇰🇷 [한글]
             </button>
             <button
               type="button"
               onClick={() => setSelectedLanguage('en')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-pixel transition-all cursor-pointer ${
                 selectedLanguage === 'en'
-                  ? 'bg-indigo-600 text-white shadow-xs scale-102'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'retro-wood-btn text-[#FFD700]'
+                  : 'text-[#5C3A21] hover:bg-[#DDD0B0]'
               }`}
             >
-              🇺🇸 영어
+              🇺🇸 [영어]
             </button>
           </div>
 
           <button
             type="button"
             onClick={onOpenHistory}
-            className="p-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-600 hover:text-purple-600 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-[#FFFDF5] hover:bg-[#FEF3C7] text-[#784E3D] border-2 border-[#784E3D] shadow-[2px_2px_0_#784E3D] transition-transform active:translate-y-0.5 cursor-pointer"
             title="전체 연습 상세 로그 보기"
           >
             <History className="w-4 h-4" />
@@ -224,87 +227,87 @@ export const StudentProgressCard: React.FC<StudentProgressCardProps> = ({
       {/* 3 Main Statistics Cards: 총 타자의 타수(평균), 최고 타수, 정확도 */}
       <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* 1. 총 타자의 타수 (평균 타자 속도) */}
-        <div className="bg-gradient-to-br from-sky-50 to-blue-50/80 rounded-2xl p-4 sm:p-5 border-2 border-sky-200 shadow-xs flex flex-col justify-between space-y-2 hover:shadow-md transition-shadow">
+        <div className="bg-[#FFFDF5] rounded-xl p-4 sm:p-5 border-3 border-[#784E3D] shadow-[3px_3px_0_#784E3D] flex flex-col justify-between space-y-2 hover:-translate-y-0.5 transition-transform">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold text-sky-800 flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-sky-600" />
-              <span>총 타자 타수 (평균)</span>
+            <span className="text-xs font-pixel text-[#451A03] flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-[#0284C7]" />
+              <span>평균 타속 (SPEED)</span>
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-sky-200/80 text-sky-900 text-[10px] font-black">
+            <span className="px-2 py-0.5 rounded-xs bg-[#E0F2FE] border border-[#0284C7] text-[#0369A1] text-[10px] font-pixel font-bold">
               누적 {stats.totalCount}회
             </span>
           </div>
 
           <div className="pt-1">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl sm:text-4xl font-black text-sky-700 font-mono tracking-tight">
+              <span className="text-3xl sm:text-4xl font-black text-[#0369A1] font-mono tracking-tight">
                 {stats.avgCpm}
               </span>
-              <span className="text-sm font-bold text-sky-600">CPM (타/분)</span>
+              <span className="text-xs font-bold text-[#0284C7] font-pixel">CPM (타/분)</span>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-sky-100 text-[11px] font-bold text-slate-600 flex items-center justify-between">
+          <div className="pt-2 border-t border-[#784E3D]/20 text-[11px] font-arcade font-bold text-[#5C3A21] flex items-center justify-between">
             <span>한글 {stats.koAvg} CPM</span>
-            <span className="text-slate-300">|</span>
+            <span className="text-[#CBB58F]">|</span>
             <span>영어 {stats.enAvg} CPM</span>
           </div>
         </div>
 
         {/* 2. 최고 타수 */}
-        <div className="bg-gradient-to-br from-amber-50 to-rose-50/70 rounded-2xl p-4 sm:p-5 border-2 border-amber-200 shadow-xs flex flex-col justify-between space-y-2 hover:shadow-md transition-shadow">
+        <div className="bg-[#FFFDF5] rounded-xl p-4 sm:p-5 border-3 border-[#B45309] shadow-[3px_3px_0_#B45309] flex flex-col justify-between space-y-2 hover:-translate-y-0.5 transition-transform">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold text-amber-800 flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-amber-600" />
-              <span>최고 타수 (최고 기록)</span>
+            <span className="text-xs font-pixel text-[#92400E] flex items-center gap-1.5">
+              <Flame className="w-4 h-4 text-[#D97706]" />
+              <span>최고 기록 (TOP SPEED)</span>
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[10px] font-black">
-              TOP SPEED
+            <span className="px-2 py-0.5 rounded-xs bg-[#FEF3C7] border border-[#B45309] text-[#92400E] text-[10px] font-pixel font-bold">
+              👑 BEST
             </span>
           </div>
 
           <div className="pt-1">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl sm:text-4xl font-black text-amber-700 font-mono tracking-tight">
+              <span className="text-3xl sm:text-4xl font-black text-[#B45309] font-mono tracking-tight">
                 {stats.highestCpm}
               </span>
-              <span className="text-sm font-bold text-amber-600">CPM (타/분)</span>
+              <span className="text-xs font-bold text-[#D97706] font-pixel">CPM (타/분)</span>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-amber-100 text-[11px] font-bold text-slate-600 flex items-center justify-between">
+          <div className="pt-2 border-t border-[#B45309]/20 text-[11px] font-arcade font-bold text-[#5C3A21] flex items-center justify-between">
             <span>한글 최고 {stats.koMax} CPM</span>
-            <span className="text-slate-300">|</span>
+            <span className="text-[#CBB58F]">|</span>
             <span>영어 최고 {stats.enMax} CPM</span>
           </div>
         </div>
 
         {/* 3. 정확도 */}
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50/70 rounded-2xl p-4 sm:p-5 border-2 border-emerald-200 shadow-xs flex flex-col justify-between space-y-2 hover:shadow-md transition-shadow">
+        <div className="bg-[#FFFDF5] rounded-xl p-4 sm:p-5 border-3 border-[#047857] shadow-[3px_3px_0_#047857] flex flex-col justify-between space-y-2 hover:-translate-y-0.5 transition-transform">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold text-emerald-800 flex items-center gap-1.5">
-              <Target className="w-4 h-4 text-emerald-600" />
-              <span>평균 정확도</span>
+            <span className="text-xs font-pixel text-[#065F46] flex items-center gap-1.5">
+              <Target className="w-4 h-4 text-[#059669]" />
+              <span>정확도 (ACCURACY)</span>
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-200/80 text-emerald-900 text-[10px] font-black">
+            <span className="px-2 py-0.5 rounded-xs bg-[#D1FAE5] border border-[#059669] text-[#065F46] text-[10px] font-pixel font-bold">
               {parseFloat(stats.avgAccuracy) >= 95 ? '정밀 타건' : '오타 최소화'}
             </span>
           </div>
 
           <div className="pt-1">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl sm:text-4xl font-black text-emerald-700 font-mono tracking-tight">
+              <span className="text-3xl sm:text-4xl font-black text-[#047857] font-mono tracking-tight">
                 {stats.avgAccuracy}%
               </span>
-              <span className="text-xs font-bold text-emerald-600">
+              <span className="text-xs font-bold text-[#059669] font-pixel">
                 (오타율 {stats.errorRate}%)
               </span>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-emerald-100 text-[11px] font-bold text-slate-600 flex items-center justify-between">
+          <div className="pt-2 border-t border-[#047857]/20 text-[11px] font-arcade font-bold text-[#5C3A21] flex items-center justify-between">
             <span>한글 {stats.koAcc}%</span>
-            <span className="text-slate-300">|</span>
+            <span className="text-[#CBB58F]">|</span>
             <span>영어 {stats.enAcc}%</span>
           </div>
         </div>

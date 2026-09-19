@@ -20,6 +20,7 @@ import {
 import { UserSession } from '../types';
 import { getMonthlyStudentReport, generateReportCardImage, FourMonthStudentReport } from '../utils/reportGenerator';
 import { soundManager } from '../utils/sound';
+import { ParchmentModalContainer } from './ParchmentModalContainer';
 
 interface MonthlyReportModalProps {
   isOpen: boolean;
@@ -169,37 +170,20 @@ ${breakdownLines}
     setTimeout(() => setCopiedText(false), 2500);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl border-4 border-pink-300 overflow-hidden flex flex-col max-h-[96vh] h-[860px]">
-        
-        {/* Modal Header */}
-        <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-sky-500 p-4 text-white flex items-center justify-between shadow-md shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center border border-white/40 shadow-xs shrink-0">
-              <TrendingUp className="w-5 h-5 text-yellow-300" />
-            </div>
-            <div>
-              <h2 className="font-arcade text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                <span>{reportData ? `${reportData.year}년 ${reportData.halfTerm} 타자 성장 성적표 발송실` : '상반기/하반기 타자 성장 성적표 발송실'}</span>
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full border border-white/30 font-bold">
-                  {reportData?.halfTerm || '상/하반기'} 정기 발송
-                </span>
-              </h2>
-              <p className="text-xs text-pink-100 font-medium">
-                {effectiveUser.name} 학생({effectiveUser.grade || 3}학년)의 {reportData ? `${reportData.year}년 ${reportData.halfTerm}` : ''} 월별 타수 향상 추이와 4대 영역 진도표를 확인하고 학부모님께 전송합니다.
-              </p>
-            </div>
-          </div>
+  if (!isOpen || !effectiveUser) return null;
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors cursor-pointer"
-            title="닫기"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  return (
+    <ParchmentModalContainer
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-5xl"
+      maxHeight="max-h-[96vh]"
+      title={`${effectiveUser.name} 학생 타자 성장 종합 성적표`}
+      badge={`${reportData?.year || new Date().getFullYear()} ${reportData?.halfTerm || ''}`}
+      subtitle={`${effectiveUser.name} 학생(${effectiveUser.grade || 3}학년)의 월별 타수 향상 추이와 4대 영역 진도표를 확인하고 학부모님께 전송합니다.`}
+      icon={<TrendingUp className="w-5 h-5 text-[#FFD700]" />}
+    >
+      <div className="flex-1 overflow-y-auto pr-1 font-pixel text-[#451A03] flex flex-col">
 
         {/* Period Selector Bar */}
         <div className="bg-pink-50/90 px-4 py-2.5 border-b border-pink-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
@@ -415,8 +399,7 @@ ${breakdownLines}
           </div>
 
         </div>
-
       </div>
-    </div>
+    </ParchmentModalContainer>
   );
 };

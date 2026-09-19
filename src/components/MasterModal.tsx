@@ -54,6 +54,7 @@ import {
 } from '../utils/excelStudentManager';
 import { typangApi } from '../utils/apiClient';
 import { userPersistenceManager } from '../utils/userPersistenceManager';
+import { ParchmentModalContainer } from './ParchmentModalContainer';
 
 interface MasterModalProps {
   isOpen: boolean;
@@ -440,18 +441,19 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     return matchSearch;
   });
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-5xl w-full p-5 sm:p-8 shadow-2xl border-4 border-pink-200 relative my-8 arcade-card-glow max-h-[92vh] flex flex-col">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 transition-colors cursor-pointer"
-          title="닫기"
-        >
-          <X className="w-5 h-5" />
-        </button>
+  if (!isOpen) return null;
 
+  return (
+    <ParchmentModalContainer
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-5xl"
+      title="마스터(선생님) 학생 관리실"
+      badge="MASTER"
+      subtitle="학생들의 가입 승인, 비밀번호 관리 및 상세 타자 연습 기록 조회를 진행합니다."
+      icon={<Crown className="w-6 h-6 text-[#FFD700]" />}
+    >
+      <div className="flex-1 overflow-y-auto pr-1 font-pixel text-[#451A03]">
         {/* Master Auth Check Screen */}
         {!isAuthenticated ? (
           <div className="py-8 max-w-md mx-auto text-center space-y-5">
@@ -1400,6 +1402,6 @@ export const MasterModal: React.FC<MasterModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ParchmentModalContainer>
   );
 };

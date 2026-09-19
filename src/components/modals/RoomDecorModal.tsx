@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoomDecorState } from '../../types';
 import { soundManager } from '../../utils/sound';
+import { ParchmentModalContainer } from '../ParchmentModalContainer';
 import { 
   Sparkles, 
   Palette, 
