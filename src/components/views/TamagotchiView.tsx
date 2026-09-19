@@ -788,7 +788,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
   const stageInfo = STAGE_LABELS[currentStage];
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-300 max-w-5xl mx-auto pb-10">
+    <div className="tg space-y-5 animate-in fade-in duration-300 max-w-5xl mx-auto pb-10">
       {/* ================= PLAYGROUND MODE HEADER ================= */}
       {isPlayground && (
         <div className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs">
@@ -805,7 +805,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
       )}
 
       {/* ================= TOP HEADER BANNER ================= */}
-      <div className="bg-gradient-to-r from-amber-100 via-orange-50 to-rose-100 rounded-3xl p-5 sm:p-6 border-4 border-amber-200 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="tg-head bg-gradient-to-r from-amber-100 via-orange-50 to-rose-100 rounded-3xl p-5 sm:p-6 border-4 border-amber-200 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shadow-xs flex items-center gap-1.5">
@@ -874,7 +874,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
         {/* Left: Cozy Home Living Room Stage (8 cols) */}
         <div className="lg:col-span-8 space-y-4">
           {/* Main Home Living Room Container */}
-          <div className="relative rounded-3xl overflow-hidden border-4 border-amber-300/80 shadow-2xl bg-[#FFFBEB] flex flex-col justify-between min-h-[460px]">
+          <div className="tg-screen relative rounded-3xl overflow-hidden border-4 border-amber-300/80 shadow-2xl bg-[#FFFBEB] flex flex-col justify-between min-h-[460px]">
             
             {/* ================= DYNAMIC SVG THEME & DECOR BACKGROUND ================= */}
             <TamagotchiThemeBackground 

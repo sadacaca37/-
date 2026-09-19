@@ -1,17 +1,7 @@
 import React from 'react';
-import BubbleBobbleApp from './bubbleBobble/App';
+import { IframeGame } from './IframeGame';
 
-interface BubbleBobbleGameWrapperProps {
-  onBack?: () => void;
-  currentUser?: any;
-}
-
-export const BubbleBobbleGameWrapper: React.FC<BubbleBobbleGameWrapperProps> = () => {
-  return (
-    <div className="w-full flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-black border-2 border-emerald-500/40 shadow-2xl p-2 sm:p-4">
-      <div className="w-full max-w-[800px]">
-        <BubbleBobbleApp />
-      </div>
-    </div>
-  );
-};
+/** GitHub(sadacaca37/game) 원본을 그대로 빌드해 실행 */
+export const BubbleBobbleGameWrapper: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="/games/bubblebobble/index.html" title="보글보글 (Bubble Bobble)" icon="🫧" />
+);

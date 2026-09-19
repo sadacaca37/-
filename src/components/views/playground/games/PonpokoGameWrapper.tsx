@@ -1,17 +1,7 @@
 import React from 'react';
-import PonpokoApp from './ponpoko/App';
+import { IframeGame } from './IframeGame';
 
-interface PonpokoGameWrapperProps {
-  onBack?: () => void;
-  currentUser?: any;
-}
-
-export const PonpokoGameWrapper: React.FC<PonpokoGameWrapperProps> = () => {
-  return (
-    <div className="w-full flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-neutral-950 border-2 border-yellow-500/40 shadow-2xl p-2 sm:p-4">
-      <div className="w-full max-w-[620px]">
-        <PonpokoApp />
-      </div>
-    </div>
-  );
-};
+/** GitHub(sadacaca37/game) 원본을 그대로 빌드해 실행 */
+export const PonpokoGameWrapper: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="/games/ponpoko/index.html" title="너구리 (Ponpoko 1982)" icon="🦝" />
+);

@@ -1,17 +1,7 @@
 import React from 'react';
-import SuperMarioApp from './superMario/App';
+import { IframeGame } from './IframeGame';
 
-interface SuperMarioGameWrapperProps {
-  onBack?: () => void;
-  currentUser?: any;
-}
-
-export const SuperMarioGameWrapper: React.FC<SuperMarioGameWrapperProps> = () => {
-  return (
-    <div className="w-full flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-slate-900 border-2 border-red-500/40 shadow-2xl p-2 sm:p-4">
-      <div className="w-full max-w-[850px]">
-        <SuperMarioApp />
-      </div>
-    </div>
-  );
-};
+/** GitHub(sadacaca37/game) 원본을 그대로 빌드해 실행 */
+export const SuperMarioGameWrapper: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="/games/supermario/index.html" title="슈퍼마리오 (Web Bros)" icon="🍄" />
+);

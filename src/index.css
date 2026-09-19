@@ -1876,3 +1876,66 @@
 .kw-home { padding: 8px 16px; font-family: 'Galmuri11', monospace; font-weight: 700; font-size: 13px; color: #1b2340; background: #fff; border: 3px solid #1b2340; border-radius: 8px; box-shadow: 0 3px 0 #1b2340; }
 /* the knowledge world should not get the generic parchment skin */
 .tp-skin .kw-card, .tp-skin .kw-foot { border-radius: 16px; }
+
+/* ================================================================
+   AVATAR STUDIO – retro game "character select" skin
+   ================================================================ */
+.tp-modal .av-studio { background: #7fd0ff !important; gap: 8px; padding: 8px; }
+.tp-modal .av-rail {
+  background: repeating-linear-gradient(180deg, transparent 0 22px, rgba(42,21,11,0.3) 22px 24px), linear-gradient(180deg, #a86b33, #784e3d) !important;
+  border: 4px solid #2a150b !important; border-radius: 10px !important; box-shadow: 0 4px 0 #1e1006;
+}
+.tp-modal .av-rail button { border: 3px solid #2a150b !important; border-radius: 8px !important; background: #fff4dc !important; color: #3d220d !important; box-shadow: 0 3px 0 #1e1006 !important; }
+.tp-modal .av-rail button[class*='bg-pink'], .tp-modal .av-rail button[class*='text-white'] {
+  background: linear-gradient(180deg, #fff176, #ffd700 60%, #ffc400) !important; color: #1b2340 !important;
+}
+.tp-modal .av-rail button span { font-family: 'Jua', sans-serif; font-weight: 400 !important; }
+.tp-modal .av-items, .tp-modal .av-side {
+  background: linear-gradient(180deg, #fffdf6, #fff2cf) !important;
+  border: 4px solid #1b2340 !important; border-radius: 10px !important; box-shadow: 0 4px 0 #1b2340;
+}
+.tp-modal .av-items h3, .tp-modal .av-items h4, .tp-modal .av-side h3, .tp-modal .av-side h4 { font-family: 'Jua', sans-serif !important; font-weight: 400 !important; color: #1b2340 !important; }
+.tp-modal .av-items button[class*='rounded'], .tp-modal .av-side button[class*='rounded-2xl'], .tp-modal .av-side button[class*='rounded-xl'] {
+  border-width: 3px !important; border-color: #1b2340 !important; border-radius: 8px !important; box-shadow: 0 3px 0 #1b2340 !important;
+}
+.tp-modal .av-stage {
+  border: 5px solid #1b2340 !important; border-radius: 12px !important;
+  box-shadow: 0 0 0 4px #ffffff, 0 0 0 8px #1b2340, 0 6px 0 8px rgba(27,35,64,0.5) !important;
+  margin: 6px;
+}
+.tp-modal .av-stage::before {
+  content: 'CHARACTER SELECT'; position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 30;
+  padding: 2px 10px; font-family: 'Galmuri11', monospace; font-weight: 700; font-size: 11px; color: #ffd700;
+  background: #1b2340; border-radius: 4px; letter-spacing: 0.08em; pointer-events: none;
+}
+.tp-modal .av-stage button { border-radius: 8px !important; }
+
+/* ================================================================
+   TAMAGOTCHI – handheld pet console skin
+   ================================================================ */
+.tp-skin .tg .tg-head.tg-head {
+  background: repeating-linear-gradient(180deg, transparent 0 26px, rgba(42,21,11,0.25) 26px 29px), linear-gradient(180deg, #d99a5b, #b8783b) !important;
+  border: 5px solid #2a150b !important; border-radius: 14px !important; box-shadow: inset 0 0 0 4px #e8b57a, 0 7px 0 #1e1006 !important;
+}
+.tp-skin .tg .tg-head.tg-head h1, .tp-skin .tg .tg-head.tg-head h2 { font-family: 'Jua', sans-serif !important; font-weight: 400 !important; color: #fff !important; text-shadow: 2px 2px 0 #2a150b, -1px -1px 0 #2a150b, 1px -1px 0 #2a150b, -1px 1px 0 #2a150b; }
+.tp-skin .tg .tg-head.tg-head p { color: #fff4dc !important; font-weight: 700; }
+.tp-skin .tg .tg-head.tg-head button { border: 3px solid #1b2340 !important; border-radius: 8px !important; box-shadow: 0 4px 0 #1b2340 !important; font-family: 'Galmuri11', 'Jua', sans-serif; }
+.tp-skin .tg .tg-screen.tg-screen {
+  border: 6px solid #1b2340 !important; border-radius: 22px !important;
+  box-shadow: 0 0 0 8px #ff8ac6, 0 0 0 12px #1b2340, 0 12px 0 12px rgba(90, 10, 58, 0.35) !important;
+  margin: 14px;
+}
+.tp-skin .tg .tg-screen.tg-screen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 40;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0 2px, transparent 2px 4px);
+}
+.tp-skin .tg [class*='rounded-3xl'][class*='rounded-3xl'][class*='border']:not(.tg-screen):not(.tg-head) {
+  background: linear-gradient(180deg, #fffdf6, #fff2cf) !important;
+  border: 4px solid #1b2340 !important; border-radius: 14px !important; box-shadow: 0 6px 0 #1b2340 !important;
+}
+.tg h3 { font-family: 'Jua', sans-serif !important; font-weight: 400 !important; color: #1b2340 !important; }
+.tp-skin .tg [class*='rounded-2xl'][class*='rounded-2xl'][class*='border']:not(.tg-screen *) { border-color: #1b2340 !important; border-radius: 10px !important; box-shadow: 0 3px 0 #1b2340 !important; }
+.tg button[class*='bg-gradient'], .tg button[class*='bg-indigo-6'], .tg button[class*='bg-emerald'], .tg button[class*='bg-amber-5'], .tg button[class*='bg-pink'] {
+  border: 3px solid #1b2340 !important; border-radius: 8px !important; box-shadow: 0 4px 0 #1b2340 !important;
+}
+.tg [class*='rounded-full'][class*='h-2'], .tg [class*='rounded-full'][class*='h-1.5'] { border-radius: 2px !important; }

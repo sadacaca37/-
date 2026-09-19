@@ -1201,12 +1201,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         /* ========================================================================= */
         /* 2. THREE-PANEL STUDIO BODY (Avatar Customizer) */
         /* ========================================================================= */
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 min-h-0 overflow-hidden">
+        <div className="av-studio flex-1 grid grid-cols-1 md:grid-cols-12 min-h-0 overflow-hidden">
           
           {/* ======================================================================= */}
           {/* LEFT COLUMN: CATEGORY SELECTOR BAR (Vertical Navigation) */}
           {/* ======================================================================= */}
-          <div className="md:col-span-1 bg-white border-r border-slate-200 p-2 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-y-auto shrink-0 select-none scrollbar-none">
+          <div className="av-rail md:col-span-1 bg-white border-r border-slate-200 p-2 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-y-auto shrink-0 select-none scrollbar-none">
             {[
               { id: 'hair', label: '머리', icon: '💇‍♂️', count: '20' },
               { id: 'skin', label: '얼굴색', icon: '👶', count: '5' },
@@ -1250,7 +1250,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* ======================================================================= */}
           {/* CENTER-LEFT COLUMN: DETAILED OPTIONS FOR ACTIVE CATEGORY */}
           {/* ======================================================================= */}
-          <div className="md:col-span-4 bg-[#F8FAFC] border-r border-slate-200 p-3 sm:p-4 overflow-y-auto flex flex-col gap-4">
+          <div className="av-items md:col-span-4 bg-[#F8FAFC] border-r border-slate-200 p-3 sm:p-4 overflow-y-auto flex flex-col gap-4">
             
             {/* === CATEGORY: 머리 (Hair) === */}
             {activeCategory === 'hair' && (
@@ -1923,7 +1923,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* ======================================================================= */}
           {/* CENTER PREVIEW CANVAS STAGE (Full Character + Scenery + View Angles) */}
           {/* ======================================================================= */}
-          <div className="md:col-span-4 bg-white flex flex-col items-center justify-between p-4 relative overflow-hidden border-r border-slate-200">
+          <div className="av-stage md:col-span-4 bg-white flex flex-col items-center justify-between p-4 relative overflow-hidden border-r border-slate-200">
             
             {/* Top Floating View Angle & Gender Buttons */}
             <div className="w-full flex items-center justify-between z-20">
@@ -2086,7 +2086,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* ======================================================================= */}
           {/* RIGHT COLUMN: PRESETS (BOY / GIRL / FAVORITES) */}
           {/* ======================================================================= */}
-          <div className="md:col-span-3 bg-[#F8FAFC] p-3 sm:p-4 overflow-y-auto flex flex-col gap-4">
+          <div className="av-side md:col-span-3 bg-[#F8FAFC] p-3 sm:p-4 overflow-y-auto flex flex-col gap-4">
             
             {/* 1. CHARACTER PRESETS (2x3 Grid with Boy / Girl / Favorites Tabs) */}
             <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs flex flex-col">
