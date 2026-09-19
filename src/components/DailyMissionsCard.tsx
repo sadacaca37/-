@@ -147,7 +147,7 @@ export const DailyMissionsCard: React.FC<DailyMissionsCardProps> = ({ currentUse
                   <button
                     onClick={() => {
                       if (mission.type === 'chars') onSelectMode('key-practice');
-                      else if (mission.type === 'game') onSelectMode('rhythm-game');
+                      else if (mission.type === 'game') onSelectMode('mini-games');
                       else onSelectMode('word-practice');
                     }}
                     className="w-full py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 text-xs font-bold border border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer"

@@ -1448,3 +1448,55 @@
   .tp-nav .h-16 > div:last-child { flex-wrap: wrap; justify-content: flex-end; }
   .tp-nbtn span { white-space: nowrap; }
 }
+
+/* ================================================================
+   SUB-PAGE SKIN – same wood/parchment/neon language on every screen
+   ================================================================ */
+.tp-skin .absolute.pointer-events-none[class*='bg-gradient'] { display: none !important; }
+.tp-skin [class*='bg-white'][class*='rounded-3xl'],
+.tp-skin [class*='bg-white'][class*='rounded-2xl'][class*='border-2'],
+.tp-skin [class*='bg-white'][class*='rounded-2xl'][class*='border-3'] {
+  background:
+    repeating-linear-gradient(0deg, rgba(90, 52, 23, 0.03) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #fdf5dd, #f6e7c1) !important;
+  backdrop-filter: none !important;
+}
+.tp-skin [class*='rounded-3xl'][class*='border'] {
+  border-color: #5a3417 !important;
+  border-width: 4px !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 0 0 3px rgba(255, 248, 230, 0.8), 0 6px 0 rgba(0, 0, 0, 0.45) !important;
+}
+.tp-skin [class*='rounded-2xl'][class*='border'] {
+  border-color: #5a3417 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 0 rgba(90, 52, 23, 0.75) !important;
+}
+.tp-skin [class*='rounded-3xl'][class*='border'][class*='bg-gradient'],
+.tp-skin [class*='rounded-3xl'][class*='border'][class*='bg-slate-9'],
+.tp-skin [class*='rounded-3xl'][class*='border'][class*='bg-black'] {
+  border-color: #6ff6ff !important;
+  box-shadow: 0 0 0 3px #0b0e2a, 0 0 18px rgba(111, 246, 255, 0.45), 0 6px 0 rgba(0, 0, 0, 0.5) !important;
+}
+.tp-skin h1, .tp-skin h2, .tp-skin h3 {
+  font-family: 'Jua', 'Pretendard', sans-serif !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+}
+.tp-skin button[class*='bg-gradient'],
+.tp-skin button[class*='bg-indigo-6'],
+.tp-skin button[class*='bg-pink-5'],
+.tp-skin button[class*='bg-sky-5'],
+.tp-skin button[class*='bg-teal-5'],
+.tp-skin button[class*='bg-emerald-5'],
+.tp-skin button[class*='bg-amber-5'] {
+  border: 3px solid #0b0e2a !important;
+  box-shadow: 0 4px 0 #0b0e2a !important;
+  transition: transform 0.12s;
+}
+.tp-skin button[class*='bg-gradient']:hover { transform: translateY(-2px); }
+.tp-skin button[class*='bg-gradient']:active { transform: translateY(3px); box-shadow: 0 1px 0 #0b0e2a !important; }
+.tp-skin .text-2xl, .tp-skin .text-3xl, .tp-skin .text-4xl { font-family: 'Galmuri11', 'Jua', monospace; }
+.tp-skin [class*='rounded-full'][class*='px-'][class*='text-'] { border-radius: 6px !important; }
+/* keep playground game stages untouched */
+.tp-skin canvas { border-radius: 0; }

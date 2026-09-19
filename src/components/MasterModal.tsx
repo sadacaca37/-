@@ -413,6 +413,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       return;
     }
     const updatedCfg = {
+      ...masterConfig,
       masterName: secName.trim(),
       masterEmail: secEmail.trim(),
       masterKey: secKey.trim(),

@@ -249,6 +249,8 @@ export interface UserSession {
   avatarBg?: string;
   avatarConfig?: AvatarConfig;
   levelTitle?: string;
+  nickname?: string;
+  averageCpm?: number;
   isApproved?: boolean; // 마스터(선생님) 승인 여부
   role?: 'student' | 'master'; // 학생 or 마스터(선생님)
   createdAt: number;
@@ -354,7 +356,7 @@ export interface LeaderboardEntry {
   userName: string;
   userAvatar?: string;
   grade?: number; // 1~6학년
-  mode: 'sentence'; // 명예의 전당은 오직 짧은 글 전용
+  mode: 'sentence' | 'mole-game' | 'rain-game' | 'shortcut-quiz'; // 명예의 전당에는 짧은 글만 기록됨
   modeTitle: string;
   score: number;
   cpm: number;

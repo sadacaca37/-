@@ -217,7 +217,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Total Points Wallet Indicator (상단 마스터 관리실 옆 전체 보유 포인트) */}
             <button
-              onClick={onOpenProfile}
+              onClick={() => onOpenProfile('avatar')}
               className="tp-nbtn tp-nbtn--coin px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-100 hover:from-yellow-100 hover:to-amber-200 text-amber-950 border-2 border-yellow-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 group"
               title="전체 보유 포인트 (클릭하여 아바타 꾸미기 및 상점 이동)"
             >

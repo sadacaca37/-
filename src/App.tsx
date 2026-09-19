@@ -404,7 +404,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full ${
+      <main className={`flex-1 w-full ${!isPopupMode && currentMode !== 'home' ? 'tp-skin' : ''} ${
         isPopupMode
           ? 'h-screen w-screen p-0 m-0 overflow-hidden'
           : ['key-practice', 'word-practice', 'sentence-practice', 'long-practice'].includes(currentMode)
@@ -680,9 +680,9 @@ export default function App() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         currentUser={currentUser}
-        onStartPractice={(mode) => {
-          setCurrentMode(mode);
+        onSelectMode={(mode) => {
           setIsHistoryOpen(false);
+          handleSelectMode(mode);
         }}
       />
     </div>

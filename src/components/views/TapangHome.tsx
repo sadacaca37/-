@@ -100,6 +100,41 @@ const BUSH = ['..KKKK..', '.KGGgGK.', 'KGGGGGgK', 'KGgGGGGK', 'KGGGGgGK', '.KKKK
 const BUSH_PAL = { K: '#1f5a22', G: '#3fae4a', g: '#6fd26b' };
 const FLOWER = ['.P.', 'PYP', '.P.', '.G.', 'GG.'];
 
+
+/* ---------- unified pixel icon set (same outline + palette) ---------- */
+export const PIXEL_ICONS: Record<string, { grid: string[]; pal: Record<string, string> }> = {
+  keyboard: {
+    grid: ['............', '.KKKKKKKKKK.', 'KGGGGGGGGGGK', 'KGWGWGWGWGGK', 'KGGGGGGGGGGK', 'KGGWGWGWGWGK', 'KGGGGGGGGGGK', 'KGWWWWWWWGGK', 'KGGGGGGGGGGK', '.KKKKKKKKKK.'],
+    pal: { K: '#1b2340', G: '#9aa7b8', W: '#ffffff' },
+  },
+  bomb: {
+    grid: ['.......YR...', '......Y.....', '.....KK.....', '...KKKKKK...', '..KDDDDDDK..', '.KDLDDDDDDK.', '.KDLDDDDDDK.', '.KDDDDDDDDK.', '.KDDDDDDDDK.', '..KDDDDDDK..', '...KKKKKK...'],
+    pal: { K: '#1b2340', D: '#3a3f55', L: '#8a90a8', Y: '#ffd700', R: '#ff4757' },
+  },
+  sneaker: {
+    grid: ['............', '..R.........', '.RO.........', 'ROY..KKKK...', '.RO.KWWWWK..', '..RKWWBWWWK.', '...KWWBWWWWK', '..KWWWWWWWWK', '.KRRRRRRRRRK', '.KKKKKKKKKKK'],
+    pal: { K: '#1b2340', R: '#ff4757', O: '#ff9f1c', Y: '#ffd700', W: '#ffffff', B: '#38b6ff' },
+  },
+  scroll: {
+    grid: ['.........QQ.', '........QQ..', '.KKKKKKKQK..', 'KPPPPPPQPPK.', '.KPLLLLQLPK.', '.KPPPPQPPPK.', '.KPLLLLLLPK.', '.KPPPPPPPPK.', '.KPLLLLLLPK.', 'KPPPPPPPPPPK', '.KKKKKKKKKK.'],
+    pal: { K: '#5a3417', P: '#f6e7c1', L: '#b58a5a', Q: '#8a6cff' },
+  },
+  globe: {
+    grid: ['...Y.Y.Y....', '...YYYYY....', '..KKKKKKK...', '.KBBGGBBBK..', 'KBGGGGBBBBK.', 'KBBGGBBGGBK.', 'KBBBBBGGGBK.', 'KBGBBBBGBBK.', '.KBGGBBBBK..', '..KKKKKKK...'],
+    pal: { K: '#1b2340', B: '#38b6ff', G: '#78e08f', Y: '#ffd700' },
+  },
+  trophy: { grid: TROPHY, pal: TROPHY_PAL },
+  coin: { grid: COIN, pal: COIN_PAL },
+  bag: {
+    grid: ['....KKKK....', '...K....K...', '..KKKKKKKK..', '.KBBBBBBBBK.', 'KBBBBYYBBBBK', 'KBBBBYYBBBBK', 'KBBBBBBBBBBK', 'KBBBBBBBBBBK', '.KBBBBBBBBK.', '..KKKKKKKK..'],
+    pal: { K: '#3d220d', B: '#b8783b', Y: '#ffd700' },
+  },
+};
+export const PixelIcon: React.FC<{ name: keyof typeof PIXEL_ICONS | string; size?: number; className?: string }> = ({ name, size = 26, className }) => {
+  const ic = PIXEL_ICONS[name];
+  return ic ? <Pixel grid={ic.grid} pal={ic.pal} size={size} className={className} /> : null;
+};
+
 /* 타퐁 robot with optional name plate + speech bubble */
 export const TvBot: React.FC<{ size?: number; bubble?: string; bubbleSide?: 'left' | 'right' | 'top'; className?: string }> = ({
   size = 150,
@@ -136,12 +171,12 @@ interface MapStop {
   kind?: 'arch' | 'special';
 }
 const MAP_STOPS: MapStop[] = [
-  { mode: 'key-practice', label: '1 STAGE', name: '자리 연습', icon: '⌨️', goal: 10, x: 23, y: 79, mx: 70, my: 15 },
-  { mode: 'word-practice', label: '2 STAGE', name: '낱말 연습', icon: '💣', goal: 10, x: 41, y: 76, mx: 30, my: 31 },
-  { mode: 'sentence-practice', label: '3 STAGE', name: '짧은 글', icon: '👟', goal: 10, x: 43, y: 36, mx: 72, my: 47 },
-  { mode: 'long-practice', label: '4 STAGE', name: '긴 글 연습', icon: '📜', goal: 5, x: 66, y: 45, mx: 30, my: 63 },
-  { mode: 'knowledge-hub', label: 'SPECIAL', name: '팡팡 지식 타자', icon: '🌏', goal: 3, x: 71, y: 84, mx: 72, my: 78, kind: 'special' },
-  { mode: 'leaderboard', label: '5 STAGE', name: '명예의 전당', icon: '🏆', goal: 1, x: 87.5, y: 42, mx: 44, my: 96, kind: 'arch' },
+  { mode: 'key-practice', label: '1 STAGE', name: '자리 연습', icon: 'keyboard', goal: 10, x: 26, y: 79, mx: 70, my: 15 },
+  { mode: 'word-practice', label: '2 STAGE', name: '낱말 연습', icon: 'bomb', goal: 10, x: 41, y: 76, mx: 30, my: 31 },
+  { mode: 'sentence-practice', label: '3 STAGE', name: '짧은 글', icon: 'sneaker', goal: 10, x: 43, y: 36, mx: 72, my: 47 },
+  { mode: 'long-practice', label: '4 STAGE', name: '긴 글 연습', icon: 'scroll', goal: 5, x: 66, y: 45, mx: 30, my: 63 },
+  { mode: 'knowledge-hub', label: 'SPECIAL', name: '팡팡 지식 타자', icon: 'globe', goal: 3, x: 71, y: 84, mx: 72, my: 78, kind: 'special' },
+  { mode: 'leaderboard', label: '5 STAGE', name: '명예의 전당', icon: 'trophy', goal: 1, x: 87.5, y: 42, mx: 44, my: 96, kind: 'arch' },
 ];
 const DESK_PATH = 'M-3 87 L 37 87 C 44 87, 44 79, 42 74 C 40 69, 34 67, 34 58 L 34 49 C 34 44, 36 43, 42 43 L 52 43 C 57 43, 58 53, 63 54 L 84 54 C 88 54, 88 50, 88 45';
 const MOB_PATH = 'M-3 5 L 50 5 C 64 5, 64 17, 50 20 L 40 22 C 20 26, 22 38, 40 41 L 58 43 C 76 47, 76 56, 58 59 L 44 62 C 24 66, 26 79, 44 82 L 46 92';
@@ -309,7 +344,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                     </>
                   )}
                   <span className="qm-sign">
-                    <span className="qm-sign-icon">{s.icon}</span>
+                    <span className="qm-sign-icon"><PixelIcon name={s.icon} size={26} /></span>
                     <span className="qm-sign-text">
                       <b>{s.label}:</b>
                       <span>{s.name}</span>
@@ -340,7 +375,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
             <button type="button" className="qm-pouch" onClick={() => (currentUser ? onOpenProfile?.('avatar') : onOpenAuth())}>
               <Pixel grid={COIN} pal={COIN_PAL} size={22} />
               <span className="qm-pouch-num">{points.toLocaleString()}</span>
-              <span className="qm-pouch-bag">👜</span>
+              <span className="qm-pouch-bag"><PixelIcon name="bag" size={30} /></span>
             </button>
           </div>
         </div>
