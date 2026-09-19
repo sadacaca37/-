@@ -34,7 +34,7 @@ export const Pixel: React.FC<{
 };
 
 /* ---------- sprites ---------- */
-/* 타퐁 (Typong) – retro CRT-TV robot */
+/* 파팡 (Typong) – retro CRT-TV robot */
 const TV_BOT = [
   '....Y..........Y......',
   '.....K........K.......',
@@ -135,7 +135,7 @@ export const PixelIcon: React.FC<{ name: keyof typeof PIXEL_ICONS | string; size
   return ic ? <Pixel grid={ic.grid} pal={ic.pal} size={size} className={className} /> : null;
 };
 
-/* 타퐁 robot with optional name plate + speech bubble */
+/* 파팡 robot with optional name plate + speech bubble */
 export const TvBot: React.FC<{ size?: number; bubble?: string; bubbleSide?: 'left' | 'right' | 'top'; className?: string }> = ({
   size = 150,
   bubble,
@@ -147,7 +147,7 @@ export const TvBot: React.FC<{ size?: number; bubble?: string; bubbleSide?: 'lef
     <div className="relative">
       <Pixel grid={TV_BOT} pal={TV_PAL} size={size} />
       <span className="tp-bot-plate" style={{ fontSize: Math.max(8, size * 0.075) }}>
-        타퐁
+        파팡
       </span>
     </div>
   </div>
@@ -362,7 +362,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
               );
             })}
 
-            {/* 타퐁 on tracks */}
+            {/* 파팡 on tracks */}
             <div className="qm-bot">
               <div className="qm-bot-bubble">
                 {currentUser ? `${currentUser.name}! ` : ''}차근차근 퀘스트를 깨고 전설의 타자 왕에 도전해봐!

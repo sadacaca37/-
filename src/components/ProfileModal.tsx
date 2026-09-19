@@ -689,7 +689,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* ========================================================================= */}
         {/* 1. TOP HEADER (Exact Title, Mode Switcher & Top-Right Utility Buttons) */}
         {/* ========================================================================= */}
-        <header className="flex flex-wrap items-center justify-between px-3 sm:px-6 py-2.5 bg-white border-b border-slate-200 select-none shrink-0 gap-2">
+        <header className="pf-head flex flex-wrap items-center justify-between px-3 sm:px-6 py-2.5 bg-white border-b border-slate-200 select-none shrink-0 gap-2">
           {/* Logo + Title */}
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-100 border-2 border-sky-400 flex items-center justify-center shadow-xs text-base sm:text-lg">
@@ -711,7 +711,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           {/* Mode Switch Tabs: Avatar Maker vs Account Info vs Progress Chart */}
-          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200">
+          <div className="pf-tabs flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200">
             <button
               onClick={() => {
                 soundManager.play('click');
@@ -759,7 +759,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* Top Right Utility Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Live Point Balance Badge */}
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-amber-50 border-2 border-amber-300 rounded-full shadow-2xs">
+            <div className="pf-points flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-amber-50 border-2 border-amber-300 rounded-full shadow-2xs">
               <span className="text-xs sm:text-sm">🪙</span>
               <span className="text-xs font-black text-amber-950 font-arcade">
                 {userPoints.toLocaleString()} <span className="text-[10px] font-bold text-amber-700">P</span>
@@ -825,7 +825,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* MAIN BODY: ACCOUNT INFO VIEW vs AVATAR STUDIO BODY */}
         {/* ========================================================================= */}
         {mainTab === 'account' ? (
-          <div className="flex-1 p-3 sm:p-6 overflow-y-auto bg-slate-50/70">
+          <div className="pf-acct flex-1 p-3 sm:p-6 overflow-y-auto bg-slate-50/70">
             <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5">
               {/* Account Feedback Toast */}
               {accountFeedback && (
@@ -847,8 +847,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
                 
                 {/* Left Column: Student Avatar & Stats Card */}
-                <div className="md:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col items-center text-center space-y-4">
-                  <div className="relative w-36 h-44 rounded-2xl bg-gradient-to-b from-sky-100 to-indigo-100 border-2 border-sky-200 flex items-center justify-center overflow-hidden shadow-inner">
+                <div className="pf-card pf-card--id md:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col items-center text-center space-y-4">
+                  <div className="pf-avatar relative w-36 h-44 rounded-2xl bg-gradient-to-b from-sky-100 to-indigo-100 border-2 border-sky-200 flex items-center justify-center overflow-hidden shadow-inner">
                     <CharacterAvatar config={config} size="md" mood="happy" animate={true} />
                     <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-white/80 backdrop-blur-xs text-[10px] font-black text-slate-700 border border-slate-200">
                       {currentUser?.role === 'master' ? '👑 마스터' : `${editGrade}학년`}
@@ -892,19 +892,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
                   {/* Overall Stats */}
                   <div className="w-full grid grid-cols-2 gap-2 pt-1">
-                    <div className="p-3 bg-sky-50 rounded-2xl border border-sky-200 text-left">
+                    <div className="pf-stat pf-stat--sky p-3 bg-sky-50 rounded-2xl border border-sky-200 text-left">
                       <span className="text-[10px] font-extrabold text-sky-600 block">최고 타수</span>
                       <span className="text-base font-black text-sky-950 font-arcade">
                         {currentUser?.highestCpm || 0} <span className="text-[10px] font-bold text-sky-700">CPM</span>
                       </span>
                     </div>
-                    <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-left">
+                    <div className="pf-stat pf-stat--lav p-3 bg-purple-50 rounded-2xl border border-purple-200 text-left">
                       <span className="text-[10px] font-extrabold text-purple-600 block">누적 연습</span>
                       <span className="text-base font-black text-purple-950 font-arcade">
                         {currentUser?.totalPracticeCount || 0} <span className="text-[10px] font-bold text-purple-700">회</span>
                       </span>
                     </div>
-                    <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-left col-span-2 flex items-center justify-between">
+                    <div className="pf-stat pf-stat--gold p-3 bg-amber-50 rounded-2xl border border-amber-200 text-left col-span-2 flex items-center justify-between">
                       <div>
                         <span className="text-[10px] font-extrabold text-amber-700 block">보유 타자 포인트</span>
                         <span className="text-base font-black text-amber-950 font-arcade">
@@ -917,7 +917,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
 
                 {/* Right Column: Editable Account Details & Password Inspection */}
-                <div className="md:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="pf-card pf-card--form md:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col justify-between">
                   <form onSubmit={handleSaveAccountInfo} className="space-y-4">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                       <div>
@@ -1104,7 +1104,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                                 setEditGrade(g);
                               }
                             }}
-                            className={`py-2 rounded-xl text-xs font-black transition-all border-2 ${
+                            className={`pf-grade ${editGrade === g ? 'is-on' : ''} py-2 rounded-xl text-xs font-black transition-all border-2 ${
                               editGrade === g
                                 ? 'bg-purple-500 text-white border-purple-600 shadow-xs scale-102'
                                 : 'bg-slate-50 text-slate-700 border-slate-200'
@@ -1121,7 +1121,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       {currentUser?.role === 'master' ? (
                         <button
                           type="submit"
-                          className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-sky-500 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 border-2 border-pink-300"
+                          className="pf-save w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-sky-500 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 border-2 border-pink-300"
                         >
                           <Save className="w-4 h-4" />
                           <span>마스터 권한으로 저장하기</span>
