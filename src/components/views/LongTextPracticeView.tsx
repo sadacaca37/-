@@ -363,7 +363,15 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
   }, [isTimerRunning]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+    // At the end of a source line, Space works like Enter: it moves to the next line
+    let val = e.target.value;
+    if (val.includes(' ')) {
+      let fixed = '';
+      for (let i = 0; i < val.length; i++) {
+        fixed += val[i] === ' ' && targetPageText[i] === '\n' ? '\n' : val[i];
+      }
+      val = fixed;
+    }
 
     // Start timer on first input
     if (!startTimeRef.current && val.length > 0) {
@@ -710,7 +718,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
         <div className="relative rounded-xl overflow-hidden shadow-[0_8px_24px_rgba(55,25,10,0.3),3px_0_0_#F0EAE1,5px_0_0_#E4DCCE] border border-[#DDD3C2]">
           
           {/* Book Spread Container (Left & Right equal height) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch min-h-[350px] lg:h-[390px] relative bg-[#FAF7EE]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch min-h-[350px] lg:h-[424px] relative bg-[#FAF7EE]">
             
             {/* Realistic Book Spine Crease Divider */}
             <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-8 -ml-4 pointer-events-none z-20 book-spine-crease" />
@@ -718,7 +726,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
             {/* ================================================================= */}
             {/* LEFT PAGE: 원문 감상 (오른쪽 필사 공간과 완벽한 수평 높이 일치) */}
             {/* ================================================================= */}
-            <div className={`p-4 sm:p-5 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-[#E4DCCB] relative bg-[#FAF7EE] shadow-[inset_-10px_0_15px_rgba(0,0,0,0.02)] h-full overflow-hidden ${
+            <div className={`p-4 sm:p-5 flex flex-col justify-start border-b lg:border-b-0 lg:border-r border-[#E4DCCB] relative bg-[#FAF7EE] shadow-[inset_-10px_0_15px_rgba(0,0,0,0.02)] h-full overflow-hidden ${
               isPageTurning ? (pageTurnDirection === 'next' ? 'animate-page-turn-next' : 'animate-page-turn-prev') : ''
             }`}>
               <div>
@@ -807,7 +815,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
             {/* ================================================================= */}
             {/* RIGHT PAGE: 감성 필사 노트 (왼쪽 원문과 완벽한 수평 높이 일치) */}
             {/* ================================================================= */}
-            <div className={`p-4 sm:p-5 flex flex-col justify-between relative bg-[#FAF7EE] shadow-[inset_10px_0_15px_rgba(0,0,0,0.02)] h-full overflow-hidden ${
+            <div className={`p-4 sm:p-5 flex flex-col justify-start relative bg-[#FAF7EE] shadow-[inset_10px_0_15px_rgba(0,0,0,0.02)] h-full overflow-hidden ${
               isPageTurning ? (pageTurnDirection === 'next' ? 'animate-page-turn-next' : 'animate-page-turn-prev') : ''
             }`}>
               <div>
@@ -902,9 +910,49 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                       <span className="inline-block w-0.5 h-4 bg-amber-800 animate-pulse ml-1 align-middle" />
                     </div>
                   ) : (
+                    /* Mirror of the source layout: every typed character sits exactly where its
+                       source character is, so each typed line stays level with the original line. */
                     <div className="font-serif text-sm sm:text-base leading-[2.1] text-[#2A231F] break-keep whitespace-pre-wrap tracking-normal">
-                      {inputVal}
-                      <span className="inline-block w-0.5 h-4 bg-amber-800 animate-pulse ml-0.5 align-middle" />
+                      {targetPageText.split('').map((tChar, i) => {
+                        if (i === inputVal.length) {
+                          return (
+                            <React.Fragment key={i}>
+                              <span className="inline-block w-0.5 h-4 bg-amber-800 animate-pulse align-middle" />
+                              <span className="text-transparent">{tChar}</span>
+                            </React.Fragment>
+                          );
+                        }
+                        if (tChar === '\n') {
+                          const missed = i < inputVal.length && inputVal[i] !== '\n';
+                          return (
+                            <React.Fragment key={i}>
+                              {missed && <span className="text-rose-500 text-xs">↵</span>}
+                              {'\n'}
+                            </React.Fragment>
+                          );
+                        }
+                        if (i >= inputVal.length) {
+                          return (
+                            <span key={i} className="text-transparent">
+                              {tChar}
+                            </span>
+                          );
+                        }
+                        const typed = inputVal[i] === '\n' ? ' ' : inputVal[i];
+                        const isLast = i === inputVal.length - 1;
+                        const ok = typed === tChar || (isLast && isHangulPrefix(targetPageText.slice(0, i + 1), inputVal.slice(0, i + 1)));
+                        return (
+                          <span key={i} className={ok ? '' : 'text-rose-600 bg-rose-100/70 rounded-sm'}>
+                            {typed}
+                          </span>
+                        );
+                      })}
+                      {inputVal.length > targetPageText.length && (
+                        <span className="text-rose-600 bg-rose-100/70">{inputVal.slice(targetPageText.length)}</span>
+                      )}
+                      {inputVal.length >= targetPageText.length && (
+                        <span className="inline-block w-0.5 h-4 bg-amber-800 animate-pulse ml-0.5 align-middle" />
+                      )}
                     </div>
                   )}
 
@@ -928,7 +976,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
 
               <div>
                 {/* LIVE STATS HUD STRIP */}
-                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                <div className="grid grid-cols-5 gap-1.5 pt-0.5">
                   <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
                     <div className="text-[9px] font-bold text-stone-500">현재 타수</div>
                     <div className="text-sm sm:text-base font-black text-amber-800 font-mono">
@@ -953,7 +1001,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                       ⏱ {Math.floor(stats.elapsedSeconds / 60)}:{String(stats.elapsedSeconds % 60).padStart(2, '0')}
                     </div>
                   </div>
-                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-2 text-center">
+                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
                     <div className="text-[10px] font-bold text-stone-500">콤보</div>
                     <div className="text-base sm:text-lg font-black text-rose-600 font-mono">
                       🔥 {stats.combo}

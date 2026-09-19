@@ -95,6 +95,8 @@ export const AirplaneShootingGame: React.FC<AirplaneShootingGameProps> = () => {
 
     const keys: { [key: string]: boolean } = {};
     const handleKeyDown = (e: KeyboardEvent) => {
+      // keep arrow keys / space for the game instead of scrolling the page
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
       keys[e.code] = true;
       if (e.code === 'KeyB' || e.code === 'KeyX') {
         triggerBomb();

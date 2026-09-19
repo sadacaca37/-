@@ -123,6 +123,18 @@ export const PIXEL_ICONS: Record<string, { grid: string[]; pal: Record<string, s
     grid: ['...Y.Y.Y....', '...YYYYY....', '..KKKKKKK...', '.KBBGGBBBK..', 'KBGGGGBBBBK.', 'KBBGGBBGGBK.', 'KBBBBBGGGBK.', 'KBGBBBBGBBK.', '.KBGGBBBBK..', '..KKKKKKK...'],
     pal: { K: '#1b2340', B: '#38b6ff', G: '#78e08f', Y: '#ffd700' },
   },
+  code: {
+    grid: ['.KKKKKKKKKKK.', 'KBBBBBBBBBBBK', 'KBWWBBBBBBBBK', 'KBBBBBBBBBBBK', 'KBBYBBBBBYBBK', 'KBYBBBBBBBYBK', 'KYBBBWWBBBBYK', 'KBYBBBBBBBYBK', 'KBBYBBBBBYBBK', 'KBBBBBBBBBBBK', '.KKKKKKKKKKK.'],
+    pal: { K: '#1b2340', B: '#16204a', W: '#6ff6ff', Y: '#ffd700' },
+  },
+  crown: {
+    grid: ['.R...RR...R.', '.Y...YY...Y.', '.YY.YYYY.YY.', 'YYYYYYYYYYYY', 'YLYYYYYYYYLY', 'YYYBYYYYBYYY', 'YYYYYYYYYYYY', 'KKKKKKKKKKKK'],
+    pal: { K: '#7a4a00', Y: '#ffd700', L: '#fff59d', R: '#ff4757', B: '#38b6ff' },
+  },
+  music: {
+    grid: ['.....KKKKKKK', '.....KPPPPPK', '.....KKKKKPK', '.....K....PK', '.....K....PK', '.....K....PK', '..KKKK..KKPK', '.KPPPK.KPPPK', 'KPPPPK.KPPPK', '.KPPK...KPK.', '..KK.....K..'],
+    pal: { K: '#5a0a48', P: '#ff6bb5' },
+  },
   trophy: { grid: TROPHY, pal: TROPHY_PAL },
   coin: { grid: COIN, pal: COIN_PAL },
   bag: {
@@ -498,7 +510,7 @@ export const RetroFrame: React.FC<{
 export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => void }> = ({ isMaster, onOpenMaster }) => (
   <footer className="mt-auto tp-footer">
     <div className="relative max-w-7xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-center gap-6">
-      <TvBot size={78} bubble="또 만나요!" bubbleSide="right" className="tp-wave" />
+      <TvBot size={78} bubble="또 만나요!" bubbleSide="top" className="tp-wave" />
       <div className="flex flex-col items-center sm:items-start gap-2">
         <div className="tp-footer-logo">
           <span className="tp-logo-a" data-text="타자">
@@ -525,4 +537,19 @@ export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
       </div>
     </div>
   </footer>
+);
+
+/* ================================================================== */
+/*  파팡 robots + clouds that fill the empty side gutters               */
+/* ================================================================== */
+export const GutterBots: React.FC = () => (
+  <div className="gb" aria-hidden="true">
+    <Pixel grid={CLOUD} pal={CLOUD_PAL} size={130} className="gb-cloud gb-cloud--1" />
+    <Pixel grid={CLOUD} pal={CLOUD_PAL} size={100} className="gb-cloud gb-cloud--2" />
+    <Pixel grid={CLOUD} pal={CLOUD_PAL} size={120} className="gb-cloud gb-cloud--3" />
+    <div className="gb-bot gb-bot--l1"><TvBot size={60} bubble="화이팅!" bubbleSide="top" /></div>
+    <div className="gb-bot gb-bot--r1"><TvBot size={56} bubble="팡팡!" bubbleSide="top" /></div>
+    <div className="gb-bot gb-bot--l2"><TvBot size={48} /></div>
+    <div className="gb-bot gb-bot--r2"><TvBot size={52} bubble="탁탁!" bubbleSide="top" /></div>
+  </div>
 );

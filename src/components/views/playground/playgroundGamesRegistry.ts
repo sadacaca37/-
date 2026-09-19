@@ -11,7 +11,7 @@ import { PonpokoGameWrapper } from './games/PonpokoGameWrapper';
 import { BubbleBobbleGameWrapper } from './games/BubbleBobbleGameWrapper';
 import { SuperMarioGameWrapper } from './games/SuperMarioGameWrapper';
 import { AirplaneShootingGame } from './games/AirplaneShootingGame';
-import { PocketKartGame } from './games/PocketKartGame';
+import { PocketKartOriginal } from './games/PocketKartOriginal';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -129,8 +129,8 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '카트라이더 (포켓 카트 GP)',
     category: '펀펀',
     icon: '🏎️',
-    description: '드리프트와 아이템 승부의 포켓 카트 그랑프리 (GitHub 정식 복원판)',
-    component: PocketKartGame,
+    description: '캐릭터·카트를 골라 달리는 3D 드리프트 레이싱 (원본 그대로)',
+    component: PocketKartOriginal,
   },
 ];
 

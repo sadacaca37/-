@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { AppMode, UserSession } from '../../types';
 import { soundManager } from '../../utils/sound';
+import { PixelIcon, TvBot } from './TapangHome';
 
 interface KnowledgeHubViewProps {
   currentUser: UserSession | null;
@@ -144,122 +145,80 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
     onSelectMode(mode);
   };
 
+  const worldIcon: Record<string, string> = { python: 'code', capitals: 'globe', joseon: 'crown', lyrics: 'music' };
+  const worldTone: Record<string, string> = { python: '#38b6ff', capitals: '#43c05a', joseon: '#8a6cff', lyrics: '#ff6bb5' };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      {/* Knowledge Courses Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {courses.map((course) => {
-          const IconComponent = course.icon;
+    <div className="kw space-y-7">
+      <header className="kw-head">
+        <div className="kw-sign">
+          <span className="kw-sign-cap kw-sign-cap--l" />
+          <span className="kw-sign-cap kw-sign-cap--r" />
+          팡팡 지식 월드
+        </div>
+        <div className="kw-sub">★ 월드를 골라 모험을 시작하세요 ★</div>
+        <div className="kw-bot">
+          <TvBot size={72} bubble={currentUser ? `${currentUser.name}, 어디로 갈까?` : '어디로 갈까?'} bubbleSide="top" />
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        {courses.map((course, idx) => {
+          const segs = 10;
+          const filled = Math.round((course.progressPercent / 100) * segs);
           return (
-            <div
+            <button
               key={course.id}
+              type="button"
               onClick={() => handleStart(course.mode)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleStart(course.mode);
-                }
-              }}
-              className={`flex flex-col justify-between rounded-3xl border-2 ${course.borderColor} ${course.bgCard} p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 active:scale-98 relative overflow-hidden group cursor-pointer`}
+              className="kw-card group"
+              style={{ ['--tone' as any]: worldTone[course.id] }}
             >
-              {/* Top Row: Icon & Badges */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-14 h-14 rounded-2xl ${course.bgIcon} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform`}>
-                    <IconComponent className={`w-7 h-7 ${course.iconColor}`} />
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-black shadow-xs ${course.badgeColor}`}>
-                      {course.badge}
-                    </span>
-                    <span className="text-[11px] font-bold text-gray-500">
-                      {course.tag}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Title & Description */}
-                <h3 className="text-xl font-black text-gray-800 group-hover:text-blue-600 transition-colors mb-1">
-                  {course.title}
-                </h3>
-                <p className="text-xs font-bold text-gray-500 mb-3">
-                  {course.subtitle}
-                </p>
-                <p className="text-xs text-gray-600 leading-relaxed mb-4 min-h-[48px]">
-                  {course.description}
-                </p>
-
-                {/* Key Features Bullet List */}
-                <div className="space-y-1.5 mb-5 bg-white/70 rounded-2xl p-3 border border-gray-100">
-                  {course.features.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-gray-700 font-medium">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{feat}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-5">
-                  <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-                    <span className="text-gray-600">나의 정복 진행률</span>
-                    <span className="text-blue-600">{course.progressText}</span>
-                  </div>
-                  <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full bg-gradient-to-r ${course.accentColor} transition-all duration-500 rounded-full`}
-                      style={{ width: `${Math.max(4, course.progressPercent)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Action Button */}
-              <div>
-                <div className="flex items-center justify-between text-xs font-bold text-amber-600 mb-3 px-1">
-                  <span>완주 보상</span>
-                  <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
-                    🪙 {course.pointReward}
+              <span className="kw-world">WORLD {idx + 1}</span>
+              <span className="kw-screen">
+                <span className="kw-screen-icon">
+                  <PixelIcon name={worldIcon[course.id]} size={64} />
+                </span>
+                <span className="kw-badge">{course.badge}</span>
+              </span>
+              <span className="kw-title">{course.title}</span>
+              <span className="kw-subtitle">{course.subtitle}</span>
+              <span className="kw-feats">
+                {course.features.map((f) => (
+                  <span key={f} className="kw-feat">
+                    <i>▶</i>
+                    {f}
                   </span>
-                </div>
-
-                <button
-                  id={`btn-knowledge-${course.id}`}
-                  onClick={() => handleStart(course.mode)}
-                  className={`w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r ${course.accentColor} text-white font-black text-sm shadow-md hover:shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer`}
-                >
-                  <span>코스 도전하기</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            </div>
+                ))}
+              </span>
+              <span className="kw-progress">
+                <span className="kw-progress-top">
+                  <span>CLEAR</span>
+                  <b>{course.progressText}</b>
+                </span>
+                <span className="kw-segs">
+                  {Array.from({ length: segs }).map((_, i) => (
+                    <i key={i} className={i < filled ? 'on' : ''} />
+                  ))}
+                </span>
+              </span>
+              <span className="kw-reward">
+                <PixelIcon name="coin" size={16} />
+                {course.pointReward}
+              </span>
+              <span className="kw-start">▶ START</span>
+            </button>
           );
         })}
       </div>
 
-      {/* Info & Tips Footer Banner */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
-            <Award className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="font-black text-gray-800 text-sm sm:text-base">
-              지식 타자 완주 시 스페셜 마스터 뱃지 증정!
-            </h4>
-            <p className="text-xs text-gray-500 mt-0.5">
-              세계수도 71개국 완주 시 <strong>[세계 여행가]</strong>, 조선 27대 완주 시 <strong>[사관(史官)]</strong>, 필사 챌린지 완주 시 <strong>[문장가]</strong> 칭호가 부여됩니다.
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => onSelectMode('home')}
-          className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors shrink-0 cursor-pointer"
-        >
-          홈으로 돌아가기
+      <div className="kw-foot">
+        <PixelIcon name="trophy" size={34} />
+        <p>
+          월드를 완주하면 <b>[세계 여행가]</b> · <b>[사관(史官)]</b> · <b>[문장가]</b> 칭호를 받아요!
+        </p>
+        <button type="button" className="kw-home" onClick={() => onSelectMode('home')}>
+          홈으로
         </button>
       </div>
     </div>

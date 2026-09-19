@@ -21,7 +21,7 @@ import { LeaderboardView } from './components/views/LeaderboardView';
 import { TamagotchiView } from './components/views/TamagotchiView';
 import { PlaygroundHome } from './components/views/playground/PlaygroundHome';
 import { MiniGamesHubView } from './components/views/MiniGamesHubView';
-import { TapangFooter } from './components/views/TapangHome';
+import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
 import { PracticeWindowContainer } from './components/PracticeWindowContainer';
 import { soundManager } from './utils/sound';
@@ -384,6 +384,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg ${isPopupMode ? '' : 'retro-cursor'}`}>
+      {!isPopupMode && <GutterBots />}
       {/* Navigation Header with Creator Credit - Hidden in standalone popup window */}
       {!isPopupMode && (
         <Navbar
