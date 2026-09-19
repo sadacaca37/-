@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { soundManager } from '../../utils/sound';
 import { pointsManager } from '../../utils/pointsManager';
@@ -82,8 +82,6 @@ const STAR = ['...K...', '..KYK..', 'KKKYKKK', 'KYYYYYK', '.KYYYK.', '.KYKYK.', 
 const STAR_PAL = { K: '#b56b00', Y: '#ffd83a' };
 const HEART = ['.KK.KK.', 'KRRKRRK', 'KRWRRRK', 'KRRRRRK', '.KRRRK.', '..KRK..', '...K...'];
 const HEART_PAL = { K: '#5a0a1e', R: '#ff3b5c', W: '#ffc2cf' };
-const BOLT = ['...KKK', '..KYYK', '.KYYK.', 'KYYYYK', 'KKYYK.', '.KYK..', '.KK...', 'K.....'];
-const BOLT_PAL = { K: '#7a4a00', Y: '#ffe14a' };
 const TROPHY = [
   'KKKKKKKKKKKK',
   'KYYLYYYYYYYK',
@@ -123,34 +121,6 @@ export const TvBot: React.FC<{ size?: number; bubble?: string; bubbleSide?: 'lef
 /* ================================================================== */
 /*  Data                                                                */
 /* ================================================================== */
-interface ModeCard {
-  mode: AppMode;
-  name: string;
-  en: string;
-  emoji: string;
-  rim: string;
-  fill: string;
-}
-const CAROUSEL: ModeCard[] = [
-  { mode: 'key-practice', name: '자리 연습', en: 'KEY PRACTICE', emoji: '⌨️', rim: '#43c05a', fill: '#6b3f1d' },
-  { mode: 'word-practice', name: '낱말 팡팡', en: 'WORD PANG PANG', emoji: '🔤', rim: '#ff9f1c', fill: '#1f63d8' },
-  { mode: 'sentence-practice', name: '짧은 글', en: 'SHORT TEXT', emoji: '✏️', rim: '#ff5470', fill: '#7a2e8f' },
-  { mode: 'long-practice', name: '긴 글', en: 'LONG TEXT', emoji: '📜', rim: '#29b6f6', fill: '#12406b' },
-  { mode: 'knowledge-hub', name: '팡팡 지식 타자', en: 'KNOWLEDGE', emoji: '🌏', rim: '#ffd700', fill: '#1e6b3a' },
-  { mode: 'mini-games', name: '미니 타자게임', en: 'MINI GAMES', emoji: '🕹️', rim: '#ff6bd6', fill: '#3b1f7a' },
-  { mode: 'playground', name: '놀이터', en: 'PLAYGROUND', emoji: '🎡', rim: '#6ff6ff', fill: '#0f5a6b' },
-  { mode: 'tamagotchi', name: '다마고치', en: 'TAMAGOTCHI', emoji: '🐣', rim: '#ffca28', fill: '#8a4b16' },
-  { mode: 'leaderboard', name: '명예의 전당', en: 'HALL OF FAME', emoji: '🏆', rim: '#ffd700', fill: '#5a1f1f' },
-];
-
-const SIGNS: { mode: AppMode; step: string; name: string; emoji: string; gold?: boolean }[] = [
-  { mode: 'word-practice', step: '2단계', name: '낱말연습', emoji: '🔤' },
-  { mode: 'sentence-practice', step: '3단계', name: '짧은글', emoji: '💬' },
-  { mode: 'long-practice', step: '4단계', name: '긴글연습', emoji: '📄' },
-  { mode: 'knowledge-hub', step: '스페셜', name: '팡팡지식타자', emoji: '❓', gold: true },
-  { mode: 'leaderboard', step: '5단계', name: '명예의전당', emoji: '🏆' },
-];
-
 interface MapStop {
   mode: AppMode;
   label: string;
@@ -191,43 +161,6 @@ const CLOUD = [
 ];
 const CLOUD_PAL = { K: '#bfe6ff', W: '#ffffff', S: '#dff2ff' };
 
-/* keyboard layout: [label, korean, code, width, hand] */
-type Key = { l: string; k?: string; c: string; w?: number; h?: 'L' | 'R' | 'N' };
-const KB: Key[][] = [
-  [
-    { l: '~', c: 'Backquote', h: 'L' }, { l: '1', c: 'Digit1', h: 'L' }, { l: '2', c: 'Digit2', h: 'L' }, { l: '3', c: 'Digit3', h: 'L' },
-    { l: '4', c: 'Digit4', h: 'L' }, { l: '5', c: 'Digit5', h: 'L' }, { l: '6', c: 'Digit6', h: 'R' }, { l: '7', c: 'Digit7', h: 'R' },
-    { l: '8', c: 'Digit8', h: 'R' }, { l: '9', c: 'Digit9', h: 'R' }, { l: '0', c: 'Digit0', h: 'R' }, { l: '-', c: 'Minus', h: 'R' },
-    { l: '=', c: 'Equal', h: 'R' }, { l: '← Back', c: 'Backspace', w: 2, h: 'N' },
-  ],
-  [
-    { l: 'Tab', c: 'Tab', w: 1.5, h: 'N' }, { l: 'Q', k: 'ㅂ', c: 'KeyQ', h: 'L' }, { l: 'W', k: 'ㅈ', c: 'KeyW', h: 'L' },
-    { l: 'E', k: 'ㄷ', c: 'KeyE', h: 'L' }, { l: 'R', k: 'ㄱ', c: 'KeyR', h: 'L' }, { l: 'T', k: 'ㅅ', c: 'KeyT', h: 'L' },
-    { l: 'Y', k: 'ㅛ', c: 'KeyY', h: 'R' }, { l: 'U', k: 'ㅕ', c: 'KeyU', h: 'R' }, { l: 'I', k: 'ㅑ', c: 'KeyI', h: 'R' },
-    { l: 'O', k: 'ㅐ', c: 'KeyO', h: 'R' }, { l: 'P', k: 'ㅔ', c: 'KeyP', h: 'R' }, { l: '[', c: 'BracketLeft', h: 'R' },
-    { l: ']', c: 'BracketRight', h: 'R' }, { l: '\\', c: 'Backslash', w: 1.5, h: 'R' },
-  ],
-  [
-    { l: 'Caps', c: 'CapsLock', w: 1.8, h: 'N' }, { l: 'A', k: 'ㅁ', c: 'KeyA', h: 'L' }, { l: 'S', k: 'ㄴ', c: 'KeyS', h: 'L' },
-    { l: 'D', k: 'ㅇ', c: 'KeyD', h: 'L' }, { l: 'F', k: 'ㄹ', c: 'KeyF', h: 'L' }, { l: 'G', k: 'ㅎ', c: 'KeyG', h: 'L' },
-    { l: 'H', k: 'ㅗ', c: 'KeyH', h: 'R' }, { l: 'J', k: 'ㅓ', c: 'KeyJ', h: 'R' }, { l: 'K', k: 'ㅏ', c: 'KeyK', h: 'R' },
-    { l: 'L', k: 'ㅣ', c: 'KeyL', h: 'R' }, { l: ';', c: 'Semicolon', h: 'R' }, { l: "'", c: 'Quote', h: 'R' },
-    { l: 'Enter ↵', c: 'Enter', w: 2.2, h: 'N' },
-  ],
-  [
-    { l: '⇧ Shift', c: 'ShiftLeft', w: 2.4, h: 'N' }, { l: 'Z', k: 'ㅋ', c: 'KeyZ', h: 'L' }, { l: 'X', k: 'ㅌ', c: 'KeyX', h: 'L' },
-    { l: 'C', k: 'ㅊ', c: 'KeyC', h: 'L' }, { l: 'V', k: 'ㅍ', c: 'KeyV', h: 'L' }, { l: 'B', k: 'ㅠ', c: 'KeyB', h: 'L' },
-    { l: 'N', k: 'ㅜ', c: 'KeyN', h: 'R' }, { l: 'M', k: 'ㅡ', c: 'KeyM', h: 'R' }, { l: ',', c: 'Comma', h: 'R' },
-    { l: '.', c: 'Period', h: 'R' }, { l: '/', c: 'Slash', h: 'R' }, { l: '⇧ Shift', c: 'ShiftRight', w: 2.6, h: 'N' },
-  ],
-  [
-    { l: 'Ctrl', c: 'ControlLeft', w: 1.6, h: 'N' }, { l: 'Alt', c: 'AltLeft', w: 1.4, h: 'N' }, { l: '', c: 'Space', w: 7.2, h: 'L' },
-    { l: '한/영', c: 'AltRight', w: 1.4, h: 'N' }, { l: 'Ctrl', c: 'ControlRight', w: 1.6, h: 'N' },
-  ],
-];
-/* demo: ㅌㅏㅈㅏㅍㅏㅇㅍㅏㅇ */
-const DEMO = ['KeyX', 'KeyK', 'KeyW', 'KeyK', 'KeyV', 'KeyK', 'KeyD', 'KeyV', 'KeyK', 'KeyD'];
-
 const dayKey = (t: number) => {
   const d = new Date(t);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -252,17 +185,6 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       return 0;
     }
   });
-  const [muted, setMuted] = useState<boolean>(() => {
-    try {
-      return soundManager.getMuted();
-    } catch {
-      return false;
-    }
-  });
-  const [pressed, setPressed] = useState<string | null>(null);
-  const [userTyping, setUserTyping] = useState(false);
-  const carouselRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const refresh = () => {
       try {
@@ -277,37 +199,6 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       window.removeEventListener('typing-points-earned', refresh);
     };
   }, [currentUser]);
-
-  /* keyboard demo + live key glow */
-  useEffect(() => {
-    let i = 0;
-    const t = window.setInterval(() => {
-      if (userTyping) return;
-      setPressed(DEMO[i % DEMO.length]);
-      i++;
-    }, 520);
-    return () => window.clearInterval(t);
-  }, [userTyping]);
-
-  useEffect(() => {
-    let idle: number | undefined;
-    const down = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      setUserTyping(true);
-      setPressed(e.code);
-      window.clearTimeout(idle);
-      idle = window.setTimeout(() => setUserTyping(false), 2500);
-    };
-    const up = () => setPressed(null);
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-      window.clearTimeout(idle);
-    };
-  }, []);
 
   const stats = useMemo(() => {
     const byMode: Record<string, number> = {};
@@ -337,19 +228,6 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       soundManager.play('click');
     } catch {}
     onSelectMode(mode);
-  };
-
-  const toggleSound = () => {
-    try {
-      setMuted(soundManager.toggleMute());
-    } catch {}
-  };
-
-  const slide = (dir: number) => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const card = el.querySelector<HTMLElement>('.tp-mode');
-    el.scrollBy({ left: dir * ((card?.offsetWidth || 200) + 16), behavior: 'smooth' });
   };
 
   const playerName = currentUser ? currentUser.name : 'PLAYER 1';
@@ -464,182 +342,6 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
               <span className="qm-pouch-num">{points.toLocaleString()}</span>
               <span className="qm-pouch-bag">👜</span>
             </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= START SCREEN (CRT + wood board) ================= */}
-      <section className="tp-space tp-crt-wrap">
-        <div className="tp-planet tp-planet--a" />
-        <div className="tp-planet tp-planet--b" />
-
-        {/* top status bar */}
-        <div className="tp-statusbar">
-          <span className="tp-statusbar-title">타팡 · 타자팡팡 (Typing Pang Pang)</span>
-          <span className="tp-sep">|</span>
-          <span className="text-[#7ee06a]">LV.{stats.level}</span>
-          <span className="tp-sep hidden sm:inline">|</span>
-          <button type="button" onClick={toggleSound} className="hidden sm:inline tp-sound">
-            8-BIT SOUND: <b className={muted ? 'text-[#ff5470]' : 'text-[#7ee06a]'}>{muted ? 'OFF' : 'ON'}</b>
-          </button>
-          <span className="ml-auto flex items-center gap-1">
-            {[0, 1, 2].map((i) => (
-              <Pixel key={i} grid={HEART} pal={HEART_PAL} size={20} />
-            ))}
-          </span>
-        </div>
-
-        {/* CRT billboard */}
-        <div className="tp-billboard">
-          <div className="tp-scan" />
-          {['A', ';', 'F', 'K', 'L', 'A', 'S', 'D', 'F', 'J', 'L'].map((k, i) => (
-            <span key={i} className={`tp-floatkey tp-floatkey--${i}`}>
-              {k}
-            </span>
-          ))}
-
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1.35fr_1fr] items-center gap-4 px-4 sm:px-10 py-8 sm:py-10">
-            <div className="flex flex-col items-center">
-              <span className="tp-mini-tag">타팡</span>
-              <div className="tp-logo-box">
-                <Pixel grid={BOLT} pal={BOLT_PAL} size={34} className="tp-bolt tp-bolt--l" />
-                <Pixel grid={BOLT} pal={BOLT_PAL} size={34} className="tp-bolt tp-bolt--r" />
-                <span className="tp-burst" />
-                <h1 className="tp-logo">
-                  <span className="tp-logo-a" data-text="타자">
-                    타자
-                  </span>
-                  <span className="tp-logo-b" data-text="팡팡">
-                    팡팡
-                  </span>
-                </h1>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <TvBot size={150} bubble="READY, SET, TYPE! 팡팡!" bubbleSide="top" className="tp-bob" />
-              <button
-                type="button"
-                onClick={() => (currentUser ? go('key-practice') : onOpenAuth())}
-                className="tp-press-start"
-              >
-                [ PRESS START ]
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* posts + wooden carousel board */}
-        <div className="tp-posts">
-          <span />
-          <span />
-        </div>
-        <div className="tp-woodboard">
-          <span className="tp-rivet tp-rivet--tl" />
-          <span className="tp-rivet tp-rivet--tr" />
-          <span className="tp-rivet tp-rivet--bl" />
-          <span className="tp-rivet tp-rivet--br" />
-          <button type="button" className="tp-arrow" aria-label="이전" onClick={() => slide(-1)}>
-            ◀
-          </button>
-          <div ref={carouselRef} className="tp-carousel no-scrollbar">
-            {CAROUSEL.map((c) => (
-              <button
-                key={c.mode}
-                type="button"
-                onClick={() => go(c.mode)}
-                className="tp-mode"
-                style={{ ['--rim' as any]: c.rim, ['--fill' as any]: c.fill }}
-              >
-                <span className="tp-mode-icon">{c.emoji}</span>
-                <span className="tp-mode-name">{c.name}</span>
-                <span className="tp-mode-en">({c.en})</span>
-              </button>
-            ))}
-          </div>
-          <button type="button" className="tp-arrow" aria-label="다음" onClick={() => slide(1)}>
-            ▶
-          </button>
-        </div>
-      </section>
-
-      {/* ================= NEON KEYBOARD + STAGE SIGNS ================= */}
-      <section className="tp-monitor">
-        <div className="tp-hud-plank">
-          <span>
-            <b>PLAYER:</b> {playerName}
-            {playerTitle ? ` (${playerTitle})` : ''}
-          </span>
-          <span>
-            <b>SCORE:</b> {points.toLocaleString()} P
-          </span>
-          <span className="hidden sm:inline">
-            <b>SPEED:</b> {stats.top} CPM
-          </span>
-          <span className="hidden md:inline">
-            <b>ACCURACY:</b> {stats.acc.toFixed(0)}%
-          </span>
-          <span className="ml-auto flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <Pixel key={i} grid={HEART} pal={HEART_PAL} size={20} />
-            ))}
-          </span>
-          {!currentUser && (
-            <button type="button" className="tp-hud-login" onClick={onOpenAuth}>
-              LOGIN
-            </button>
-          )}
-        </div>
-
-        <div className="tp-monitor-screen">
-          <div className="tp-scan" />
-          <div className="relative z-10 flex flex-col items-center gap-5 px-3 sm:px-8 pt-7 pb-8">
-            <div className="tp-neon-hello">
-              안녕하세요, <span>타자팡팡</span>입니다!
-            </div>
-
-            <div className="relative w-full flex items-end justify-center gap-4">
-              <div className="tp-kb" role="img" aria-label="네온 키보드">
-                {KB.map((row, ri) => (
-                  <div key={ri} className="tp-kb-row">
-                    {row.map((key) => (
-                      <span
-                        key={key.c}
-                        className={`tp-key tp-key--${key.h || 'N'} ${pressed === key.c ? 'is-on' : ''} ${
-                          key.c === 'KeyF' || key.c === 'KeyJ' ? 'is-home' : ''
-                        }`}
-                        style={{ flexGrow: key.w || 1 }}
-                      >
-                        <span className="tp-key-l">{key.l}</span>
-                        {key.k && <span className="tp-key-k">{key.k}</span>}
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <div className="hidden lg:block">
-                <TvBot size={96} bubble={currentUser ? `화이팅! ${currentUser.name}!` : '화이팅!'} bubbleSide="top" className="tp-wave" />
-              </div>
-            </div>
-
-            <button type="button" className="tp-scroll-btn" onClick={() => go('key-practice')}>
-              <span>1단계: 자리연습</span>
-            </button>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-7 w-full pt-3">
-              {SIGNS.map((s) => (
-                <button key={s.mode} type="button" onClick={() => go(s.mode)} className={`tp-sign ${s.gold ? 'is-gold' : ''}`}>
-                  <span className="tp-sign-hook tp-sign-hook--l" />
-                  <span className="tp-sign-hook tp-sign-hook--r" />
-                  <span className="tp-sign-icon">{s.emoji}</span>
-                  <span className="tp-sign-text">
-                    {s.step}:
-                    <br />
-                    {s.name}
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </section>
