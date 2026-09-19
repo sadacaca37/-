@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Coins, PlusCircle, ArrowLeft, Pause, Play, AlertCircle, Crown, Maximize2, Minimize2 } from 'lucide-react';
+import { Clock, Coins, PlusCircle, ArrowLeft, Pause, Play, AlertCircle, Crown, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
 import { playgroundManager, POINTS_PER_MINUTE } from './playgroundManager';
 import { pointsManager } from '../../../utils/pointsManager';
 import { soundManager } from '../../../utils/sound';

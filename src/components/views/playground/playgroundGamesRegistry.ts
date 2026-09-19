@@ -121,7 +121,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '비행기 슈팅 (1945 Air Combat)',
     category: '펀펀',
     icon: '✈️',
-    description: '1945 레트로 공중전 & 거대 보스 격파 슈팅',
+    description: '1945 레트로 공중전 & 거대 보스 격파 슈팅 (GitHub 정식 복원판)',
     component: AirplaneShootingGame,
   },
   {
@@ -129,7 +129,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '카트라이더 (포켓 카트 GP)',
     category: '펀펀',
     icon: '🏎️',
-    description: '드리프트와 아이템 승부의 포켓 카트 그랑프리',
+    description: '드리프트와 아이템 승부의 포켓 카트 그랑프리 (GitHub 정식 복원판)',
     component: PocketKartGame,
   },
 ];

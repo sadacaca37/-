@@ -166,7 +166,14 @@ const getInitialMode = (): AppMode => {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlMode = params.get('mode') as AppMode;
-      if (urlMode) return urlMode;
+      const isPopup = params.get('popup') === 'true';
+      if (urlMode) {
+        // Practice modes are exclusively viewed in dedicated popup window
+        if (['key-practice', 'word-practice', 'sentence-practice', 'long-practice'].includes(urlMode) && !isPopup) {
+          return 'home';
+        }
+        return urlMode;
+      }
     } catch {}
   }
   return 'home';
@@ -342,17 +349,24 @@ export default function App() {
   };
 
   const handleSelectMode = (mode: AppMode) => {
-    if (isPracticeMode(mode) && !isPopupMode) {
-      // Open dedicated popup browser window
-      try {
-        const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
-        window.open(
-          url,
-          `typang_practice_${mode}`,
-          'width=1280,height=920,left=80,top=40,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes'
-        );
-      } catch (e) {
-        console.warn('Popup window open error or blocked:', e);
+    if (isPracticeMode(mode)) {
+      if (!isPopupMode) {
+        // Open dedicated popup browser window ONLY
+        try {
+          const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
+          const popup = window.open(
+            url,
+            `typang_practice_${mode}`,
+            'width=1320,height=880,left=80,top=40,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
+          );
+          if (popup) {
+            popup.focus();
+          }
+        } catch (e) {
+          console.warn('Popup window open error or blocked:', e);
+        }
+        // Exclusively opens in new window, leaving underlying original mode intact
+        return;
       }
     }
     setCurrentMode(mode);
@@ -389,12 +403,12 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full mx-auto ${
+      <main className={`flex-1 w-full ${
         isPopupMode
-          ? 'max-w-7xl p-1 sm:p-2'
+          ? 'h-screen w-screen p-0 m-0 overflow-hidden'
           : ['key-practice', 'word-practice', 'sentence-practice', 'long-practice'].includes(currentMode)
-          ? 'max-w-7xl px-2 sm:px-4 py-1.5 sm:py-2.5'
-          : 'max-w-7xl px-3 sm:px-6 lg:px-8 py-6'
+          ? 'max-w-7xl px-2 sm:px-4 py-1.5 sm:py-2.5 mx-auto'
+          : 'max-w-7xl px-3 sm:px-6 lg:px-8 py-6 mx-auto'
       }`}>
         {currentMode === 'home' && (
           <HomeDashboard
@@ -609,40 +623,42 @@ export default function App() {
           <LeaderboardView
             entries={leaderboard}
             onClearLeaderboard={handleClearLeaderboard}
-            onStartSentencePractice={() => setCurrentMode('sentence-practice')}
+            onStartSentencePractice={() => handleSelectMode('sentence-practice')}
           />
         )}
       </main>
 
-      {/* Footer: 타닥타닥 타자랜드 김은경 제작자 */}
-      <footer className="mt-auto border-t-2 border-pink-200 bg-white/95 backdrop-blur-md py-4 px-4 text-center text-xs text-slate-600 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-pink-500 font-bold text-base">🐾</span>
-            <span className="font-black text-slate-900 font-arcade text-sm sm:text-base tracking-wide">
-              타닥타닥 타자랜드
-            </span>
-            <span className="text-slate-300">|</span>
-            <span className="font-black text-pink-600 font-arcade text-xs sm:text-sm bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-200 shadow-2xs">
-              김은경 제작자
-            </span>
+      {/* Footer: 타닥타닥 타자랜드 김은경 제작자 - Hidden in standalone popup window */}
+      {!isPopupMode && (
+        <footer className="mt-auto border-t-2 border-pink-200 bg-white/95 backdrop-blur-md py-4 px-4 text-center text-xs text-slate-600 shadow-xs">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-pink-500 font-bold text-base">🐾</span>
+              <span className="font-black text-slate-900 font-arcade text-sm sm:text-base tracking-wide">
+                타닥타닥 타자랜드
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="font-black text-pink-600 font-arcade text-xs sm:text-sm bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-200 shadow-2xs">
+                김은경 제작자
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-slate-500 font-bold">
+              {currentUser?.role === 'master' && (
+                <>
+                  <button
+                    onClick={() => setIsMasterOpen(true)}
+                    className="text-pink-600 hover:text-pink-700 underline font-black cursor-pointer"
+                  >
+                    👑 마스터 관리실 (학생 승인/비밀번호)
+                  </button>
+                  <span>•</span>
+                </>
+              )}
+              <span>투명 손가락 위치 가이드 • 타자 모험 아케이드</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-slate-500 font-bold">
-            {currentUser?.role === 'master' && (
-              <>
-                <button
-                  onClick={() => setIsMasterOpen(true)}
-                  className="text-pink-600 hover:text-pink-700 underline font-black cursor-pointer"
-                >
-                  👑 마스터 관리실 (학생 승인/비밀번호)
-                </button>
-                <span>•</span>
-              </>
-            )}
-            <span>투명 손가락 위치 가이드 • 타자 모험 아케이드</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Auth Modal (Login / Register with Approval Notice) */}
       <AuthModal
