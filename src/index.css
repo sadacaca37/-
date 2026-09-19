@@ -1301,3 +1301,150 @@
   padding: 6px 10px 8px;
   will-change: transform;
 }
+
+/* ================================================================
+   NAVBAR – retro arcade skin (text & order untouched)
+   ================================================================ */
+.tp-nav {
+  background:
+    radial-gradient(#fff 1.1px, transparent 1.5px) 14px 10px / 90px 46px,
+    linear-gradient(180deg, #121a5c 0%, #0b0f3a 100%) !important;
+  border-bottom: 4px solid #6ff6ff !important;
+  box-shadow: 0 0 18px rgba(111, 246, 255, 0.45), 0 4px 0 #070a24 !important;
+  backdrop-filter: none !important;
+}
+.tp-nav-strip {
+  background: repeating-linear-gradient(90deg, #ffd700 0 14px, #ffb300 14px 28px) !important;
+  color: #2a1500 !important;
+  border-bottom: 3px solid #2a1500;
+  font-family: 'Galmuri11', 'Jua', monospace;
+  box-shadow: none !important;
+}
+.tp-nav-strip-chip {
+  background: #2a1500 !important; color: #ffd700 !important;
+  border: 2px solid #2a1500 !important; border-radius: 4px !important;
+}
+.tp-nav-strip-text { color: #2a1500 !important; animation: tpBlinkSoft 1.8s steps(2) infinite; }
+
+.tp-nav-logo {
+  border-radius: 8px !important;
+  background: linear-gradient(180deg, #1b2a8a, #0b0f3a) !important;
+  border: 3px solid #6ff6ff !important;
+  box-shadow: 0 0 12px rgba(111, 246, 255, 0.7), 0 4px 0 #070a24 !important;
+}
+.tp-nav-title { font-family: 'Jua', sans-serif !important; font-weight: 400 !important; letter-spacing: 0.01em; }
+.tp-nav-title-a { color: #ffd700; text-shadow: 2px 2px 0 #2a0f3d, -1px -1px 0 #2a0f3d, 1px -1px 0 #2a0f3d, -1px 1px 0 #2a0f3d, 0 0 12px rgba(255, 215, 0, 0.5); }
+.tp-nav-title-b { color: #6ff6ff !important; text-shadow: 2px 2px 0 #0b2a4a, -1px -1px 0 #0b2a4a, 1px -1px 0 #0b2a4a, -1px 1px 0 #0b2a4a, 0 0 12px rgba(111, 246, 255, 0.6); }
+.group:hover .tp-nav-title-a { color: #fff59d; }
+.tp-nav-badge {
+  font-family: 'Galmuri11', monospace;
+  color: #ff6bd6 !important; background: #0b0e2a !important;
+  border: 2px solid #ff6bd6 !important; border-radius: 4px !important;
+  box-shadow: 0 0 8px rgba(255, 107, 214, 0.7);
+}
+.tp-nav-sub { color: #9ec9ff !important; }
+
+/* action buttons */
+.tp-nbtn {
+  border-radius: 8px !important;
+  border-width: 3px !important;
+  font-family: 'Galmuri11', 'Jua', sans-serif;
+  transition: transform 0.12s !important;
+}
+.tp-nbtn:hover { transform: translateY(-2px); }
+.tp-nbtn:active { transform: translateY(2px); }
+.tp-nbtn--wood {
+  color: #fff !important;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(42, 21, 11, 0.35) 9px 11px),
+    linear-gradient(180deg, #c98a4b, #9c5f28) !important;
+  border-color: #2a150b !important;
+  box-shadow: inset 0 2px 0 rgba(255, 220, 170, 0.45), 0 4px 0 #1e1006 !important;
+  text-shadow: 1px 1px 0 #2a150b;
+}
+.tp-nbtn--wood svg { color: #ffd700 !important; }
+.tp-nbtn--wood span { color: #fff !important; }
+.tp-nbtn--wood .text-sky-600 { color: #ffd700 !important; }
+.tp-nbtn--neon {
+  color: #ff9ae8 !important;
+  background: #0b0e2a !important;
+  border-color: #ff6bd6 !important;
+  box-shadow: 0 0 10px rgba(255, 107, 214, 0.7), inset 0 0 8px rgba(255, 107, 214, 0.35), 0 4px 0 #070a24 !important;
+  text-shadow: 0 0 6px rgba(255, 107, 214, 0.9);
+}
+.tp-nbtn--coin {
+  background: #0b0e2a !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.6), 0 4px 0 #070a24 !important;
+}
+.tp-nbtn--coin span { color: #ffd700 !important; font-family: 'Galmuri11', monospace; }
+.tp-nbtn--coin > div:first-child {
+  background: radial-gradient(circle at 35% 35%, #fff59d, #ffca28 60%, #f0a500) !important;
+  border: 2px solid #8a5a00 !important;
+}
+.tp-nbtn--crt {
+  background: #0b0e2a !important;
+  border-color: #6ff6ff !important;
+  box-shadow: 0 0 10px rgba(111, 246, 255, 0.55), inset 0 0 8px rgba(111, 246, 255, 0.25), 0 4px 0 #070a24 !important;
+  color: #6ff6ff !important;
+}
+.tp-nbtn--crt:hover { transform: none; }
+.tp-nbtn--crt svg { color: #6ff6ff !important; }
+.tp-nbtn--crt span { color: #6ff6ff !important; font-family: 'Galmuri11', monospace; }
+.tp-nbtn--crt input { accent-color: #ffd700; background: #1c2a6b !important; }
+.tp-nbtn--red {
+  color: #fff !important; background: #ff4757 !important; border-color: #5a0a1e !important;
+  box-shadow: 0 4px 0 #5a0a1e !important;
+}
+.tp-nbtn--start {
+  color: #2a1500 !important;
+  background: linear-gradient(180deg, #fff176, #ffd700 55%, #ffb300) !important;
+  border: 3px solid #2a1500 !important;
+  box-shadow: 0 4px 0 #8a5a00, 0 0 16px rgba(255, 215, 0, 0.7) !important;
+  animation: tpGlow 1.2s steps(2) infinite;
+}
+.tp-nbtn--start:hover { animation: none; }
+
+/* mode tabs – wooden plank with signboard tabs */
+.tp-nav-tabs {
+  margin: 0 -8px 8px;
+  padding: 7px 10px !important;
+  border-top: none !important;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 14px, rgba(42, 21, 11, 0.35) 14px 16px),
+    linear-gradient(180deg, #a86b33, #784e3d);
+  border: 3px solid #2a150b !important;
+  box-shadow: inset 0 2px 0 rgba(255, 220, 170, 0.35), 0 4px 0 #1e1006;
+}
+.tp-tab {
+  color: #3d220d !important;
+  background: linear-gradient(180deg, #fbf0d0, #ecd6a2) !important;
+  border: 3px solid #2a150b !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 0 #1e1006 !important;
+  font-family: 'Jua', 'Pretendard', sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 13px !important;
+  transform: none !important;
+  transition: transform 0.12s, background 0.12s !important;
+}
+.tp-tab svg { color: #784e3d !important; }
+.tp-tab:hover { transform: translateY(-2px) !important; background: linear-gradient(180deg, #fff8e1, #f3dfae) !important; }
+.tp-tab.is-active {
+  color: #2a1500 !important;
+  background: linear-gradient(180deg, #fff176, #ffd700 55%, #ffb300) !important;
+  box-shadow: 0 3px 0 #1e1006, 0 0 14px rgba(255, 215, 0, 0.85) !important;
+}
+.tp-tab.is-active svg { color: #2a1500 !important; }
+.tp-tab-badge {
+  font-family: 'Galmuri11', monospace;
+  color: #fff !important; background: #ff4757 !important;
+  border-radius: 4px !important; padding: 0 5px !important;
+}
+.tp-tab.is-active .tp-tab-badge { background: #2a1500 !important; color: #ffd700 !important; }
+@media (max-width: 767px) {
+  .tp-nav .h-16 { height: auto !important; flex-wrap: wrap; row-gap: 6px; padding: 6px 0; }
+  .tp-nav .h-16 > div:last-child { flex-wrap: wrap; justify-content: flex-end; }
+  .tp-nbtn span { white-space: nowrap; }
+}
