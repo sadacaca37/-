@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { TvBot } from './views/TapangHome';
 import { 
   X, 
   Sparkles, 
@@ -678,7 +679,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-fadeIn tp-modal">
+      <div className="tp-modal-bot" aria-hidden="true">
+        <TvBot size={110} bubble="획득한 아이템을 장착해보세요!" bubbleSide="top" />
+      </div>
       {/* Studio Card Frame */}
       <div className="relative w-full max-w-6xl h-[95vh] max-h-[860px] bg-[#EEF2F6] rounded-3xl shadow-2xl border-4 border-slate-300 flex flex-col overflow-hidden text-slate-800">
         

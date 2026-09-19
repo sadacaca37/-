@@ -21,7 +21,7 @@ import { LeaderboardView } from './components/views/LeaderboardView';
 import { TamagotchiView } from './components/views/TamagotchiView';
 import { PlaygroundHome } from './components/views/playground/PlaygroundHome';
 import { MiniGamesHubView } from './components/views/MiniGamesHubView';
-import { PastelFooter } from './components/views/PastelQuestHome';
+import { TapangFooter } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
 import { PracticeWindowContainer } from './components/PracticeWindowContainer';
 import { soundManager } from './utils/sound';
@@ -631,7 +631,7 @@ export default function App() {
 
       {/* Footer: QUEST COMPLETE (김은경 제작자) - Hidden in standalone popup window */}
       {!isPopupMode && (
-        <PastelFooter
+        <TapangFooter
           isMaster={currentUser?.role === 'master'}
           onOpenMaster={() => setIsMasterOpen(true)}
         />

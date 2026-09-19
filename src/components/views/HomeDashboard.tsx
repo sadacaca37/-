@@ -35,7 +35,7 @@ import { CharacterAvatar, DEFAULT_AVATAR_CONFIG } from '../CharacterAvatar';
 import { StudentProgressCard } from '../StudentProgressCard';
 import { LastPracticeGuideCard } from '../LastPracticeGuideCard';
 import { PracticePerformanceChart } from '../PracticePerformanceChart';
-import { PastelQuestHome, RetroFrame } from './PastelQuestHome';
+import { TapangHome, RetroFrame } from './TapangHome';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { 
   getUserPracticeHistory, 
@@ -151,8 +151,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* PASTEL ISOMETRIC QUEST HOME (hero · player bar · quests · game zone) */}
-      <PastelQuestHome
+      {/* TAPANG HOME (start screen · neon keyboard · quest map · scorecard) */}
+      <TapangHome
         currentUser={currentUser}
         records={allUserRecords}
         onSelectMode={onSelectMode}

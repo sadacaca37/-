@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -12,14 +12,76 @@ interface PracticeWindowContainerProps {
   children: React.ReactNode;
 }
 
-export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = ({
-  title,
-  icon,
-  onClose,
-  children,
-}) => {
+/**
+ * All practice modes are laid out on one design canvas and scaled to fill the window.
+ * The canvas width follows the window's aspect ratio so there are no empty side margins.
+ */
+const MIN_W = 1000;
+const MAX_W = 1760;
+const MAX_SCALE = 1.35;
+
+export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = ({ title, icon, stepNumber, onClose, children }) => {
+  const areaRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const passes = useRef(0);
+  const [fit, setFit] = useState({ scale: 1, top: 0, width: 1200 });
+
+  const measure = useCallback(() => {
+    const area = areaRef.current;
+    const inner = innerRef.current;
+    if (!area || !inner) return;
+    const availW = Math.max(1, area.clientWidth - 16);
+    const availH = Math.max(1, area.clientHeight - 12);
+    const curW = inner.offsetWidth;
+    const natW = Math.max(curW, inner.scrollWidth);
+    // some views let children overflow their box, so measure the real painted bottom
+    const rect = inner.getBoundingClientRect();
+    const curScale = rect.height / Math.max(1, inner.offsetHeight) || 1;
+    let paintedBottom = 0;
+    inner.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      const b = el.getBoundingClientRect().bottom;
+      if (b > paintedBottom) paintedBottom = b;
+    });
+    const overflowH = paintedBottom ? (paintedBottom - rect.top) / curScale + 8 : 0;
+    const natH = Math.max(1, inner.scrollHeight, overflowH);
+    // widen/narrow the canvas until its shape matches the window (a few passes max)
+    let width = curW;
+    if (passes.current < 4) {
+      const ideal = Math.round(Math.min(MAX_W, Math.max(MIN_W, (availW / availH) * natH)));
+      if (Math.abs(ideal - curW) > 24) {
+        passes.current += 1;
+        width = ideal;
+      }
+    }
+    const scale = Math.max(0.3, Math.min(availW / natW, availH / natH, MAX_SCALE));
+    const top = Math.max(0, (area.clientHeight - natH * scale) / 2);
+    setFit((prev) =>
+      Math.abs(prev.scale - scale) < 0.002 && Math.abs(prev.top - top) < 1 && prev.width === width ? prev : { scale, top, width },
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => measure()) : null;
+    if (ro) {
+      if (areaRef.current) ro.observe(areaRef.current);
+      if (innerRef.current) ro.observe(innerRef.current);
+    }
+    const onResize = () => {
+      passes.current = 0;
+      measure();
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', onResize);
+    };
+  }, [measure]);
+
   const handleClose = () => {
-    soundManager.play('click');
+    try {
+      soundManager.play('click');
+    } catch {}
     if (typeof window !== 'undefined' && window.opener) {
       window.close();
     }
@@ -27,60 +89,43 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
   };
 
   return (
-    <div className="w-full h-screen min-h-screen max-h-screen bg-slate-950 p-0 m-0 overflow-hidden flex flex-col">
-      {/* Dedicated Practice Window Shell */}
-      <div className="w-full h-full max-h-screen mx-auto bg-slate-900 border-none rounded-none overflow-hidden flex flex-col">
-        {/* Window Title Bar (Compact, no extra controls) */}
-        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-3 py-1.5 sm:px-4 sm:py-2 border-b-2 border-sky-500/30 flex items-center justify-between gap-2 select-none shrink-0">
-          {/* Left: Close dot & Mode Title */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 border border-rose-600 flex items-center justify-center text-[8px] text-white opacity-90 hover:opacity-100 cursor-pointer shadow-xs transition-opacity"
-              title="연습 창 닫기"
-            >
-              ✕
-            </button>
+    <div className="tp-practice">
+      {/* wooden HUD title bar */}
+      <div className="tp-practice-bar">
+        <span className="tp-practice-logo">
+          <span className="tp-logo-a" data-text="타자">
+            타자
+          </span>
+          <span className="tp-logo-b" data-text="팡팡">
+            팡팡
+          </span>
+        </span>
+        <span className="tp-practice-stage">STAGE {stepNumber}</span>
+        <span className="tp-practice-title">
+          <span className="text-lg sm:text-xl">{icon}</span>
+          {title}
+        </span>
+        <span className="tp-practice-hearts" aria-hidden="true">
+          ♥♥♥
+        </span>
+        <button type="button" onClick={handleClose} className="tp-practice-close" title="창 닫기">
+          <X className="w-4 h-4" />
+          <span>닫기</span>
+        </button>
+      </div>
 
-            {/* Window Icon & Title */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-base sm:text-xl">{icon}</span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xs sm:text-sm font-black text-white font-arcade tracking-tight">
-                  {title}
-                </span>
-                <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40 text-[9px] sm:text-[10px] font-black">
-                  80% 고정 배율
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Window Controls: Close button only */}
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-rose-200 border border-rose-500/40 text-xs font-black transition-all cursor-pointer active:scale-95"
-              title="창 닫기"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>닫기</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Practice Window Content Canvas - 80% scale with no scroll and no bottom margin */}
-        <div className="flex-1 w-full bg-gradient-to-b from-slate-900 to-slate-950 overflow-hidden flex flex-col items-center justify-start p-0 m-0">
-          <div
-            style={{
-              zoom: 0.8,
-            }}
-            className="w-full max-w-7xl mx-auto flex flex-col items-center justify-start px-2 pt-0 pb-0 m-0"
-          >
-            {children}
-          </div>
+      {/* auto-fit stage: content keeps one design size and is scaled to the window */}
+      <div ref={areaRef} className="tp-practice-area">
+        <div
+          ref={innerRef}
+          className="tp-practice-canvas"
+          style={{
+            width: fit.width,
+            top: fit.top,
+            transform: `translateX(-50%) scale(${fit.scale})`,
+          }}
+        >
+          {children}
         </div>
       </div>
     </div>

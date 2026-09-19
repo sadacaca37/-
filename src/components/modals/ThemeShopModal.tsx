@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { TvBot } from '../views/TapangHome';
 import { 
   X, 
   Sparkles, 
@@ -68,7 +69,10 @@ export const ThemeShopModal: React.FC<ThemeShopModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 tp-modal">
+      <div className="tp-modal-bot" aria-hidden="true">
+        <TvBot size={110} bubble="포인트를 모아 테마를 구매하세요!" bubbleSide="top" />
+      </div>
       <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl border-4 border-indigo-200 relative max-h-[90vh] flex flex-col overflow-hidden arcade-card-glow">
         
         {/* Header */}

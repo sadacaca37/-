@@ -1714,6 +1714,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
       {/* ================= THEME SHOP MODAL ================= */}
       {showThemeShop && (
         <ThemeShopModal
+          isOpen={showThemeShop}
           currentTheme={pet.homeTheme || 'warm_living'}
           unlockedThemes={pet.unlockedThemes || ['warm_living']}
           userPoints={pet.practicePoints || 0}

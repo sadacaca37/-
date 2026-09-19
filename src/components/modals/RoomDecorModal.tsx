@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TvBot } from '../views/TapangHome';
 import { RoomDecorState } from '../../types';
 import { soundManager } from '../../utils/sound';
 import { 
@@ -347,7 +348,10 @@ export const RoomDecorModal: React.FC<RoomDecorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200 tp-modal">
+      <div className="tp-modal-bot" aria-hidden="true">
+        <TvBot size={110} bubble="포인트를 모아 아이템을 구매하세요!" bubbleSide="top" />
+      </div>
       <div className="bg-white rounded-3xl border-4 border-amber-300 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[92vh] relative arcade-card-glow">
         
         {/* Modal Header */}
