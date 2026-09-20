@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { GameFitStage } from './components/GameFitStage';
 import { Navbar } from './components/Navbar';
 import { AuthModal } from './components/AuthModal';
 import { HomeDashboard } from './components/views/HomeDashboard';
@@ -503,11 +504,13 @@ export default function App() {
         )}
 
         {currentMode === 'tamagotchi' && (
-          <TamagotchiView
-            currentUser={currentUser}
-            onOpenProfile={() => setIsProfileOpen(true)}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          <GameFitStage title="다마고치 키우기" icon="🐣" onExit={() => setCurrentMode('mini-games')}>
+            <TamagotchiView
+              currentUser={currentUser}
+              onOpenProfile={() => setIsProfileOpen(true)}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          </GameFitStage>
         )}
 
         {currentMode === 'playground' && (
@@ -550,35 +553,43 @@ export default function App() {
         )}
 
         {currentMode === 'word-crush' && (
-          <WordCrushView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          <GameFitStage title="워드 크러쉬" icon="🍬" onExit={() => setCurrentMode('mini-games')}>
+            <WordCrushView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          </GameFitStage>
         )}
 
         {currentMode === 'mole-game' && (
-          <MoleGameView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          <GameFitStage title="두더지 타자 잡기" icon="🔨" onExit={() => setCurrentMode('mini-games')}>
+            <MoleGameView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          </GameFitStage>
         )}
 
         {currentMode === 'rain-game' && (
-          <RainGameView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          <GameFitStage title="산성비 (단어 소나기)" icon="🌧️" onExit={() => setCurrentMode('mini-games')}>
+            <RainGameView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          </GameFitStage>
         )}
 
         {currentMode === 'shortcut-quiz' && (
-          <ShortcutQuizView
-            currentUser={currentUser}
-            onRecordScore={handleRecordScore}
-            onBack={() => setCurrentMode('mini-games')}
-          />
+          <GameFitStage title="단축키 스피드 퀴즈" icon="⚡" onExit={() => setCurrentMode('mini-games')}>
+            <ShortcutQuizView
+              currentUser={currentUser}
+              onRecordScore={handleRecordScore}
+              onBack={() => setCurrentMode('mini-games')}
+            />
+          </GameFitStage>
         )}
 
         {currentMode === 'leaderboard' && (

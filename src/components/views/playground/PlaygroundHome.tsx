@@ -1,3 +1,4 @@
+import { FitToBox, BodyPortal } from '../../GameFitStage';
 import React, { useState, useEffect } from 'react';
 import { 
   Gamepad2, 
@@ -46,7 +47,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   const [remainingSeconds, setRemainingSeconds] = useState(playgroundManager.getRemainingSeconds());
   const [selectedGameId, setSelectedGameId] = useState<string | null>(initialGameId || null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isFullView, setIsFullView] = useState(false);
+  const [isFullView, setIsFullView] = useState(Boolean(initialGameId));
 
   useEffect(() => {
     const handlePointsUpdate = () => setPoints(pointsManager.getBalance());
@@ -81,6 +82,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
 
   const handleLaunchGame = (gameId: string) => {
     setSelectedGameId(gameId);
+    setIsFullView(true); // 게임은 처음부터 큰 창으로
     soundManager.play('achievement');
   };
 
@@ -102,6 +104,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     // Always select and activate game view immediately
     setSelectedGameId(game.id);
     setActiveFunfunGame(game);
+    setIsFullView(true); // 게임은 처음부터 큰 창으로
     setNotice(`🚀 [${getGameTitle(game)}] 게임이 실행되었습니다! (로딩 지연 없음)`);
     setTimeout(() => setNotice(null), 4000);
 
@@ -119,12 +122,14 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   if (activeGame) {
     const GameComponent = activeGame.component;
     const isBasic = BASIC_GAME_IDS.includes(activeGame.id);
+    // 펀펀 게임은 원본 게임을 창(iframe)으로 띄우므로 크기만 꽉 채우면 됨
+    const isIframeGame = activeGame.category === '펀펀';
 
-    return (
+    const gameView = (
       <div
         className={
           isFullView
-            ? 'fixed inset-0 z-50 w-screen h-screen bg-slate-950 p-2 sm:p-4 flex flex-col overflow-hidden animate-fade-in'
+            ? 'tp-skin fixed inset-0 z-[60] w-screen h-screen bg-slate-950 p-2 sm:p-4 flex flex-col overflow-hidden animate-fade-in'
             : 'max-w-6xl mx-auto px-3 sm:px-6 py-4 animate-fade-in min-h-[85vh] flex flex-col'
         }
       >
@@ -140,18 +145,34 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
           }}
         />
 
-        <div className="relative w-full flex-1 min-h-0 overflow-auto">
-          <GameComponent
-            currentUser={currentUser}
-            onBack={() => {
-              setIsFullView(false);
-              setSelectedGameId(null);
-            }}
-            onOpenProfile={onOpenProfile}
-          />
+        <div className={`relative w-full flex-1 min-h-0 ${isFullView ? 'pg-full overflow-hidden mt-2' : 'overflow-auto'}`}>
+          {isFullView && !isIframeGame ? (
+            // 기본 게임: 원래 크기로 그린 뒤 창에 꽉 차게 확대
+            <FitToBox>
+              <GameComponent
+                currentUser={currentUser}
+                onBack={() => {
+                  setIsFullView(false);
+                  setSelectedGameId(null);
+                }}
+                onOpenProfile={onOpenProfile}
+              />
+            </FitToBox>
+          ) : (
+            <GameComponent
+              currentUser={currentUser}
+              onBack={() => {
+                setIsFullView(false);
+                setSelectedGameId(null);
+              }}
+              onOpenProfile={onOpenProfile}
+            />
+          )}
         </div>
       </div>
     );
+    // 큰 창일 때는 페이지 바깥(body)에 띄워서 화면 전체를 씀
+    return isFullView ? <BodyPortal>{gameView}</BodyPortal> : gameView;
   }
 
   const funfunGames = PLAYGROUND_GAMES.filter((g) => g.category === '펀펀');

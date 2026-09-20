@@ -2050,3 +2050,6 @@
 @media (prefers-reduced-motion: reduce) { .qm-done { animation: none; } }
 .qm-stop--complete .qm-sign { color: #5a3300 !important; border-color: #6b4300 !important; }
 .qm-stop--complete .qm-sign-text { text-shadow: none !important; }
+
+/* 펀펀 게임(원본 게임 창)을 큰 창에서 꽉 채우기 */
+.pg-full .ifg { height: 100%; }
