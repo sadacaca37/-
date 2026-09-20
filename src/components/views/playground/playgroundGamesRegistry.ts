@@ -121,7 +121,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '비행기 슈팅 (1945 Air Combat)',
     category: '펀펀',
     icon: '✈️',
-    description: '1945 스타일 세로 스크롤 슈팅 · 파워업 · 폭탄 · 거대 폭격기 보스',
+    description: '1945 레트로 공중전 & 거대 보스 격파 슈팅 (GitHub 정식 복원판)',
     component: AirplaneShootingGame,
   },
   {
