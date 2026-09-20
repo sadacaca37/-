@@ -12,6 +12,7 @@ import { BubbleBobbleGameWrapper } from './games/BubbleBobbleGameWrapper';
 import { SuperMarioGameWrapper } from './games/SuperMarioGameWrapper';
 import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
+import { BlockCraftGame } from './games/BlockCraftGame';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -29,7 +30,7 @@ export interface PlaygroundGameDef {
 
 /**
  * 🎮 플레이그라운드 등록 게임 목록
- * (깃허브 게임 6종 정식 수록 & 정상 구동)
+ * (깃허브 게임 7종 정식 수록 & 정상 구동)
  */
 export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   // --- 기본 게임 (비타자 유행 캐주얼 게임) ---
@@ -83,7 +84,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     component: PlaygroundTamagotchi,
   },
 
-  // --- 펀펀 플레이 (깃허브 게임 6종 전면 교체 & 100% 정상 작동) ---
+  // --- 펀펀 플레이 (깃허브 게임 7종 전면 교체 & 100% 정상 작동) ---
   {
     id: 'app-lastwar',
     title: '라스트워 (Bridge Assault 3D)',
@@ -131,6 +132,14 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '🏎️',
     description: '캐릭터·카트를 골라 달리는 3D 드리프트 레이싱 (원본 그대로)',
     component: PocketKartOriginal,
+  },
+  {
+    id: 'app-blockcraft',
+    title: '마크 (블록 크래프트)',
+    category: '펀펀',
+    icon: '⛏️',
+    description: '블록을 캐고 쌓는 3D 샌드박스 · 조합대 · 동물·몬스터 · 방 코드로 친구와 함께',
+    component: BlockCraftGame,
   },
 ];
 

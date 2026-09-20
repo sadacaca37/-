@@ -3,6 +3,7 @@ import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
+import { attachBlockcraft } from './server/blockcraftRooms';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -310,6 +311,12 @@ async function startServer() {
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Typang server running on http://0.0.0.0:${PORT} (${isProd ? 'production' : 'dev'})`);
   });
+  // 펀펀 플레이 '마크' 멀티플레이(같은 방 코드로 친구와 함께)
+  try {
+    attachBlockcraft(server);
+  } catch (e) {
+    console.warn('blockcraft multiplayer disabled:', e);
+  }
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
 
