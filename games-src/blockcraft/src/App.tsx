@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { BlockType, BLOCK_DEFINITIONS, ChatMessage, RoomState, UserAccount } from "./types";
 import { VoxelTextureAtlas } from "./game/TextureAtlas";
 import { VoxelWorld } from "./game/VoxelWorld";
-import { PlayerController } from "./game/PlayerController";
+import { PlayerController, DEFAULT_HOTBAR } from "./game/PlayerController";
 import { MultiplayerManager } from "./game/MultiplayerManager";
 import { AnimalManager } from "./game/AnimalManager";
 import { MonsterManager } from "./game/MonsterManager";
@@ -41,17 +41,7 @@ export default function App() {
   const [room, setRoom] = useState<RoomState | null>(null);
   const [selfId, setSelfId] = useState<string>("");
   const [activeSlot, setActiveSlot] = useState<number>(0);
-  const [hotbarBlocks, setHotbarBlocks] = useState<BlockType[]>([
-    BlockType.WOODEN_SWORD,
-    BlockType.WOODEN_PICKAXE,
-    BlockType.WOODEN_AXE,
-    BlockType.CRAFTING_TABLE,
-    BlockType.ZOMBIE_SPAWN_EGG,
-    BlockType.SLIME_SPAWN_EGG,
-    BlockType.DUCK_SPAWN_EGG,
-    BlockType.BREAD,
-    BlockType.GOLDEN_APPLE,
-  ]);
+  const [hotbarBlocks, setHotbarBlocks] = useState<BlockType[]>(() => [...DEFAULT_HOTBAR]);
   const [icons, setIcons] = useState<Record<BlockType, string>>({} as any);
   const [isInventoryOpen, setIsInventoryOpen] = useState<boolean>(false);
   const [inventoryTab, setInventoryTab] = useState<"all" | "crafting" | "tools" | "animals" | "blocks" | "items">("all");
@@ -74,6 +64,16 @@ export default function App() {
 
   currentUserRef.current = currentUser;
   const gameStartedRef = useRef<boolean>(false);
+  // 로비 → 게임 화면: 로비가 부드럽게 사라진 뒤 치움
+  const [showLobby, setShowLobby] = useState<boolean>(true);
+  useEffect(() => {
+    if (!gameStarted) {
+      setShowLobby(true);
+      return;
+    }
+    const t = setTimeout(() => setShowLobby(false), 460);
+    return () => clearTimeout(t);
+  }, [gameStarted]);
   gameStartedRef.current = gameStarted;
 
   // Manual & Auto-save helper
@@ -239,6 +239,9 @@ export default function App() {
     // 10. Player Controller
     const player = new PlayerController(camera, world, atlas, renderer.domElement);
     playerRef.current = player;
+    // 화면 퀵슬롯과 실제 손에 든 블록을 같은 목록으로 (잔디를 골랐는데 몹이 나오던 문제)
+    player.hotbarBlocks = [...DEFAULT_HOTBAR];
+    player.setActiveSlot(0);
     player.setAnimalManager(animals);
     player.monsterManager = monsters;
 
@@ -299,8 +302,14 @@ export default function App() {
     player.onSlotChange = (slot, _block) => {
       setActiveSlot(slot);
     };
+    let freeLookNoticeShown = false;
     player.onLockChange = (locked) => {
       setIsLocked(locked);
+      if (locked && player.freeLook && !freeLookNoticeShown) {
+        freeLookNoticeShown = true;
+        setPickupNotice("🖱️ 마우스를 누른 채 끌면 둘러보기 · 클릭 = 부수기 · 오른쪽 클릭 = 놓기 · Esc = 멈춤");
+        setTimeout(() => setPickupNotice(null), 5000);
+      }
     };
     player.onFlyChange = (flying) => {
       setIsFlying(flying);
@@ -514,7 +523,10 @@ export default function App() {
       />
 
       {/* Lobby Overlay Screen (before game start) */}
-      {!gameStarted && (
+      {showLobby && (
+        <div
+          style={{ opacity: gameStarted ? 0 : 1, transition: "opacity 450ms ease", pointerEvents: gameStarted ? "none" : "auto" }}
+        >
         <Lobby
           room={room}
           selfId={selfId}
@@ -523,6 +535,7 @@ export default function App() {
           onJoinRoom={handleJoinRoom}
           onSingleplayer={handleSingleplayer}
         />
+        </div>
       )}
 
       {/* In-Game HUD (Crosshair, Stats, Hotbar, Chat) */}

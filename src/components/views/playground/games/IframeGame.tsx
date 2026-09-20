@@ -25,16 +25,29 @@ export const IframeGame: React.FC<IframeGameProps> = ({ src, title, icon }) => {
     } catch {}
   }, []);
 
-  // arrow keys / space must not scroll the outer page while a game is open
+  // arrow keys / space must not scroll the outer page while a game is open.
+  // 키가 게임 창이 아닌 바깥 페이지로 들어오면(포커스가 밖에 있을 때) 게임 창으로 그대로 넘겨 줌
   useEffect(() => {
-    const stop = (e: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Spacebar'].includes(e.key)) {
-        e.preventDefault();
-        focusGame();
-      }
+    const forward = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Spacebar'].includes(e.key)) e.preventDefault();
+      const w = frameRef.current?.contentWindow as (Window & typeof globalThis) | null | undefined;
+      if (!w) return;
+      try {
+        const KE = (w as any).KeyboardEvent || KeyboardEvent;
+        w.dispatchEvent(
+          new KE(e.type, { key: e.key, code: e.code, keyCode: e.keyCode, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, repeat: e.repeat, bubbles: true }),
+        );
+      } catch {}
+      if (e.type === 'keydown') focusGame();
     };
-    window.addEventListener('keydown', stop, { passive: false });
-    return () => window.removeEventListener('keydown', stop);
+    window.addEventListener('keydown', forward, { passive: false });
+    window.addEventListener('keyup', forward);
+    return () => {
+      window.removeEventListener('keydown', forward);
+      window.removeEventListener('keyup', forward);
+    };
   }, [focusGame]);
 
   return (
@@ -71,7 +84,7 @@ export const IframeGame: React.FC<IframeGameProps> = ({ src, title, icon }) => {
           title={title}
           tabIndex={0}
           className="ifg-frame"
-          allow="autoplay; fullscreen; gamepad"
+          allow="autoplay; fullscreen; gamepad; pointer-lock"
           onLoad={() => {
             setLoading(false);
             focusGame();

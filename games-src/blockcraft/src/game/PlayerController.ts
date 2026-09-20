@@ -7,6 +7,31 @@ import { AnimalManager } from "./AnimalManager";
 import { MonsterManager } from "./MonsterManager";
 import { ParticleManager } from "./ParticleManager";
 
+/** 1~9번 퀵슬롯 기본 구성: 1 잔디 · 2 돌 · 3 나무 · 4 판자 · 5 벽돌 · 6 유리 · 7 곡괭이 · 8 칼 · 9 조합대 */
+export const DEFAULT_HOTBAR: BlockType[] = [
+  BlockType.GRASS,
+  BlockType.STONE,
+  BlockType.WOOD,
+  BlockType.PLANK,
+  BlockType.BRICK,
+  BlockType.GLASS,
+  BlockType.WOODEN_PICKAXE,
+  BlockType.WOODEN_SWORD,
+  BlockType.CRAFTING_TABLE,
+];
+
+// 한글 자판 상태여도 WASD가 먹도록 (ㅈ=W, ㅁ=A, ㄴ=S, ㅇ=D, ㄷ=E, ㄹ=F)
+const HANGUL_KEY: Record<string, string> = { "ㅈ": "KeyW", "ㅉ": "KeyW", "ㅁ": "KeyA", "ㄴ": "KeyS", "ㅇ": "KeyD", "ㄷ": "KeyE", "ㄸ": "KeyE", "ㄹ": "KeyF" };
+function keyCodeOf(e: KeyboardEvent): string {
+  if (e.code && e.code !== "Unidentified") return e.code;
+  const k = e.key || "";
+  if (HANGUL_KEY[k]) return HANGUL_KEY[k];
+  if (/^[a-z]$/i.test(k)) return "Key" + k.toUpperCase();
+  if (/^[1-9]$/.test(k)) return "Digit" + k;
+  if (k === " ") return "Space";
+  return k;
+}
+
 export class PlayerController {
   public camera: THREE.PerspectiveCamera;
   public world: VoxelWorld;
@@ -59,23 +84,22 @@ export class PlayerController {
   private lastSpacePressTime: number = 0;
   public onFlyChange?: (flying: boolean) => void;
 
+  // 마우스 잠금(Pointer Lock)이 막힌 곳(사이트 안 창·미리보기)에서는 드래그로 둘러보기
+  public freeLook: boolean = false;
+  private dragging: boolean = false;
+  private dragMoved: number = 0;
+  private dragButton: number = -1;
+  private lockTimer: number = 0;
+  private boundOnMouseUp: (e: MouseEvent) => void;
+
   // Input states
   private keys: Record<string, boolean> = {};
   public isLocked: boolean = false;
 
   // Active Hotbar & Selected Block
   public activeSlot: number = 0; // 0..8
-  public hotbarBlocks: BlockType[] = [
-    BlockType.DIAMOND_AXE,
-    BlockType.DIAMOND_PICKAXE,
-    BlockType.DIAMOND_SWORD,
-    BlockType.DUCK_SPAWN_EGG,
-    BlockType.CHICKEN_SPAWN_EGG,
-    BlockType.GRASS,
-    BlockType.WOOD,
-    BlockType.BRICK,
-    BlockType.GOLDEN_APPLE,
-  ];
+  // 화면 아래 퀵슬롯과 똑같은 목록 (App이 시작할 때 다시 맞춰 줌)
+  public hotbarBlocks: BlockType[] = [...DEFAULT_HOTBAR];
 
   // Callback hooks
   public onBlockBreak?: (x: number, y: number, z: number) => void;
@@ -131,6 +155,7 @@ export class PlayerController {
     this.boundOnKeyUp = this.onKeyUp.bind(this);
     this.boundOnWheel = this.onWheel.bind(this);
     this.boundOnPointerLockChange = this.onPointerLockChange.bind(this);
+    this.boundOnMouseUp = this.onMouseUp.bind(this);
     this.boundOnContextMenu = (e) => e.preventDefault();
     this.boundOnBlur = () => {
       this.resetKeys();
@@ -356,17 +381,56 @@ export class PlayerController {
 
   // Pointer lock request
   public requestLock() {
-    this.domElement.requestPointerLock();
+    if (this.freeLook) {
+      this.setLocked(true);
+      return;
+    }
+    try {
+      const r: any = (this.domElement as any).requestPointerLock();
+      if (r && typeof r.catch === "function") r.catch(() => this.enableFreeLook());
+    } catch {
+      this.enableFreeLook();
+    }
+    // 잠금이 조용히 거부되는 경우도 있어서 잠깐 뒤 확인
+    window.clearTimeout(this.lockTimer);
+    this.lockTimer = window.setTimeout(() => {
+      if (document.pointerLockElement !== this.domElement) this.enableFreeLook();
+    }, 450);
+  }
+
+  private enableFreeLook() {
+    if (document.pointerLockElement === this.domElement) return;
+    this.freeLook = true;
+    this.setLocked(true);
+  }
+
+  private setLocked(v: boolean) {
+    if (this.isLocked === v) return;
+    this.isLocked = v;
+    if (!v) {
+      this.resetKeys();
+      this.dragging = false;
+    }
+    if (this.onLockChange) this.onLockChange(v);
   }
 
   public exitLock() {
     if (document.pointerLockElement === this.domElement) {
       document.exitPointerLock();
+    } else if (this.freeLook) {
+      this.setLocked(false);
     }
   }
 
   private onPointerLockChange() {
-    this.isLocked = document.pointerLockElement === this.domElement;
+    const locked = document.pointerLockElement === this.domElement;
+    if (locked) {
+      window.clearTimeout(this.lockTimer);
+      this.freeLook = false;
+    } else if (this.freeLook) {
+      return;
+    }
+    this.isLocked = locked;
     if (!this.isLocked) {
       this.resetKeys();
     }
@@ -377,6 +441,11 @@ export class PlayerController {
 
   private onMouseMove(e: MouseEvent) {
     if (!this.isLocked) return;
+    if (this.freeLook) {
+      // 잠금 없이: 마우스 버튼을 누른 채 끌면 시점 회전
+      if (!this.dragging) return;
+      this.dragMoved += Math.abs(e.movementX) + Math.abs(e.movementY);
+    }
 
     // Filter out mouse delta spikes that occur when pointer lock is first acquired
     const mx = Math.max(-120, Math.min(120, e.movementX));
@@ -397,6 +466,14 @@ export class PlayerController {
       return;
     }
 
+    if (this.freeLook) {
+      // 드래그로 둘러보고, 거의 안 움직이고 떼면 클릭(부수기/놓기)
+      this.dragging = true;
+      this.dragMoved = 0;
+      this.dragButton = e.button;
+      return;
+    }
+
     if (e.button === 0) {
       // Left click: Break block
       this.breakTargetedBlock();
@@ -404,6 +481,14 @@ export class PlayerController {
       // Right click: Place block
       this.placeSelectedBlock();
     }
+  }
+
+  private onMouseUp(e: MouseEvent) {
+    if (!this.freeLook || !this.dragging) return;
+    this.dragging = false;
+    if (!this.isLocked || this.dragMoved > 6 || e.button !== this.dragButton) return;
+    if (e.button === 0) this.breakTargetedBlock();
+    else if (e.button === 2) this.placeSelectedBlock();
   }
 
   public breakTargetedBlock() {
@@ -673,25 +758,32 @@ export class PlayerController {
       return;
     }
 
-    this.keys[e.code] = true;
+    const code = keyCodeOf(e);
+    if (!code) return;
+    this.keys[code] = true;
+
+    if (code === "Escape" && this.freeLook) {
+      this.setLocked(false);
+      return;
+    }
 
     // Hotbar slots 1 to 9
-    if (e.code.startsWith("Digit")) {
-      const digit = parseInt(e.code.replace("Digit", ""), 10);
+    if (code.startsWith("Digit")) {
+      const digit = parseInt(code.replace("Digit", ""), 10);
       if (digit >= 1 && digit <= 9) {
         this.setActiveSlot(digit - 1);
       }
     }
 
     // Toggle Inventory with 'E'
-    if (e.code === "KeyE") {
+    if (code === "KeyE") {
       if (this.onToggleInventory) {
         this.onToggleInventory();
       }
     }
 
     // Toggle Creative Flight mode with 'F'
-    if (e.code === "KeyF") {
+    if (code === "KeyF") {
       this.isFlying = !this.isFlying;
       this.velocity.y = 0;
       if (this.onFlyChange) {
@@ -701,7 +793,7 @@ export class PlayerController {
     }
 
     // Space: Jump or Flight Ascend
-    if (e.code === "Space") {
+    if (code === "Space") {
       const now = performance.now();
       const timeSinceLastSpace = now - this.lastSpacePressTime;
       this.lastSpacePressTime = now;
@@ -728,13 +820,16 @@ export class PlayerController {
   }
 
   private onKeyUp(e: KeyboardEvent) {
-    this.keys[e.code] = false;
+    const code = keyCodeOf(e);
+    if (code) this.keys[code] = false;
   }
 
   private attachEventListeners() {
     this.domElement.addEventListener("contextmenu", this.boundOnContextMenu);
     this.domElement.addEventListener("mousedown", this.boundOnMouseDown);
     window.addEventListener("mousemove", this.boundOnMouseMove);
+    window.addEventListener("mouseup", this.boundOnMouseUp);
+    document.addEventListener("pointerlockerror", () => this.enableFreeLook());
     window.addEventListener("keydown", this.boundOnKeyDown);
     window.addEventListener("keyup", this.boundOnKeyUp);
     window.addEventListener("wheel", this.boundOnWheel, { passive: true });
@@ -746,6 +841,7 @@ export class PlayerController {
     this.domElement.removeEventListener("contextmenu", this.boundOnContextMenu);
     this.domElement.removeEventListener("mousedown", this.boundOnMouseDown);
     window.removeEventListener("mousemove", this.boundOnMouseMove);
+    window.removeEventListener("mouseup", this.boundOnMouseUp);
     window.removeEventListener("keydown", this.boundOnKeyDown);
     window.removeEventListener("keyup", this.boundOnKeyUp);
     window.removeEventListener("wheel", this.boundOnWheel);
