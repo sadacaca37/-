@@ -65,17 +65,27 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
 
   useLayoutEffect(() => {
     measure();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => measure()) : null;
+    // 크기 변화가 연달아 와도 한 화면(프레임)에 한 번만 계산 → 타자 칠 때 버벅이지 않게
+    let raf = 0;
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        measure();
+      });
+    };
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
     if (ro) {
       if (areaRef.current) ro.observe(areaRef.current);
       if (innerRef.current) ro.observe(innerRef.current);
     }
     const onResize = () => {
       passes.current = 0;
-      measure();
+      schedule();
     };
     window.addEventListener('resize', onResize);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       ro?.disconnect();
       window.removeEventListener('resize', onResize);
     };

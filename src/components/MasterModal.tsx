@@ -54,6 +54,7 @@ import {
   ExcelParseResult
 } from '../utils/excelStudentManager';
 import { typangApi, MembersStatus } from '../utils/apiClient';
+import { askConfirm, showAlert } from '../utils/dialog';
 
 interface MasterModalProps {
   isOpen: boolean;
@@ -198,7 +199,17 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   }, [onUpdateUsersList]);
 
   useEffect(() => {
-    if (isOpen && isAuthenticated) refreshFromServer();
+    if (!isOpen || !isAuthenticated) return;
+    // 저장된 마스터 비밀번호가 바뀌었거나 만료됐으면 다시 입력받음 (그대로 두면 등록·삭제가 조용히 실패함)
+    typangApi.checkMasterKey().then((st) => {
+      if (st === 'bad') {
+        typangApi.clearMasterKey();
+        setIsAuthenticated(false);
+        setAuthError('마스터 비밀번호를 다시 입력해 주세요.');
+      } else {
+        refreshFromServer();
+      }
+    });
   }, [isOpen, isAuthenticated, refreshFromServer]);
 
   useEffect(() => {
@@ -259,7 +270,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     }));
   };
 
-  const masterFail = () => alert('마스터 인증이 만료되었거나 서버에 연결되지 않았어요. 관리실에 다시 로그인해 주세요.');
+  const masterFail = () => void showAlert('마스터 인증이 만료되었거나 서버에 연결되지 않았어요. 관리실에 다시 로그인해 주세요.');
 
   const handleToggleApproval = async (userId: string, newStatus: boolean) => {
     if (!(await typangApi.updateUser(userId, { isApproved: newStatus }))) return masterFail();
@@ -276,7 +287,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (window.confirm(`'${userName}' 학생의 계정을 정말로 삭제하시겠습니까?\n(마스터 관리자만 학생 계정 수정/삭제가 가능합니다.)`)) {
+    if (await askConfirm(`'${userName}' 학생의 계정을 정말로 삭제하시겠습니까?\n(마스터 관리자만 학생 계정 수정/삭제가 가능합니다.)`)) {
       if (!(await typangApi.deleteUser(userId))) return masterFail();
       const updated = await refreshFromServer();
       typangSync.broadcast('USERS_UPDATED', updated);
@@ -289,7 +300,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
   const handleSaveEditPassword = async (userId: string) => {
     if (!editPassValue || editPassValue.length < 4) {
-      alert('비밀번호는 최소 4자리 이상이어야 합니다.');
+      void showAlert('비밀번호는 최소 4자리 이상이어야 합니다.');
       return;
     }
     if (!(await typangApi.updateUser(userId, { password: editPassValue }))) return masterFail();
@@ -359,7 +370,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       const res = await parseStudentExcelFile(file);
       setExcelResult(res);
     } catch (err: any) {
-      alert('엑셀 파일 분석 실패: ' + (err?.message || ''));
+      void showAlert('엑셀 파일 분석 실패: ' + (err?.message || ''));
     } finally {
       setIsParsingExcel(false);
     }
@@ -368,7 +379,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   // Direct 50-Student Quick Paste Parser
   const handlePasteParse = () => {
     if (!pasteInput.trim()) {
-      alert('복사한 학생 명단을 붙여넣어 주세요.');
+      void showAlert('복사한 학생 명단을 붙여넣어 주세요.');
       return;
     }
     setBatchSaveMsg('');
@@ -376,7 +387,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       const res = parsePastedStudentText(pasteInput);
       setExcelResult(res);
     } catch (err: any) {
-      alert('붙여넣은 명단 분석 실패: ' + (err?.message || ''));
+      void showAlert('붙여넣은 명단 분석 실패: ' + (err?.message || ''));
     }
   };
 
@@ -394,7 +405,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
         setBatchSaveMsg('');
       }, 2500);
     } else {
-      setBatchSaveMsg('❌ 일괄 등록 처리에 실패했습니다.');
+      setBatchSaveMsg(`❌ 일괄 등록에 실패했어요. ${saveRes.message || '마스터 관리실에 다시 로그인한 뒤 시도해 주세요.'}`);
     }
   };
 
@@ -408,7 +419,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   const handleSaveSecurityConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!secName.trim() || !secEmail.trim() || !secKey.trim() || !secPassword.trim()) {
-      alert('모든 필수 보안 항목을 입력해 주세요.');
+      void showAlert('모든 필수 보안 항목을 입력해 주세요.');
       return;
     }
     const updatedCfg = {
@@ -423,7 +434,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     if (secPassword.trim() !== typangApi.getMasterKey()) {
       const r = await typangApi.setMasterPassword(secPassword.trim());
       if (!r.success) {
-        alert(r.message || '서버에 마스터 비밀번호를 저장하지 못했어요.');
+        void showAlert(r.message || '서버에 마스터 비밀번호를 저장하지 못했어요.');
         return;
       }
       setMembersStatus(await typangApi.getMembersStatus());

@@ -46,6 +46,7 @@ import {
   Keyboard
 } from 'lucide-react';
 import { PlaygroundHeader } from './playground/PlaygroundHeader';
+import { askConfirm, showAlert } from '../../utils/dialog';
 
 interface TamagotchiViewProps {
   currentUser: UserSession | null;
@@ -776,8 +777,8 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
     soundManager.playVictory();
   };
 
-  const handleResetPet = () => {
-    if (window.confirm('정말로 다마고치를 1레벨 아기 상태로 초기화하시겠습니까?')) {
+  const handleResetPet = async () => {
+    if (await askConfirm('정말로 다마고치를 1레벨 아기 상태로 초기화하시겠습니까?')) {
       setPet(INITIAL_TAMAGOTCHI);
       setSpeechBubble('다마고치가 새롭게 태어났어요! 🐣');
       setActiveMission(null);

@@ -83,6 +83,48 @@ class TypangApiClient {
     }
   }
 
+  /** 서버 API 가 실제로 응답했는지 (정적 미리보기처럼 서버가 없으면 HTML/404 가 옴) */
+  private isApi(r: { data: any }) {
+    return !!r.data && typeof r.data === 'object' && 'success' in r.data;
+  }
+
+  /* ---- 서버가 없는 곳(미리보기)에서 쓰는 이 브라우저 전용 명단 ---- */
+  private localList(): UserSession[] {
+    return this.getCachedUsers();
+  }
+  private localSave(list: UserSession[]) {
+    try {
+      localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(list));
+    } catch {}
+  }
+  private localAdd(p: { name: string; phone: string; grade?: number; avatar?: string; avatarBg?: string; approved: boolean }) {
+    const d = this.extractDigits(p.phone);
+    const list = this.localList();
+    const dup = list.find((u) => u.name === p.name.trim() && this.extractDigits(u.parentPhone || u.phone || '') === d);
+    if (dup) return { user: dup, existing: true };
+    const grade = Number(p.grade) || 3;
+    const user: UserSession = {
+      id: `user_local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: p.name.trim(),
+      studentId: `std_${this.getLast4Digits(d)}`,
+      phone: this.formatPhone(d),
+      parentPhone: this.formatPhone(d),
+      grade,
+      password: this.getLast4Digits(d),
+      avatar: p.avatar || '⭐',
+      avatarBg: p.avatarBg || 'bg-yellow-100',
+      levelTitle: `${grade}학년 타자 꿈나무`,
+      isApproved: p.approved,
+      role: 'student',
+      createdAt: Date.now(),
+      lastLoginAt: 0,
+      totalPracticeCount: 0,
+      highestCpm: 0,
+    };
+    this.localSave([user, ...list]);
+    return { user, existing: false };
+  }
+
   private cacheUsers(users: UserSession[]) {
     try {
       localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
@@ -131,10 +173,29 @@ class TypangApiClient {
         } catch {}
         return { success: true, user: r.data.user, message: '로그인 성공' };
       }
+      if (!this.isApi(r)) return this.localLogin(identifier, password || '');
       return { success: false, pending: !!r.data?.pending, message: r.data?.message || '로그인에 실패했어요.' };
     } catch {
-      return { success: false, message: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
+      return this.localLogin(identifier, password || '');
     }
+  }
+
+  private localLogin(identifier: string, password: string) {
+    const ident = identifier.trim().replace(/\s+/g, '').toLowerCase();
+    const d = this.extractDigits(identifier);
+    const pw = password.trim();
+    const hit = this.localList().find((u) => {
+      const ud = this.extractDigits(u.parentPhone || u.phone || '');
+      const match = u.name.replace(/\s+/g, '').toLowerCase() === ident || (d.length >= 7 && ud === d) || (d.length === 4 && ud.endsWith(d));
+      const okPw = (u.password && u.password === pw) || (ud && ud.slice(-4) === pw);
+      return match && okPw;
+    });
+    if (!hit) return { success: false, message: '학생 정보를 찾을 수 없거나 비밀번호가 맞지 않아요.' };
+    if (!hit.isApproved) return { success: false, pending: true, message: `'${hit.name}' 학생은 선생님 승인 대기 중이에요.` };
+    try {
+      localStorage.setItem('typang_current_user', JSON.stringify(hit));
+    } catch {}
+    return { success: true, user: hit, message: '로그인 성공' };
   }
 
   /** 학생이 하면 "가입 신청"(승인 대기), 마스터가 하면 바로 등록 */
@@ -156,10 +217,23 @@ class TypangApiClient {
       if (r.ok && r.data?.success) {
         return { success: true, user: r.data.user, pending: !!r.data.pending, message: r.data.message };
       }
+      if (!this.isApi(r)) return this.localRegister(name, parentPhone || phone || '', grade, avatar, avatarBg);
       return { success: false, message: r.data?.message || '등록에 실패했어요.' };
     } catch {
-      return { success: false, message: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
+      return this.localRegister(name, parentPhone || phone || '', grade, avatar, avatarBg);
     }
+  }
+
+  private localRegister(name: string, phone: string, grade: number, avatar: string, avatarBg: string) {
+    if (!name.trim() || this.extractDigits(phone).length < 8) return { success: false, message: '이름과 부모님 전화번호를 확인해 주세요.' };
+    const master = !!this.getMasterKey();
+    const r = this.localAdd({ name, phone, grade, avatar, avatarBg, approved: master });
+    return {
+      success: true,
+      user: r.user,
+      pending: !r.user.isApproved,
+      message: master ? `'${r.user.name}' 학생을 등록했어요.` : `'${r.user.name}' 가입 신청이 접수됐어요. 선생님 승인 후 로그인할 수 있어요.`,
+    };
   }
 
   public async batchRegisterStudents(
@@ -181,10 +255,22 @@ class TypangApiClient {
           message: `총 ${r.data.addedCount}명의 학생을 등록했어요.`,
         };
       }
+      if (!this.isApi(r)) return this.localBatch(students, autoApprove);
       return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: r.data?.message || '일괄 등록에 실패했어요.' };
     } catch {
-      return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: '서버에 연결할 수 없어요.' };
+      return this.localBatch(students, autoApprove);
     }
+  }
+
+  private localBatch(students: Array<{ name: string; parentPhone: string; grade?: number; avatar?: string }>, autoApprove: boolean): BatchRegisterResult {
+    let added = 0;
+    let skipped = 0;
+    for (const st of students) {
+      if (!st.name || this.extractDigits(st.parentPhone).length < 7) { skipped++; continue; }
+      const r = this.localAdd({ name: st.name, phone: st.parentPhone, grade: st.grade, avatar: st.avatar, approved: autoApprove });
+      if (r.existing) skipped++; else added++;
+    }
+    return { success: true, addedCount: added, skippedCount: skipped, totalUsers: this.localList().length, message: `총 ${added}명의 학생을 등록했어요.` };
   }
 
   public async updateUser(id: string, updates: Partial<UserSession>): Promise<boolean> {
@@ -194,19 +280,38 @@ class TypangApiClient {
         headers: this.headers(),
         body: JSON.stringify(updates),
       });
-      return r.ok;
-    } catch {
+      if (r.ok) return true;
+      if (!this.isApi(r)) return this.localUpdate(id, updates);
       return false;
+    } catch {
+      return this.localUpdate(id, updates);
     }
+  }
+
+  private localUpdate(id: string, updates: Partial<UserSession>) {
+    const list = this.localList();
+    if (!list.some((u) => u.id === id)) return false;
+    this.localSave(list.map((u) => (u.id === id ? { ...u, ...updates } : u)));
+    return true;
   }
 
   public async deleteUser(id: string): Promise<boolean> {
     try {
       const r = await this.request(`/api/users/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.headers(false) });
-      return r.ok;
-    } catch {
+      if (r.ok) return true;
+      if (!this.isApi(r)) return this.localDelete(id);
       return false;
+    } catch {
+      return this.localDelete(id);
     }
+  }
+
+  private localDelete(id: string) {
+    const list = this.localList();
+    const next = list.filter((u) => u.id !== id);
+    if (next.length === list.length) return false;
+    this.localSave(next);
+    return true;
   }
 
   /* ---------------- master ---------------- */
@@ -259,10 +364,22 @@ class TypangApiClient {
     }
   }
 
+  /** 저장된 마스터 키가 서버에서 아직 유효한지: 'ok' | 'bad' | 'noserver' */
+  public async checkMasterKey(): Promise<'ok' | 'bad' | 'noserver'> {
+    if (!this.getMasterKey()) return 'bad';
+    try {
+      const r = await this.request('/api/members/status', { headers: this.headers(false) });
+      if (r.ok && r.data?.success) return 'ok';
+      return this.isApi(r) ? 'bad' : 'noserver';
+    } catch {
+      return 'noserver';
+    }
+  }
+
   public async getMembersStatus(): Promise<MembersStatus | null> {
     try {
       const r = await this.request('/api/members/status', { headers: this.headers(false) });
-      return r.ok ? r.data.status : null;
+      return r.ok && r.data?.status ? r.data.status : null;
     } catch {
       return null;
     }

@@ -119,6 +119,26 @@ const getInitialMode = (): AppMode => {
   return 'home';
 };
 
+/** 첫 화면이 뜬 뒤 한가할 때 자주 여는 창들을 미리 받아 둠 → 처음 눌러도 바로 뜸 */
+if (typeof window !== 'undefined') {
+  const warm = () => {
+    [
+      () => import('./components/ProfileModal'),
+      () => import('./components/MasterModal'),
+      () => import('./components/PracticeHistoryModal'),
+      () => import('./components/views/playground/PlaygroundHome'),
+      () => import('./components/views/KnowledgeHubView'),
+      () => import('./components/views/MiniGamesHubView'),
+      () => import('./components/views/LeaderboardView'),
+    ].forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 400));
+  };
+  const idle = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 2500));
+  window.addEventListener('load', () => idle(warm, { timeout: 4000 }), { once: true });
+}
+
+/** 열려 있는 연습 창 (모드별로 하나) */
+const openPracticeWindows = new Map<string, Window>();
+
 export default function App() {
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
@@ -281,6 +301,12 @@ export default function App() {
         // Open dedicated popup browser window; if the browser blocks popups, open it inside this page
         let opened = false;
         try {
+          // 이미 열려 있는 연습 창이면 새로 불러오지 않고 앞으로만 가져옴 (여러 번 눌러도 버벅이지 않게)
+          const existing = openPracticeWindows.get(mode);
+          if (existing && !existing.closed) {
+            existing.focus();
+            return;
+          }
           const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
           const popup = window.open(
             url,
@@ -288,6 +314,7 @@ export default function App() {
             'width=1320,height=880,left=80,top=40,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
           );
           if (popup) {
+            openPracticeWindows.set(mode, popup);
             popup.focus();
             opened = true;
           }

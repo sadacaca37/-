@@ -191,6 +191,57 @@ export async function downloadStudentExcelTemplate(): Promise<void> {
 }
 
 // --------------------------------------------------------------------------
+/** 엑셀에서 숫자로 저장된 전화번호는 맨 앞 0이 빠짐(1012345678) → 다시 붙임 */
+export function fixPhoneDigits(raw: string): string {
+  let d = cleanDigits(raw);
+  if (/^1[0-9]{9}$/.test(d)) d = '0' + d; // 10-xxxx-xxxx → 010-xxxx-xxxx
+  return d;
+}
+
+const NAME_KEYS = ['학생이름', '학생 이름', '이름', '성명', 'name', '학생'];
+const PHONE_KEYS = ['부모님전화', '부모님 전화', '전화', '연락처', '휴대폰', '핸드폰', '학부모', '보호자', 'phone', 'tel', 'mobile'];
+const GRADE_KEYS = ['학년', 'grade'];
+const norm = (v: any) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+const looksPhone = (v: any) => fixPhoneDigits(String(v ?? '')).length >= 9;
+const looksName = (v: any) => /^[가-힣]{2,5}$/.test(String(v ?? '').trim()) || /^[A-Za-z][A-Za-z .]{1,30}$/.test(String(v ?? '').trim());
+
+/** 표(행렬)에서 이름·전화·학년 열을 찾아 {name, phone, grade} 목록으로 만듦 */
+export function rowsFromMatrix(matrix: any[][]): { name: string; phone: string; grade: string }[] {
+  const rows = (matrix || []).filter((r) => Array.isArray(r) && r.some((c) => String(c ?? '').trim() !== ''));
+  if (!rows.length) return [];
+  // 앞에 있는 이름일수록 우선 (예: '전화'가 '번호'보다 먼저) — 출석 '번호' 열을 전화번호로 착각하지 않도록
+  const findCol = (header: any[], keys: string[], skip: number[] = []) => {
+    for (const k of keys) {
+      const idx = header.findIndex((c, i) => !skip.includes(i) && norm(c).includes(norm(k)));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  // 1) 제목 줄 찾기 (앞쪽 10줄 안)
+  for (let h = 0; h < Math.min(10, rows.length); h++) {
+    const header = rows[h];
+    const nameCol = findCol(header, NAME_KEYS);
+    const phoneCol = findCol(header, PHONE_KEYS, nameCol >= 0 ? [nameCol] : []);
+    if (nameCol >= 0 && phoneCol >= 0) {
+      const gradeCol = findCol(header, GRADE_KEYS, [nameCol, phoneCol]);
+      return rows.slice(h + 1).map((r) => ({
+        name: String(r[nameCol] ?? '').trim(),
+        phone: String(r[phoneCol] ?? '').trim(),
+        grade: gradeCol >= 0 ? String(r[gradeCol] ?? '') : '',
+      }));
+    }
+  }
+  // 2) 제목 줄이 없으면: 줄마다 이름처럼 보이는 칸 + 전화번호처럼 보이는 칸을 찾음
+  return rows
+    .map((r) => {
+      const phone = r.find(looksPhone);
+      const name = r.find((c) => c !== phone && looksName(c));
+      const grade = r.find((c) => /^[1-6](학년)?$/.test(String(c ?? '').trim()));
+      return { name: String(name ?? '').trim(), phone: String(phone ?? '').trim(), grade: String(grade ?? '') };
+    })
+    .filter((r) => r.name || r.phone);
+}
+
 // Parse Excel File (.xlsx, .xls, .csv)
 // --------------------------------------------------------------------------
 export async function parseStudentExcelFile(file: File): Promise<ExcelParseResult> {
@@ -218,7 +269,9 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelParseResul
           return;
         }
 
-        const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        // 제목 줄·빈 줄이 위에 있어도, 열 이름이 조금 달라도 읽을 수 있게 표 전체를 보고 열을 찾음
+        const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
+        const rawRows = rowsFromMatrix(matrix);
         if (!rawRows || rawRows.length === 0) {
           resolve({
             success: false,
@@ -226,7 +279,7 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelParseResul
             validCount: 0,
             errorCount: 0,
             duplicateCount: 0,
-            message: '엑셀 파일에 등록할 데이터가 없습니다.',
+            message: '엑셀에서 학생 이름과 부모님 전화번호 열을 찾지 못했어요. 첫 줄에 "이름", "전화번호" 제목을 넣어 주세요.',
           });
           return;
         }
@@ -252,21 +305,15 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelParseResul
         for (let i = 0; i < rawRows.length; i++) {
           const row = rawRows[i];
 
-          const rawName = String(
-            row['학생 이름 (필수)'] || row['학생이름'] || row['이름'] || row['성명'] || row['name'] || row['Name'] || ''
-          ).trim();
-
-          const rawParentPhone = String(
-            row['부모님 전화번호 (필수)'] || row['부모님 전화번호'] || row['부모님연락처'] || row['학부모연락처'] || row['전화번호'] || row['연락처'] || row['phone'] || row['parentPhone'] || ''
-          ).trim();
-
-          const rawGrade = Number(row['학년 (선택)'] || row['학년'] || row['grade'] || 3);
+          const rawName = String(row.name || '').trim();
+          const rawParentPhone = String(row.phone || '').trim();
+          const rawGrade = Number(String(row.grade || '').replace(/[^0-9]/g, '') || 3);
 
           // Skip completely empty rows
           if (!rawName && !rawParentPhone) continue;
 
-          const digits = cleanDigits(rawParentPhone);
-          const formattedPhone = formatKoreanPhone(rawParentPhone);
+          const digits = fixPhoneDigits(rawParentPhone);
+          const formattedPhone = formatKoreanPhone(digits);
           const autoPw = getLast4(digits);
 
           let status: 'valid' | 'warning' | 'error' = 'valid';
@@ -458,7 +505,7 @@ export function parsePastedStudentText(rawText: string): ExcelParseResult {
 export async function saveBatchStudentsToDb(
   studentsToSave: ParsedStudentItem[],
   autoApprove: boolean = true
-): Promise<{ success: boolean; insertedCount: number; totalUsersCount: number; updatedUsers: UserSession[] }> {
+): Promise<{ success: boolean; insertedCount: number; totalUsersCount: number; updatedUsers: UserSession[]; message?: string }> {
   try {
     const validItems = studentsToSave.filter((s) => s.status !== 'error');
     if (validItems.length === 0) {
@@ -481,7 +528,7 @@ export async function saveBatchStudentsToDb(
     );
     if (!batchRes.success) {
       const current = await typangApi.getUsers();
-      return { success: false, insertedCount: 0, totalUsersCount: current.length, updatedUsers: current };
+      return { success: false, insertedCount: 0, totalUsersCount: current.length, updatedUsers: current, message: batchRes.message };
     }
 
     // Fetch refreshed complete list

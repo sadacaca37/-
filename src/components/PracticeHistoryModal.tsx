@@ -36,6 +36,7 @@ import {
   deletePracticeHistoryRecords 
 } from '../utils/curriculumManager';
 import { WeeklyProgressChart } from './WeeklyProgressChart';
+import { askConfirm, showAlert } from '../utils/dialog';
 
 interface PracticeHistoryModalProps {
   isOpen: boolean;
@@ -130,9 +131,9 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
     }
   };
 
-  const handleDeleteSingle = (recordId: string, e?: React.MouseEvent) => {
+  const handleDeleteSingle = async (recordId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (window.confirm('이 연습 기록을 삭제하시겠습니까?')) {
+    if (await askConfirm('이 연습 기록을 삭제하시겠습니까?')) {
       const targetId = currentUser ? currentUser.id : 'guest';
       deletePracticeHistoryRecord(targetId, recordId);
       setSelectedRecordIds((prev) => {
@@ -144,9 +145,9 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedRecordIds.size === 0) return;
-    if (window.confirm(`선택한 ${selectedRecordIds.size}개의 기록을 삭제하시겠습니까?`)) {
+    if (await askConfirm(`선택한 ${selectedRecordIds.size}개의 기록을 삭제하시겠습니까?`)) {
       const targetId = currentUser ? currentUser.id : 'guest';
       deletePracticeHistoryRecords(targetId, Array.from(selectedRecordIds));
       setSelectedRecordIds(new Set());
