@@ -637,17 +637,18 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
         {/* =========================================================================
             CYAN AQUA DISPLAY PANEL (Classic Hancom Screen)
            ========================================================================= */}
-        <div className="bg-gradient-to-r from-sky-400 via-cyan-400 to-sky-400 rounded-2xl p-2.5 sm:p-3.5 border-3 border-sky-500 shadow-inner flex flex-col md:flex-row items-center justify-between gap-3 relative overflow-hidden mb-2.5">
+        <div className="bg-gradient-to-r from-sky-400 via-cyan-400 to-sky-400 rounded-2xl p-2.5 sm:p-3.5 border-3 border-sky-500 shadow-inner flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-3 relative overflow-hidden mb-2.5">
           {/* Subtle Cyber / Grid Pattern Overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent pointer-events-none" />
 
           {/* Left / Center: Target Word Card & Next Word Preview */}
-          <div className="flex-1 flex items-center justify-center md:justify-start gap-4 sm:gap-6 w-full z-10">
+          <div className="hidden md:flex items-center justify-end w-full z-10 pr-2">
             {/* Left Dotted Arrows */}
-            <div className="hidden sm:flex flex-col text-sky-200/80 font-mono text-sm select-none">
+            <div className="flex flex-col text-sky-200/80 font-mono text-sm select-none">
               <span>◀ ◀</span>
               <span>◀ ◀</span>
             </div>
+          </div>
 
             {/* Target Big Word Card (Elevated Silver/White Box) */}
             <div 
@@ -710,6 +711,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               />
             </div>
 
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3 w-full z-10 md:pl-2">
             {/* Next Word Preview on Aqua Background */}
             <div className="flex items-center gap-2 select-none">
               <div className="text-sky-200/90 font-mono text-lg">
@@ -722,7 +724,6 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                 </span>
               </div>
             </div>
-          </div>
 
           {/* Right Side: Stage Setting (단계 설정), Mini Keyboard, Stage Buttons [1]~[8] */}
           <div className="bg-white/90 backdrop-blur-md rounded-xl p-3 border-2 border-sky-300 shadow-md flex flex-col items-center gap-2 z-10 w-full md:w-auto">
@@ -815,6 +816,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                 );
               })}
             </div>
+          </div>
           </div>
         </div>
 

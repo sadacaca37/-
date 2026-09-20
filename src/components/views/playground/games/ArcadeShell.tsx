@@ -12,7 +12,16 @@ export const ArcadeShell: React.FC<{
   onRestart?: () => void;
   children: React.ReactNode;
   controls?: React.ReactNode;
-}> = ({ title, subtitle, tone = '#ff5fae', score, best, extra, onBack, onRestart, children, controls }) => (
+}> = ({ title, subtitle, tone = '#ff5fae', score, best, extra, onBack, onRestart, children, controls }) => {
+  const screenRef = React.useRef<HTMLDivElement>(null);
+  // bring the play screen into view once, so arrow-key games never start half off-screen
+  React.useEffect(() => {
+    const t = window.setTimeout(() => {
+      try { screenRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
   <div className="ac" style={{ ['--ac' as any]: tone }}>
     <div className="ac-top">
       {onBack && (
@@ -43,10 +52,11 @@ export const ArcadeShell: React.FC<{
       )}
       {extra}
     </div>
-    <div className="ac-screen">{children}</div>
+    <div className="ac-screen" ref={screenRef}>{children}</div>
     {controls && <div className="ac-controls">{controls}</div>}
   </div>
-);
+  );
+};
 
 /** Canvas helper: crisp canvas that scales to its box on high-DPI screens */
 export const useBest = (key: string): [number, (v: number) => void] => {

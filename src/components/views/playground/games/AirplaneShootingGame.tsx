@@ -1,734 +1,613 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, RotateCcw, Volume2, VolumeX, ExternalLink, Shield, Zap, Bomb, Trophy } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ArcadeShell, overlay, rr, useBest } from './ArcadeShell';
 
-interface AirplaneShootingGameProps {
-  onBack?: () => void;
-  currentUser?: any;
-}
+/* 1945-style vertical scrolling shooter.
+   Ocean + islands scroll underneath, the twin-boom fighter auto-fires, enemies come in waves
+   (V formations, side sweeps, gun boats, heavy bombers) and a giant bomber boss closes each stage.
+   Controls: arrows/WASD move · X/B bomb · P pause · drag on touch screens. */
 
-export const AirplaneShootingGame: React.FC<AirplaneShootingGameProps> = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
+const W = 432;
+const H = 640;
+const SCROLL = 1.1;
+
+type Bullet = { x: number; y: number; vx: number; vy: number; r: number; dmg?: number };
+type Kind = 'fighter' | 'zero' | 'bomber' | 'boat' | 'boss';
+type Enemy = {
+  kind: Kind; x: number; y: number; vx: number; vy: number; hp: number; max: number; t: number;
+  cd: number; score: number; w: number; h: number; sway?: number; baseX?: number; hit: number; phase?: number; drop?: 'P' | 'B' | 'M';
+};
+type Item = { x: number; y: number; kind: 'P' | 'B' | 'M'; t: number; vx: number; vy: number };
+type Boom = { x: number; y: number; t: number; size: number };
+type Spark = { x: number; y: number; vx: number; vy: number; life: number; c: string };
+
+const newState = () => ({
+  state: 'title' as 'title' | 'play' | 'over' | 'clear' | 'pause',
+  px: W / 2, py: H - 90, inv: 0, power: 1, bombs: 2, lives: 3, fireCd: 0,
+  shots: [] as Bullet[], eshots: [] as Bullet[], enemies: [] as Enemy[], items: [] as Item[],
+  booms: [] as Boom[], sparks: [] as Spark[],
+  queue: [] as { at: number; fn: () => void }[],
+  t: 0, waveCd: 1.5, stage: 1, boss: null as Enemy | null, warn: 0, clearT: 0,
+  score: 0, flash: 0, shake: 0, scroll: 0,
+  islands: Array.from({ length: 4 }, (_, i) => ({ x: Math.random() * W, y: i * 200 - 100, r: 40 + Math.random() * 40, s: Math.random() })),
+  clouds: Array.from({ length: 5 }, (_, i) => ({ x: Math.random() * W, y: i * 150, w: 90 + Math.random() * 80 })),
+  keys: new Set<string>(),
+  last: 0,
+});
+
+export const AirplaneShootingGame: React.FC<{ onBack?: () => void; currentUser?: any }> = ({ onBack }) => {
+  const cv = useRef<HTMLCanvasElement>(null);
+  const [best, saveBest] = useBest('tp_1945_best');
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(() => {
-    try {
-      return parseInt(localStorage.getItem('typang_aircombat_highscore') || '5000', 10);
-    } catch {
-      return 5000;
-    }
-  });
-  const [lives, setLives] = useState(3);
-  const [bombs, setBombs] = useState(2);
-  const [weaponLevel, setWeaponLevel] = useState(1);
-  const [stage, setStage] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
+  const [hud, setHud] = useState({ lives: 3, bombs: 2, power: 1, stage: 1 });
+  const g = useRef(newState());
+  const drag = useRef<{ x: number; y: number } | null>(null);
+  if ((import.meta as any).env?.DEV) (window as any).__air = g;
 
-  // Audio synthesizer ref
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  const playSfx = (type: 'shoot' | 'hit' | 'explosion' | 'item' | 'bomb' | 'boss') => {
-    if (isMuted) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const now = ctx.currentTime;
-
-      if (type === 'shoot') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.08);
-        osc.start(now);
-        osc.stop(now + 0.08);
-      } else if (type === 'explosion') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(120, now);
-        osc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } else if (type === 'item') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.linearRampToValueAtTime(880, now + 0.15);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-      } else if (type === 'bomb') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(80, now);
-        osc.frequency.linearRampToValueAtTime(30, now + 0.6);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.6);
-        osc.start(now);
-        osc.stop(now + 0.6);
-      }
-    } catch {
-      // Audio not supported
-    }
-  };
-
-  const externalUrl = "https://ai.studio/apps/f98914ba-df64-4cb5-8b8c-e9c1c4a9c8f2?fullscreenApplet=true";
-
-  // Game loop and canvas logic
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    let frameCount = 0;
-
-    const keys: { [key: string]: boolean } = {};
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // keep arrow keys / space for the game instead of scrolling the page
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
-      keys[e.code] = true;
-      if (e.code === 'KeyB' || e.code === 'KeyX') {
-        triggerBomb();
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keys[e.code] = false;
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    // Player state
-    const player = {
-      x: canvas.width / 2,
-      y: canvas.height - 70,
-      w: 36,
-      h: 36,
-      speed: 5.5,
-      invuln: 60,
-    };
-
-    let pLives = 3;
-    let pBombs = 2;
-    let pWeapon = 1;
-    let pScore = 0;
-    let pStage = 1;
-
-    // Game objects
-    interface Bullet { x: number; y: number; vx: number; vy: number; isEnemy?: boolean; radius?: number }
-    interface Enemy { x: number; y: number; vx: number; vy: number; w: number; h: number; hp: number; maxHp: number; type: 'small' | 'medium' | 'boss'; color: string; shootTimer: number }
-    interface Item { x: number; y: number; type: 'p' | 'b' | 's' }
-    interface Particle { x: number; y: number; vx: number; vy: number; color: string; life: number; maxLife: number; size: number }
-
-    let bullets: Bullet[] = [];
-    let enemies: Enemy[] = [];
-    let items: Item[] = [];
-    let particles: Particle[] = [];
-    let stars: { x: number; y: number; speed: number; size: number }[] = [];
-
-    // Background starfield / clouds
-    for (let i = 0; i < 60; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        speed: 0.5 + Math.random() * 2,
-        size: Math.random() * 2 + 1,
-      });
-    }
-
-    let bossSpawned = false;
-    let bossInstance: Enemy | null = null;
-
-    const triggerBomb = () => {
-      if (pBombs <= 0) return;
-      pBombs--;
-      setBombs(pBombs);
-      playSfx('bomb');
-
-      // Clear all enemy bullets
-      bullets = bullets.filter(b => !b.isEnemy);
-
-      // Damage all enemies
-      enemies.forEach(en => {
-        en.hp -= 20;
-        for (let i = 0; i < 15; i++) {
-          particles.push({
-            x: en.x + Math.random() * en.w,
-            y: en.y + Math.random() * en.h,
-            vx: (Math.random() - 0.5) * 8,
-            vy: (Math.random() - 0.5) * 8,
-            color: '#f59e0b',
-            life: 25,
-            maxLife: 25,
-            size: 4,
-          });
-        }
-      });
-    };
-
-    const spawnEnemy = () => {
-      if (bossInstance) return;
-      const typeRand = Math.random();
-      if (typeRand < 0.65) {
-        // Small swift scout
-        enemies.push({
-          x: 20 + Math.random() * (canvas.width - 40),
-          y: -30,
-          vx: (Math.random() - 0.5) * 2,
-          vy: 2.2 + Math.random() * 1.5,
-          w: 26,
-          h: 24,
-          hp: 2,
-          maxHp: 2,
-          type: 'small',
-          color: '#ef4444',
-          shootTimer: 40 + Math.random() * 50,
-        });
-      } else {
-        // Medium bomber
-        enemies.push({
-          x: 40 + Math.random() * (canvas.width - 80),
-          y: -45,
-          vx: (Math.random() - 0.5) * 1.2,
-          vy: 1.2 + Math.random() * 0.8,
-          w: 42,
-          h: 38,
-          hp: 8,
-          maxHp: 8,
-          type: 'medium',
-          color: '#8b5cf6',
-          shootTimer: 30 + Math.random() * 40,
-        });
-      }
-    };
-
-    const spawnBoss = () => {
-      bossSpawned = true;
-      bossInstance = {
-        x: canvas.width / 2 - 60,
-        y: -90,
-        vx: 1.8,
-        vy: 1.0,
-        w: 120,
-        h: 80,
-        hp: 120 + pStage * 40,
-        maxHp: 120 + pStage * 40,
-        type: 'boss',
-        color: '#dc2626',
-        shootTimer: 30,
-      };
-      enemies.push(bossInstance);
-    };
-
-    let lastShotFrame = 0;
-
-    // Game loop
-    const update = () => {
-      frameCount++;
-
-      if (isPlaying && !isGameOver) {
-        // Controls
-        if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > player.w / 2) player.x -= player.speed;
-        if ((keys['ArrowRight'] || keys['KeyD']) && player.x < canvas.width - player.w / 2) player.x += player.speed;
-        if ((keys['ArrowUp'] || keys['KeyW']) && player.y > player.h / 2) player.y -= player.speed;
-        if ((keys['ArrowDown'] || keys['KeyS']) && player.y < canvas.height - player.h / 2) player.y += player.speed;
-
-        // Auto/Key Shoot
-        if (keys['Space'] || frameCount % 9 === 0) {
-          if (frameCount - lastShotFrame > 8) {
-            lastShotFrame = frameCount;
-            playSfx('shoot');
-
-            if (pWeapon === 1) {
-              bullets.push({ x: player.x - 8, y: player.y - 12, vx: 0, vy: -10 });
-              bullets.push({ x: player.x + 8, y: player.y - 12, vx: 0, vy: -10 });
-            } else if (pWeapon === 2) {
-              bullets.push({ x: player.x - 12, y: player.y - 10, vx: -1.5, vy: -10 });
-              bullets.push({ x: player.x, y: player.y - 14, vx: 0, vy: -11 });
-              bullets.push({ x: player.x + 12, y: player.y - 10, vx: 1.5, vy: -10 });
-            } else {
-              // Level 3 Spread
-              bullets.push({ x: player.x - 16, y: player.y - 8, vx: -3, vy: -9.5 });
-              bullets.push({ x: player.x - 6, y: player.y - 14, vx: -0.8, vy: -11 });
-              bullets.push({ x: player.x + 6, y: player.y - 14, vx: 0.8, vy: -11 });
-              bullets.push({ x: player.x + 16, y: player.y - 8, vx: 3, vy: -9.5 });
-            }
-          }
-        }
-
-        // Spawn logic
-        if (!bossSpawned && pScore > pStage * 2500) {
-          spawnBoss();
-        } else if (!bossInstance && frameCount % 55 === 0) {
-          spawnEnemy();
-        }
-
-        if (player.invuln > 0) player.invuln--;
-      }
-
-      // Update stars
-      stars.forEach(s => {
-        s.y += s.speed;
-        if (s.y > canvas.height) {
-          s.y = 0;
-          s.x = Math.random() * canvas.width;
-        }
-      });
-
-      // Update bullets
-      bullets.forEach(b => {
-        b.x += b.vx;
-        b.y += b.vy;
-      });
-      bullets = bullets.filter(b => b.x >= 0 && b.x <= canvas.width && b.y >= 0 && b.y <= canvas.height);
-
-      // Update enemies
-      enemies.forEach(en => {
-        en.x += en.vx;
-        en.y += en.vy;
-
-        if (en.type === 'boss') {
-          if (en.y < 70) en.vy = 1;
-          else en.vy = 0;
-
-          if (en.x <= 20 || en.x >= canvas.width - en.w - 20) {
-            en.vx = -en.vx;
-          }
-
-          en.shootTimer--;
-          if (en.shootTimer <= 0) {
-            en.shootTimer = 40;
-            // Boss 3-way shot
-            bullets.push({ x: en.x + en.w / 2, y: en.y + en.h, vx: -2, vy: 4.5, isEnemy: true, radius: 4 });
-            bullets.push({ x: en.x + en.w / 2, y: en.y + en.h, vx: 0, vy: 5, isEnemy: true, radius: 4 });
-            bullets.push({ x: en.x + en.w / 2, y: en.y + en.h, vx: 2, vy: 4.5, isEnemy: true, radius: 4 });
-          }
-        } else {
-          en.shootTimer--;
-          if (en.shootTimer <= 0) {
-            en.shootTimer = 75;
-            bullets.push({ x: en.x + en.w / 2, y: en.y + en.h, vx: 0, vy: 4, isEnemy: true, radius: 3 });
-          }
-        }
-      });
-
-      // Check bullet-enemy collisions
-      bullets.forEach((b, bIdx) => {
-        if (b.isEnemy) return;
-        enemies.forEach((en, eIdx) => {
-          if (
-            b.x > en.x &&
-            b.x < en.x + en.w &&
-            b.y > en.y &&
-            b.y < en.y + en.h
-          ) {
-            en.hp--;
-            bullets.splice(bIdx, 1);
-
-            // Sparks
-            for (let i = 0; i < 4; i++) {
-              particles.push({
-                x: b.x,
-                y: b.y,
-                vx: (Math.random() - 0.5) * 4,
-                vy: (Math.random() - 0.5) * 4,
-                color: '#fde047',
-                life: 12,
-                maxLife: 12,
-                size: 2,
-              });
-            }
-
-            if (en.hp <= 0) {
-              playSfx('explosion');
-              pScore += en.type === 'boss' ? 3000 : en.type === 'medium' ? 300 : 100;
-              setScore(pScore);
-              if (pScore > highScore) {
-                setHighScore(pScore);
-                try {
-                  localStorage.setItem('typang_aircombat_highscore', String(pScore));
-                } catch {}
-              }
-
-              // Explosions
-              for (let i = 0; i < (en.type === 'boss' ? 40 : 15); i++) {
-                particles.push({
-                  x: en.x + Math.random() * en.w,
-                  y: en.y + Math.random() * en.h,
-                  vx: (Math.random() - 0.5) * 7,
-                  vy: (Math.random() - 0.5) * 7,
-                  color: Math.random() > 0.5 ? '#ef4444' : '#f59e0b',
-                  life: 25,
-                  maxLife: 25,
-                  size: 3.5,
-                });
-              }
-
-              // Drop item
-              if (Math.random() < 0.25 || en.type === 'boss') {
-                const iType: 'p' | 'b' | 's' = Math.random() < 0.6 ? 'p' : Math.random() < 0.85 ? 'b' : 's';
-                items.push({ x: en.x + en.w / 2, y: en.y + en.h / 2, type: iType });
-              }
-
-              if (en.type === 'boss') {
-                bossInstance = null;
-                bossSpawned = false;
-                pStage++;
-                setStage(pStage);
-              }
-
-              enemies.splice(eIdx, 1);
-            }
-          }
-        });
-      });
-
-      // Filter off-screen enemies
-      enemies = enemies.filter(en => en.y < canvas.height + 60);
-
-      // Update items
-      items.forEach((it, idx) => {
-        it.y += 1.8;
-        // Collision with player
-        if (
-          Math.hypot(it.x - player.x, it.y - player.y) < 28
-        ) {
-          playSfx('item');
-          if (it.type === 'p') {
-            if (pWeapon < 3) pWeapon++;
-            setWeaponLevel(pWeapon);
-          } else if (it.type === 'b') {
-            pBombs = Math.min(pBombs + 1, 5);
-            setBombs(pBombs);
-          } else if (it.type === 's') {
-            pScore += 500;
-            setScore(pScore);
-          }
-          items.splice(idx, 1);
-        }
-      });
-      items = items.filter(it => it.y < canvas.height + 20);
-
-      // Check player damage
-      if (isPlaying && !isGameOver && player.invuln <= 0) {
-        // Bullets hit player
-        bullets.forEach((b, idx) => {
-          if (b.isEnemy && Math.hypot(b.x - player.x, b.y - player.y) < 14) {
-            bullets.splice(idx, 1);
-            handlePlayerHit();
-          }
-        });
-
-        // Enemies hit player
-        enemies.forEach(en => {
-          if (
-            player.x > en.x &&
-            player.x < en.x + en.w &&
-            player.y > en.y &&
-            player.y < en.y + en.h
-          ) {
-            handlePlayerHit();
-          }
-        });
-      }
-
-      function handlePlayerHit() {
-        playSfx('explosion');
-        pLives--;
-        setLives(pLives);
-        player.invuln = 90;
-        pWeapon = Math.max(1, pWeapon - 1);
-        setWeaponLevel(pWeapon);
-
-        for (let i = 0; i < 25; i++) {
-          particles.push({
-            x: player.x,
-            y: player.y,
-            vx: (Math.random() - 0.5) * 6,
-            vy: (Math.random() - 0.5) * 6,
-            color: '#f87171',
-            life: 20,
-            maxLife: 20,
-            size: 3,
-          });
-        }
-
-        if (pLives <= 0) {
-          setIsGameOver(true);
-          setIsPlaying(false);
-        }
-      }
-
-      // Update particles
-      particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-      });
-      particles = particles.filter(p => p.life > 0);
-
-      // ================= DRAWING =================
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw Stars
-      ctx.fillStyle = '#94a3b8';
-      stars.forEach(s => {
-        ctx.fillRect(s.x, s.y, s.size, s.size);
-      });
-
-      // Draw Items
-      items.forEach(it => {
-        ctx.fillStyle = it.type === 'p' ? '#38bdf8' : it.type === 'b' ? '#f59e0b' : '#34d399';
-        ctx.beginPath();
-        ctx.arc(it.x, it.y, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(it.type === 'p' ? 'P' : it.type === 'b' ? 'B' : '★', it.x, it.y);
-      });
-
-      // Draw Enemies
-      enemies.forEach(en => {
-        ctx.save();
-        ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
-        if (en.type === 'boss') {
-          // Giant Red Bomber Fortress
-          ctx.fillStyle = en.color;
-          ctx.beginPath();
-          ctx.moveTo(0, en.h / 2);
-          ctx.lineTo(en.w / 2, -en.h / 2 + 10);
-          ctx.lineTo(en.w / 4, -en.h / 2);
-          ctx.lineTo(-en.w / 4, -en.h / 2);
-          ctx.lineTo(-en.w / 2, -en.h / 2 + 10);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = '#fca5a5';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-
-          // Boss Health bar
-          ctx.restore();
-          ctx.fillStyle = 'rgba(0,0,0,0.6)';
-          ctx.fillRect(en.x, en.y - 12, en.w, 6);
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(en.x, en.y - 12, en.w * (en.hp / en.maxHp), 6);
-        } else if (en.type === 'medium') {
-          // Medium Bomber
-          ctx.fillStyle = en.color;
-          ctx.beginPath();
-          ctx.moveTo(0, en.h / 2);
-          ctx.lineTo(en.w / 2, -en.h / 4);
-          ctx.lineTo(-en.w / 2, -en.h / 4);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        } else {
-          // Small Jet
-          ctx.fillStyle = en.color;
-          ctx.beginPath();
-          ctx.moveTo(0, en.h / 2);
-          ctx.lineTo(en.w / 2, -en.h / 2);
-          ctx.lineTo(0, -en.h / 4);
-          ctx.lineTo(-en.w / 2, -en.h / 2);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        }
-      });
-
-      // Draw Bullets
-      bullets.forEach(b => {
-        if (b.isEnemy) {
-          ctx.fillStyle = '#f87171';
-          ctx.beginPath();
-          ctx.arc(b.x, b.y, b.radius || 3, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = '#38bdf8';
-          ctx.fillRect(b.x - 2, b.y - 8, 4, 10);
-        }
-      });
-
-      // Draw Particles
-      particles.forEach(p => {
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life / p.maxLife;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
-      });
-
-      // Draw Player Fighter
-      if (isPlaying && !isGameOver) {
-        if (player.invuln % 6 < 3) {
-          ctx.save();
-          ctx.translate(player.x, player.y);
-
-          // Jet Body (P-38 style Twin Boom)
-          ctx.fillStyle = '#3b82f6';
-          ctx.beginPath();
-          ctx.moveTo(0, -18);
-          ctx.lineTo(16, 12);
-          ctx.lineTo(6, 16);
-          ctx.lineTo(0, 10);
-          ctx.lineTo(-6, 16);
-          ctx.lineTo(-16, 12);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = '#60a5fa';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-
-          // Cockpit glass
-          ctx.fillStyle = '#e0f2fe';
-          ctx.beginPath();
-          ctx.ellipse(0, -4, 4, 9, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Jet Engine flame
-          ctx.fillStyle = Math.random() > 0.5 ? '#f97316' : '#facc15';
-          ctx.fillRect(-4, 12, 3, 6 + Math.random() * 4);
-          ctx.fillRect(1, 12, 3, 6 + Math.random() * 4);
-
-          ctx.restore();
-        }
-      }
-
-      animId = requestAnimationFrame(update);
-    };
-
-    animId = requestAnimationFrame(update);
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isPlaying, isGameOver, isMuted]);
-
-  const startGame = () => {
-    setIsPlaying(true);
-    setIsGameOver(false);
+  const start = useCallback(() => {
+    const keys = g.current.keys;
+    g.current = newState();
+    g.current.keys = keys;
+    g.current.state = 'play';
     setScore(0);
-    setLives(3);
-    setBombs(2);
-    setWeaponLevel(1);
-    setStage(1);
+  }, []);
+
+  const bomb = useCallback(() => {
+    const s = g.current;
+    if (s.state !== 'play' || s.bombs <= 0) return;
+    s.bombs--; s.flash = 1; s.shake = 14; s.inv = Math.max(s.inv, 1500);
+    s.eshots = [];
+    for (const e of s.enemies) { e.hp -= e.kind === 'boss' ? 60 : 40; e.hit = 1; }
+    for (let i = 0; i < 10; i++) s.booms.push({ x: Math.random() * W, y: Math.random() * H * 0.8, t: -i * 0.06, size: 30 + Math.random() * 20 });
+  }, []);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', ' '].includes(k)) e.preventDefault();
+      const s = g.current;
+      s.keys.add(k);
+      if ((k === ' ' || k === 'enter') && (s.state === 'title' || s.state === 'over')) start();
+      if ((k === 'x' || k === 'b') && !e.repeat) bomb();
+      if (k === 'p' && !e.repeat) s.state = s.state === 'pause' ? 'play' : s.state === 'play' ? 'pause' : s.state;
+    };
+    const up = (e: KeyboardEvent) => g.current.keys.delete(e.key.toLowerCase());
+    const blur = () => g.current.keys.clear();
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
+  }, [start, bomb]);
+
+  useEffect(() => {
+    const c = cv.current!;
+    const ctx = c.getContext('2d')!;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
+    let raf = 0;
+    let lastHud = '';
+    let lastScoreAt = 0;
+
+    /* ---------------- spawning ---------------- */
+    const add = (e: Partial<Enemy> & { kind: Kind; x: number; y: number }) => {
+      const s = g.current;
+      const lvl = 1 + (s.stage - 1) * 0.35;
+      const base: Record<Kind, [number, number, number, number]> = {
+        fighter: [2, 100, 30, 26], zero: [2, 150, 30, 26], bomber: [34, 1500, 90, 64], boat: [14, 800, 34, 70], boss: [700, 20000, 240, 150],
+      };
+      const [hp, sc, w, h] = base[e.kind];
+      const HP = Math.round(hp * (e.kind === 'fighter' || e.kind === 'zero' ? 1 : lvl));
+      s.enemies.push({ vx: 0, vy: 0, t: 0, cd: 1 + Math.random(), hit: 0, ...e, hp: HP, max: HP, score: sc, w, h } as Enemy);
+    };
+    const later = (sec: number, fn: () => void) => g.current.queue.push({ at: g.current.t + sec, fn });
+
+    const wave = () => {
+      const s = g.current;
+      const r = Math.random();
+      const sp = 1 + (s.stage - 1) * 0.15;
+      if (r < 0.32) {
+        const cx = 80 + Math.random() * (W - 160);
+        [0, -1, 1, -2, 2].forEach((o, i) => add({ kind: 'fighter', x: cx + o * 34, y: -30 - Math.abs(o) * 26, vy: 2.1 * sp, sway: 0, drop: i === 0 && Math.random() < 0.35 ? 'P' : undefined }));
+      } else if (r < 0.58) {
+        const left = Math.random() < 0.5;
+        const y = 60 + Math.random() * 120;
+        for (let i = 0; i < 5; i++) later(i * 0.28, () => add({ kind: 'zero', x: left ? -24 : W + 24, y, vx: (left ? 3 : -3) * sp, vy: 0.5, drop: i === 4 && Math.random() < 0.3 ? 'P' : undefined }));
+      } else if (r < 0.72) {
+        add({ kind: 'boat', x: 50 + Math.random() * (W - 100), y: -50, vy: SCROLL, drop: 'M' });
+      } else if (r < 0.84 && !s.enemies.some((e) => e.kind === 'bomber')) {
+        add({ kind: 'bomber', x: 90 + Math.random() * (W - 180), y: -60, vy: 1, drop: Math.random() < 0.5 ? 'B' : 'P' });
+      } else {
+        const x = 60 + Math.random() * (W - 120);
+        for (let i = 0; i < 4; i++) later(i * 0.35, () => add({ kind: 'fighter', x, y: -30, vy: 2.6 * sp, sway: 40 }));
+      }
+    };
+
+    const aimed = (x: number, y: number, speed: number, spread = 0, n = 1, r = 5) => {
+      const s = g.current;
+      const a = Math.atan2(s.py - y, s.px - x);
+      for (let i = 0; i < n; i++) {
+        const aa = a + (i - (n - 1) / 2) * spread;
+        s.eshots.push({ x, y, vx: Math.cos(aa) * speed, vy: Math.sin(aa) * speed, r });
+      }
+    };
+
+    const explode = (x: number, y: number, size: number) => {
+      const s = g.current;
+      s.booms.push({ x, y, t: 0, size });
+      for (let i = 0; i < Math.min(24, size / 2); i++) {
+        const a = Math.random() * Math.PI * 2, v = 1 + Math.random() * size / 12;
+        s.sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, c: Math.random() < 0.5 ? '#ffd23f' : '#ff7a2f' });
+      }
+    };
+
+    const kill = (e: Enemy) => {
+      const s = g.current;
+      s.score += e.score;
+      explode(e.x, e.y, e.kind === 'boss' ? 120 : e.kind === 'bomber' ? 60 : e.kind === 'boat' ? 45 : 28);
+      if (e.drop) s.items.push({ x: e.x, y: e.y, kind: e.drop, t: 0, vx: (Math.random() - 0.5) * 1.5, vy: 1.2 });
+      else if (Math.random() < 0.05) s.items.push({ x: e.x, y: e.y, kind: 'P', t: 0, vx: 0.8, vy: 1.2 });
+      else if (Math.random() < 0.18) s.items.push({ x: e.x, y: e.y, kind: 'M', t: 0, vx: 0, vy: 1.5 });
+      if (e.kind === 'boss') {
+        s.boss = null; s.shake = 24; s.flash = 0.8;
+        for (let i = 0; i < 8; i++) later(i * 0.15, () => explode(e.x + (Math.random() - 0.5) * 200, e.y + (Math.random() - 0.5) * 100, 60));
+        s.eshots = [];
+        s.state = 'clear'; s.clearT = 0;
+      }
+    };
+
+    const playerHit = () => {
+      const s = g.current;
+      if (s.inv > 0) return;
+      explode(s.px, s.py, 50); s.shake = 14;
+      s.lives--; s.power = Math.max(1, s.power - 1); s.bombs = Math.max(s.bombs, 2);
+      s.eshots = [];
+      if (s.lives < 0) { s.lives = 0; s.state = 'over'; saveBest(s.score); return; }
+      s.px = W / 2; s.py = H - 90; s.inv = 2600;
+    };
+
+    /* ---------------- drawing ---------------- */
+    const drawSea = (s: ReturnType<typeof newState>) => {
+      const sea = ctx.createLinearGradient(0, 0, 0, H);
+      sea.addColorStop(0, '#1b5fa6'); sea.addColorStop(1, '#2d8fd0');
+      ctx.fillStyle = sea; ctx.fillRect(-20, -20, W + 40, H + 40);
+      ctx.fillStyle = 'rgba(255,255,255,0.13)';
+      for (let row = 0; row < 18; row++) {
+        const y = ((row * 42 + s.scroll) % (H + 42)) - 21;
+        for (let i = 0; i < 6; i++) {
+          const x = ((i * 83 + row * 37) % (W + 40)) - 20;
+          ctx.fillRect(x, y, 18, 2); ctx.fillRect(x + 5, y + 3, 10, 2);
+        }
+      }
+      for (const il of s.islands) {
+        ctx.fillStyle = '#e8d38e'; blob(il.x, il.y, il.r + 8, il.s);
+        ctx.fillStyle = '#4caf50'; blob(il.x, il.y, il.r, il.s);
+        ctx.fillStyle = '#2e7d32'; blob(il.x - il.r * 0.2, il.y - il.r * 0.15, il.r * 0.55, il.s + 1);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(il.x - il.r * 0.1, il.y - il.r * 0.3, 4, 4);
+      }
+    };
+    const blob = (x: number, y: number, r: number, seed: number) => {
+      ctx.beginPath();
+      for (let i = 0; i <= 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const rr2 = r * (0.8 + 0.2 * Math.sin(a * 3 + seed * 6) + 0.08 * Math.cos(a * 5 + seed * 3));
+        const px = x + Math.cos(a) * rr2, py = y + Math.sin(a) * rr2 * 0.75;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+    };
+
+    const shadow = (x: number, y: number, w: number, h: number) => {
+      ctx.fillStyle = 'rgba(0,20,50,0.28)';
+      ctx.beginPath(); ctx.ellipse(x + 16, y + 26, w * 0.45, h * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    };
+
+    const drawPlayer = (x: number, y: number, t: number) => {
+      shadow(x, y, 44, 30);
+      ctx.save(); ctx.translate(x, y);
+      ctx.strokeStyle = '#1b2a3a'; ctx.lineWidth = 1.6;
+      // wings
+      ctx.fillStyle = '#b9c9d8'; rr(ctx, -24, -4, 48, 10, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#e53935'; ctx.fillRect(-24, -2, 5, 6); ctx.fillRect(19, -2, 5, 6);
+      // booms
+      ctx.fillStyle = '#d6e1ec';
+      rr(ctx, -15, -16, 7, 32, 3); ctx.fill(); ctx.stroke();
+      rr(ctx, 8, -16, 7, 32, 3); ctx.fill(); ctx.stroke();
+      // tail
+      ctx.fillStyle = '#b9c9d8'; rr(ctx, -16, 13, 32, 5, 2); ctx.fill(); ctx.stroke();
+      // center pod
+      ctx.fillStyle = '#eef3f8'; ctx.beginPath(); ctx.ellipse(0, -3, 6, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#39b6ff'; ctx.beginPath(); ctx.ellipse(0, -6, 3.2, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(-1.5, -10, 1.5, 4);
+      // propellers
+      const pw = 9 * Math.abs(Math.sin(t / 25));
+      ctx.fillStyle = 'rgba(40,40,40,0.55)';
+      ctx.beginPath(); ctx.ellipse(-11.5, -18, pw, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(11.5, -18, pw, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+      // exhaust flicker
+      ctx.fillStyle = Math.floor(t / 60) % 2 ? '#ffd23f' : '#ff8a3d';
+      ctx.fillRect(-13, 16, 3, 3 + Math.random() * 3); ctx.fillRect(10, 16, 3, 3 + Math.random() * 3);
+      ctx.restore();
+    };
+
+    const drawFighter = (e: Enemy, t: number) => {
+      shadow(e.x, e.y, 30, 20);
+      ctx.save(); ctx.translate(e.x, e.y);
+      if (e.kind === 'zero') ctx.rotate(Math.atan2(e.vy, e.vx) - Math.PI / 2);
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1.4;
+      const body = e.hit > 0 ? '#ffffff' : e.kind === 'zero' ? '#c9c3a3' : '#4d7a3f';
+      ctx.fillStyle = body; rr(ctx, -16, -2, 32, 8, 3); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, 5, 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      rr(ctx, -8, -13, 16, 4, 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffcf33'; ctx.fillRect(-14, 0, 4, 4); ctx.fillRect(10, 0, 4, 4);
+      ctx.fillStyle = '#2b2b2b'; ctx.beginPath(); ctx.ellipse(0, 4, 2.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(40,40,40,0.5)'; ctx.beginPath(); ctx.ellipse(0, 14, 8 * Math.abs(Math.sin(t / 20)), 1.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+
+    const drawBomber = (e: Enemy, t: number) => {
+      shadow(e.x, e.y, 100, 60);
+      ctx.save(); ctx.translate(e.x, e.y);
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+      const c = e.hit > 0 ? '#ffffff' : '#6b7b5a';
+      ctx.fillStyle = c; rr(ctx, -46, -6, 92, 18, 6); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, 11, 32, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      rr(ctx, -20, -30, 40, 8, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#4a573d';
+      for (const ex of [-34, -18, 18, 34]) { rr(ctx, ex - 4, 6, 8, 14, 3); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(30,30,30,0.5)'; ctx.beginPath(); ctx.ellipse(ex, 21, 7 * Math.abs(Math.sin(t / 22 + ex)), 1.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#4a573d'; }
+      ctx.fillStyle = '#8fd3ff'; ctx.beginPath(); ctx.ellipse(0, 22, 5, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffcf33'; ctx.fillRect(-42, 0, 8, 6); ctx.fillRect(34, 0, 8, 6);
+      ctx.restore();
+      hpBar(e.x - 36, e.y - 40, 72, e.hp / e.max);
+    };
+
+    const drawBoat = (e: Enemy) => {
+      ctx.save(); ctx.translate(e.x, e.y);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath(); ctx.moveTo(-14, 34); ctx.lineTo(-30, 70); ctx.lineTo(-20, 70); ctx.lineTo(0, 36); ctx.lineTo(20, 70); ctx.lineTo(30, 70); ctx.lineTo(14, 34); ctx.fill();
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+      ctx.fillStyle = e.hit > 0 ? '#ffffff' : '#8a939c';
+      ctx.beginPath(); ctx.moveTo(0, -38); ctx.lineTo(15, -18); ctx.lineTo(15, 30); ctx.lineTo(-15, 30); ctx.lineTo(-15, -18); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#6d757d'; rr(ctx, -8, 2, 16, 18, 3); ctx.fill(); ctx.stroke();
+      const s = g.current;
+      const a = Math.atan2(s.py - e.y, s.px - e.x);
+      ctx.fillStyle = '#4a5157'; ctx.beginPath(); ctx.arc(0, -10, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.rotate(a - Math.PI / 2); ctx.fillRect(-2, 0, 4, 16); ctx.restore();
+      ctx.restore();
+    };
+
+    const drawBoss = (e: Enemy, t: number) => {
+      shadow(e.x, e.y, 260, 150);
+      ctx.save(); ctx.translate(e.x, e.y);
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
+      const c = e.hit > 0.5 ? '#8794a0' : '#5b6770';
+      // main wing
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.moveTo(-120, 0); ctx.lineTo(-100, -18); ctx.lineTo(100, -18); ctx.lineTo(120, 0); ctx.lineTo(100, 18); ctx.lineTo(-100, 18); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // fuselage
+      ctx.beginPath(); ctx.ellipse(0, 0, 22, 72, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      rr(ctx, -46, -66, 92, 14, 5); ctx.fill(); ctx.stroke();
+      // engines
+      for (const ex of [-88, -56, 56, 88]) {
+        ctx.fillStyle = '#3f474e'; rr(ctx, ex - 9, 6, 18, 30, 6); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(30,30,30,0.55)'; ctx.beginPath(); ctx.ellipse(ex, 38, 14 * Math.abs(Math.sin(t / 18 + ex)), 2.2, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      // stripes & cockpit
+      ctx.fillStyle = '#d32f2f'; ctx.fillRect(-116, -4, 20, 8); ctx.fillRect(96, -4, 20, 8);
+      ctx.fillStyle = '#ffcf33'; ctx.fillRect(-20, 20, 40, 5);
+      ctx.fillStyle = '#8fd3ff'; ctx.beginPath(); ctx.ellipse(0, 50, 9, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      // turrets
+      const blink = Math.floor(t / 150) % 2;
+      for (const [tx, ty] of [[-70, -2], [70, -2], [-30, 8], [30, 8], [0, 30]]) {
+        ctx.fillStyle = blink ? '#ff5252' : '#b71c1c'; ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    };
+
+    const hpBar = (x: number, y: number, w: number, p: number) => {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y, w, 5);
+      ctx.fillStyle = p > 0.5 ? '#6ee06a' : p > 0.25 ? '#ffd23f' : '#ff4f5e'; ctx.fillRect(x, y, w * Math.max(0, p), 5);
+    };
+
+    const drawItem = (it: Item, t: number) => {
+      ctx.save(); ctx.translate(it.x, it.y);
+      const col = it.kind === 'P' ? '#e53935' : it.kind === 'B' ? '#2e7d32' : '#f9a825';
+      if (it.kind === 'M') {
+        const sq = Math.abs(Math.cos(t / 200));
+        ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#8a5a00'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(0, 0, 10 * sq + 2, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(0, 0, 16 + Math.sin(t / 120) * 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = col; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
+        rr(ctx, -13, -10, 26, 20, 6); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = "bold 15px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(it.kind, 0, 1);
+      }
+      ctx.restore();
+    };
+
+    /* ---------------- loop ---------------- */
+    const frame = (ts: number) => {
+      const s = g.current;
+      const dt = s.last ? Math.min(50, ts - s.last) : 16; s.last = ts;
+      const f = dt / 16.67;
+      const playing = s.state === 'play' || s.state === 'clear';
+
+      if (s.state !== 'pause') {
+        s.scroll += SCROLL * f;
+        for (const il of s.islands) { il.y += SCROLL * f; if (il.y - il.r > H) { il.y = -il.r - Math.random() * 200; il.x = Math.random() * W; il.r = 40 + Math.random() * 45; il.s = Math.random(); } }
+        for (const cl of s.clouds) { cl.y += 2.4 * f; if (cl.y > H + 60) { cl.y = -80 - Math.random() * 100; cl.x = Math.random() * W; } }
+      }
+
+      if (playing) {
+        s.t += dt / 1000;
+        // queue
+        s.queue = s.queue.filter((q) => { if (q.at <= s.t) { q.fn(); return false; } return true; });
+        // waves / boss
+        if (s.state === 'play') {
+          if (!s.boss && s.t < 58) { s.waveCd -= dt / 1000; if (s.waveCd <= 0) { wave(); s.waveCd = Math.max(0.7, 1.35 - s.stage * 0.1); } }
+          if (!s.boss && s.t >= 58 && s.warn === 0) s.warn = 3;
+          if (s.warn > 0) { s.warn -= dt / 1000; if (s.warn <= 0) { s.warn = -1; add({ kind: 'boss', x: W / 2, y: -120, vy: 1.2, phase: 0 }); s.boss = s.enemies[s.enemies.length - 1]; } }
+        }
+        // player movement
+        const k = s.keys;
+        const sp = 4.6 * f;
+        let dx = 0, dy = 0;
+        if (k.has('arrowleft') || k.has('a')) dx -= 1;
+        if (k.has('arrowright') || k.has('d')) dx += 1;
+        if (k.has('arrowup') || k.has('w')) dy -= 1;
+        if (k.has('arrowdown') || k.has('s')) dy += 1;
+        if (dx && dy) { dx *= 0.707; dy *= 0.707; }
+        s.px = Math.max(22, Math.min(W - 22, s.px + dx * sp));
+        s.py = Math.max(40, Math.min(H - 30, s.py + dy * sp));
+        s.inv = Math.max(0, s.inv - dt);
+        // auto fire
+        s.fireCd -= dt;
+        if (s.fireCd <= 0 && s.state === 'play') {
+          s.fireCd = 95;
+          const P = s.power;
+          s.shots.push({ x: s.px - 6, y: s.py - 20, vx: 0, vy: -13, r: 3 }, { x: s.px + 6, y: s.py - 20, vx: 0, vy: -13, r: 3 });
+          if (P >= 2) s.shots.push({ x: s.px - 14, y: s.py - 12, vx: -1.6, vy: -12, r: 3 }, { x: s.px + 14, y: s.py - 12, vx: 1.6, vy: -12, r: 3 });
+          if (P >= 3) s.shots.push({ x: s.px - 18, y: s.py - 6, vx: 0, vy: -13, r: 3 }, { x: s.px + 18, y: s.py - 6, vx: 0, vy: -13, r: 3 });
+          if (P >= 4) s.shots.push({ x: s.px, y: s.py - 26, vx: 0, vy: -15, r: 5, dmg: 2 }, { x: s.px - 20, y: s.py, vx: -3, vy: -11, r: 3 }, { x: s.px + 20, y: s.py, vx: 3, vy: -11, r: 3 });
+        }
+        // shots
+        for (const b of s.shots) { b.x += b.vx * f; b.y += b.vy * f; }
+        s.shots = s.shots.filter((b) => b.y > -20 && b.x > -20 && b.x < W + 20);
+        for (const b of s.eshots) { b.x += b.vx * f; b.y += b.vy * f; }
+        s.eshots = s.eshots.filter((b) => b.y > -20 && b.y < H + 20 && b.x > -20 && b.x < W + 20);
+
+        // enemies
+        const hard = 1 + (s.stage - 1) * 0.25;
+        for (const e of s.enemies) {
+          e.t += dt / 1000; e.hit = Math.max(0, e.hit - dt / 70);
+          if (e.kind === 'fighter') {
+            if (e.baseX === undefined) e.baseX = e.x;
+            e.y += e.vy * f;
+            if (e.sway) e.x = e.baseX + Math.sin(e.t * 3) * e.sway;
+            e.cd -= dt / 1000;
+            if (e.cd <= 0 && e.y > 40 && e.y < H * 0.6) { e.cd = 2.2 / hard + Math.random(); if (Math.random() < 0.55) aimed(e.x, e.y + 10, 3.2 * hard); }
+          } else if (e.kind === 'zero') {
+            e.x += e.vx * f; e.y += e.vy * f; e.vy += 0.035 * f;
+            e.cd -= dt / 1000;
+            if (e.cd <= 0 && e.y > 30) { e.cd = 3; aimed(e.x, e.y, 3.4 * hard); }
+          } else if (e.kind === 'bomber') {
+            if (e.t < 12) { if (e.y < 150) e.y += e.vy * f; e.x += Math.sin(e.t * 0.9) * 0.9 * f; }
+            else e.y += 1.4 * f;
+            e.cd -= dt / 1000;
+            if (e.cd <= 0 && e.y > 60) { e.cd = 1.6 / hard; aimed(e.x, e.y + 30, 3 * hard, 0.22, 5, 5); }
+          } else if (e.kind === 'boat') {
+            e.y += e.vy * f;
+            e.cd -= dt / 1000;
+            if (e.cd <= 0 && e.y > 30 && e.y < H - 120) { e.cd = 1.7 / hard; aimed(e.x, e.y - 10, 3.3 * hard, 0.15, 3, 4.5); }
+          } else if (e.kind === 'boss') {
+            if (e.y < 150) e.y += e.vy * f;
+            else {
+              e.x = W / 2 + Math.sin(e.t * 0.6) * 90;
+              e.cd -= dt / 1000;
+              const ph = Math.floor(e.t / 4) % 3;
+              if (e.cd <= 0) {
+                if (ph === 0) { e.cd = 1.1 / hard; for (let i = 0; i < 13; i++) { const a = Math.PI / 2 + (i - 6) * 0.14; s.eshots.push({ x: e.x, y: e.y + 40, vx: Math.cos(a) * 3.2, vy: Math.sin(a) * 3.2, r: 5 }); } }
+                else if (ph === 1) { e.cd = 0.35 / hard; aimed(e.x - 70, e.y, 4.4, 0.08, 3, 5); aimed(e.x + 70, e.y, 4.4, 0.08, 3, 5); }
+                else { e.cd = 0.12 / hard; const a = e.t * 3.1; for (let i = 0; i < 2; i++) { const aa = a + i * Math.PI; s.eshots.push({ x: e.x, y: e.y + 10, vx: Math.cos(aa) * 3, vy: Math.sin(aa) * 3, r: 4.5 }); } }
+              }
+            }
+          }
+        }
+        // collisions: shots vs enemies
+        for (const b of s.shots) {
+          for (const e of s.enemies) {
+            if (e.hp <= 0) continue;
+            if (Math.abs(b.x - e.x) < e.w / 2 && Math.abs(b.y - e.y) < e.h / 2) {
+              e.hp -= b.dmg || 1; e.hit = 1;
+              s.sparks.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 0.4, c: '#fff' });
+              b.y = -999;
+              s.score += 10;
+              break;
+            }
+          }
+        }
+        for (const e of s.enemies) if (e.hp <= 0 && e.hp > -9999) { kill(e); e.hp = -99999; }
+        s.enemies = s.enemies.filter((e) => e.hp > -9999 && e.y < H + 100 && e.x > -80 && e.x < W + 80);
+
+        // player collisions
+        if (s.state === 'play') {
+          for (const b of s.eshots) if ((b.x - s.px) ** 2 + (b.y - s.py) ** 2 < (b.r + 4) ** 2) { b.y = 9999; playerHit(); break; }
+          for (const e of s.enemies) if (e.kind !== 'boat' && Math.abs(e.x - s.px) < e.w / 2 - 4 && Math.abs(e.y - s.py) < e.h / 2 - 4) { if (e.kind !== 'boss') { e.hp = 0; } playerHit(); break; }
+        }
+        // items
+        for (const it of s.items) {
+          it.t += dt; it.x += it.vx * f; it.y += it.vy * f;
+          if (it.x < 14 || it.x > W - 14) it.vx *= -1;
+          const d2 = (it.x - s.px) ** 2 + (it.y - s.py) ** 2;
+          if (d2 < 30 * 30) {
+            if (it.kind === 'P') { if (s.power < 4) s.power++; else s.score += 1000; }
+            else if (it.kind === 'B') s.bombs = Math.min(5, s.bombs + 1);
+            else s.score += 500;
+            s.sparks.push({ x: it.x, y: it.y, vx: 0, vy: -1, life: 1, c: it.kind === 'P' ? 'P' : it.kind === 'B' ? 'B' : '+500' });
+            it.y = 9999;
+          }
+        }
+        s.items = s.items.filter((it) => it.y < H + 30);
+
+        if (s.state === 'clear') { s.clearT += dt; if (s.clearT > 3500) { s.stage++; s.t = 0; s.warn = 0; s.state = 'play'; s.shots = []; } }
+      }
+
+      s.flash = Math.max(0, s.flash - dt / 500);
+      s.shake = Math.max(0, s.shake - dt / 50);
+      for (const b of s.booms) b.t += dt / 650;
+      s.booms = s.booms.filter((b) => b.t < 1);
+      for (const p of s.sparks) { p.x += p.vx * f; p.y += p.vy * f; p.life -= dt / 700; }
+      s.sparks = s.sparks.filter((p) => p.life > 0);
+
+      /* ---- render ---- */
+      ctx.save();
+      if (s.shake) ctx.translate((Math.random() - 0.5) * s.shake, (Math.random() - 0.5) * s.shake);
+      drawSea(s);
+      for (const e of s.enemies) if (e.kind === 'boat') drawBoat(e);
+      for (const it of s.items) drawItem(it, ts);
+      for (const e of s.enemies) {
+        if (e.kind === 'fighter' || e.kind === 'zero') drawFighter(e, ts);
+        else if (e.kind === 'bomber') drawBomber(e, ts);
+        else if (e.kind === 'boss') drawBoss(e, ts);
+      }
+      // player shots
+      for (const b of s.shots) {
+        ctx.fillStyle = b.dmg ? '#7ff0ff' : '#fff27a';
+        rr(ctx, b.x - b.r / 1.5, b.y - 8, (b.r / 1.5) * 2, 16, 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(b.x - 1, b.y - 6, 2, 10);
+      }
+      if (s.state !== 'over' && s.lives >= 0 && !(s.inv > 0 && Math.floor(ts / 80) % 2)) drawPlayer(s.px, s.py, ts);
+      // explosions
+      for (const b of s.booms) {
+        if (b.t < 0) continue;
+        const r = b.size * (0.35 + b.t * 0.8);
+        ctx.globalAlpha = 1 - b.t;
+        ctx.fillStyle = b.t < 0.35 ? '#fff6b0' : '#ff9f3d';
+        ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = b.t < 0.35 ? '#ffb13d' : 'rgba(90,90,90,0.8)';
+        ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.65, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      for (const p of s.sparks) {
+        ctx.globalAlpha = Math.max(0, p.life);
+        if (p.c.length <= 4 && !p.c.startsWith('#')) {
+          ctx.font = "16px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#0b0e2a';
+          ctx.strokeText(p.c === 'P' ? 'POWER UP!' : p.c === 'B' ? 'BOMB +1' : p.c, p.x, p.y); ctx.fillStyle = '#fff27a'; ctx.fillText(p.c === 'P' ? 'POWER UP!' : p.c === 'B' ? 'BOMB +1' : p.c, p.x, p.y);
+        } else { ctx.fillStyle = p.c; ctx.fillRect(p.x - 2, p.y - 2, 4, 4); }
+      }
+      ctx.globalAlpha = 1;
+      // enemy bullets (on top so they are always readable)
+      for (const b of s.eshots) {
+        ctx.fillStyle = '#ff3d7f'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffe0ec'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 1.5, 0, Math.PI * 2); ctx.fill();
+      }
+      // clouds over everything
+      for (const cl of s.clouds) {
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.beginPath(); ctx.ellipse(cl.x, cl.y, cl.w / 2, 26, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cl.x - cl.w / 4, cl.y - 14, cl.w / 4, 20, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      if (s.flash) { ctx.fillStyle = `rgba(255,255,255,${s.flash * 0.8})`; ctx.fillRect(0, 0, W, H); }
+      ctx.restore();
+
+      // HUD
+      ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+      ctx.font = "15px 'Galmuri11', monospace"; ctx.lineWidth = 4; ctx.strokeStyle = '#0b0e2a';
+      const sc = String(s.score).padStart(7, '0');
+      ctx.strokeText(`1UP ${sc}`, 12, 10); ctx.fillStyle = '#ffffff'; ctx.fillText(`1UP ${sc}`, 12, 10);
+      ctx.textAlign = 'right'; ctx.strokeText(`STAGE ${s.stage}`, W - 12, 10); ctx.fillStyle = '#7ff0ff'; ctx.fillText(`STAGE ${s.stage}`, W - 12, 10);
+      // lives & bombs
+      for (let i = 0; i < s.lives; i++) { ctx.save(); ctx.translate(20 + i * 24, H - 22); ctx.scale(0.42, 0.42); ctx.fillStyle = '#d6e1ec'; ctx.strokeStyle = '#1b2a3a'; ctx.lineWidth = 3; rr(ctx, -24, -4, 48, 10, 4); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.ellipse(0, -3, 6, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore(); }
+      for (let i = 0; i < s.bombs; i++) { ctx.fillStyle = '#2e7d32'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; rr(ctx, W - 28 - i * 22, H - 32, 16, 20, 5); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = "11px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.fillText('B', W - 20 - i * 22, H - 28); }
+      ctx.textAlign = 'center'; ctx.font = "11px 'Galmuri11', monospace";
+      ctx.fillStyle = 'rgba(11,14,42,0.6)'; rr(ctx, W / 2 - 42, H - 30, 84, 18, 9); ctx.fill();
+      ctx.fillStyle = '#fff27a'; ctx.fillText(`POWER ${'■'.repeat(s.power)}${'□'.repeat(4 - s.power)}`, W / 2, H - 27);
+      if (s.boss) {
+        ctx.fillStyle = 'rgba(11,14,42,0.7)'; rr(ctx, 40, 32, W - 80, 12, 6); ctx.fill();
+        ctx.fillStyle = '#ff4f5e'; rr(ctx, 42, 34, (W - 84) * Math.max(0, s.boss.hp / s.boss.max), 8, 4); ctx.fill();
+      }
+      if (s.warn > 0 && Math.floor(ts / 250) % 2) {
+        ctx.fillStyle = 'rgba(255,40,60,0.28)'; ctx.fillRect(0, H / 2 - 40, W, 80);
+        ctx.font = "34px 'Galmuri11', monospace"; ctx.textBaseline = 'middle'; ctx.lineWidth = 6; ctx.strokeStyle = '#0b0e2a';
+        ctx.strokeText('WARNING!!', W / 2, H / 2); ctx.fillStyle = '#ff4f5e'; ctx.fillText('WARNING!!', W / 2, H / 2);
+      }
+      if (s.state === 'clear' && s.clearT > 900) {
+        ctx.font = "30px 'Galmuri11', monospace"; ctx.textBaseline = 'middle'; ctx.lineWidth = 6; ctx.strokeStyle = '#0b0e2a';
+        ctx.strokeText(`STAGE ${s.stage} CLEAR!`, W / 2, H / 2); ctx.fillStyle = '#ffd23f'; ctx.fillText(`STAGE ${s.stage} CLEAR!`, W / 2, H / 2);
+      }
+      if (s.state === 'title') overlay(ctx, W, H, '1945 공중전', 'SPACE 또는 화면 터치로 출격!', '#7ff0ff');
+      if (s.state === 'over') overlay(ctx, W, H, 'GAME OVER', `${s.score}점 · SPACE 다시 출격`, '#ff4f5e');
+      if (s.state === 'pause') overlay(ctx, W, H, 'PAUSE', 'P 키로 계속', '#ffffff');
+
+      // sync React HUD (throttled)
+      if (ts - lastScoreAt > 120) { lastScoreAt = ts; setScore(s.score); }
+      const h = `${s.lives}|${s.bombs}|${s.power}|${s.stage}`;
+      if (h !== lastHud) { lastHud = h; setHud({ lives: s.lives, bombs: s.bombs, power: s.power, stage: s.stage }); }
+
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [saveBest]);
+
+  /* touch / mouse drag steering */
+  const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const s = g.current;
+    if (s.state === 'title' || s.state === 'over') { start(); return; }
+    drag.current = { x: e.clientX, y: e.clientY };
+    (e.target as HTMLCanvasElement).setPointerCapture?.(e.pointerId);
   };
+  const onMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drag.current) return;
+    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
+    const k = W / rect.width;
+    const s = g.current;
+    s.px = Math.max(22, Math.min(W - 22, s.px + (e.clientX - drag.current.x) * k * 1.2));
+    s.py = Math.max(40, Math.min(H - 30, s.py + (e.clientY - drag.current.y) * k * 1.2));
+    drag.current = { x: e.clientX, y: e.clientY };
+  };
+  const onUp = () => { drag.current = null; };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-slate-950 border-2 border-sky-500/40 shadow-2xl p-2 sm:p-4 select-none">
-      {/* Top Header Bar */}
-      <div className="w-full max-w-[500px] flex items-center justify-between bg-slate-900/90 px-4 py-2.5 rounded-t-xl border-b border-sky-500/30">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">✈️</span>
-          <div>
-            <h2 className="text-xs sm:text-sm font-black text-sky-300 font-arcade">
-              1945 레트로 공중전 (Air Combat)
-            </h2>
-            <span className="text-[10px] text-slate-400">깃허브 정식 수록 비행기 슈팅</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsMuted(!isMuted)}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
-          >
-            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+    <ArcadeShell
+      title="1945 공중전"
+      subtitle="SHOOT · DODGE · BOMB"
+      tone="#7ff0ff"
+      score={score}
+      best={Math.max(best, score)}
+      extra={
+        <>
+          <span className="ac-chip">STAGE <b>{hud.stage}</b></span>
+          <span className="ac-chip">✈ <b>{hud.lives}</b></span>
+          <span className="ac-chip">💣 <b>{hud.bombs}</b></span>
+        </>
+      }
+      onBack={onBack}
+      onRestart={start}
+      controls={
+        <>
+          <button className="ac-pad ac-pad--big ac-pad--blue" onClick={() => (g.current.state === 'play' ? null : start())}>
+            ▶ 출격 <small>(SPACE)</small>
           </button>
-          <a
-            href={externalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 text-[11px] font-bold"
-            title="원본 AI Studio 앱 전체화면 열기"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">AI Studio 원본</span>
-          </a>
-        </div>
-      </div>
-
-      {/* Game Stage & HUD */}
-      <div className="w-full max-w-[500px] bg-slate-900 px-4 py-1.5 flex items-center justify-between text-xs font-mono border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <span className="text-amber-300 font-bold">SCORE: {score}</span>
-          <span className="text-slate-400">HI: {highScore}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-rose-400 font-bold">LIVES: {'❤️'.repeat(Math.max(0, lives))}</span>
-          <span className="text-amber-400 font-bold">BOMB: {'💣'.repeat(Math.max(0, bombs))}</span>
-          <span className="px-1.5 py-0.5 rounded bg-sky-900 text-sky-200 text-[10px]">ST {stage}</span>
-        </div>
-      </div>
-
-      {/* Canvas Container */}
-      <div className="relative w-full max-w-[500px] aspect-[4/5] bg-black flex items-center justify-center overflow-hidden border border-slate-800">
-        <canvas
-          ref={canvasRef}
-          width={450}
-          height={550}
-          className="w-full h-full object-contain"
-        />
-
-        {/* Start / Game Over Overlay */}
-        {(!isPlaying || isGameOver) && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <span className="text-5xl animate-bounce">🛩️</span>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-amber-400 font-arcade">
-                {isGameOver ? 'MISSION FAILED' : '1945 AIR COMBAT'}
-              </h1>
-              <p className="text-xs text-slate-300 mt-1">
-                {isGameOver ? `최종 점수: ${score}점` : '적 편대를 격추하고 보스를 격파하세요!'}
-              </p>
-            </div>
-
-            <button
-              onClick={startGame}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-sm tracking-wide shadow-lg shadow-sky-500/30 flex items-center gap-2 cursor-pointer transition-transform active:scale-95"
-            >
-              <Play className="w-4 h-4 fill-white" />
-              <span>{isGameOver ? '다시 도전하기' : '게임 시작 (START)'}</span>
-            </button>
-
-            <div className="text-[11px] text-slate-400 space-y-1">
-              <p>조작키: 방향키 (이동) | 스페이스바 (발사) | B / X키 (폭탄 필살기)</p>
-              <p className="text-amber-400/90">아이템: P (파워업) | B (폭탄 충전) | ★ (보너스 점수)</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Controls / Mobile Touch Bar */}
-      <div className="w-full max-w-[500px] bg-slate-900/90 px-4 py-2 rounded-b-xl flex items-center justify-between text-[11px] text-slate-400">
-        <span>폭탄키: [B] 또는 [X]</span>
-        <button
-          onClick={() => {
-            const ev = new KeyboardEvent('keydown', { code: 'KeyB' });
-            window.dispatchEvent(ev);
-          }}
-          className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs cursor-pointer shadow-md"
-        >
-          💣 필살 폭탄 투하
-        </button>
-      </div>
-    </div>
+          <button className="ac-pad ac-pad--big ac-pad--pink" onClick={bomb}>
+            💣 폭탄 <small>(X)</small>
+          </button>
+        </>
+      }
+    >
+      <canvas
+        ref={cv}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        style={{
+          width: `min(calc(100vw - 64px), ${W}px, calc((100vh - 190px) * ${(W / H).toFixed(4)}))`,
+          minWidth: 240,
+          aspectRatio: `${W} / ${H}`,
+          touchAction: 'none',
+          cursor: 'crosshair',
+        }}
+      />
+    </ArcadeShell>
   );
 };

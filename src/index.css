@@ -1979,7 +1979,7 @@
   padding: 10px; border-radius: 14px;
   background: #1b2340; box-shadow: inset 0 0 0 3px rgba(255,255,255,0.15), 0 0 0 4px #0b0e2a;
 }
-.ac-screen canvas { display: block; border-radius: 8px; image-rendering: auto; }
+.ac-screen canvas { display: block; margin: 0 auto; border-radius: 8px; image-rendering: auto; }
 .ac-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .ac-pad {
   min-width: 56px; padding: 10px 14px; font-family: 'Galmuri11', 'Jua', monospace; font-weight: 700; font-size: 16px; color: #1b2340;

@@ -145,10 +145,11 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
     let isRunning = true;
 
     const updatePhysics = () => {
-      const fruits = fruitsRef.current;
       const subSteps = 6; // sub-stepping for smooth, stable physics
 
       for (let step = 0; step < subSteps; step++) {
+        // always work on the live list: merges replace fruitsRef.current
+        const fruits = fruitsRef.current;
         // 1. Gravity & Position update
         for (let i = 0; i < fruits.length; i++) {
           const f = fruits[i];
@@ -255,6 +256,10 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
 
         if (toRemove.size > 0) {
           fruitsRef.current = fruitsRef.current.filter((f) => !toRemove.has(f.id)).concat(toAdd);
+        }
+        // safety net: drop any body whose numbers went bad
+        if (fruitsRef.current.some((f) => !Number.isFinite(f.x) || !Number.isFinite(f.y))) {
+          fruitsRef.current = fruitsRef.current.filter((f) => Number.isFinite(f.x) && Number.isFinite(f.y));
         }
       }
 
