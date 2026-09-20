@@ -13,6 +13,7 @@ import { TypingSpeedTrendChart } from '../TypingSpeedTrendChart';
 import { MychewRewardModal } from '../MychewRewardModal';
 import { PracticeSetResultModal } from '../PracticeSetResultModal';
 import { starMissionManager } from '../../utils/starMissionManager';
+import { markQuestUnitDone } from '../../utils/questProgress';
 
 interface WordPracticeViewProps {
   currentUser: UserSession | null;
@@ -153,6 +154,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     setIsFinished(true);
     soundManager.playVictory();
     addTypingPracticePoints(50, `${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`);
+    markQuestUnitDone(currentUser?.id, 'word-practice', currentCategory.name, language);
     
     const isAccPassed = stats.accuracy >= 95;
     let earnedStar = false;

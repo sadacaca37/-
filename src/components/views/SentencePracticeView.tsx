@@ -23,6 +23,8 @@ import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { TypingSpeedTrendChart } from '../TypingSpeedTrendChart';
 import { MychewRewardModal } from '../MychewRewardModal';
 import { PracticeSetResultModal } from '../PracticeSetResultModal';
+import { TypingReviewList, TypingReviewItem, isUnfinished } from '../TypingReviewList';
+import { markQuestUnitDone } from '../../utils/questProgress';
 
 interface SentencePracticeViewProps {
   currentUser: UserSession | null;
@@ -116,6 +118,9 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   });
   const [showMychewModal, setShowMychewModal] = useState(false);
   const [showSetResultModal, setShowSetResultModal] = useState(false);
+  // 세트 안에서 문장별로 친 내용 (끝나면 '아직 안 친 곳'을 보여주기 위함)
+  const [reviewItems, setReviewItems] = useState<TypingReviewItem[]>([]);
+  const reviewModeRef = useRef(false);
   const [setResultData, setSetResultData] = useState<{
     cpm: number;
     errorCount: number;
@@ -255,6 +260,27 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     };
   }, [isTimerRunning, is5MinMode]);
 
+  const typedLogKey = `tp_sentence_log_${currentUser?.id || 'guest'}_${language}_${is5MinMode ? 'm' : selectedCategoryIndex}`;
+  const loadTypedLog = (): Record<string, string> => {
+    try {
+      return JSON.parse(localStorage.getItem(typedLogKey) || '{}') || {};
+    } catch {
+      return {};
+    }
+  };
+  const saveTypedLog = (log: Record<string, string>) => {
+    try {
+      localStorage.setItem(typedLogKey, JSON.stringify(log));
+    } catch {}
+  };
+  const clearTypedLog = () => {
+    try {
+      localStorage.removeItem(typedLogKey);
+    } catch {}
+    reviewModeRef.current = false;
+    setReviewItems([]);
+  };
+
   // Handle sentence completion (advances regardless of typos, accurately penalizes accuracy)
   const handleSentenceSubmit = (typedVal: string) => {
     if (!typedVal) return;
@@ -300,6 +326,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       };
     });
 
+    saveTypedLog({ ...loadTypedLog(), [currentSentence]: typedVal });
     handleNextSentence(sentenceErrors);
   };
 
@@ -481,6 +508,20 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       });
     }
 
+    // 치지 않은 문장 고치기 중이면: 다음 '안 친 문장'으로 바로 이동
+    if (reviewModeRef.current) {
+      const log = loadTypedLog();
+      const nextMissing = activeSentences.findIndex((t) => isUnfinished(t, log[t]));
+      if (nextMissing >= 0) {
+        setSentenceIndex(nextMissing);
+        setInputVal('');
+        return;
+      }
+      reviewModeRef.current = false;
+      finishSet(recentSentenceErrors);
+      return;
+    }
+
     // Continuous advancement: advance within category, or trigger set result!
     let nextCategoryIdx = selectedCategoryIndex;
     let nextSentenceIdx = sentenceIndex + 1;
@@ -491,6 +532,12 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       setInputVal('');
       saveSentenceProgress(currentUser?.id, language, nextCategoryIdx, nextSentenceIdx, nextCompleted);
     } else {
+      finishSet(recentSentenceErrors);
+    }
+  };
+
+  // 한 세트(주제)를 끝까지 왔을 때: 결과 + 아직 안 친 문장 목록
+  const finishSet = (recentSentenceErrors: number) => {
       // Reached the end of current category set:
       setIsTimerRunning(false);
       soundManager.playVictory();
@@ -521,12 +568,35 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         isFirst,
         isBeat,
       });
+      const log = loadTypedLog();
+      const missing: TypingReviewItem[] = [];
+      activeSentences.forEach((t, i) => {
+        if (isUnfinished(t, log[t])) {
+          missing.push({
+            label: `${i + 1}번째 문장`,
+            target: t,
+            typed: log[t],
+            onGo: () => {
+              reviewModeRef.current = true;
+              setShowSetResultModal(false);
+              setSentenceIndex(i);
+              setInputVal('');
+              setIsTimerRunning(true);
+              setTimeout(() => inputRef.current?.focus(), 50);
+            },
+          });
+        }
+      });
+      setReviewItems(missing);
+      if (!missing.length && !is5MinMode) {
+        markQuestUnitDone(currentUser?.id, 'sentence-practice', currentCategory.category, language);
+      }
       setShowSetResultModal(true);
-    }
   };
 
   const handleNextSetFromModal = () => {
     setShowSetResultModal(false);
+    clearTypedLog();
     if (is5MinMode) {
       setSentenceIndex(0);
       setInputVal('');
@@ -546,6 +616,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
 
   const handleRetrySetFromModal = () => {
     setShowSetResultModal(false);
+    clearTypedLog();
     setSentenceIndex(0);
     setInputVal('');
     resetSessionStats();
@@ -862,7 +933,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={language === 'ko' ? "위의 한글 문장을 타이핑하세요 (오타가 있어도 자연스럽게 넘어가요!)..." : "Type the sentence above (typos won't block you)..."}
-            className="w-full text-lg sm:text-2xl font-black px-6 py-4 rounded-2xl border-4 border-pink-300 focus:border-pink-500 focus:ring-4 focus:ring-pink-200 outline-hidden bg-pink-50/30 text-slate-800 tracking-wide font-arcade"
+            className="block w-full text-center text-xl sm:text-2xl md:text-3xl font-black px-6 py-4 rounded-2xl border-4 border-pink-300 focus:border-pink-500 focus:ring-4 focus:ring-pink-200 outline-hidden bg-pink-50/30 text-slate-800 tracking-wide font-arcade placeholder:text-base sm:placeholder:text-lg placeholder:text-slate-400"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -972,6 +1043,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         }}
         onRetry={handleRetrySetFromModal}
         onNext={handleNextSetFromModal}
+        review={<TypingReviewList items={reviewItems} title="아직 안 친 문장" emptyText="이번 세트의 문장을 빠짐없이 모두 쳤어요! 👏" />}
       />
 
       {/* MyChew High Score Reward Modal */}

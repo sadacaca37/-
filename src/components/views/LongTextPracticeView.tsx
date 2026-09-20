@@ -27,6 +27,8 @@ import { recordPracticeHistory } from '../../utils/curriculumManager';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { newAgeBgmEngine, NEW_AGE_TRACKS } from '../../utils/newAgeBgmEngine';
 import { MychewRewardModal } from '../MychewRewardModal';
+import { TypingReviewList, TypingReviewItem } from '../TypingReviewList';
+import { markQuestUnitDone } from '../../utils/questProgress';
 
 interface LongTextPracticeViewProps {
   currentUser: UserSession | null;
@@ -195,6 +197,37 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
 
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState<boolean>(false);
+  // 쪽별로 친 내용 (끝까지 친 쪽 / 치다 만 쪽) → 한 편이 끝나면 '아직 안 친 쪽'을 보여줌
+  type PageLog = Record<number, { typed: string; done: boolean }>;
+  const pageLogKey = `tp_long_log_${currentUser?.id || 'guest'}_${currentText.id}`;
+  const loadPageLog = (): PageLog => {
+    try {
+      return JSON.parse(localStorage.getItem(pageLogKey) || '{}') || {};
+    } catch {
+      return {};
+    }
+  };
+  const [pageLog, setPageLog] = useState<PageLog>(loadPageLog);
+  useEffect(() => {
+    setPageLog(loadPageLog());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageLogKey]);
+  const writePageLog = (next: PageLog) => {
+    setPageLog(next);
+    try {
+      localStorage.setItem(pageLogKey, JSON.stringify(next));
+    } catch {}
+  };
+  const clearPageLog = () => {
+    setPageLog({});
+    try {
+      localStorage.removeItem(pageLogKey);
+    } catch {}
+  };
+  const reviewModeRef = useRef(false);
+  const [missingPages, setMissingPages] = useState<number[]>([]);
+  const findMissingPages = (log: PageLog) =>
+    Array.from({ length: totalPages }, (_, i) => i).filter((i) => !log[i]?.done);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const readingContainerRef = useRef<HTMLDivElement>(null);
@@ -302,6 +335,9 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
   // Turn page smoothly with sound and realistic page leaf animation
   const turnPageTo = (newIndex: number, direction: 'next' | 'prev') => {
     if (newIndex < 0 || newIndex >= totalPages) return;
+    if (inputVal && !pageLog[pageIndex]?.done && inputVal.length > (pageLog[pageIndex]?.typed || '').length) {
+      writePageLog({ ...pageLog, [pageIndex]: { typed: inputVal, done: false } });
+    }
     setPageTurnDirection(direction);
     setIsPageTurning(true);
     soundManager.playPageTurn();
@@ -467,19 +503,45 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       accuracy: stats.accuracy,
     }, currentUser?.id, true);
 
+    const log: PageLog = { ...pageLog, [pageIndex]: { typed: targetPageText, done: true } };
+    writePageLog(log);
+
+    // 안 친 쪽 고치는 중이면: 다음 '안 친 쪽'으로 바로 이동
+    if (reviewModeRef.current) {
+      const rest = findMissingPages(log);
+      if (rest.length) {
+        setInputVal('');
+        turnPageTo(rest[0], rest[0] > pageIndex ? 'next' : 'prev');
+        return;
+      }
+      reviewModeRef.current = false;
+      handleAllPagesCompleted(log);
+      return;
+    }
+
     // Check if next page exists
     if (pageIndex + 1 < totalPages) {
       turnPageTo(pageIndex + 1, 'next');
     } else {
       // Completed entire book!
-      handleAllPagesCompleted();
+      handleAllPagesCompleted(log);
     }
   };
 
-  const handleAllPagesCompleted = () => {
+  const handleAllPagesCompleted = (logArg?: PageLog) => {
+    const log = logArg || pageLog;
+    const missing = findMissingPages(log);
+    setMissingPages(missing);
     setIsTimerRunning(false);
     setIsCompletedModalOpen(true);
+    // 안 친 쪽이 있으면 완독 보상/기록 없이 목록만 보여줌
+    if (missing.length) {
+      soundManager.playPageTurn();
+      return;
+    }
     soundManager.playVictory();
+    markQuestUnitDone(currentUser?.id, 'long-practice', currentText.id, language);
+    clearPageLog();
     
     // Only award 120 completion points if accuracy >= 90%
     if (stats.accuracy >= 90 && stats.errorCount === 0) {
@@ -504,7 +566,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     recordPracticeHistory({
       userId: targetUserId,
       userName: targetUserName,
-      mode: 'sentence-practice',
+      mode: 'long-practice',
       modeTitle: `긴 글 완독: ${currentText.title} (${language === 'ko' ? '한글' : 'English'})`,
       language,
       stageTitle: `${currentText.author} - ${currentText.title}`,
@@ -568,7 +630,12 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     if (pageIndex + 1 < totalPages) {
       turnPageTo(pageIndex + 1, 'next');
     } else if (inputVal === targetPageText && stats.errorCount === 0) {
-      handleAllPagesCompleted();
+      handlePageFinished();
+    } else {
+      // 마지막 쪽에서 '다음'을 누르면 아직 안 친 쪽을 보여줌
+      const log = inputVal && !pageLog[pageIndex]?.done ? { ...pageLog, [pageIndex]: { typed: inputVal, done: false } } : pageLog;
+      if (log !== pageLog) writePageLog(log);
+      handleAllPagesCompleted(log);
     }
   };
 
@@ -738,8 +805,24 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                     </span>
                     {currentText.era && <span className="text-[11px]">{currentText.era}</span>}
                   </div>
-                  <span className="font-mono text-[11px] font-bold text-stone-400">
-                    쪽 {pageIndex + 1} / {totalPages}
+                  <span className="flex items-center gap-1.5">
+                    {/* 쪽별 진행: 초록=완성, 노랑=치다 만 쪽, 회색=아직 안 친 쪽 (누르면 그 쪽으로) */}
+                    <span className="hidden sm:flex items-center gap-0.5" data-testid="page-dots">
+                      {Array.from({ length: totalPages }, (_, p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => p !== pageIndex && turnPageTo(p, p > pageIndex ? 'next' : 'prev')}
+                          title={`${p + 1}쪽 · ${pageLog[p]?.done ? '완성' : pageLog[p]?.typed ? '덜 침' : '안 침'}`}
+                          className={`w-2.5 h-2.5 rounded-full border cursor-pointer ${
+                            p === pageIndex ? 'ring-2 ring-amber-500 ring-offset-1' : ''
+                          } ${pageLog[p]?.done ? 'bg-emerald-500 border-emerald-600' : pageLog[p]?.typed ? 'bg-amber-300 border-amber-500' : 'bg-stone-200 border-stone-300'}`}
+                        />
+                      ))}
+                    </span>
+                    <span className="font-mono text-[11px] font-bold text-stone-400">
+                      쪽 {pageIndex + 1} / {totalPages}
+                    </span>
                   </span>
                 </div>
 
@@ -1027,7 +1110,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       {/* ========================================================================= */}
       {isCompletedModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-[#FAF7EE] border-4 border-[#8C532B] rounded-3xl max-w-lg w-full p-6 sm:p-8 text-center space-y-5 shadow-2xl relative">
+          <div className="bg-[#FAF7EE] border-4 border-[#8C532B] rounded-3xl max-w-lg w-full p-6 sm:p-8 text-center space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto">
             {/* Top-Right Close Button */}
             <button
               onClick={() => setIsCompletedModalOpen(false)}
@@ -1038,6 +1121,51 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
               <X className="w-5 h-5" />
             </button>
 
+            {missingPages.length > 0 ? (
+              <div className="space-y-3 text-left" data-testid="long-missing">
+                <div className="text-center space-y-1">
+                  <div className="w-14 h-14 rounded-3xl bg-rose-100 mx-auto flex items-center justify-center text-3xl border-2 border-rose-300">📍</div>
+                  <h3 className="text-xl font-serif font-black text-[#2A231F]">『{currentText.title}』 아직 안 친 쪽이 있어요</h3>
+                  <p className="text-xs font-serif text-stone-600">
+                    {totalPages}쪽 중 {totalPages - missingPages.length}쪽 완성 · 남은 쪽을 마저 치면 완독 인증서를 받아요!
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {Array.from({ length: totalPages }, (_, p) => (
+                    <span
+                      key={p}
+                      className={`w-8 h-8 rounded-lg grid place-items-center text-[11px] font-black border-2 ${
+                        missingPages.includes(p)
+                          ? pageLog[p]?.typed
+                            ? 'bg-amber-100 border-amber-400 text-amber-800'
+                            : 'bg-rose-100 border-rose-400 text-rose-700'
+                          : 'bg-emerald-100 border-emerald-400 text-emerald-700'
+                      }`}
+                      title={missingPages.includes(p) ? (pageLog[p]?.typed ? '덜 침' : '안 침') : '완성'}
+                    >
+                      {missingPages.includes(p) ? p + 1 : '✓'}
+                    </span>
+                  ))}
+                </div>
+                <TypingReviewList
+                  tone="stone"
+                  title="아직 안 친 쪽"
+                  items={missingPages.map((p): TypingReviewItem => ({
+                    label: `${p + 1}쪽`,
+                    target: cleanHanja(currentText.paragraphs[p] || ''),
+                    typed: pageLog[p]?.typed || undefined,
+                    onGo: () => {
+                      reviewModeRef.current = true;
+                      setIsCompletedModalOpen(false);
+                      setInputVal('');
+                      if (p !== pageIndex) turnPageTo(p, p > pageIndex ? 'next' : 'prev');
+                      else setTimeout(() => inputRef.current?.focus(), 50);
+                    },
+                  }))}
+                />
+              </div>
+            ) : (
+            <>
             <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-800 mx-auto flex items-center justify-center text-3xl shadow-inner border-2 border-amber-300">
               📜
             </div>
@@ -1045,13 +1173,13 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-800 bg-amber-100 px-3.5 py-1 rounded-full font-serif border border-amber-300">
                 <Trophy className="w-3.5 h-3.5 text-amber-700" />
-                완독 인증서 🏅 (10문단 완주)
+                완독 인증서 🏅 ({totalPages}문단 완주)
               </span>
               <h3 className="text-2xl font-serif font-black text-[#2A231F] mt-2">
                 『{currentText.title}』 완독!
               </h3>
               <p className="text-xs font-serif text-stone-600">
-                {currentText.author}의 아름다운 10문단을 한 자 한 자 정성스레 필사했습니다.
+                {currentText.author}의 아름다운 {totalPages}문단을 한 자 한 자 정성스레 필사했습니다.
               </p>
             </div>
 
@@ -1169,6 +1297,9 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
               )}
             </div>
 
+            </>
+            )}
+
             {/* Modal Actions */}
             <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
               <button
@@ -1181,6 +1312,8 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
 
               <button
                 onClick={() => {
+                  clearPageLog();
+                  reviewModeRef.current = false;
                   setPageIndex(0);
                   setInputVal('');
                   resetSessionStats();

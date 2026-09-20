@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { soundManager } from '../../utils/sound';
 import { pointsManager } from '../../utils/pointsManager';
+import { getQuestProgress, QuestMode } from '../../utils/questProgress';
 
 /* ================================================================== */
 /*  Pixel sprite helper                                                 */
@@ -247,6 +248,19 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     };
   }, [currentUser]);
 
+  // 단계별 '모두 완료' 진행도 (자리 8단계·낱말 8단계·짧은 글 주제·긴 글 작품을 모두 끝까지)
+  const [questTick, setQuestTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setQuestTick((t) => t + 1);
+    window.addEventListener('quest-progress-updated', bump);
+    window.addEventListener('focus', bump);
+    return () => {
+      window.removeEventListener('quest-progress-updated', bump);
+      window.removeEventListener('focus', bump);
+    };
+  }, []);
+  const quest = useMemo(() => getQuestProgress(currentUser?.id, records), [currentUser, records, questTick]);
+
   const stats = useMemo(() => {
     const byMode: Record<string, number> = {};
     records.forEach((r) => {
@@ -331,15 +345,17 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
 
             {/* stages */}
             {MAP_STOPS.map((s) => {
-              const cleared = (stats.byMode[s.mode] || 0) >= s.goal;
+              const q = quest[s.mode as QuestMode];
+              const complete = q ? q.complete : false;
+              const cleared = !q && (stats.byMode[s.mode] || 0) >= s.goal;
               return (
                 <button
                   key={s.mode}
                   type="button"
                   onClick={() => go(s.mode)}
-                  className={`qm-stop ${s.kind ? `qm-stop--${s.kind}` : ''}`}
+                  className={`qm-stop ${s.kind ? `qm-stop--${s.kind}` : ''} ${complete ? 'qm-stop--complete' : ''}`}
                   style={{ ['--x' as any]: `${s.x}%`, ['--y' as any]: `${s.y}%`, ['--mx' as any]: `${s.mx}%`, ['--my' as any]: `${s.my}%` }}
-                  aria-label={`${s.label} ${s.name}`}
+                  aria-label={`${s.label} ${s.name}${q ? ` (${q.done}/${q.total}${complete ? ' 모두 완료' : ''})` : ''}`}
                 >
                   <span className="qm-shadow" />
                   {s.kind === 'arch' ? (
@@ -362,6 +378,16 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                       <span>{s.name}</span>
                     </span>
                     {cleared && <i className="qm-clear">CLEAR</i>}
+                    {q && !complete && (
+                      <i className="qm-prog" title={`${q.total}개 중 ${q.done}개 완료`}>
+                        {q.done}/{q.total}
+                      </i>
+                    )}
+                    {complete && (
+                      <i className="qm-done" title="이 단계를 모두 완료했어요!">
+                        <b>✔</b>완료!
+                      </i>
+                    )}
                   </span>
                   {s.kind === 'special' && (
                     <>

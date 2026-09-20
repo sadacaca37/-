@@ -40,6 +40,8 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
     const curScale = rect.height / Math.max(1, inner.offsetHeight) || 1;
     let paintedBottom = 0;
     inner.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      // 떠 있는 창(결과 창 등)과 그 안의 스크롤 목록은 화면 크기 계산에서 제외
+      if (el.closest('.fixed')) return;
       const b = el.getBoundingClientRect().bottom;
       if (b > paintedBottom) paintedBottom = b;
     });

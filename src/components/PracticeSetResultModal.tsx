@@ -28,6 +28,8 @@ export interface PracticeSetResultModalProps {
   isFirstRecord?: boolean;
   isRecordBeat?: boolean;
   onClaimMychew?: () => void;
+  /** 세트가 끝난 뒤 아직 안 친 곳 목록 등 추가 내용 */
+  review?: React.ReactNode;
 }
 
 export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
@@ -46,6 +48,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
   isFirstRecord = false,
   isRecordBeat = false,
   onClaimMychew,
+  review,
 }) => {
   if (!isOpen) return null;
 
@@ -59,7 +62,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-md bg-gradient-to-b from-amber-50 via-white to-pink-50 border-4 border-amber-300 rounded-3xl p-6 sm:p-7 shadow-2xl text-center space-y-4 overflow-hidden">
+      <div className="relative w-full max-w-md bg-gradient-to-b from-amber-50 via-white to-pink-50 border-4 border-amber-300 rounded-3xl p-6 sm:p-7 shadow-2xl text-center space-y-4 overflow-x-hidden overflow-y-auto max-h-[92vh]">
         {/* Prominent Close Button at Top-Right */}
         <button
           onClick={onClose}
@@ -219,6 +222,8 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
             <Sparkles className="w-4 h-4" />
           </button>
         )}
+
+        {review}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-center gap-2 pt-2">
