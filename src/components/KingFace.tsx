@@ -48,12 +48,38 @@ const LOOKS: Record<number, Look> = {
   27: { beard: 'thin', mood: 'sad' }, // 순종 (대한제국 황제)
 };
 
-export const KingFace: React.FC<{ order: number; size?: number; className?: string; title?: string }> = ({
+/** 실제 어진(초상화)·사진이 전하는 왕 (public/kings, 퍼블릭 도메인 — CREDITS.txt 참고) */
+export const REAL_KING_PORTRAITS: Record<number, { src: string; caption: string }> = {
+  1: { src: 'kings/taejo.webp', caption: '태조 어진 (1872년 모사본)' },
+  21: { src: 'kings/yeongjo.webp', caption: '영조 어진 (1900년 모사본)' },
+  25: { src: 'kings/cheoljong.webp', caption: '철종 어진 (1861년, 일부 불탐)' },
+  26: { src: 'kings/gojong.webp', caption: '고종 어진' },
+  27: { src: 'kings/sunjong.webp', caption: '순종 사진' },
+};
+
+export const KingFace: React.FC<{ order: number; size?: number; className?: string; title?: string; drawnOnly?: boolean; fill?: boolean }> = ({
   order,
   size = 96,
   className = '',
   title,
+  drawnOnly = false,
+  fill = false,
 }) => {
+  const real = drawnOnly ? undefined : REAL_KING_PORTRAITS[order];
+  if (real) {
+    return (
+      <img
+        src={real.src}
+        alt={title || real.caption}
+        title={real.caption}
+        width={size}
+        height={size}
+        className={`object-cover ${className}`}
+        style={fill ? { width: '100%', height: '100%', objectPosition: '50% 50%' } : { width: size, height: size, objectPosition: '50% 50%' }}
+        loading="lazy"
+      />
+    );
+  }
   const look = LOOKS[order] || { beard: 'thin', mood: 'calm' };
   const emperor = order >= 26;
   const robe = emperor ? '#e8b21e' : '#c8242b';

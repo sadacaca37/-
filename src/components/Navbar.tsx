@@ -104,7 +104,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.addEventListener('points-updated', handlePointsUpdate);
     window.addEventListener('tamagotchi-updated', handlePointsUpdate);
     window.addEventListener('typing-points-earned', handlePointsUpdate);
+    // 연습 창(새 창)에서 받은 포인트도 바로 반영
+    window.addEventListener('storage', handlePointsUpdate);
+    window.addEventListener('focus', handlePointsUpdate);
     return () => {
+      window.removeEventListener('storage', handlePointsUpdate);
+      window.removeEventListener('focus', handlePointsUpdate);
       window.removeEventListener('points-updated', handlePointsUpdate);
       window.removeEventListener('tamagotchi-updated', handlePointsUpdate);
       window.removeEventListener('typing-points-earned', handlePointsUpdate);

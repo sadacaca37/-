@@ -39,7 +39,8 @@ import {
   saveMasterConfig, 
   verifyMasterKey, 
   getUserPracticeHistory,
-  getUserCurriculumOverview
+  getUserCurriculumOverview,
+  verifyMasterAuth,
 } from '../utils/curriculumManager';
 import {
   downloadStudentExcelTemplate,
@@ -225,7 +226,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     e.preventDefault();
     setAuthError('');
     const currentCfg = getMasterConfig();
-    const auth = await typangApi.masterLogin(masterPassInput.trim());
+    const auth = await typangApi.masterLogin(masterPassInput.trim(), masterPassInput.trim() === currentCfg.masterPassword || verifyMasterAuth(masterPassInput.trim()));
 
     if (auth.success) {
       setIsAuthenticated(true);

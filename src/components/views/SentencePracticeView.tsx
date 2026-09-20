@@ -470,43 +470,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       dailyMissionsManager.incrementProgress('lesson', 1, currentUser?.id);
     }
 
-    // Save to user practice history
-    if (currentUser) {
-      recordPracticeHistory({
-        userId: currentUser.id,
-        userName: currentUser.name,
-        mode: 'sentence-practice',
-        modeTitle: is5MinMode 
-          ? `5분 마라톤 (${language === 'ko' ? '한글' : 'English'})` 
-          : `짧은 글 [${language === 'ko' ? '한글' : 'EN'}] (${currentCategory.category})`,
-        language,
-        stageTitle: currentCategory.category,
-        sampleText: currentSentence,
-        cpm: stats.cpm,
-        accuracy: stats.accuracy,
-        errorCount: stats.errorCount + recentSentenceErrors,
-        correctCount: stats.correctCount,
-        totalKeystrokes: stats.totalKeystrokes,
-        elapsedSeconds: stats.elapsedSeconds,
-      });
-    }
-
-    // Only logged-in users get recorded in the Hall of Fame Leaderboard
-    if (currentUser && stats.cpm > 30) {
-      onRecordScore({
-        userName: currentUser.name,
-        userAvatar: currentUser.avatar || '⭐',
-        mode: 'sentence',
-        modeTitle: is5MinMode 
-          ? `5분 마라톤 (${language === 'ko' ? '한글' : 'English'})` 
-          : `짧은 글 [${language === 'ko' ? '한글' : 'EN'}] (${currentCategory.category})`,
-        score: stats.cpm * 10 + stats.accuracy * 5 + nextCompleted * 100,
-        cpm: stats.cpm,
-        accuracy: stats.accuracy,
-        details: `${currentCategory.category} (${nextCompleted}문장 완주)`,
-        completedSentences: nextCompleted,
-      });
-    }
+    // 연습 기록·명예의 전당은 한 세트를 빠짐없이 끝까지 쳤을 때만 남김 (finishSet)
 
     // 치지 않은 문장 고치기 중이면: 다음 '안 친 문장'으로 바로 이동
     if (reviewModeRef.current) {
@@ -588,8 +552,39 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         }
       });
       setReviewItems(missing);
-      if (!missing.length && !is5MinMode) {
-        markQuestUnitDone(currentUser?.id, 'sentence-practice', currentCategory.category, language);
+      if (!missing.length) {
+        if (!is5MinMode) markQuestUnitDone(currentUser?.id, 'sentence-practice', currentCategory.category, language);
+        const setTitle = is5MinMode
+          ? `5분 마라톤 (${language === 'ko' ? '한글' : 'English'})`
+          : `짧은 글 [${language === 'ko' ? '한글' : 'EN'}] (${currentCategory.category})`;
+        recordPracticeHistory({
+          userId: currentUser?.id || 'guest',
+          userName: currentUser?.name || '게스트',
+          mode: 'sentence-practice',
+          modeTitle: setTitle,
+          language,
+          stageTitle: currentCategory.category,
+          sampleText: activeSentences[0],
+          cpm: finalCpm,
+          accuracy: finalAccuracy,
+          errorCount: finalErrors,
+          correctCount: stats.correctCount,
+          totalKeystrokes: stats.totalKeystrokes,
+          elapsedSeconds: stats.elapsedSeconds,
+        });
+        if (currentUser && finalCpm > 30) {
+          onRecordScore({
+            userName: currentUser.name,
+            userAvatar: currentUser.avatar || '⭐',
+            mode: 'sentence',
+            modeTitle: setTitle,
+            score: finalCpm * 10 + finalAccuracy * 5 + activeSentences.length * 100,
+            cpm: finalCpm,
+            accuracy: finalAccuracy,
+            details: `${currentCategory.category} (${activeSentences.length}문장 완주)`,
+            completedSentences: activeSentences.length,
+          });
+        }
       }
       setShowSetResultModal(true);
   };

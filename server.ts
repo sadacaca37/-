@@ -6,7 +6,10 @@ import { MemberStore, digitsOf } from './server/memberStore';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-const isProd = process.env.NODE_ENV === 'production';
+// 클라우드(Cloud Run 등)에 올라가 있고 빌드 결과(dist)가 있으면 개발 모드 대신 빌드본으로 서비스 → 첫 화면이 훨씬 빠름
+const isProd =
+  process.env.NODE_ENV === 'production' ||
+  (!!process.env.K_SERVICE && fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')));
 
 app.disable('x-powered-by');
 app.set('etag', 'strong');

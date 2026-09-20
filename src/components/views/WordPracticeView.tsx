@@ -45,6 +45,12 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     defaultCatId || categories[0].id
   );
   const currentCategory = categories.find((c) => c.id === selectedCatId) || categories[0];
+  // 별은 단계마다 따로 10개 (1단계 1번 + 2단계 1번 ≠ 별 2개)
+  const starScope = `word_${language}_${currentCategory.id}`;
+  const [currentStarsCount, setCurrentStarsCount] = useState(() => starMissionManager.getState(currentUser?.id, starScope).stars);
+  useEffect(() => {
+    setCurrentStarsCount(starMissionManager.getState(currentUser?.id, starScope).stars);
+  }, [currentUser?.id, starScope]);
   const currentStageNum = currentCategory.stageNumber || (categories.findIndex((c) => c.id === selectedCatId) + 1);
 
   // Random problem mode (enabled by default per user request)
@@ -90,7 +96,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [showSetResultModal, setShowSetResultModal] = useState(false);
   const [starEarnedThisSet, setStarEarnedThisSet] = useState(false);
-  const [currentStarsCount, setCurrentStarsCount] = useState(() => starMissionManager.getState(currentUser?.id).stars);
+
 
   const [inputVal, setInputVal] = useState('');
   const [activeKeyCode, setActiveKeyCode] = useState<string | null>(null);
@@ -161,7 +167,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     let newStars = currentStarsCount;
 
     if (isAccPassed) {
-      const starRes = starMissionManager.addStar(`${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`, currentUser?.id);
+      const starRes = starMissionManager.addStar(`${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`, currentUser?.id, starScope);
       earnedStar = true;
       newStars = starRes.stars;
       setCurrentStarsCount(newStars);
@@ -199,10 +205,11 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     });
 
     // Record practice history
-    if (currentUser) {
+    {
+      // 한 세트를 끝까지 쳤을 때만 기록 (로그인 안 했으면 '게스트' 기록)
       recordPracticeHistory({
-        userId: currentUser.id,
-        userName: currentUser.name,
+        userId: currentUser?.id || 'guest',
+        userName: currentUser?.name || '게스트',
         mode: 'word-practice',
         modeTitle: `${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name})`,
         language,
@@ -817,6 +824,13 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                   </button>
                 );
               })}
+            </div>
+            {/* 이 단계에서 모은 별 (단계마다 10번씩 완주해야 별 10개) */}
+            <div className="flex items-center gap-0.5 text-[11px] font-black text-amber-600" data-testid="stage-stars" title="정확도 95% 이상으로 이 단계를 완주할 때마다 별 1개">
+              {Array.from({ length: 10 }, (_, i) => (
+                <span key={i} className={i < currentStarsCount ? 'text-amber-400' : 'text-slate-300'}>★</span>
+              ))}
+              <span className="ml-1 text-slate-600">{currentStarsCount}/10</span>
             </div>
           </div>
           </div>

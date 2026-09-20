@@ -1,0 +1,7 @@
+조선 국왕 실제 초상 (모두 퍼블릭 도메인, 출처: Wikimedia Commons) — 얼굴 부분만 잘라 작게 줄여 사용
+- taejo.webp    태조 어진 (1872년 모사본, 조중묵·박기준·백은배·유숙) — File:King Taejo Yi 02.jpg
+- yeongjo.webp  영조 어진 (1744년 원본, 1900년 채용신·조석진 모사) — File:Korea-Yeongjo-King of Joseon Dynasty-1900.jpg
+- cheoljong.webp 철종 어진 (1861년, 한국전쟁 때 일부 불탐) — File:Portrait of King Cheoljong.jpeg
+- gojong.webp   고종 어진 (1893년 이전, 이한철·유숙) — File:Korea-Portrait of Emperor Gojong-01.jpg
+- sunjong.webp  순종 사진 (1910년 이전, 이와타 가나에 촬영) — File:Sunjong of the Korean Empire.jpg
+나머지 22명은 어진(초상화)이 전하지 않아 KingFace.tsx 의 그림 캐릭터로 보여 줍니다.

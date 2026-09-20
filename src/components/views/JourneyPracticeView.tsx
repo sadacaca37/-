@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { UserSession, TypingStats, AppMode } from '../../types';
 import { CountryFlag } from '../CountryFlag';
-import { KingFace } from '../KingFace';
+import { KingFace, REAL_KING_PORTRAITS } from '../KingFace';
 import { WORLD_CAPITALS_DATA, JOSEON_KINGS_DATA, JOSEON_DETAILED_MAP } from '../../data/journeyData';
 import { LYRIC_SONGS_DATA, LyricSongItem } from '../../data/lyricsData';
 import { BOOK_CHALLENGE_LIST, BookItem } from '../../data/bookData';
@@ -874,7 +874,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
 
                             <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
 
@@ -937,7 +937,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
 
                             <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
 
@@ -999,7 +999,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
 
                             <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
 
@@ -1060,7 +1060,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
 
                             <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
 
@@ -1152,14 +1152,19 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
 
                 <div className="flex justify-center">
                   <div className="relative">
-                    <div className="w-[118px] h-[118px] rounded-full bg-gradient-to-b from-amber-100 to-amber-200 border-4 border-amber-400 shadow-md overflow-hidden grid place-items-end justify-center">
-                      <KingFace order={currentKing.order} size={112} title={hideNameMode ? '조선 국왕' : `조선 ${currentKing.order}대 ${currentKing.name}`} />
+                    <div className={`w-[118px] h-[118px] rounded-full bg-gradient-to-b from-amber-100 to-amber-200 border-4 border-amber-400 shadow-md overflow-hidden ${REAL_KING_PORTRAITS[currentKing.order] ? 'block' : 'grid justify-center place-items-end'}`}>
+                      <KingFace order={currentKing.order} size={112} fill={!!REAL_KING_PORTRAITS[currentKing.order]} title={hideNameMode ? '조선 국왕' : `조선 ${currentKing.order}대 ${currentKing.name}`} />
                     </div>
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-purple-700 text-white text-[11px] font-black border-2 border-white whitespace-nowrap">
+                    <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-purple-700 text-white text-[11px] font-black border-2 border-white whitespace-nowrap">
                       {hideNameMode ? `${currentKing.order}대 ???` : `${currentKing.order}대 ${currentKing.name}`}
                     </span>
                   </div>
                 </div>
+                <p className="text-[10px] font-bold text-slate-400 pt-1">
+                  {REAL_KING_PORTRAITS[currentKing.order]
+                    ? `📜 실제 모습: ${REAL_KING_PORTRAITS[currentKing.order].caption}`
+                    : '🎨 어진(초상화)이 전하지 않아 그림으로 표현했어요'}
+                </p>
                 <div className="text-xs font-bold text-blue-700 flex items-center justify-center gap-1">
                   <span>📍</span>
                   <span>

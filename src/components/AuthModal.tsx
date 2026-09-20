@@ -27,7 +27,8 @@ import {
   verifyAndResetPasswordWithCode,
   resetPasswordByMasterKey,
   registerMasterAccount,
-  getMasterConfig
+  getMasterConfig,
+  verifyMasterAuth,
 } from '../utils/curriculumManager';
 import { notifyStudentRegistered, typangSync, cleanDigits, getLast4 } from '../utils/excelStudentManager';
 import { typangApi } from '../utils/apiClient';
@@ -115,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const rawKey = studentId.trim();
     if (activeTab === 'login' && (rawKey.toLowerCase() === 'master' || rawKey === '마스터' || rawKey === '선생님' || rawKey === '관리자')) {
       const masterCfg = getMasterConfig();
-      const masterRes = await typangApi.masterLogin(password.trim());
+      const masterRes = await typangApi.masterLogin(password.trim(), password.trim() === masterCfg.masterPassword || verifyMasterAuth(password.trim()));
       if (masterRes.success) {
         const masterSession: UserSession = {
           id: 'master_admin',

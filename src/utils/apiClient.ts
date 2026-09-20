@@ -210,20 +210,52 @@ class TypangApiClient {
   }
 
   /* ---------------- master ---------------- */
-  public async masterLogin(password: string): Promise<{ success: boolean; message?: string; status?: MembersStatus }> {
-    try {
-      const r = await this.request('/api/master/login', {
+  /**
+   * 마스터 로그인
+   * 1) 서버에서 확인
+   * 2) 서버가 거절했지만 이 브라우저에 예전에 저장한 마스터 비밀번호(localPasswordOk)와 같고,
+   *    서버는 아직 기본 비밀번호(1234)라면 → 기본값으로 들어간 뒤 서버 비밀번호를 예전 것으로 맞춰 줌
+   * 3) 서버가 없는 곳(미리보기 등)에서는 이 브라우저의 마스터 설정으로 확인
+   */
+  public async masterLogin(password: string, localPasswordOk = false): Promise<{ success: boolean; message?: string; status?: MembersStatus }> {
+    const pw = password.trim();
+    const tryServer = async (p: string) =>
+      this.request('/api/master/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: p }),
       });
+    try {
+      const r = await tryServer(pw);
       if (r.ok && r.data?.success) {
-        this.setMasterKey(password);
+        this.setMasterKey(pw);
         return { success: true, status: r.data.status };
+      }
+      const serverAnswered = !!r.data && typeof r.data === 'object' && 'success' in r.data;
+      if (!serverAnswered) {
+        // 서버 API 가 없는 곳 (정적 미리보기 등)
+        if (localPasswordOk) {
+          this.setMasterKey(pw);
+          return { success: true };
+        }
+        return { success: false, message: '마스터 비밀번호가 올바르지 않습니다.' };
+      }
+      if (localPasswordOk && pw !== '1234') {
+        const def = await tryServer('1234');
+        if (def.ok && def.data?.success) {
+          this.setMasterKey('1234');
+          const moved = await this.setMasterPassword(pw);
+          if (moved.success) return { success: true, status: def.data.status };
+          return { success: true, status: def.data.status };
+        }
       }
       return { success: false, message: r.data?.message || '마스터 비밀번호가 올바르지 않습니다.' };
     } catch {
-      return { success: false, message: '서버에 연결할 수 없어요.' };
+      if (localPasswordOk) {
+        this.setMasterKey(pw);
+        return { success: true };
+      }
+      return { success: false, message: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
     }
   }
 

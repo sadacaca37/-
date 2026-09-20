@@ -19,9 +19,10 @@ export class StarMissionManager {
     return StarMissionManager.instance;
   }
 
-  private getStorageKey(userId?: string): string {
+  /** scope: 단계별로 별을 따로 셈 (예: 'key_ko_1' = 한글 자리 1단계). 없으면 예전 공용 별 */
+  private getStorageKey(userId?: string, scope?: string): string {
     const effectiveId = userId || this.resolveCurrentUserId() || 'guest';
-    return `${STAR_MISSION_KEY_PREFIX}${effectiveId}`;
+    return `${STAR_MISSION_KEY_PREFIX}${effectiveId}${scope ? `__${scope}` : ''}`;
   }
 
   private resolveCurrentUserId(): string | undefined {
@@ -35,9 +36,9 @@ export class StarMissionManager {
     return undefined;
   }
 
-  public getState(userId?: string): StarMissionState {
+  public getState(userId?: string, scope?: string): StarMissionState {
     try {
-      const key = this.getStorageKey(userId);
+      const key = this.getStorageKey(userId, scope);
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -60,9 +61,9 @@ export class StarMissionManager {
    * Add a star when a practice mission is completed.
    * Max 10 stars.
    */
-  public addStar(missionTitle: string, userId?: string): { stars: number; isFull: boolean; justFilled: boolean } {
-    const key = this.getStorageKey(userId);
-    const current = this.getState(userId);
+  public addStar(missionTitle: string, userId?: string, scope?: string): { stars: number; isFull: boolean; justFilled: boolean } {
+    const key = this.getStorageKey(userId, scope);
+    const current = this.getState(userId, scope);
 
     const prevStars = current.stars;
     const nextStars = Math.min(10, prevStars + 1);
@@ -89,6 +90,7 @@ export class StarMissionManager {
           ...updated,
           missionTitle,
           justFilled,
+          scope,
           userId: userId || this.resolveCurrentUserId(),
         },
       })

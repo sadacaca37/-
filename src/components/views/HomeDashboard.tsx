@@ -98,8 +98,18 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       loadSortedRecords();
     };
 
+    // 연습은 새 창에서 하므로, 다른 창에서 저장된 기록도 바로 반영 (storage 이벤트 + 창으로 돌아올 때)
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key.startsWith('typang_history_user_')) handleUpdated();
+    };
     window.addEventListener('typing-history-updated', handleUpdated);
-    return () => window.removeEventListener('typing-history-updated', handleUpdated);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', handleUpdated);
+    return () => {
+      window.removeEventListener('typing-history-updated', handleUpdated);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', handleUpdated);
+    };
   }, [currentUser]);
 
   // Handle single record delete

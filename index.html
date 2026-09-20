@@ -7,8 +7,9 @@
     <meta name="description" content="화사한 레트로 아케이드 감성의 종합 타자 연습 스튜디오 (자리·낱말·짧은글·긴글 80% 무스크롤 전용 새 창, 펀펀 플레이 깃허브 오락실 명작 게임: 너구리, 라스트워, 보글보글, 슈퍼마리오, 비행기슈팅, 카트라이더 탑재)" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&family=Press+Start+2P&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- 외부 글꼴은 화면 그리기를 막지 않도록 나중에 불러옴 (학교망에서 막혀 있어도 첫 화면이 바로 뜸) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" media="print" onload="this.media='all'" />
   </head>
   <body class="bg-[#fffdf8] text-slate-800 font-sans antialiased selection:bg-rose-400 selection:text-white">
     <div id="root"></div>
