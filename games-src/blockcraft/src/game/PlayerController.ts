@@ -381,10 +381,7 @@ export class PlayerController {
 
   // Pointer lock request
   public requestLock() {
-    if (this.freeLook) {
-      this.setLocked(true);
-      return;
-    }
+    // 매번 진짜 마우스 잠금부터 시도 (잠깐 실패했다고 계속 드래그 모드로 남지 않게)
     try {
       const r: any = (this.domElement as any).requestPointerLock();
       if (r && typeof r.catch === "function") r.catch(() => this.enableFreeLook());

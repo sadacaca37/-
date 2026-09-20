@@ -76,6 +76,12 @@ export default function App() {
   }, [gameStarted]);
   gameStartedRef.current = gameStarted;
 
+  // 퀵슬롯 목록을 ref로도 들고 있어서, 저장 함수가 바뀌지 않게 함
+  // (예전에는 퀵슬롯이 바뀔 때마다 게임 전체가 새로 만들어져서
+  //  좀비알을 골라도 벽돌이 나오고, 갑자기 안 움직이는 문제가 있었음)
+  const hotbarRef = useRef<BlockType[]>(hotbarBlocks);
+  hotbarRef.current = hotbarBlocks;
+
   // Manual & Auto-save helper
   const performSave = useCallback(async () => {
     const user = currentUserRef.current;
@@ -92,13 +98,13 @@ export default function App() {
       user.username,
       currentPos,
       player.health,
-      hotbarBlocks,
+      hotbarRef.current,
       modifiedBlocksRef.current
     );
 
     setSaveStatusText("저장 완료");
     setTimeout(() => setSaveStatusText(null), 1800);
-  }, [hotbarBlocks]);
+  }, []);
 
   // Load user data on login
   const handleUserChanged = useCallback(async (user: UserAccount | null) => {
@@ -240,7 +246,7 @@ export default function App() {
     const player = new PlayerController(camera, world, atlas, renderer.domElement);
     playerRef.current = player;
     // 화면 퀵슬롯과 실제 손에 든 블록을 같은 목록으로 (잔디를 골랐는데 몹이 나오던 문제)
-    player.hotbarBlocks = [...DEFAULT_HOTBAR];
+    player.hotbarBlocks = [...hotbarRef.current];
     player.setActiveSlot(0);
     player.setAnimalManager(animals);
     player.monsterManager = monsters;
@@ -413,7 +419,9 @@ export default function App() {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [performSave]);
+    // 게임 월드는 처음 한 번만 만듦 (performSave는 이제 바뀌지 않음)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keyboard shortcut for Enter -> Chat
   useEffect(() => {
