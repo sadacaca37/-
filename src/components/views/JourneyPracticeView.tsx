@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { UserSession, TypingStats, AppMode } from '../../types';
 import { CountryFlag } from '../CountryFlag';
+import { KingFace } from '../KingFace';
 import { WORLD_CAPITALS_DATA, JOSEON_KINGS_DATA, JOSEON_DETAILED_MAP } from '../../data/journeyData';
 import { LYRIC_SONGS_DATA, LyricSongItem } from '../../data/lyricsData';
 import { BOOK_CHALLENGE_LIST, BookItem } from '../../data/bookData';
@@ -59,6 +60,14 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   const [bonusPointsAlert, setBonusPointsAlert] = useState<{ id: number; text: string; points: number } | null>(null);
   // Defer point awarding: accumulate points throughout the set, award only on full set completion
   const [accumulatedSetPoints, setAccumulatedSetPoints] = useState(0);
+  // 한 세트 = 세계 수도 10문제 / 조선 국왕 5명. 세트를 끝까지 쳐야 모인 포인트를 한꺼번에 지급
+  const SET_SIZE = { capitals: 10, joseon: 5 } as const;
+  const SET_BONUS = 30;
+  const [setDoneCount, setSetDoneCount] = useState(0);
+  const [setRewardModal, setSetRewardModal] = useState<{ points: number; label: string } | null>(null);
+
+  // 포인트 지갑은 적립할 때 1/6 로 줄여서 넣으므로(pointsManager), 화면에도 실제로 들어가는 값을 보여줌
+  const realPts = (n: number) => (n > 0 ? Math.max(1, Math.round(n / 6)) : 0);
 
   const awardPoints = (points: number, reason: string) => {
     // Accumulate points in current set; actual points are awarded to user when the set completes!
@@ -67,6 +76,31 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
     setTimeout(() => {
       setBonusPointsAlert((prev) => (prev?.id ? null : prev));
     }, 2000);
+  };
+
+  /** 한 문제(수도 1개 / 국왕 1명)를 끝냈을 때: 세트가 다 차면 포인트 지급 */
+  const countSetItem = (tab: 'capitals' | 'joseon', earned: number, isLastOfCourse: boolean) => {
+    const next = setDoneCount + 1;
+    if (isLastOfCourse) {
+      setSetDoneCount(0);
+      return; // 코스 마지막 문제는 finishCourse 에서 한꺼번에 지급
+    }
+    if (next >= SET_SIZE[tab]) {
+      const total = accumulatedSetPoints + earned + SET_BONUS;
+      if (currentUser?.id) {
+        addTypingPracticePoints(total, `지식타자 (${tab === 'capitals' ? '세계 수도' : '조선 국왕'}) 1세트 완주`);
+      }
+      setAccumulatedSetPoints(0);
+      setSetDoneCount(0);
+      soundManager.play('fanfare');
+      setSetRewardModal({
+        points: total,
+        label: tab === 'capitals' ? `세계 수도 ${SET_SIZE.capitals}문제` : `조선 국왕 ${SET_SIZE.joseon}명`,
+      });
+      setBonusPointsAlert({ id: Date.now(), text: '🎉 1세트 완주! 포인트 지급 완료!', points: total });
+    } else {
+      setSetDoneCount(next);
+    }
   };
 
   // COMMON STATS & TIMER
@@ -176,6 +210,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
     setIsTimerRunning(false);
     setShowAnswerHint(false);
     setAccumulatedSetPoints(0);
+    setSetDoneCount(0);
     bufferedCharsRef.current = 0;
     setStats({
       cpm: 0,
@@ -196,6 +231,8 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
 
   // Restart function
   const handleRestart = () => {
+    setAccumulatedSetPoints(0);
+    setSetDoneCount(0);
     setCapitalIndex(0);
     setKingIndex(0);
     setJoseonStep('name');
@@ -375,8 +412,9 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
         localStorage.setItem('pangpang_conquered_capitals', JSON.stringify(updated));
       }
 
-      // 포인트 대량 적립: 문제당 +5P
+      // 문제당 +5P 적립 (세트를 끝까지 쳐야 지급)
       awardPoints(5, `🌍 ${currentCapital.country} 수도 정복!`);
+      countSetItem('capitals', 5, capitalIndex + 1 >= WORLD_CAPITALS_DATA.length);
 
       setInputVal('');
       setShowAnswerHint(false);
@@ -399,6 +437,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       } else {
         // 2단계: 핵심지식 완료 -> 다음 왕으로 이동
         awardPoints(8, `👑 [2단계] 조선 ${currentKing.order}대 ${currentKing.name} 핵심지식 정복!`);
+        countSetItem('joseon', 8, kingIndex + 1 >= JOSEON_DETAILED_MAP.length);
         if (!conqueredKings.includes(currentKing.order)) {
           const updated = [...conqueredKings, currentKing.order];
           setConqueredKings(updated);
@@ -482,7 +521,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
           <Sparkles className="w-4 h-4 text-yellow-100" />
           <span className="text-xs">{bonusPointsAlert.text}</span>
           <span className="bg-white/30 px-2 py-0.5 rounded-full text-xs text-amber-950 font-extrabold">
-            +{bonusPointsAlert.points} P
+            +{realPts(bonusPointsAlert.points)} P
           </span>
         </div>
       )}
@@ -503,8 +542,13 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                 지식 타자 스튜디오
               </span>
               <span className="text-xs text-amber-600 font-bold flex items-center gap-1">
-                🪙 문제당 포인트 팍팍 적립 중!
+                🪙 한 세트를 끝까지 쳐야 포인트 지급!
               </span>
+              {(activeTab === 'capitals' || activeTab === 'joseon') && (
+                <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300" data-testid="set-progress">
+                  세트 {setDoneCount}/{SET_SIZE[activeTab]} · 완주하면 +{realPts(accumulatedSetPoints + SET_BONUS)}P
+                </span>
+              )}
             </div>
             <h1 className="text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2 mt-0.5">
               {activeTab === 'capitals' && (
@@ -822,7 +866,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                               setKingIndex(order - 1);
                               setInputVal('');
                             }}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
+                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
                               isConquered
                                 ? 'bg-purple-600 text-white ring-2 ring-purple-200'
                                 : isCurrent
@@ -830,13 +874,13 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            {isConquered ? (
-                              <Check className="w-5 h-5 stroke-[2.5]" />
-                            ) : (
-                              <span className={isCurrent ? 'text-sm font-black' : 'text-xs'}>
-                                {order}
-                              </span>
-                            )}
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+
+                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
+
+                              {isConquered ? '✓' : order}
+
+                            </span>
                           </button>
                           <div className="mt-1.5 min-h-[34px]">
                             {isConquered || isCurrent ? (
@@ -885,7 +929,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                               setKingIndex(order - 1);
                               setInputVal('');
                             }}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
+                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
                               isConquered
                                 ? 'bg-purple-600 text-white ring-2 ring-purple-200'
                                 : isCurrent
@@ -893,13 +937,13 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            {isConquered ? (
-                              <Check className="w-5 h-5 stroke-[2.5]" />
-                            ) : (
-                              <span className={isCurrent ? 'text-sm font-black' : 'text-xs'}>
-                                {order}
-                              </span>
-                            )}
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+
+                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
+
+                              {isConquered ? '✓' : order}
+
+                            </span>
                           </button>
                           <div className="mt-1.5 min-h-[34px]">
                             {isConquered || isCurrent ? (
@@ -947,7 +991,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                               setKingIndex(order - 1);
                               setInputVal('');
                             }}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
+                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
                               isConquered
                                 ? 'bg-purple-600 text-white ring-2 ring-purple-200'
                                 : isCurrent
@@ -955,13 +999,13 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            {isConquered ? (
-                              <Check className="w-5 h-5 stroke-[2.5]" />
-                            ) : (
-                              <span className={isCurrent ? 'text-sm font-black' : 'text-xs'}>
-                                {order}
-                              </span>
-                            )}
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+
+                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
+
+                              {isConquered ? '✓' : order}
+
+                            </span>
                           </button>
                           <div className="mt-1.5 min-h-[34px]">
                             {isConquered || isCurrent ? (
@@ -1008,7 +1052,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                               setKingIndex(order - 1);
                               setInputVal('');
                             }}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
+                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
                               isConquered
                                 ? 'bg-purple-600 text-white ring-2 ring-purple-200'
                                 : isCurrent
@@ -1016,13 +1060,13 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                                 : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
                             }`}
                           >
-                            {isConquered ? (
-                              <Check className="w-5 h-5 stroke-[2.5]" />
-                            ) : (
-                              <span className={isCurrent ? 'text-sm font-black' : 'text-xs'}>
-                                {order}
-                              </span>
-                            )}
+                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"><KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" /></span>
+
+                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
+
+                              {isConquered ? '✓' : order}
+
+                            </span>
                           </button>
                           <div className="mt-1.5 min-h-[34px]">
                             {isConquered || isCurrent ? (
@@ -1106,6 +1150,16 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                   </span>
                 </div>
 
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <div className="w-[118px] h-[118px] rounded-full bg-gradient-to-b from-amber-100 to-amber-200 border-4 border-amber-400 shadow-md overflow-hidden grid place-items-end justify-center">
+                      <KingFace order={currentKing.order} size={112} title={hideNameMode ? '조선 국왕' : `조선 ${currentKing.order}대 ${currentKing.name}`} />
+                    </div>
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-purple-700 text-white text-[11px] font-black border-2 border-white whitespace-nowrap">
+                      {hideNameMode ? `${currentKing.order}대 ???` : `${currentKing.order}대 ${currentKing.name}`}
+                    </span>
+                  </div>
+                </div>
                 <div className="text-xs font-bold text-blue-700 flex items-center justify-center gap-1">
                   <span>📍</span>
                   <span>
@@ -1681,6 +1735,30 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       {/* ======================================================== */}
       {/* COMPLETION MODAL */}
       {/* ======================================================== */}
+      {setRewardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" data-testid="set-reward">
+          <div className="bg-white rounded-3xl border-4 border-amber-300 max-w-sm w-full p-6 text-center space-y-3 shadow-2xl">
+            <div className="text-5xl">🎉</div>
+            <h3 className="text-xl font-black text-gray-900">1세트 완주!</h3>
+            <p className="text-xs text-gray-500">{setRewardModal.label}를 끝까지 쳤어요. 모인 포인트를 지금 드려요!</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 font-black text-amber-700">
+              🪙 +{realPts(setRewardModal.points)} P 지급 <span className="text-[11px] text-amber-600">(완주 보너스 포함)</span>
+            </div>
+            {!currentUser?.id && <p className="text-[11px] text-rose-500 font-bold">로그인하면 포인트가 저장돼요.</p>}
+            <button
+              type="button"
+              onClick={() => {
+                setSetRewardModal(null);
+                setTimeout(() => inputRef.current?.focus(), 30);
+              }}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-sm cursor-pointer"
+            >
+              다음 세트 계속하기 ▶
+            </button>
+          </div>
+        </div>
+      )}
+
       {isCompleted && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl border-2 border-amber-300 max-w-md w-full p-8 shadow-2xl text-center relative overflow-hidden">
@@ -1719,7 +1797,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
 
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-6 flex items-center justify-center gap-2 text-amber-800 font-black text-sm">
               <span>🪙 특별 팡팡 포인트</span>
-              <span className="text-amber-600 text-base">+{earnedPoints} P 적립!</span>
+              <span className="text-amber-600 text-base">+{realPts(earnedPoints)} P 적립!</span>
             </div>
 
             {/* Action Buttons */}

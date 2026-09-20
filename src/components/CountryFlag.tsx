@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
-// 71개국 한글 국가명 -> ISO 2자리 코드 매핑 (어떤 OS나 브라우저에서도 깨지지 않는 선명한 실물 국기)
+// 71개국 한글 국가명 -> ISO 2자리 코드 매핑
+// 국기 그림은 public/flags/ 에 들어 있는 SVG(flag-icons, MIT)를 씀 → 윈도우에서도, 인터넷이 막힌 학교에서도 선명하게 보임
 const COUNTRY_ISO_MAP: Record<string, string> = {
   '대한민국': 'kr',
   '일본': 'jp',
@@ -134,8 +135,7 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
       className={`inline-flex items-center justify-center overflow-hidden rounded shadow-sm border border-slate-200/80 bg-slate-50 flex-shrink-0 ${sizeClasses[size]} ${className}`}
     >
       <img
-        src={`https://flagcdn.com/w160/${iso}.png`}
-        srcSet={`https://flagcdn.com/w320/${iso}.png 2x`}
+        src={`flags/${iso}.svg`}
         alt={`${countryName} 국기`}
         className="w-full h-full object-cover select-none"
         loading="lazy"

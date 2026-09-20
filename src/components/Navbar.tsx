@@ -96,12 +96,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   useEffect(() => {
     const handlePointsUpdate = (e: Event) => {
-      const customEvt = e as CustomEvent;
-      if (customEvt.detail?.points !== undefined) {
-        setUserPoints(customEvt.detail.points);
-      } else {
-        setUserPoints(pointsManager.getPoints(currentUser?.id));
-      }
+      // 'typing-points-earned' 의 detail.points 는 '이번에 받은 점수'라서 합계로 쓰면 안 됨 → 항상 지갑에서 다시 읽음
+      void e;
+      setUserPoints(pointsManager.getPoints(currentUser?.id));
     };
 
     window.addEventListener('points-updated', handlePointsUpdate);
