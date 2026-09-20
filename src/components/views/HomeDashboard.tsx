@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Keyboard, 
   BookOpen, 
@@ -34,7 +34,8 @@ import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { CharacterAvatar, DEFAULT_AVATAR_CONFIG } from '../CharacterAvatar';
 import { StudentProgressCard } from '../StudentProgressCard';
 import { LastPracticeGuideCard } from '../LastPracticeGuideCard';
-import { PracticePerformanceChart } from '../PracticePerformanceChart';
+// 그래프 라이브러리는 커서 따로 불러옴 (첫 화면 속도)
+const PracticePerformanceChart = lazy(() => import('../PracticePerformanceChart').then((m) => ({ default: m.PracticePerformanceChart })));
 import { TapangHome, RetroFrame } from './TapangHome';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { 
@@ -179,10 +180,12 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
       <RetroFrame variant="arcade" tag="SCORE BOARD" title="성장 그래프">
       {/* RECHARTS WEEKLY / MONTHLY PRACTICE PERFORMANCE CHART */}
+      <Suspense fallback={<div className="h-64 rounded-3xl bg-white/70 animate-pulse" />}>
       <PracticePerformanceChart
         records={allUserRecords}
         userName={currentUser?.name || '학생'}
       />
+      </Suspense>
       </RetroFrame>
 
       <RetroFrame variant="grass" tag="SAVE DATA" title="최근 타자 기록">

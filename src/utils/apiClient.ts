@@ -8,179 +8,136 @@ export interface BatchRegisterResult {
   message?: string;
 }
 
-class TypangApiClient {
-  private isServerAvailable = true;
+export interface MembersStatus {
+  total: number;
+  pendingApproval: number;
+  pendingChanges: number; // members.json 에 아직 고정되지 않은 변경 수
+  fixedUpdatedAt: number;
+  masterPasswordSet: boolean;
+}
 
-  // Helper to safely clean digits
+const USERS_CACHE_KEY = 'typang_users_db';
+const MASTER_KEY = 'typang_master_key';
+
+/**
+ * 서버가 회원 명단의 유일한 기준입니다.
+ * (예전처럼 브라우저에 남은 명단을 서버에 다시 밀어넣지 않으므로, 마스터가 삭제한 학생이 되살아나지 않습니다.)
+ */
+class TypangApiClient {
+  /* ---------------- helpers ---------------- */
   public extractDigits(phone: string): string {
     return (phone || '').replace(/[^0-9]/g, '');
   }
 
-  // Helper to extract last 4 digits for password
   public getLast4Digits(phone: string): string {
     const digits = this.extractDigits(phone);
-    if (digits.length >= 4) {
-      return digits.slice(-4);
-    }
-    return digits.padEnd(4, '0');
+    return digits.length >= 4 ? digits.slice(-4) : digits.padEnd(4, '0');
   }
 
-  // Format Korean phone numbers: 010-1234-5678
   public formatPhone(raw: string): string {
-    const digits = this.extractDigits(raw);
-    if (digits.length === 11) {
-      return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-    }
-    if (digits.length === 10) {
-      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-    }
+    const d = this.extractDigits(raw);
+    if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
     return raw;
   }
 
-  // Fetch all users from server (falls back to localStorage) - NEVER overwrites existing registered students
-  public async getUsers(): Promise<UserSession[]> {
-    // Read local cache and permanent vault first
-    let localList: UserSession[] = [];
+  /* ---------------- master key (이 브라우저에서 마스터로 인증한 동안만 보관) ---------------- */
+  public getMasterKey(): string {
     try {
-      const p1 = localStorage.getItem('typang_users_db');
-      const p2 = localStorage.getItem('typang_registered_students_vault');
-      const combined = new Map<string, UserSession>();
-      if (p1) (JSON.parse(p1) as UserSession[]).forEach((u) => combined.set(u.id || u.phone, u));
-      if (p2) (JSON.parse(p2) as UserSession[]).forEach((u) => { if (!combined.has(u.id || u.phone)) combined.set(u.id || u.phone, u); });
-      localList = Array.from(combined.values());
+      return localStorage.getItem(MASTER_KEY) || '';
+    } catch {
+      return '';
+    }
+  }
+  public setMasterKey(key: string) {
+    try {
+      localStorage.setItem(MASTER_KEY, key);
     } catch {}
-
+  }
+  public clearMasterKey() {
     try {
-      const res = await fetch('/api/users');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.users)) {
-          this.isServerAvailable = true;
-          // Smart union: keep all existing registered students, never lose anyone on updates!
-          const mergedMap = new Map<string, UserSession>();
-          // Server items
-          data.users.forEach((u: UserSession) => mergedMap.set(u.id || u.phone, u));
-          // Local items (preserve local additions even if server was restarted)
-          localList.forEach((u) => {
-            if (!mergedMap.has(u.id || u.phone)) {
-              mergedMap.set(u.id || u.phone, u);
-            }
-          });
-
-          const finalUsers = Array.from(mergedMap.values());
-          try {
-            localStorage.setItem('typang_users_db', JSON.stringify(finalUsers));
-            localStorage.setItem('typang_registered_students_vault', JSON.stringify(finalUsers));
-          } catch {}
-          return finalUsers;
-        }
-      }
-    } catch (e) {
-      this.isServerAvailable = false;
-    }
-
-    return localList;
+      localStorage.removeItem(MASTER_KEY);
+    } catch {}
   }
 
-  // Two-way sync users to server
-  public async syncUsers(users: UserSession[]): Promise<boolean> {
-    try {
-      const res = await fetch('/api/users/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users }),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+  private headers(json = true): Record<string, string> {
+    const h: Record<string, string> = {};
+    if (json) h['Content-Type'] = 'application/json';
+    const k = this.getMasterKey();
+    if (k) h['x-master-key'] = k;
+    return h;
   }
 
-  // Login by parent phone (or name) + last 4 digits
-  public async login(identifier: string, password?: string): Promise<{ success: boolean; user?: UserSession; message: string }> {
-    const cleanIdent = identifier.trim();
-    const cleanPass = (password || '').trim();
-    const digits = this.extractDigits(cleanIdent);
-    const normIdent = cleanIdent.replace(/\s+/g, '').toLowerCase();
-
-    // 1. Try server login first
+  private async request<T = any>(url: string, init: RequestInit = {}, timeoutMs = 10000): Promise<{ ok: boolean; status: number; data: T | any }> {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const res = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: cleanIdent, password: cleanPass }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        data.user.isApproved = true;
-        try {
-          localStorage.setItem('typang_current_user', JSON.stringify(data.user));
-          sessionStorage.setItem('typang_active_user_id', data.user.id);
-        } catch {}
-        return { success: true, user: data.user, message: '로그인 성공' };
-      }
-    } catch {
-      // Network failure, continue to local search
-    }
-
-    // 2. Offline / LocalStorage Fallback (Never fail if user is in vault or local DB)
-    const localUsers = await this.getUsers();
-    const found = localUsers.find((u) => {
-      const uParentDigits = this.extractDigits(u.parentPhone || '');
-      const uPhoneDigits = this.extractDigits(u.phone || '');
-      const uName = (u.name || '').trim().toLowerCase();
-      const normUName = (u.name || '').replace(/\s+/g, '').toLowerCase();
-      const uId = (u.studentId || '').trim().toLowerCase();
-
-      const matchesPhone = digits.length >= 4 && (
-        uParentDigits.endsWith(digits) ||
-        uPhoneDigits.endsWith(digits) ||
-        (digits.length >= 7 && (uParentDigits.includes(digits) || digits.includes(uParentDigits)))
-      );
-      const matchesName = normIdent.length > 0 && (normUName === normIdent || normUName.includes(normIdent) || uName === cleanIdent.toLowerCase());
-      const matchesId = uId === cleanIdent.toLowerCase() || uId === normIdent;
-
-      return matchesPhone || matchesName || matchesId;
-    });
-
-    if (found) {
-      const expectedPass = found.password || this.getLast4Digits(found.parentPhone || found.phone || '');
-      if (cleanPass && cleanPass !== expectedPass && cleanPass !== '1234' && cleanPass !== 'admin') {
-        return { success: false, message: '비밀번호(전화번호 뒷자리 4자리)가 일치하지 않습니다.' };
-      }
-
-      found.isApproved = true;
-      found.lastLoginAt = Date.now();
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      let data: any = null;
       try {
-        localStorage.setItem('typang_current_user', JSON.stringify(found));
-        sessionStorage.setItem('typang_active_user_id', found.id);
+        data = await res.json();
       } catch {}
-
-      // Background sync to server so server knows this student
-      fetch('/api/users/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: found.name,
-          parentPhone: found.parentPhone || found.phone,
-          phone: found.phone || found.parentPhone,
-          grade: found.grade,
-          avatar: found.avatar,
-          avatarBg: found.avatarBg,
-        }),
-      }).catch(() => {});
-
-      return { success: true, user: found, message: '로그인 성공' };
+      return { ok: res.ok, status: res.status, data };
+    } finally {
+      clearTimeout(t);
     }
-
-    return {
-      success: false,
-      message: `'${cleanIdent}' 학생 정보를 찾을 수 없습니다. 학생 이름이나 부모님 전화번호로 등록해 주세요.`,
-    };
   }
 
-  // Register single student with parent phone (auto-generates last 4 digits as password)
+  private cacheUsers(users: UserSession[]) {
+    try {
+      localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
+      localStorage.removeItem('typang_registered_students_vault'); // 예전 "영구 볼트"는 더 이상 쓰지 않음
+    } catch {}
+  }
+
+  public getCachedUsers(): UserSession[] {
+    try {
+      const raw = localStorage.getItem(USERS_CACHE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /* ---------------- members ---------------- */
+  /** 서버 명단 (마스터 인증 상태면 관리용 정보 포함). 서버에 닿지 않으면 마지막으로 받은 명단 */
+  public async getUsers(): Promise<UserSession[]> {
+    try {
+      const r = await this.request('/api/users', { headers: this.headers(false) });
+      if (r.ok && r.data?.success && Array.isArray(r.data.users)) {
+        this.cacheUsers(r.data.users);
+        return r.data.users;
+      }
+    } catch {}
+    return this.getCachedUsers();
+  }
+
+  /** 더 이상 사용하지 않음 (호환용) */
+  public async syncUsers(_users: UserSession[]): Promise<boolean> {
+    return true;
+  }
+
+  public async login(identifier: string, password?: string): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
+    try {
+      const r = await this.request('/api/users/login', {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({ identifier: identifier.trim(), password: (password || '').trim() }),
+      });
+      if (r.ok && r.data?.success && r.data.user) {
+        try {
+          localStorage.setItem('typang_current_user', JSON.stringify(r.data.user));
+          sessionStorage.setItem('typang_active_user_id', r.data.user.id);
+        } catch {}
+        return { success: true, user: r.data.user, message: '로그인 성공' };
+      }
+      return { success: false, pending: !!r.data?.pending, message: r.data?.message || '로그인에 실패했어요.' };
+    } catch {
+      return { success: false, message: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
+    }
+  }
+
+  /** 학생이 하면 "가입 신청"(승인 대기), 마스터가 하면 바로 등록 */
   public async registerStudent(params: {
     name: string;
     parentPhone: string;
@@ -188,241 +145,145 @@ class TypangApiClient {
     grade?: number;
     avatar?: string;
     avatarBg?: string;
-  }): Promise<{ success: boolean; user?: UserSession; message: string }> {
+  }): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
     const { name, parentPhone, phone, grade = 3, avatar = '⭐', avatarBg = 'bg-yellow-100' } = params;
-    const cleanPhone = this.formatPhone(parentPhone || phone || '');
-    const last4 = this.getLast4Digits(parentPhone || phone || '');
-
     try {
-      const res = await fetch('/api/users/register', {
+      const r = await this.request('/api/users/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          parentPhone: cleanPhone,
-          phone: cleanPhone,
-          grade,
-          avatar,
-          avatarBg,
-        }),
+        headers: this.headers(),
+        body: JSON.stringify({ name: name.trim(), parentPhone: parentPhone || phone, grade, avatar, avatarBg }),
       });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        // Sync local users
-        await this.getUsers();
-        return {
-          success: true,
-          user: data.user,
-          message: data.message || `'${name}' 학생이 등록되었습니다. 비밀번호는 [${last4}]입니다.`,
-        };
+      if (r.ok && r.data?.success) {
+        return { success: true, user: r.data.user, pending: !!r.data.pending, message: r.data.message };
       }
-      return { success: false, message: data.message || '가입 처리에 실패했습니다.' };
-    } catch (e) {
-      // Local fallback
-      const newUser: UserSession = {
-        id: `user_local_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        name: name.trim(),
-        studentId: `std_${last4}`,
-        phone: cleanPhone,
-        parentPhone: cleanPhone,
-        grade,
-        password: last4,
-        avatar,
-        avatarBg,
-        levelTitle: `${grade}학년 타자 꿈나무`,
-        isApproved: true,
-        role: 'student',
-        createdAt: Date.now(),
-        lastLoginAt: Date.now(),
-        totalPracticeCount: 0,
-        highestCpm: 0,
-      };
-
-      const localUsers = await this.getUsers();
-      const updated = [newUser, ...localUsers];
-      try {
-        localStorage.setItem('typang_users_db', JSON.stringify(updated));
-      } catch {}
-
-      return {
-        success: true,
-        user: newUser,
-        message: `'${name}' 학생이 등록되었습니다. (비밀번호: 뒷자리 ${last4})`,
-      };
+      return { success: false, message: r.data?.message || '등록에 실패했어요.' };
+    } catch {
+      return { success: false, message: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
     }
   }
 
-  // Batch register students (Handles 50+ students in one single request)
-  public async batchRegisterStudents(students: Array<{
-    name: string;
-    parentPhone: string;
-    grade?: number;
-    avatar?: string;
-  }>): Promise<BatchRegisterResult> {
+  public async batchRegisterStudents(
+    students: Array<{ name: string; parentPhone: string; grade?: number; avatar?: string }>,
+    autoApprove = true,
+  ): Promise<BatchRegisterResult> {
     try {
-      const res = await fetch('/api/users/batch', {
+      const r = await this.request('/api/users/batch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ students, autoApprove: true }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        // Sync fresh users
-        await this.getUsers();
+        headers: this.headers(),
+        body: JSON.stringify({ students, autoApprove }),
+      }, 30000);
+      if (r.ok && r.data?.success) {
         return {
           success: true,
-          addedCount: data.addedCount,
-          skippedCount: data.skippedCount,
-          totalUsers: data.totalUsers,
-          message: `총 ${data.addedCount}명의 학생 계정이 정상 등록되었습니다!`,
+          addedCount: r.data.addedCount,
+          skippedCount: r.data.skippedCount,
+          totalUsers: r.data.totalUsers,
+          message: `총 ${r.data.addedCount}명의 학생을 등록했어요.`,
         };
       }
-      return {
-        success: false,
-        addedCount: 0,
-        skippedCount: students.length,
-        totalUsers: 0,
-        message: data.message || '일괄 등록에 실패했습니다.',
-      };
-    } catch (e) {
-      console.warn('Batch registration server request failed, using local storage fallback:', e);
-      // Local fallback
-      const localUsers = await this.getUsers();
-      const newItems: UserSession[] = [];
-      const seen = new Set(localUsers.map((u) => `${u.name}_${this.extractDigits(u.parentPhone || u.phone || '')}`));
-
-      for (const s of students) {
-        const digits = this.extractDigits(s.parentPhone);
-        const key = `${s.name}_${digits}`;
-        if (!seen.has(key) && digits.length >= 4) {
-          seen.add(key);
-          const last4 = this.getLast4Digits(digits);
-          newItems.push({
-            id: `user_b_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            name: s.name,
-            studentId: `std_${last4}`,
-            phone: this.formatPhone(s.parentPhone),
-            parentPhone: this.formatPhone(s.parentPhone),
-            grade: s.grade || 3,
-            password: last4,
-            avatar: s.avatar || '⭐',
-            avatarBg: 'bg-yellow-100',
-            levelTitle: `${s.grade || 3}학년 타자 꿈나무`,
-            isApproved: true,
-            role: 'student',
-            createdAt: Date.now(),
-            lastLoginAt: Date.now(),
-            totalPracticeCount: 0,
-            highestCpm: 0,
-          });
-        }
-      }
-
-      const merged = [...newItems, ...localUsers];
-      try {
-        localStorage.setItem('typang_users_db', JSON.stringify(merged));
-      } catch {}
-
-      return {
-        success: newItems.length > 0,
-        addedCount: newItems.length,
-        skippedCount: students.length - newItems.length,
-        totalUsers: merged.length,
-        message: `${newItems.length}명이 등록되었습니다.`,
-      };
+      return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: r.data?.message || '일괄 등록에 실패했어요.' };
+    } catch {
+      return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: '서버에 연결할 수 없어요.' };
     }
   }
 
-  // Update user in server (Protected: Master only for credential/approval changes)
   public async updateUser(id: string, updates: Partial<UserSession>): Promise<boolean> {
-    let role = 'student';
     try {
-      const cur = localStorage.getItem('typang_current_user');
-      if (cur) role = JSON.parse(cur).role || 'student';
-    } catch {}
-
-    try {
-      const res = await fetch(`/api/users/${id}`, {
+      const r = await this.request(`/api/users/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': role,
-          'x-master-auth': role === 'master' ? 'true' : 'false',
-        },
+        headers: this.headers(),
         body: JSON.stringify(updates),
       });
-
-      // Update local cache and vault as well
-      if (res.ok) {
-        try {
-          const dbStr = localStorage.getItem('typang_users_db');
-          if (dbStr) {
-            const list: UserSession[] = JSON.parse(dbStr);
-            const updated = list.map((u) => (u.id === id ? { ...u, ...updates } : u));
-            localStorage.setItem('typang_users_db', JSON.stringify(updated));
-            localStorage.setItem('typang_registered_students_vault', JSON.stringify(updated));
-          }
-        } catch {}
-      }
-
-      return res.ok;
+      return r.ok;
     } catch {
       return false;
     }
   }
 
-  // Delete user from server (Protected: strictly Master only)
   public async deleteUser(id: string): Promise<boolean> {
-    let role = 'student';
     try {
-      const cur = localStorage.getItem('typang_current_user');
-      if (cur) role = JSON.parse(cur).role || 'student';
-    } catch {}
-
-    try {
-      const res = await fetch(`/api/users/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'x-user-role': role,
-          'x-master-auth': role === 'master' ? 'true' : 'false',
-        },
-      });
-
-      if (res.ok) {
-        try {
-          const dbStr = localStorage.getItem('typang_users_db');
-          if (dbStr) {
-            const list: UserSession[] = JSON.parse(dbStr);
-            const filtered = list.filter((u) => u.id !== id);
-            localStorage.setItem('typang_users_db', JSON.stringify(filtered));
-            localStorage.setItem('typang_registered_students_vault', JSON.stringify(filtered));
-          }
-        } catch {}
-      }
-
-      return res.ok;
+      const r = await this.request(`/api/users/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.headers(false) });
+      return r.ok;
     } catch {
       return false;
     }
   }
 
-  // Get leaderboard
+  /* ---------------- master ---------------- */
+  public async masterLogin(password: string): Promise<{ success: boolean; message?: string; status?: MembersStatus }> {
+    try {
+      const r = await this.request('/api/master/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (r.ok && r.data?.success) {
+        this.setMasterKey(password);
+        return { success: true, status: r.data.status };
+      }
+      return { success: false, message: r.data?.message || '마스터 비밀번호가 올바르지 않습니다.' };
+    } catch {
+      return { success: false, message: '서버에 연결할 수 없어요.' };
+    }
+  }
+
+  public async getMembersStatus(): Promise<MembersStatus | null> {
+    try {
+      const r = await this.request('/api/members/status', { headers: this.headers(false) });
+      return r.ok ? r.data.status : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** members.json 파일을 내려받음 */
+  public async downloadMembersFile(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/members/export', { headers: this.headers(false) });
+      if (!res.ok) return false;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'members.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async setMasterPassword(password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const r = await this.request('/api/master/password', {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({ password }),
+      });
+      if (r.ok && r.data?.success) {
+        this.setMasterKey(password);
+        return { success: true };
+      }
+      return { success: false, message: r.data?.message || '변경에 실패했어요.' };
+    } catch {
+      return { success: false, message: '서버에 연결할 수 없어요.' };
+    }
+  }
+
+  /* ---------------- leaderboard ---------------- */
   public async getLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
-      const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.leaderboard)) {
-          try {
-            localStorage.setItem('typang_leaderboard', JSON.stringify(data.leaderboard));
-          } catch {}
-          return data.leaderboard;
-        }
+      const r = await this.request('/api/leaderboard');
+      if (r.ok && r.data?.success && Array.isArray(r.data.leaderboard)) {
+        try {
+          localStorage.setItem('typang_leaderboard', JSON.stringify(r.data.leaderboard));
+        } catch {}
+        return r.data.leaderboard;
       }
     } catch {}
-
     try {
       const local = localStorage.getItem('typang_leaderboard');
       return local ? JSON.parse(local) : [];
@@ -431,32 +292,22 @@ class TypangApiClient {
     }
   }
 
-  // Record score in leaderboard
   public async recordScore(entry: Omit<LeaderboardEntry, 'id' | 'date'>): Promise<LeaderboardEntry[]> {
     try {
-      const res = await fetch('/api/leaderboard', {
+      const r = await this.request('/api/leaderboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(entry),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.leaderboard)) {
-          try {
-            localStorage.setItem('typang_leaderboard', JSON.stringify(data.leaderboard));
-          } catch {}
-          return data.leaderboard;
-        }
+      if (r.ok && r.data?.success && Array.isArray(r.data.leaderboard)) {
+        try {
+          localStorage.setItem('typang_leaderboard', JSON.stringify(r.data.leaderboard));
+        } catch {}
+        return r.data.leaderboard;
       }
     } catch {}
-
-    // Fallback
     const local = await this.getLeaderboard();
-    const newEntry: LeaderboardEntry = {
-      ...entry,
-      id: `lead_local_${Date.now()}`,
-      date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
-    };
+    const newEntry: LeaderboardEntry = { ...entry, id: `lead_local_${Date.now()}`, date: new Date().toISOString().slice(0, 10).replace(/-/g, '.') } as LeaderboardEntry;
     const updated = [newEntry, ...local].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 100);
     try {
       localStorage.setItem('typang_leaderboard', JSON.stringify(updated));

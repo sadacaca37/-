@@ -1,32 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { AuthModal } from './components/AuthModal';
-import { ProfileModal } from './components/ProfileModal';
-import { MasterModal } from './components/MasterModal';
-import { MonthlyReportModal } from './components/MonthlyReportModal';
-import { PracticeHistoryModal } from './components/PracticeHistoryModal';
 import { HomeDashboard } from './components/views/HomeDashboard';
-import { KeyPracticeView } from './components/views/KeyPracticeView';
-import { WordPracticeView } from './components/views/WordPracticeView';
-import { SentencePracticeView } from './components/views/SentencePracticeView';
-import { LongTextPracticeView } from './components/views/LongTextPracticeView';
-import { JourneyPracticeView } from './components/views/JourneyPracticeView';
-import { KnowledgeHubView } from './components/views/KnowledgeHubView';
-import { PythonPracticeView } from './components/views/PythonPracticeView';
-import { WordCrushView } from './components/views/WordCrushView';
-import { MoleGameView } from './components/views/MoleGameView';
-import { RainGameView } from './components/views/RainGameView';
-import { ShortcutQuizView } from './components/views/ShortcutQuizView';
-import { LeaderboardView } from './components/views/LeaderboardView';
-import { TamagotchiView } from './components/views/TamagotchiView';
-import { PlaygroundHome } from './components/views/playground/PlaygroundHome';
-import { MiniGamesHubView } from './components/views/MiniGamesHubView';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
 import { PracticeWindowContainer } from './components/PracticeWindowContainer';
 import { soundManager } from './utils/sound';
 import { typangApi } from './utils/apiClient';
 import { userPersistenceManager } from './utils/userPersistenceManager';
+
+// 첫 화면에 필요 없는 화면·창은 필요할 때 불러와서 처음 접속이 빨라지도록 분리
+const ProfileModal = lazy(() => import('./components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
+const MasterModal = lazy(() => import('./components/MasterModal').then((m) => ({ default: m.MasterModal })));
+const MonthlyReportModal = lazy(() => import('./components/MonthlyReportModal').then((m) => ({ default: m.MonthlyReportModal })));
+const PracticeHistoryModal = lazy(() => import('./components/PracticeHistoryModal').then((m) => ({ default: m.PracticeHistoryModal })));
+const KeyPracticeView = lazy(() => import('./components/views/KeyPracticeView').then((m) => ({ default: m.KeyPracticeView })));
+const WordPracticeView = lazy(() => import('./components/views/WordPracticeView').then((m) => ({ default: m.WordPracticeView })));
+const SentencePracticeView = lazy(() => import('./components/views/SentencePracticeView').then((m) => ({ default: m.SentencePracticeView })));
+const LongTextPracticeView = lazy(() => import('./components/views/LongTextPracticeView').then((m) => ({ default: m.LongTextPracticeView })));
+const JourneyPracticeView = lazy(() => import('./components/views/JourneyPracticeView').then((m) => ({ default: m.JourneyPracticeView })));
+const KnowledgeHubView = lazy(() => import('./components/views/KnowledgeHubView').then((m) => ({ default: m.KnowledgeHubView })));
+const PythonPracticeView = lazy(() => import('./components/views/PythonPracticeView').then((m) => ({ default: m.PythonPracticeView })));
+const WordCrushView = lazy(() => import('./components/views/WordCrushView').then((m) => ({ default: m.WordCrushView })));
+const MoleGameView = lazy(() => import('./components/views/MoleGameView').then((m) => ({ default: m.MoleGameView })));
+const RainGameView = lazy(() => import('./components/views/RainGameView').then((m) => ({ default: m.RainGameView })));
+const ShortcutQuizView = lazy(() => import('./components/views/ShortcutQuizView').then((m) => ({ default: m.ShortcutQuizView })));
+const LeaderboardView = lazy(() => import('./components/views/LeaderboardView').then((m) => ({ default: m.LeaderboardView })));
+const TamagotchiView = lazy(() => import('./components/views/TamagotchiView').then((m) => ({ default: m.TamagotchiView })));
+const PlaygroundHome = lazy(() => import('./components/views/playground/PlaygroundHome').then((m) => ({ default: m.PlaygroundHome })));
+const MiniGamesHubView = lazy(() => import('./components/views/MiniGamesHubView').then((m) => ({ default: m.MiniGamesHubView })));
 
 // Initial Hall of Fame data (Strictly for Short Sentence Practice)
 const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
@@ -97,69 +99,6 @@ const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
   },
 ];
 
-// Initial Seed Users for Student Approval Manager
-const INITIAL_USERS_DB: UserSession[] = [
-  {
-    id: 'user_1',
-    name: '김철수',
-    studentId: 'student1',
-    phone: '010-1111-2222',
-    password: 'password123',
-    avatar: '🐱',
-    levelTitle: '타자 꿈나무',
-    isApproved: true,
-    role: 'student',
-    createdAt: Date.now() - 86400000 * 3,
-    lastLoginAt: Date.now() - 3600000,
-    totalPracticeCount: 15,
-    highestCpm: 420,
-  },
-  {
-    id: 'user_2',
-    name: '이영희',
-    studentId: 'student2',
-    phone: '010-3333-4444',
-    password: 'happy2026!',
-    avatar: '🐰',
-    levelTitle: '점프 타자',
-    isApproved: true,
-    role: 'student',
-    createdAt: Date.now() - 86400000 * 2,
-    lastLoginAt: Date.now() - 7200000,
-    totalPracticeCount: 8,
-    highestCpm: 380,
-  },
-  {
-    id: 'user_3',
-    name: '박민수',
-    studentId: 'minsu_park',
-    phone: '010-5555-6666',
-    password: 'minsu7788',
-    avatar: '🐶',
-    levelTitle: '열혈 연습생',
-    isApproved: false, // Pending approval for teacher!
-    role: 'student',
-    createdAt: Date.now() - 1800000,
-    lastLoginAt: Date.now() - 1800000,
-    totalPracticeCount: 0,
-    highestCpm: 0,
-  },
-  {
-    id: 'user_4',
-    name: '최지우',
-    studentId: 'jiwoo_choi',
-    phone: '010-7777-8888',
-    password: 'jiwoo1234',
-    avatar: '🦄',
-    levelTitle: '전설의 타수',
-    isApproved: false, // Pending approval for teacher!
-    role: 'student',
-    createdAt: Date.now() - 900000,
-    lastLoginAt: Date.now() - 900000,
-    totalPracticeCount: 0,
-    highestCpm: 0,
-  },
-];
 
 // Helper to detect initial mode synchronously from URL params (?mode=...)
 const getInitialMode = (): AppMode => {
@@ -202,23 +141,9 @@ export default function App() {
   // Initialize DB and sessions
   useEffect(() => {
     try {
-      // 1. Users DB (Permanently fixed across updates, registered students never lost)
-      const localFixedUsers = userPersistenceManager.getLocalUsers();
-      if (localFixedUsers.length > 0) {
-        setUsersDb(localFixedUsers);
-      } else {
-        localStorage.setItem('typang_users_db', JSON.stringify(INITIAL_USERS_DB));
-        localStorage.setItem('typang_registered_students_vault', JSON.stringify(INITIAL_USERS_DB));
-        setUsersDb(INITIAL_USERS_DB);
-      }
-
-      // Safe Two-Way Reconciliation with Server: registered students are permanently preserved
-      typangApi.getUsers().then(async (serverUsers) => {
-        if (serverUsers && serverUsers.length > 0) {
-          const merged = await userPersistenceManager.reconcileWithServer(serverUsers);
-          setUsersDb(merged);
-        }
-      }).catch(() => {});
+      // 1. 회원 명단: 서버(members.json 고정 명단)가 기준. 먼저 캐시로 그리고, 서버 명단으로 교체
+      setUsersDb(userPersistenceManager.getLocalUsers());
+      typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
 
       // 2. Current User Session
       const savedUser = localStorage.getItem('typang_current_user');
@@ -268,6 +193,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('typang_current_user');
+    typangApi.clearMasterKey();
     setCurrentUser(null);
   };
 
@@ -418,6 +344,7 @@ export default function App() {
           ? 'max-w-7xl px-2 sm:px-4 py-1.5 sm:py-2.5 mx-auto'
           : 'max-w-7xl px-3 sm:px-6 lg:px-8 py-6 mx-auto'
       }`}>
+        <Suspense fallback={<div className="py-24 text-center text-sm font-black text-slate-500 animate-pulse">불러오는 중…</div>}>
         {currentMode === 'home' && (
           <HomeDashboard
             onSelectMode={handleSelectMode}
@@ -634,6 +561,7 @@ export default function App() {
             onStartSentencePractice={() => handleSelectMode('sentence-practice')}
           />
         )}
+        </Suspense>
       </main>
 
       {/* Footer: QUEST COMPLETE (김은경 제작자) - Hidden in standalone popup window */}
@@ -651,18 +579,19 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
       />
 
+      <Suspense fallback={null}>
       {/* Profile & Avatar Selector Modal */}
-      <ProfileModal
+      {isProfileOpen && <ProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         currentUser={currentUser}
         onUpdateUser={handleUpdateProfile}
         onOpenAuth={() => setIsAuthOpen(true)}
         initialTab={profileInitialTab}
-      />
+      />}
 
       {/* Master / Teacher Console Modal */}
-      <MasterModal
+      {isMasterOpen && <MasterModal
         isOpen={isMasterOpen}
         onClose={() => setIsMasterOpen(false)}
         currentUser={currentUser}
@@ -672,18 +601,18 @@ export default function App() {
           setReportTargetUser(student);
           setIsReportOpen(true);
         }}
-      />
+      />}
 
       {/* Monthly Report Card Modal (SMS / MMS / Download) */}
-      <MonthlyReportModal
+      {isReportOpen && <MonthlyReportModal
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
         currentUser={currentUser}
         targetUser={reportTargetUser}
-      />
+      />}
 
       {/* Student Typing Practice History Modal */}
-      <PracticeHistoryModal
+      {isHistoryOpen && <PracticeHistoryModal
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         currentUser={currentUser}
@@ -691,7 +620,8 @@ export default function App() {
           setIsHistoryOpen(false);
           handleSelectMode(mode);
         }}
-      />
+      />}
+      </Suspense>
     </div>
   );
 }

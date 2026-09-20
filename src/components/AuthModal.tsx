@@ -115,7 +115,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const rawKey = studentId.trim();
     if (activeTab === 'login' && (rawKey.toLowerCase() === 'master' || rawKey === '마스터' || rawKey === '선생님' || rawKey === '관리자')) {
       const masterCfg = getMasterConfig();
-      if (password === masterCfg.masterPassword || password === '1234' || password === 'admin') {
+      const masterRes = await typangApi.masterLogin(password.trim());
+      if (masterRes.success) {
         const masterSession: UserSession = {
           id: 'master_admin',
           name: masterCfg.masterName || '마스터 선생님',
@@ -136,7 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
         return;
       } else {
-        setErrorMsg('선생님(마스터) 비밀번호가 일치하지 않습니다.');
+        setErrorMsg(masterRes.message || '선생님(마스터) 비밀번호가 일치하지 않습니다.');
         return;
       }
     }
@@ -166,6 +167,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           onLoginSuccess(res.user);
           onClose();
+          return;
+        } else if (res.pending) {
+          setPendingApprovalMsg(`🔒 ${res.message}`);
           return;
         } else {
           setErrorMsg(res.message || `'${loginKey}' 계정 정보를 찾을 수 없거나 비밀번호가 일치하지 않습니다.`);
@@ -210,15 +214,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         const newUser = res.user;
-        setSuccessMsg(
-          `🎉 '${newUser.name}' 학생 등록이 완료되었습니다!\n🔑 자동 설정된 비밀번호는 부모님 전화번호 뒷자리 [${autoPw}]입니다.\n지금 바로 타자 연습을 시작합니다!`
-        );
-
-        // Auto login right away
-        setTimeout(() => {
-          onLoginSuccess(newUser);
-          onClose();
-        }, 1200);
+        if (res.pending || !newUser.isApproved) {
+          setSuccessMsg(
+            `📮 '${newUser.name}' 가입 신청이 접수되었어요!\n선생님이 마스터 관리실에서 승인하면 로그인할 수 있어요.\n🔑 비밀번호는 부모님 전화번호 뒷자리 [${autoPw}]입니다.`
+          );
+          return;
+        }
+        setSuccessMsg(`🎉 '${newUser.name}' 학생은 이미 등록되어 있어요. 비밀번호 [${autoPw}]로 로그인하세요!`);
+        setActiveTab('login');
       } catch (err: any) {
         setErrorMsg('학생 등록 중 오류가 발생했습니다: ' + (err?.message || '다시 시도해 주세요.'));
       }
@@ -298,7 +301,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   // 5. Register Teacher / Master Account
-  const handleRegisterMasterAccount = (e: React.FormEvent) => {
+  const handleRegisterMasterAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     clearMessages();
     if (!masterRegName.trim() || !masterRegEmail.trim() || !masterRegPassword.trim() || !masterRegSecretKey.trim()) {
@@ -307,6 +310,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
     if (masterRegPassword.length < 4 || masterRegSecretKey.length < 4) {
       setErrorMsg('비밀번호와 마스터키는 각각 4자리 이상으로 설정해 주세요.');
+      return;
+    }
+
+    // 서버에서 현재 마스터 비밀번호(=마스터키)를 확인한 뒤에만 새 비밀번호로 바꿀 수 있음
+    const auth = await typangApi.masterLogin(masterRegSecretKey.trim());
+    if (!auth.success) {
+      setErrorMsg('마스터키(현재 마스터 비밀번호)가 맞지 않아요. 처음이라면 기본값 1234 를 입력하세요.');
+      return;
+    }
+    const changed = await typangApi.setMasterPassword(masterRegPassword.trim());
+    if (!changed.success) {
+      setErrorMsg(changed.message || '마스터 비밀번호를 바꾸지 못했어요.');
       return;
     }
 
@@ -319,7 +334,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     });
 
     if (result.success) {
-      setSuccessMsg('👑 선생님 마스터 계정이 등록되었습니다! 마스터 비밀번호로 관리실에 로그인하실 수 있습니다.');
+      setSuccessMsg('👑 마스터 비밀번호를 바꿨어요! 이제 새 비밀번호로 관리실에 들어갈 수 있어요. (명단 고정 파일을 다시 받아 두면 재배포 후에도 유지됩니다)');
       setActiveTab('login');
     } else {
       setErrorMsg(result.message);
@@ -345,13 +360,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-arcade">
             {activeTab === 'login' && '학생 로그인'}
-            {activeTab === 'register' && '학생 간편 등록'}
+            {activeTab === 'register' && '학생 가입 신청'}
             {activeTab === 'forgot-pw' && '비밀번호 찾기 & 재설정'}
             {activeTab === 'register-master' && '마스터(선생님) 등록'}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
             {activeTab === 'login' && '부모님 전화번호와 뒷자리 4자리로 간편하게 로그인하세요!'}
-            {activeTab === 'register' && '아이디 없이 부모님 전화번호만 입력하면 자동 등록됩니다! (비밀번호: 뒷 4자리)'}
+            {activeTab === 'register' && '이름과 부모님 전화번호로 신청하면, 선생님이 승인한 뒤 로그인할 수 있어요. (비밀번호: 뒷 4자리)'}
             {activeTab === 'forgot-pw' && '이메일 인증 또는 선생님 마스터키로 비밀번호를 안전하게 찾으세요.'}
             {activeTab === 'register-master' && '선생님 전용 마스터키와 비밀번호를 안전하게 등록 및 관리합니다.'}
           </p>
@@ -388,7 +403,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>학생 등록</span>
+            <span>가입 신청</span>
           </button>
 
           <button
@@ -655,7 +670,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4" />
-                    <span>간편 등록 완료 및 타자 시작</span>
+                    <span>가입 신청하기 (선생님 승인 후 이용)</span>
                   </>
                 )}
               </button>

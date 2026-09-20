@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+// 엑셀 라이브러리(xlsx)는 크기가 커서, 엑셀 기능을 쓸 때만 불러옵니다
+const loadXlsx = () => import('xlsx');
 import { UserSession } from '../types';
 import { PREDEFINED_AVATARS } from '../data/practiceData';
 import { typangApi } from './apiClient';
@@ -114,7 +115,8 @@ export function getLast4(phone: string): string {
 // --------------------------------------------------------------------------
 // Generate & Download Ultra-Simple 50-Student Excel Template (.xlsx)
 // --------------------------------------------------------------------------
-export function downloadStudentExcelTemplate(): void {
+export async function downloadStudentExcelTemplate(): Promise<void> {
+  const XLSX = await loadXlsx();
   // Generate 50 sample/guide rows ready for quick teacher entry
   const sampleData = [
     {
@@ -192,6 +194,7 @@ export function downloadStudentExcelTemplate(): void {
 // Parse Excel File (.xlsx, .xls, .csv)
 // --------------------------------------------------------------------------
 export async function parseStudentExcelFile(file: File): Promise<ExcelParseResult> {
+  const XLSX = await loadXlsx();
   return new Promise((resolve) => {
     const reader = new FileReader();
 
@@ -468,13 +471,18 @@ export async function saveBatchStudentsToDb(
     }
 
     // Call server backend for durable multi-client persistence (handles 50+ students in one transaction)
-    await typangApi.batchRegisterStudents(
+    const batchRes = await typangApi.batchRegisterStudents(
       validItems.map((item) => ({
         name: item.name,
         parentPhone: item.parentPhone,
         grade: item.grade || 3,
-      }))
+      })),
+      autoApprove
     );
+    if (!batchRes.success) {
+      const current = await typangApi.getUsers();
+      return { success: false, insertedCount: 0, totalUsersCount: current.length, updatedUsers: current };
+    }
 
     // Fetch refreshed complete list
     const updatedUsers = await typangApi.getUsers();
@@ -499,7 +507,7 @@ export async function saveBatchStudentsToDb(
 
     return {
       success: true,
-      insertedCount: validItems.length,
+      insertedCount: batchRes.addedCount,
       totalUsersCount: updatedUsers.length,
       updatedUsers,
     };

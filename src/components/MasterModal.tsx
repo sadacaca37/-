@@ -52,8 +52,7 @@ import {
   ParsedStudentItem,
   ExcelParseResult
 } from '../utils/excelStudentManager';
-import { typangApi } from '../utils/apiClient';
-import { userPersistenceManager } from '../utils/userPersistenceManager';
+import { typangApi, MembersStatus } from '../utils/apiClient';
 
 interface MasterModalProps {
   isOpen: boolean;
@@ -73,7 +72,9 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   onOpenReportForUser,
 }) => {
   const [masterPassInput, setMasterPassInput] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(currentUser?.role === 'master');
+  const [isAuthenticated, setIsAuthenticated] = useState(currentUser?.role === 'master' && !!typangApi.getMasterKey());
+  const [membersStatus, setMembersStatus] = useState<MembersStatus | null>(null);
+  const [rosterMsg, setRosterMsg] = useState('');
   const [authError, setAuthError] = useState('');
   const [activeConsoleTab, setActiveConsoleTab] = useState<'students' | 'history-inspector' | 'security'>('students');
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,10 +182,23 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   }, [onUpdateUsersList]);
 
   useEffect(() => {
-    if (currentUser?.role === 'master') {
+    if (currentUser?.role === 'master' && typangApi.getMasterKey()) {
       setIsAuthenticated(true);
     }
   }, [currentUser]);
+
+  // 서버 명단(기준)을 다시 받아와 화면에 반영
+  const refreshFromServer = React.useCallback(async () => {
+    const list = await typangApi.getUsers();
+    setUsersList(list);
+    onUpdateUsersList(list);
+    setMembersStatus(await typangApi.getMembersStatus());
+    return list;
+  }, [onUpdateUsersList]);
+
+  useEffect(() => {
+    if (isOpen && isAuthenticated) refreshFromServer();
+  }, [isOpen, isAuthenticated, refreshFromServer]);
 
   useEffect(() => {
     if (isOpen) {
@@ -207,12 +221,13 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
   const users = usersList;
 
-  const handleMasterAuth = (e: React.FormEvent) => {
+  const handleMasterAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     const currentCfg = getMasterConfig();
+    const auth = await typangApi.masterLogin(masterPassInput.trim());
 
-    if (masterPassInput === currentCfg.masterPassword || masterPassInput === '1234' || masterPassInput === 'admin') {
+    if (auth.success) {
       setIsAuthenticated(true);
       const masterUser: UserSession = {
         id: 'master_admin',
@@ -232,7 +247,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       localStorage.setItem('typang_current_user', JSON.stringify(masterUser));
       onMasterLogin(masterUser);
     } else {
-      setAuthError('마스터 비밀번호가 올바르지 않습니다. 관리자 정보를 확인하세요.');
+      setAuthError(auth.message || '마스터 비밀번호가 올바르지 않습니다. 관리자 정보를 확인하세요.');
     }
   };
 
@@ -243,33 +258,26 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     }));
   };
 
-  const handleToggleApproval = (userId: string, newStatus: boolean) => {
-    const updated = users.map((u) => (u.id === userId ? { ...u, isApproved: newStatus } : u));
-    userPersistenceManager.saveUsers(updated);
-    setUsersList(updated);
-    onUpdateUsersList(updated);
-    typangApi.updateUser(userId, { isApproved: newStatus });
-    typangSync.broadcast('APPROVAL_CHANGED', { userId, isApproved: newStatus });
-  };
+  const masterFail = () => alert('마스터 인증이 만료되었거나 서버에 연결되지 않았어요. 관리실에 다시 로그인해 주세요.');
 
-  const handleApproveAllPending = () => {
-    const updated = users.map((u) => ({ ...u, isApproved: true }));
-    userPersistenceManager.saveUsers(updated);
-    setUsersList(updated);
-    onUpdateUsersList(updated);
-    updated.forEach((u) => {
-      if (!u.isApproved) typangApi.updateUser(u.id, { isApproved: true });
-    });
+  const handleToggleApproval = async (userId: string, newStatus: boolean) => {
+    if (!(await typangApi.updateUser(userId, { isApproved: newStatus }))) return masterFail();
+    const updated = await refreshFromServer();
     typangSync.broadcast('USERS_UPDATED', updated);
   };
 
-  const handleDeleteUser = (userId: string, userName: string) => {
+  const handleApproveAllPending = async () => {
+    const pending = users.filter((u) => !u.isApproved && u.role !== 'master');
+    const results = await Promise.all(pending.map((u) => typangApi.updateUser(u.id, { isApproved: true })));
+    if (results.some((ok) => !ok)) masterFail();
+    const updated = await refreshFromServer();
+    typangSync.broadcast('USERS_UPDATED', updated);
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
     if (window.confirm(`'${userName}' 학생의 계정을 정말로 삭제하시겠습니까?\n(마스터 관리자만 학생 계정 수정/삭제가 가능합니다.)`)) {
-      const updated = users.filter((u) => u.id !== userId);
-      userPersistenceManager.saveUsers(updated);
-      setUsersList(updated);
-      onUpdateUsersList(updated);
-      typangApi.deleteUser(userId);
+      if (!(await typangApi.deleteUser(userId))) return masterFail();
+      const updated = await refreshFromServer();
       typangSync.broadcast('USERS_UPDATED', updated);
       if (selectedStudentForHistory?.id === userId) {
         setSelectedStudentForHistory(null);
@@ -278,16 +286,13 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     }
   };
 
-  const handleSaveEditPassword = (userId: string) => {
+  const handleSaveEditPassword = async (userId: string) => {
     if (!editPassValue || editPassValue.length < 4) {
       alert('비밀번호는 최소 4자리 이상이어야 합니다.');
       return;
     }
-    const updated = users.map((u) => (u.id === userId ? { ...u, password: editPassValue } : u));
-    userPersistenceManager.saveUsers(updated);
-    setUsersList(updated);
-    onUpdateUsersList(updated);
-    typangApi.updateUser(userId, { password: editPassValue });
+    if (!(await typangApi.updateUser(userId, { password: editPassValue }))) return masterFail();
+    const updated = await refreshFromServer();
     typangSync.broadcast('USERS_UPDATED', updated);
     setEditingUserId(null);
     setEditPassValue('');
@@ -321,16 +326,9 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       }
 
       const registered = res.user;
-
-      // Master registered -> ensure approved
-      const updated = usersList.map((u) => (u.id === registered.id ? { ...u, isApproved: true } : u));
-      if (!updated.some((u) => u.id === registered.id)) {
-        updated.unshift({ ...registered, isApproved: true });
-      }
-
-      setUsersList(updated);
-      onUpdateUsersList(updated);
-      userPersistenceManager.saveUsers(updated);
+      // 이미 가입 신청한 학생이면 마스터 등록 = 승인
+      if (!registered.isApproved) await typangApi.updateUser(registered.id, { isApproved: true });
+      await refreshFromServer();
 
       typangSync.broadcast('STUDENT_REGISTERED', {
         name: registered.name,
@@ -406,7 +404,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     setActiveConsoleTab('history-inspector');
   };
 
-  const handleSaveSecurityConfig = (e: React.FormEvent) => {
+  const handleSaveSecurityConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!secName.trim() || !secEmail.trim() || !secKey.trim() || !secPassword.trim()) {
       alert('모든 필수 보안 항목을 입력해 주세요.');
@@ -420,6 +418,15 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       masterPassword: secPassword.trim(),
       masterPhone: masterConfig.masterPhone,
     };
+    // 마스터 비밀번호는 서버에 저장(해시) → 명단 고정 파일에도 함께 들어가 재배포 후에도 유지
+    if (secPassword.trim() !== typangApi.getMasterKey()) {
+      const r = await typangApi.setMasterPassword(secPassword.trim());
+      if (!r.success) {
+        alert(r.message || '서버에 마스터 비밀번호를 저장하지 못했어요.');
+        return;
+      }
+      setMembersStatus(await typangApi.getMembersStatus());
+    }
     saveMasterConfig(updatedCfg);
     setMasterConfig(updatedCfg);
     setSecSaveMsg('🔒 마스터 보안 설정(비밀 마스터키 & 복구 이메일)이 안전하게 저장되었습니다!');
@@ -434,7 +441,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     const matchSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.studentId && u.studentId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      u.phone.includes(searchQuery);
+      (u.phone || '').includes(searchQuery);
 
     if (filterTab === 'pending') return matchSearch && !u.isApproved;
     if (filterTab === 'approved') return matchSearch && u.isApproved;
@@ -598,10 +605,34 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   </div>
                 )}
 
-                {/* Action Bar */}
-                <div className="flex items-center gap-2 px-3.5 py-2 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs text-blue-900 font-bold shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>데이터 영구 고정 보호 가동 중: 사이트 업데이트 및 데이터 갱신 시에도 가입된 학생 정보는 절대 초기화되지 않고 안전하게 보존됩니다. (수정 및 삭제는 마스터만 가능)</span>
+                {/* 명단 고정 상태: 코드 수정·재배포 후에도 명단이 유지되도록 members.json 으로 고정 */}
+                <div
+                  className={`flex flex-wrap items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold shrink-0 border ${
+                    membersStatus && membersStatus.pendingChanges > 0
+                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 min-w-[220px]">
+                    {membersStatus && membersStatus.pendingChanges > 0
+                      ? `📌 아직 고정되지 않은 명단 변경 ${membersStatus.pendingChanges}건 — [명단 고정 파일 받기]로 받은 members.json 을 프로젝트 맨 위 폴더에 덮어쓰면 코드를 고쳐 다시 배포해도 명단이 그대로 유지됩니다.`
+                      : '🔒 명단이 고정되어 있어요. 코드를 고쳐 다시 배포해도 이 명단은 그대로 유지됩니다. (추가·삭제·승인은 마스터만 가능)'}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid="export-members"
+                    onClick={async () => {
+                      const ok = await typangApi.downloadMembersFile();
+                      setRosterMsg(ok ? '✅ members.json 을 받았어요. 프로젝트 맨 위 폴더의 members.json 을 이 파일로 바꿔 주세요.' : '❌ 받지 못했어요. 관리실에 다시 로그인해 주세요.');
+                      setMembersStatus(await typangApi.getMembersStatus());
+                      setTimeout(() => setRosterMsg(''), 8000);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-black hover:bg-slate-700 cursor-pointer"
+                  >
+                    📥 명단 고정 파일 받기
+                  </button>
+                  {rosterMsg && <span className="w-full text-[11px]">{rosterMsg}</span>}
                 </div>
 
                 <div className="flex items-center justify-between gap-3 shrink-0 flex-wrap">
