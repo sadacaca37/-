@@ -4,6 +4,12 @@ import { Chunk, CHUNK_WIDTH, CHUNK_DEPTH, CHUNK_HEIGHT } from "./Chunk";
 import { NoiseGenerator } from "./Noise";
 import { VoxelTextureAtlas } from "./TextureAtlas";
 
+/** 좌표로 정해지는 0~1 난수 (같은 자리는 언제나 같은 값) */
+function hash2(a: number, b: number): number {
+  const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
 // ---------------------------------------------------------------------------
 // Terrain generation tuning constants (multi-octave elevation, rivers, biomes)
 // ---------------------------------------------------------------------------
@@ -316,9 +322,15 @@ export class VoxelWorld {
         const wx = startWx + lx;
         const wz = startWz + lz;
 
-        // Tree probability check based on pseudo-noise
-        const treeVal = (Math.sin(wx * 37.1 + wz * 61.3) + 1) * 0.5;
-        if (treeVal > 0.94) {
+        // 나무 위치: 4x4 칸마다 최대 한 그루 (예전에는 6칸 중 1칸꼴로 빽빽했음)
+        const cellSize = 5;
+        const cellX = Math.floor(wx / cellSize);
+        const cellZ = Math.floor(wz / cellSize);
+        const hasTree = hash2(cellX, cellZ) < 0.8; // 칸의 20%는 빈터로 남겨 둠
+        // 칸 가장자리는 비워 둬서 옆 칸 나무와 최소 3칸은 떨어지게
+        const treeX = cellX * cellSize + 1 + Math.floor(hash2(cellX + 17, cellZ - 9) * 3);
+        const treeZ = cellZ * cellSize + 1 + Math.floor(hash2(cellX - 23, cellZ + 31) * 3);
+        if (hasTree && wx === treeX && wz === treeZ) {
           // Find surface
           let surfaceY = -1;
           for (let y = CHUNK_HEIGHT - 7; y >= 6; y--) {
