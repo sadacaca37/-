@@ -34,6 +34,7 @@ interface TerrainColumn {
   surfaceHeight: number;
   riverFactor: number; // 0 = no river, 1 = river center
   isMountain: boolean; // true once above the rocky/snow threshold
+  mountainMask: number; // 0 = 평지, 1 = 산악 지대 한가운데
 }
 
 export class VoxelWorld {
@@ -133,9 +134,41 @@ export class VoxelWorld {
   // stays cheap even when the origin itself lands in a river or on a
   // shoreline — terrain columns are evaluated directly from the noise
   // functions, so this works before any chunk around the origin exists.
-  public findSafeSpawnXZ(originX: number = 0, originZ: number = 0, maxRadius: number = 48): { x: number; z: number } {
+  /** 그 자리에 나무가 심기는지 (숲 생성과 같은 규칙) */
+  public hasTreeAt(wx: number, wz: number): boolean {
+    const cellSize = 10; // 10x10 칸마다 최대 한 그루 (나뭇잎이 크니 넉넉히 띄움)
+    const cellX = Math.floor(wx / cellSize);
+    const cellZ = Math.floor(wz / cellSize);
+    if (hash2(cellX, cellZ) >= 0.8) return false; // 칸의 20%는 빈터
+    const treeX = cellX * cellSize + 3 + Math.floor(hash2(cellX + 17, cellZ - 9) * 4);
+    const treeZ = cellZ * cellSize + 3 + Math.floor(hash2(cellX - 23, cellZ + 31) * 4);
+    if (wx !== treeX || wz !== treeZ) return false;
+    return this.computeTerrainColumn(wx, wz).mountainMask <= 0.45;
+  }
+
+  /** 처음 태어나는 자리: 강·바닷가·산을 피해 평평한 평지를 찾음 */
+  public findSafeSpawnXZ(originX: number = 0, originZ: number = 0, maxRadius: number = 64): { x: number; z: number } {
     const ox = Math.floor(originX);
     const oz = Math.floor(originZ);
+
+    const isDryLand = (c: TerrainColumn) => c.riverFactor < 0.2 && c.surfaceHeight > SEA_LEVEL + BEACH_BAND;
+
+    // 주변이 얼마나 평평한지 (높이 차이가 작을수록 평지)
+    const flatnessAt = (wx: number, wz: number): number => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let dx = -3; dx <= 3; dx += 3) {
+        for (let dz = -3; dz <= 3; dz += 3) {
+          const c = this.computeTerrainColumn(wx + dx, wz + dz);
+          if (!isDryLand(c)) return Infinity;
+          if (c.surfaceHeight < min) min = c.surfaceHeight;
+          if (c.surfaceHeight > max) max = c.surfaceHeight;
+        }
+      }
+      return max - min;
+    };
+
+    let fallback: { x: number; z: number } | null = null;
     for (let radius = 0; radius <= maxRadius; radius++) {
       for (let dx = -radius; dx <= radius; dx++) {
         for (let dz = -radius; dz <= radius; dz++) {
@@ -143,14 +176,27 @@ export class VoxelWorld {
           const wx = ox + dx;
           const wz = oz + dz;
           const column = this.computeTerrainColumn(wx, wz);
-          if (column.riverFactor < 0.2 && column.surfaceHeight > SEA_LEVEL + BEACH_BAND) {
-            return { x: wx + 0.5, z: wz + 0.5 };
+          if (!isDryLand(column)) continue;
+          if (!fallback) fallback = { x: wx + 0.5, z: wz + 0.5 };
+          if (column.mountainMask > 0.12) continue; // 산은 피하고 평지로
+          if (flatnessAt(wx, wz) > 2) continue; // 언덕배기도 피함
+          // 나무 밑에서 시작하지 않도록 둘레를 비워 둠
+          let treeNear = false;
+          for (let tx = -6; tx <= 6 && !treeNear; tx++) {
+            for (let tz = -6; tz <= 6; tz++) {
+              if (this.hasTreeAt(wx + tx, wz + tz)) {
+                treeNear = true;
+                break;
+              }
+            }
           }
+          if (treeNear) continue;
+          return { x: wx + 0.5, z: wz + 0.5 };
         }
       }
     }
-    // Fallback: couldn't find dry land nearby (unlikely) - just use origin
-    return { x: originX, z: originZ };
+    // 평지를 못 찾으면 그냥 마른 땅, 그것도 없으면 원점
+    return fallback ?? { x: originX, z: originZ };
   }
 
   // Returns highest solid block Y at world coordinate (wx, wz)
@@ -185,7 +231,8 @@ export class VoxelWorld {
     //    smoothstep-thresholded so mountain RANGES occupy large, smoothly
     //    bordered regions instead of speckling the whole map.
     const mountainMaskRaw = this.noise.fbm2D(wx * 0.007 + 500, wz * 0.007 + 500, 2, 0.5);
-    const mountainMask = smoothstep(0.5, 0.8, mountainMaskRaw);
+    // 산악 지대를 조금 더 넓게 잡아, 산은 확실히 산답게
+    const mountainMask = smoothstep(0.46, 0.74, mountainMaskRaw);
 
     // 4. Ridged multifractal noise for jagged mountain peaks/ridges. Only
     //    contributes height where mountainMask is > 0, so plains and hills
@@ -204,8 +251,11 @@ export class VoxelWorld {
     }
     ridge /= ridgeNorm;
 
-    const baseHeight = SEA_LEVEL + 5 + continental * 9 + (rolling - 0.5) * 6;
-    const mountainHeight = mountainMask * ridge * 28;
+    // 평지는 아주 평평하게, 산 쪽으로 갈수록 울퉁불퉁하게
+    const roughness = 0.25 + 0.75 * mountainMask;
+    const baseHeight = SEA_LEVEL + 5 + continental * 9 * (0.45 + 0.55 * mountainMask) + (rolling - 0.5) * 6 * roughness;
+    // 산은 더 높고 뾰족하게
+    const mountainHeight = mountainMask * ridge * 40;
     let elevation = baseHeight + mountainHeight;
 
     // 5. River carving: a thin, winding band where a domain-warped noise
@@ -233,6 +283,7 @@ export class VoxelWorld {
       surfaceHeight,
       riverFactor,
       isMountain: mountainMask > 0.05 && surfaceHeight >= MOUNTAIN_BASE,
+      mountainMask,
     };
   }
 
@@ -323,14 +374,8 @@ export class VoxelWorld {
         const wz = startWz + lz;
 
         // 나무 위치: 4x4 칸마다 최대 한 그루 (예전에는 6칸 중 1칸꼴로 빽빽했음)
-        const cellSize = 5;
-        const cellX = Math.floor(wx / cellSize);
-        const cellZ = Math.floor(wz / cellSize);
-        const hasTree = hash2(cellX, cellZ) < 0.8; // 칸의 20%는 빈터로 남겨 둠
-        // 칸 가장자리는 비워 둬서 옆 칸 나무와 최소 3칸은 떨어지게
-        const treeX = cellX * cellSize + 1 + Math.floor(hash2(cellX + 17, cellZ - 9) * 3);
-        const treeZ = cellZ * cellSize + 1 + Math.floor(hash2(cellX - 23, cellZ + 31) * 3);
-        if (hasTree && wx === treeX && wz === treeZ) {
+        // 7x7 칸마다 한 그루, 바위산에는 심지 않음
+        if (this.hasTreeAt(wx, wz)) {
           // Find surface
           let surfaceY = -1;
           for (let y = CHUNK_HEIGHT - 7; y >= 6; y--) {
