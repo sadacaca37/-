@@ -244,6 +244,38 @@ app.delete('/api/users/:id', (req, res) => {
   res.json({ success: true, message: '학생 계정이 삭제되었습니다.' });
 });
 
+
+// =========================================================================
+// 학생별 학습 자료(포인트·기록·별·퀘스트 등) 보관
+//  - 학생이 어느 컴퓨터에서 로그인해도 같은 자료를 이어서 쓰도록 서버에 보관
+//  - data/progress.json 에 저장(재배포하면 사라지므로 마스터 관리실에서 백업 받아 두기)
+// =========================================================================
+const PROGRESS_FILE = path.join(DATA_DIR, 'progress.json');
+let progressCache: Record<string, { data: Record<string, string>; updatedAt: number }> = {};
+try {
+  if (fs.existsSync(PROGRESS_FILE)) progressCache = JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf-8')) || {};
+} catch {
+  progressCache = {};
+}
+let progressTimer: NodeJS.Timeout | null = null;
+function persistProgress(sync = false) {
+  const write = () => {
+    const tmp = `${PROGRESS_FILE}.tmp`;
+    try {
+      fs.writeFileSync(tmp, JSON.stringify(progressCache), 'utf-8');
+      fs.renameSync(tmp, PROGRESS_FILE);
+    } catch (e) {
+      console.error('[progress] 저장 실패', e);
+    }
+  };
+  if (sync) return write();
+  if (progressTimer) return;
+  progressTimer = setTimeout(() => {
+    progressTimer = null;
+    write();
+  }, 800);
+}
+
 // 명예의 전당
 app.get('/api/leaderboard', (_req, res) => {
   checkMonthlyLeaderboardReset();
@@ -264,6 +296,71 @@ app.post('/api/leaderboard', (req, res) => {
   if (leaderboardCache.length > 100) leaderboardCache.length = 100;
   persistLeaderboard();
   res.json({ success: true, leaderboard: leaderboardCache });
+});
+
+
+// ---- 학생 자료 (어느 컴퓨터에서든 이어서 쓰기) ----
+app.get('/api/progress/:userId', (req, res) => {
+  const rec = progressCache[req.params.userId];
+  res.json({ success: true, data: rec?.data || null, updatedAt: rec?.updatedAt || 0 });
+});
+
+app.post('/api/progress/:userId', (req, res) => {
+  const { data, updatedAt } = req.body || {};
+  if (!data || typeof data !== 'object') return res.status(400).json({ success: false, message: '저장할 자료가 없습니다.' });
+  const prev = progressCache[req.params.userId];
+  const stamp = Number(updatedAt) || Date.now();
+  // 더 오래된 자료가 최신 자료를 덮어쓰지 않도록
+  if (prev && prev.updatedAt > stamp) return res.json({ success: true, skipped: true, updatedAt: prev.updatedAt });
+  progressCache[req.params.userId] = { data, updatedAt: stamp };
+  persistProgress();
+  res.json({ success: true, updatedAt: stamp });
+});
+
+// 전체 백업 내려받기 (마스터 전용): 명단 + 학생 자료 + 명예의 전당
+app.get('/api/backup', (req, res) => {
+  if (!isMaster(req)) return denyMaster(res);
+  res.json({
+    success: true,
+    backup: {
+      version: 1,
+      savedAt: Date.now(),
+      members: members.exportFixed(),
+      progress: progressCache,
+      leaderboard: leaderboardCache,
+    },
+  });
+});
+
+// 백업 되돌리기 (마스터 전용)
+app.post('/api/backup/restore', (req, res) => {
+  if (!isMaster(req)) return denyMaster(res);
+  const backup = req.body?.backup;
+  if (!backup || typeof backup !== 'object') return res.status(400).json({ success: false, message: '백업 파일 내용을 읽을 수 없습니다.' });
+  let restoredMembers = 0;
+  try {
+    if (backup.members) restoredMembers = members.importFixed(backup.members);
+    if (backup.progress && typeof backup.progress === 'object') {
+      for (const [uid, rec] of Object.entries<any>(backup.progress)) {
+        const prev = progressCache[uid];
+        const stamp = Number(rec?.updatedAt) || Date.now();
+        if (!prev || prev.updatedAt <= stamp) progressCache[uid] = { data: rec?.data || {}, updatedAt: stamp };
+      }
+      persistProgress(true);
+    }
+    if (Array.isArray(backup.leaderboard)) {
+      leaderboardCache = backup.leaderboard.slice(0, 100);
+      persistLeaderboard(true);
+    }
+  } catch (e) {
+    return res.status(500).json({ success: false, message: '되돌리는 중 문제가 생겼습니다.' });
+  }
+  res.json({
+    success: true,
+    message: `학생 ${restoredMembers}명과 학습 자료를 되돌렸습니다.`,
+    restoredMembers,
+    restoredProgress: Object.keys(backup.progress || {}).length,
+  });
 });
 
 app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '없는 API 입니다.' }));
@@ -324,6 +421,7 @@ async function startServer() {
   const shutdown = () => {
     members.flush(true);
     persistLeaderboard(true);
+    persistProgress(true);
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000).unref();
   };

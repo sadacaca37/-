@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
+import { progressSync } from './utils/progressSync';
 import { Navbar } from './components/Navbar';
 import { AuthModal } from './components/AuthModal';
 import { HomeDashboard } from './components/views/HomeDashboard';
@@ -169,7 +170,12 @@ export default function App() {
       // 2. Current User Session
       const savedUser = localStorage.getItem('typang_current_user');
       if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        setCurrentUser(parsed);
+        // 이 학생의 자료를 서버에서 받아 와 이어서 쓰게 함
+        void progressSync.start(parsed?.id).then((r) => {
+          if (r.restored) window.dispatchEvent(new Event('storage'));
+        });
       }
 
       // 3. Hall of Fame Leaderboard - Reset on the 1st of every month
@@ -213,6 +219,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    progressSync.flush(); // 나가기 전에 마지막으로 자료를 서버에 보관
+    progressSync.stop();
     localStorage.removeItem('typang_current_user');
     typangApi.clearMasterKey();
     setCurrentUser(null);
@@ -221,6 +229,10 @@ export default function App() {
   const handleLoginSuccess = (user: UserSession) => {
     setCurrentUser(user);
     localStorage.setItem('typang_current_user', JSON.stringify(user));
+    // 다른 컴퓨터에서 하던 기록·포인트를 이어서 쓰도록 서버 자료를 받아 옴
+    void progressSync.start(user.id).then((r) => {
+      if (r.restored) window.dispatchEvent(new Event('storage'));
+    });
   };
 
   const handleUpdateUsersList = (updated: UserSession[]) => {

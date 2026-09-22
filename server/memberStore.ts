@@ -375,6 +375,29 @@ export class MemberStore {
     };
   }
 
+  /** 백업 파일에서 명단 되돌리기 (같은 id는 최신 것으로 덮어씀) */
+  importFixed(file: FixedFile): number {
+    if (!file || !Array.isArray(file.members)) return 0;
+    let count = 0;
+    for (const raw of file.members) {
+      if (!raw || !raw.id || !raw.name) continue;
+      const exist = this.byId.get(raw.id);
+      const merged = { ...(exist || {}), ...raw } as Member;
+      if (exist) {
+        const idx = this.members.indexOf(exist);
+        this.members[idx] = merged;
+      } else {
+        this.members.push(merged);
+      }
+      this.byId.set(merged.id, merged);
+      count++;
+    }
+    if (file.masterPasswordHash) this.masterPasswordHash = file.masterPasswordHash;
+    this.changed();
+    this.flush(true);
+    return count;
+  }
+
   status() {
     return {
       total: this.members.length,

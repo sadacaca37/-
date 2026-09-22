@@ -405,6 +405,45 @@ class TypangApiClient {
     }
   }
 
+  /** 전체 백업(명단 + 학생 자료 + 명예의 전당) 내려받기 */
+  public async downloadBackup(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/backup', { headers: this.headers(false) });
+      if (!res.ok) return false;
+      const json = await res.json();
+      if (!json?.success || !json.backup) return false;
+      const blob = new Blob([JSON.stringify(json.backup)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const d = new Date();
+      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+      a.href = url;
+      a.download = `타자팡팡_백업_${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** 백업 파일로 되돌리기 */
+  public async restoreBackup(backup: any): Promise<{ success: boolean; message?: string }> {
+    try {
+      const r = await this.request('/api/backup/restore', {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({ backup }),
+      });
+      if (r.ok && r.data?.success) return { success: true, message: r.data.message };
+      return { success: false, message: r.data?.message || '되돌리지 못했어요.' };
+    } catch {
+      return { success: false, message: '서버에 연결하지 못했어요.' };
+    }
+  }
+
   public async setMasterPassword(password: string): Promise<{ success: boolean; message?: string }> {
     try {
       const r = await this.request('/api/master/password', {

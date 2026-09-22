@@ -644,6 +644,50 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   >
                     📥 명단 고정 파일 받기
                   </button>
+                  <button
+                    type="button"
+                    data-testid="download-backup"
+                    onClick={async () => {
+                      const ok = await typangApi.downloadBackup();
+                      setRosterMsg(
+                        ok
+                          ? '✅ 전체 백업 파일을 받았어요. 코드를 다시 배포하기 전에 꼭 받아 두세요. (명단 + 학생들의 포인트·기록)'
+                          : '❌ 받지 못했어요. 관리실에 다시 로그인해 주세요.',
+                      );
+                      setTimeout(() => setRosterMsg(''), 8000);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[11px] font-black hover:bg-emerald-600 cursor-pointer"
+                  >
+                    💾 전체 백업 받기
+                  </button>
+                  <label className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-black hover:bg-amber-500 cursor-pointer">
+                    ♻️ 백업 되돌리기
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      data-testid="restore-backup"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file) return;
+                        if (!(await askConfirm(`'${file.name}' 백업으로 되돌릴까요?\n지금 서버에 있는 자료 중 같은 학생 것은 백업 내용으로 바뀝니다.`, '되돌리기'))) return;
+                        try {
+                          const backup = JSON.parse(await file.text());
+                          const r = await typangApi.restoreBackup(backup);
+                          setRosterMsg(r.success ? `✅ ${r.message || '백업을 되돌렸어요.'}` : `❌ ${r.message}`);
+                          if (r.success) {
+                            const users = await typangApi.getUsers();
+                            onUpdateUsersList(users);
+                            setMembersStatus(await typangApi.getMembersStatus());
+                          }
+                        } catch {
+                          setRosterMsg('❌ 백업 파일을 읽지 못했어요. 받은 파일 그대로 올려 주세요.');
+                        }
+                        setTimeout(() => setRosterMsg(''), 10000);
+                      }}
+                    />
+                  </label>
                   {rosterMsg && <span className="w-full text-[11px]">{rosterMsg}</span>}
                 </div>
 
