@@ -610,7 +610,7 @@ export default function App() {
         )}
 
         {currentMode === 'shortcut-quiz' && (
-          <GameFitStage title="단축키 스피드 퀴즈" icon="⚡" onExit={() => setCurrentMode('mini-games')}>
+          <GameFitStage title="단축키 디펜스" icon="⚡" onExit={() => setCurrentMode('mini-games')}>
             <ShortcutQuizView
               currentUser={currentUser}
               onRecordScore={handleRecordScore}

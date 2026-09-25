@@ -254,32 +254,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     if (currStrokes.length < prevStrokes.length || val.length < inputVal.length) {
       setIsCorrectLastKey(isValidPrefix ? true : null);
 
-      // Recalculate error count and accuracy on current state
-      let currentErrors = 0;
-      for (let i = 0; i < val.length; i++) {
-        if (i === val.length - 1 && i < currentWord.length) {
-          if (!isHangulPrefix(currentWord.slice(0, val.length), val)) {
-            currentErrors++;
-          }
-        } else if (i < currentWord.length) {
-          if (val[i] !== currentWord[i]) {
-            currentErrors++;
-          }
-        } else {
-          currentErrors++;
-        }
-      }
-
-      setStats((prev) => {
-        const totalAttempts = prev.correctCount + currentErrors;
-        const accuracy = totalAttempts > 0 ? Math.max(0, Math.round((prev.correctCount / totalAttempts) * 100)) : 100;
-        return {
-          ...prev,
-          errorCount: currentErrors,
-          accuracy,
-        };
-      });
-
+      // 지우기(백스페이스)는 오타 수를 되돌리지 않음 — 오타는 세트 동안 계속 누적
       setInputVal(val);
       return;
     }

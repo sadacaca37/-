@@ -46,7 +46,7 @@ export const MiniGamesHubView: React.FC<MiniGamesHubViewProps> = ({ onSelectMode
     },
     {
       id: 'shortcut-quiz' as AppMode,
-      title: '단축키 스피드 퀴즈',
+      title: '단축키 디펜스',
       emoji: '⚡',
       icon: Zap,
       bgColor: 'from-purple-500 to-indigo-600',
