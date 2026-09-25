@@ -70,22 +70,18 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   // 포인트 지갑은 적립할 때 1/6 로 줄여서 넣으므로(pointsManager), 화면에도 실제로 들어가는 값을 보여줌
   const realPts = (n: number) => (n > 0 ? n : 0);
 
-  const awardPoints = (points: number, reason: string) => {
-    // Accumulate points in current set; actual points are awarded to user when the set completes!
-    setAccumulatedSetPoints((prev) => prev + points);
-    setBonusPointsAlert({ id: Date.now(), text: `${reason} (세트 완주 시 지급)`, points });
-    setTimeout(() => {
-      setBonusPointsAlert((prev) => (prev?.id ? null : prev));
-    }, 2000);
+  // 문제 하나를 맞혔을 때: 포인트는 주지 않음(세트를 끝내야 지급). 표시용 누적만 함
+  const awardPoints = (_points: number, _reason: string) => {
+    setAccumulatedSetPoints((prev) => prev + _points);
   };
 
+  // 이번 세션에서 실제로 친 줄 수 (노래 가사·책 필사: 처음부터 끝까지 다 쳐야 세트 완주로 인정)
+  const [linesTypedThisRun, setLinesTypedThisRun] = useState(0);
+
   /** 한 문제(수도 1개 / 국왕 1명)를 끝냈을 때: 세트가 다 차면 포인트 지급 */
-  const countSetItem = (tab: 'capitals' | 'joseon', earned: number, isLastOfCourse: boolean) => {
+  const countSetItem = (tab: 'capitals' | 'joseon', _earned: number, _isLastOfCourse: boolean) => {
     const next = setDoneCount + 1;
-    if (isLastOfCourse) {
-      setSetDoneCount(0);
-      return; // 코스 마지막 문제는 finishCourse 에서 한꺼번에 지급
-    }
+    // 코스 마지막 문제라도 세트(수도 10문제·국왕 5명)를 다 채웠을 때만 지급
     if (next >= SET_SIZE[tab]) {
       const total = PRACTICE_SET_POINTS;
       if (currentUser?.id) {
@@ -463,6 +459,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       setInputVal('');
 
       if (songLineIndex + 1 < currentSong.lines.length) {
+        setLinesTypedThisRun((n) => n + 1);
         const nextLine = songLineIndex + 1;
         setSongLineIndex(nextLine);
       } else {
@@ -476,6 +473,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       setInputVal('');
 
       if (bookLineIndex + 1 < currentBook.sentences.length) {
+        setLinesTypedThisRun((n) => n + 1);
         setBookLineIndex((prev) => prev + 1);
       } else {
         if (!conqueredBooks.includes(currentBook.id)) {
@@ -500,14 +498,23 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       origin: { y: 0.6 },
     });
 
-    const totalSetPoints = PRACTICE_SET_POINTS;
+    let totalSetPoints = 0;
+    if (tab === 'lyrics' || tab === 'book') {
+      const totalLines = tab === 'lyrics' ? currentSong.lines.length : currentBook.sentences.length;
+      // 이번에 처음부터 끝까지 다 쳤을 때만 한 세트로 인정 (다시 도전해도 매번 지급)
+      if (linesTypedThisRun + 1 >= totalLines) totalSetPoints = PRACTICE_SET_POINTS;
+    }
     setEarnedPoints(totalSetPoints);
 
-    if (currentUser?.id) {
-      addTypingPracticePoints(totalSetPoints, `지식타자 (${tab}) 1세트 완주 포인트`);
+    if (totalSetPoints > 0) {
+      if (currentUser?.id) {
+        addTypingPracticePoints(totalSetPoints, `지식타자 (${tab}) 1세트 완주 포인트`);
+      }
+      setBonusPointsAlert({ id: Date.now(), text: '🎉 1세트 완주! 포인트 지급 완료!', points: totalSetPoints });
     }
-    setBonusPointsAlert({ id: Date.now(), text: '🎉 1세트 완주! 누적 포인트 일괄 지급 완료!', points: totalSetPoints });
     setAccumulatedSetPoints(0);
+    setLinesTypedThisRun(0);
+    setSetDoneCount(0);
 
     dailyMissionsManager.incrementProgress('lesson', 1, currentUser?.id);
     dailyMissionsManager.incrementProgress('chars', stats.totalKeystrokes || 100, currentUser?.id);
