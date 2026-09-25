@@ -32,7 +32,7 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
   // Saved progress from localStorage
   const capitalsConquered = React.useMemo(() => {
     try {
-      const saved = localStorage.getItem('pangpang_conquered_capitals');
+      const saved = currentUser?.id ? localStorage.getItem(`pangpang_conquered_capitals_${currentUser.id}`) : null;
       return saved ? JSON.parse(saved).length : 0;
     } catch {
       return 0;
@@ -41,7 +41,7 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
 
   const kingsConquered = React.useMemo(() => {
     try {
-      const saved = localStorage.getItem('pangpang_conquered_kings');
+      const saved = currentUser?.id ? localStorage.getItem(`pangpang_conquered_kings_${currentUser.id}`) : null;
       return saved ? JSON.parse(saved).length : 0;
     } catch {
       return 0;
@@ -50,7 +50,7 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
 
   const pythonLevel = React.useMemo(() => {
     try {
-      const saved = localStorage.getItem(`pangpang_python_${currentUser?.id || 'guest'}_level`);
+      const saved = currentUser?.id ? localStorage.getItem(`pangpang_python_${currentUser.id}_level`) : null;
       return saved ? parseInt(saved, 10) : 1;
     } catch {
       return 1;
