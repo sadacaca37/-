@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { GAME_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { WORD_CRUSH_LEVELS, WordCrushLevel, CrushWordBlock } from '../../data/practiceData';
 import { soundManager } from '../../utils/sound';
@@ -150,7 +151,7 @@ export const WordCrushView: React.FC<WordCrushViewProps> = ({
             // Level cleared!
             setIsLevelCleared(true);
             soundManager.playVictory();
-            addTypingPracticePoints(60, `워드 크러시 Lv.${currentLevel.level} 클리어`);
+            addTypingPracticePoints(GAME_POINTS, `워드 크러시 Lv.${currentLevel.level} 클리어`);
             try {
               confetti({
                 particleCount: 120,

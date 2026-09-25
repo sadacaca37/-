@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import {
   Globe,
   RotateCcw,
@@ -67,7 +68,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   const [setRewardModal, setSetRewardModal] = useState<{ points: number; label: string } | null>(null);
 
   // 포인트 지갑은 적립할 때 1/6 로 줄여서 넣으므로(pointsManager), 화면에도 실제로 들어가는 값을 보여줌
-  const realPts = (n: number) => (n > 0 ? Math.max(1, Math.round(n / 6)) : 0);
+  const realPts = (n: number) => (n > 0 ? n : 0);
 
   const awardPoints = (points: number, reason: string) => {
     // Accumulate points in current set; actual points are awarded to user when the set completes!
@@ -86,7 +87,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       return; // 코스 마지막 문제는 finishCourse 에서 한꺼번에 지급
     }
     if (next >= SET_SIZE[tab]) {
-      const total = accumulatedSetPoints + earned + SET_BONUS;
+      const total = PRACTICE_SET_POINTS;
       if (currentUser?.id) {
         addTypingPracticePoints(total, `지식타자 (${tab === 'capitals' ? '세계 수도' : '조선 국왕'}) 1세트 완주`);
       }
@@ -499,8 +500,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       origin: { y: 0.6 },
     });
 
-    const finishPoints = tab === 'lyrics' || tab === 'book' ? 150 : 100;
-    const totalSetPoints = accumulatedSetPoints + finishPoints;
+    const totalSetPoints = PRACTICE_SET_POINTS;
     setEarnedPoints(totalSetPoints);
 
     if (currentUser?.id) {

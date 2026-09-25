@@ -346,6 +346,7 @@ export interface TypingStats {
   errorCount: number;
   correctCount: number;
   totalKeystrokes: number;
+  correctStrokes?: number; // 한글 자모 단위로 센 실제 타수
   elapsedSeconds: number;
   combo: number;
   maxCombo: number;
@@ -364,6 +365,7 @@ export interface LeaderboardEntry {
   date: string;
   details?: string;
   completedSentences?: number;
+  elapsedSeconds?: number; // 걸린 시간(초)
 }
 
 export interface ShortcutQuizItem {

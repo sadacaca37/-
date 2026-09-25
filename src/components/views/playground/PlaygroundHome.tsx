@@ -1,4 +1,5 @@
 import { FitToBox, BodyPortal } from '../../GameFitStage';
+import { FUNFUN_ENTRY_POINTS } from '../../../utils/pointRules';
 import React, { useState, useEffect } from 'react';
 import { 
   Gamepad2, 
@@ -89,9 +90,18 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   const handleLaunchFunfunGame = (game: PlaygroundGameDef) => {
     soundManager.play('achievement');
 
-    // If not master, check or charge 10 minutes (1,000P)
+    // 마스터가 아니면 1,000P 가 모여 있어야 펀펀 플레이 입장 가능
     if (!isMaster) {
       if (remainingSeconds <= 0) {
+        if (pointsManager.getBalance() < FUNFUN_ENTRY_POINTS) {
+          setNotice(
+            `🔒 펀펀 플레이는 ${FUNFUN_ENTRY_POINTS.toLocaleString()}P 가 모여야 들어갈 수 있어요. (지금 ${pointsManager
+              .getBalance()
+              .toLocaleString()}P) 타자 연습 한 세트에 100P를 모아 보세요!`,
+          );
+          setTimeout(() => setNotice(null), 5000);
+          return;
+        }
         const res = playgroundManager.purchasePlayTime(10);
         if (!res.success) {
           setNotice(res.message);

@@ -278,9 +278,24 @@ export default function App() {
       date: todayStr || '2026.08.24',
     };
 
-    const updated = [newRecord, ...leaderboard];
+    const updated = [newRecord, ...leaderboard].sort((a, b) => (b.cpm || 0) - (a.cpm || 0)).slice(0, 100);
     setLeaderboard(updated);
     localStorage.setItem('typang_leaderboard', JSON.stringify(updated));
+
+    // 서버에도 저장 → 다른 컴퓨터에서도, 다시 배포해도 명예의 전당이 남음
+    fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newRecord),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && Array.isArray(data.leaderboard)) {
+          setLeaderboard(data.leaderboard);
+          localStorage.setItem('typang_leaderboard', JSON.stringify(data.leaderboard));
+        }
+      })
+      .catch(() => {});
 
     // Update currentUser high stats
     const updatedUser: UserSession = {

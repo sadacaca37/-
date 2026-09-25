@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { GAME_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../../utils/sound';
 import { 
@@ -318,7 +319,6 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
   const [foodDropAnim, setFoodDropAnim] = useState(false);
 
   // Quick training typing mode (free typing growth)
-  const [freeText, setFreeText] = useState('');
   const [freeFeedCount, setFreeFeedCount] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -475,7 +475,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
 
     // Trigger growth animation and floating EXP badge
     setIsGrowing(true);
-    const earnedPoints = 35;
+    const earnedPoints = GAME_POINTS;
     pointsManager.addPoints(earnedPoints, `${activeMission.categoryLabel} 미션 완수`);
     triggerExpBadge(`+${activeMission.rewardExp} EXP 🌟 (+${earnedPoints}P)`, 'text-amber-500 font-black');
     setTimeout(() => setIsGrowing(false), 800);
@@ -653,64 +653,6 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
     setSpeechBubble('헤헤~ 쓰다듬어 주셔서 기분이 너무 좋아요! 🐾💕');
   };
 
-  // Quick Free-Typing Snack Feed
-  const handleFreeType = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setFreeText(val);
-    soundManager.playKeyClick(true);
-
-    if (val.length >= 6) {
-      // Trigger growth transform animation & floating badge
-      setIsGrowing(true);
-      const earnedPoints = 5;
-      pointsManager.addPoints(earnedPoints, '자유 타자 간식 급여');
-      triggerExpBadge(`+10 EXP ✨ (+${earnedPoints}P)`, 'text-amber-500');
-      setTimeout(() => setIsGrowing(false), 750);
-
-      // Feed instant snack
-      setPet((prev) => {
-        const nextExp = prev.exp + 10;
-        let nextLvl = prev.level;
-        let nextMax = prev.maxExp;
-        let remExp = nextExp;
-
-        if (nextExp >= prev.maxExp) {
-          nextLvl += 1;
-          remExp = nextExp - prev.maxExp;
-          nextMax = Math.round(prev.maxExp * 1.35);
-          soundManager.playSuccess();
-          setIsLevelUp(true);
-          triggerExpBadge(`👑 LEVEL UP! Lv.${nextLvl}`, 'text-rose-500 font-black text-lg');
-          setTimeout(() => setIsLevelUp(false), 1200);
-
-          const oldStage = getPetStage(prev.level);
-          const newStage = getPetStage(nextLvl);
-          if (oldStage !== newStage) {
-            setEvolvedStage(newStage);
-            setShowEvolutionModal(true);
-          }
-        }
-
-        return {
-          ...prev,
-          level: nextLvl,
-          exp: remExp,
-          maxExp: nextMax,
-          hunger: Math.min(100, prev.hunger + 8),
-          happiness: Math.min(100, prev.happiness + 5),
-          stress: Math.max(0, prev.stress - 3),
-          practicePoints: pointsManager.getBalance(),
-          mood: 'happy',
-        };
-      });
-
-      setFreeFeedCount((c) => c + 1);
-      setSpeechBubble(`우와! 타자를 쳐서 간식을 주셨어요! (+10 EXP, +5P) 냠냠! 🍖`);
-      setFreeText('');
-      setFoodDropAnim(true);
-      setTimeout(() => setFoodDropAnim(false), 1000);
-    }
-  };
 
   // Expression Trigger with Dialog & Sound
   const handleTriggerMood = (mood: PetMood, speech: string) => {
@@ -1545,31 +1487,6 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                 );
               })}
             </div>
-          </div>
-
-          {/* 2. Free Typing Snack Machine (무한 간식 자판기) */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-3xl p-5 border-3 border-orange-200 shadow-lg space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-black text-xs sm:text-sm text-orange-950 flex items-center gap-1.5">
-                <Gift className="w-4 h-4 text-orange-600" />
-                <span>무한 간식 자판기 (자유 타자)</span>
-              </span>
-              <span className="text-[10px] font-black text-orange-700 bg-white/80 px-2 py-0.5 rounded-full">
-                간식 {freeFeedCount}회 지급!
-              </span>
-            </div>
-
-            <p className="text-[11px] font-bold text-orange-900/80">
-              아무 글자나 6글자 이상 타이핑하면 즉시 맛있는 간식과 +10 EXP를 먹고 쑥쑥 자랍니다!
-            </p>
-
-            <input
-              type="text"
-              value={freeText}
-              onChange={handleFreeType}
-              placeholder="여기에 자유롭게 아무 글이나 쳐보세요!"
-              className="w-full px-3.5 py-2.5 text-xs font-black rounded-xl border-2 border-orange-300 focus:border-orange-500 bg-white text-slate-800 placeholder-slate-400 outline-hidden shadow-inner"
-            />
           </div>
 
           {/* 3. 10 Animals Quick Gallery Preview */}

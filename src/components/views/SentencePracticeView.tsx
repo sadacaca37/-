@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { 
   RotateCcw, 
@@ -85,6 +86,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   const [is5MinMode, setIs5MinMode] = useState(false);
   const [remainingTime5Min, setRemainingTime5Min] = useState(300); // 300 seconds = 5 mins
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  // 손을 멈춘 동안(10초 이상)은 시간이 흐르지 않게 해서 타수가 엉뚱하게 낮아지지 않도록 함
+  const lastKeyAtRef = useRef<number>(Date.now());
 
   // Statistics
   const [stats, setStats] = useState<TypingStats>({
@@ -230,10 +233,12 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   useEffect(() => {
     if (isTimerRunning) {
       timerIntervalRef.current = window.setInterval(() => {
+        const idle = Date.now() - lastKeyAtRef.current > 10000;
         setStats((prev) => {
+          if (idle) return prev; // 쉬는 동안은 시간도 타수도 그대로
           const newElapsed = prev.elapsedSeconds + 1;
           const mins = newElapsed / 60;
-          const currentCpm = mins > 0 ? Math.round((prev.correctCount * 60) / newElapsed) : 0;
+          const currentCpm = newElapsed > 0 ? Math.round(((prev.correctStrokes || 0) * 60) / newElapsed) : 0;
           return {
             ...prev,
             elapsedSeconds: newElapsed,
@@ -313,11 +318,13 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       const newCorrect = prev.correctCount + sentenceCorrect;
       const newTotal = prev.totalKeystrokes + Math.max(typedVal.length, targetLen);
       const acc = newTotal > 0 ? Math.max(0, Math.round(((newTotal - newErrors) / newTotal) * 100)) : 100;
-      const mins = prev.elapsedSeconds / 60;
-      const cpm = mins > 0 ? Math.round((newCorrect * 60) / prev.elapsedSeconds) : prev.cpm;
+      // 한글은 자음·모음을 하나씩 세는 것이 실제 타수(한컴 기준)에 가까움
+      const newStrokes = (prev.correctStrokes || 0) + countKeystrokes(typedVal.slice(0, targetLen));
+      const cpm = prev.elapsedSeconds > 0 ? Math.round((newStrokes * 60) / prev.elapsedSeconds) : prev.cpm;
 
       return {
         ...prev,
+        correctStrokes: newStrokes,
         errorCount: newErrors,
         correctCount: newCorrect,
         totalKeystrokes: newTotal,
@@ -332,6 +339,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
+    lastKeyAtRef.current = Date.now();
     
     // Start timer on first keystroke
     if (!isTimerRunning && val.length > 0) {
@@ -465,7 +473,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     });
 
     // Award typing practice points for Tamagotchi room decorating
-    addTypingPracticePoints(10, '짧은 글 문장 완주');
+    // 문장 하나하나에는 포인트를 주지 않고, 한 세트를 끝낼 때 한 번에 지급
     if (nextCompleted % 5 === 0) {
       dailyMissionsManager.incrementProgress('lesson', 1, currentUser?.id);
     }
@@ -583,6 +591,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             accuracy: finalAccuracy,
             details: `${currentCategory.category} (${activeSentences.length}문장 완주)`,
             completedSentences: activeSentences.length,
+            elapsedSeconds: stats.elapsedSeconds,
           });
         }
       }
@@ -639,13 +648,13 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     setIsTimerRunning(false);
     setShowSummaryModal(true);
     soundManager.playVictory();
-    addTypingPracticePoints(60, is5MinMode ? '5분 마라톤 완주' : '문장 연습 코스 완주');
+    addTypingPracticePoints(PRACTICE_SET_POINTS, is5MinMode ? '5분 마라톤 완주' : '짧은 글 1세트 완주');
     try {
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
     } catch {}
 
     // Only logged-in users get recorded in the Hall of Fame Leaderboard
-    if (currentUser && stats.cpm > 30) {
+    if (currentUser) {
       onRecordScore({
         userName: currentUser.name,
         userAvatar: currentUser.avatar || '👑',
@@ -658,6 +667,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         accuracy: stats.accuracy,
         details: `${is5MinMode ? '5분 완주' : currentCategory.category} (${completedInSession || 1}문장 완료)`,
         completedSentences: completedInSession || 1,
+        elapsedSeconds: stats.elapsedSeconds,
       });
     }
   };
@@ -863,8 +873,21 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             <span className="text-xs font-black text-pink-600 bg-pink-50 px-3 py-1 rounded-xl border border-pink-200">
               {currentCategory.category}
             </span>
-            <span className="text-xs font-bold text-slate-500">
-              {sentenceIndex + 1} / {currentCategory.sentences.length} 문장
+            {/* 진행도 */}
+            <span className="flex items-center gap-2">
+              <span className="text-sm font-black text-slate-600">진행도</span>
+              <span className="w-28 sm:w-40 bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300 p-0.5 inline-block">
+                <span
+                  className="bg-gradient-to-r from-pink-400 to-rose-500 h-full rounded-full block transition-all duration-300"
+                  style={{ width: `${Math.round((sentenceIndex / Math.max(1, currentCategory.sentences.length)) * 100)}%` }}
+                />
+              </span>
+              <span className="text-sm font-black text-slate-700">
+                {Math.round((sentenceIndex / Math.max(1, currentCategory.sentences.length)) * 100)}%
+              </span>
+              <span className="text-sm font-bold text-slate-500">
+                ({sentenceIndex + 1} / {currentCategory.sentences.length} 문장)
+              </span>
             </span>
             {hasResumed && (
               <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200 flex items-center gap-1">
@@ -888,7 +911,11 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
 
         {/* Target Sentence with Character-by-Character Highlighting */}
         <div className="min-h-24 sm:min-h-28 flex flex-col justify-center items-center text-center p-4 bg-sky-50/50 rounded-2xl border-2 border-sky-100">
-          <div className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wide leading-relaxed font-arcade select-none">
+          <div
+            data-testid="target-sentence"
+            data-sentence={currentSentence}
+            className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-wide leading-relaxed font-arcade select-none"
+          >
             {currentSentence.split('').map((char, index) => {
               let charStyle = 'text-slate-400';
 

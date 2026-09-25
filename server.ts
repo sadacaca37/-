@@ -276,6 +276,42 @@ function persistProgress(sync = false) {
   }, 800);
 }
 
+
+// 배포하면 data 폴더가 비워지므로, 코드와 함께 올라가는 씨앗 백업으로 자동 복원
+//   data-seed/seed-backup.json  ← 마스터 관리실 [전체 백업 받기]로 받은 파일을 이 이름으로 넣어 두면 됨
+const SEED_FILE = path.join(ROOT, 'data-seed', 'seed-backup.json');
+function restoreFromSeed() {
+  try {
+    if (!fs.existsSync(SEED_FILE)) return;
+    const seed = JSON.parse(fs.readFileSync(SEED_FILE, 'utf-8'));
+    const backup = seed?.backup || seed;
+    let addedMembers = 0;
+    if (backup?.members?.members?.length) addedMembers = members.importMissing(backup.members);
+    let addedProgress = 0;
+    if (backup?.progress && typeof backup.progress === 'object') {
+      for (const [uid, rec] of Object.entries<any>(backup.progress)) {
+        const prev = progressCache[uid];
+        const stamp = Number(rec?.updatedAt) || 0;
+        if (!prev || prev.updatedAt < stamp) {
+          progressCache[uid] = { data: rec?.data || {}, updatedAt: stamp || Date.now() };
+          addedProgress++;
+        }
+      }
+      if (addedProgress) persistProgress(true);
+    }
+    if (Array.isArray(backup?.leaderboard) && leaderboardCache.length === 0 && backup.leaderboard.length) {
+      leaderboardCache = backup.leaderboard.slice(0, 100);
+      persistLeaderboard(true);
+    }
+    if (addedMembers || addedProgress) {
+      console.log(`[seed] 씨앗 백업에서 학생 ${addedMembers}명, 학습 자료 ${addedProgress}건 복원`);
+    }
+  } catch (e) {
+    console.warn('[seed] 씨앗 백업을 읽지 못했습니다', e);
+  }
+}
+restoreFromSeed();
+
 // 명예의 전당
 app.get('/api/leaderboard', (_req, res) => {
   checkMonthlyLeaderboardReset();

@@ -61,6 +61,12 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
 
   const podium = [ranked[1], ranked[0], ranked[2]]; // 2 · 1 · 3
   const rest = ranked.slice(3, 10);
+  const fmtTime = (sec?: number) => {
+    if (!sec || sec <= 0) return '-';
+    const m = Math.floor(sec / 60);
+    const s2 = sec % 60;
+    return m > 0 ? `${m}분 ${String(s2).padStart(2, '0')}초` : `${s2}초`;
+  };
   const placeOf = [2, 1, 3];
 
   return (
@@ -109,8 +115,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
                       {p.userName}
                     </b>
                     <span>
-                      {p.cpm} CPM · {p.accuracy}%
+                      {p.cpm}타 · 정확도 {p.accuracy}%
                     </span>
+                    <span>⏱ {fmtTime(p.elapsedSeconds)}</span>
                   </>
                 ) : (
                   <span className="cy-empty">- 도전자 대기 -</span>
@@ -132,9 +139,10 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
               <tr>
                 <th>Rank</th>
                 <th>Student Name</th>
-                <th>Speed (CPM)</th>
-                <th>Accuracy (%)</th>
-                <th className="cy-hide-sm">Grade</th>
+                <th>타수 (CPM)</th>
+                <th>정확도</th>
+                <th>걸린 시간</th>
+                <th className="cy-hide-sm">학년</th>
               </tr>
             </thead>
             <tbody>
@@ -148,12 +156,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
                     </td>
                     <td className="cy-num">{e.cpm}</td>
                     <td className="cy-acc">{e.accuracy}%</td>
+                    <td className="cy-num">{fmtTime(e.elapsedSeconds)}</td>
                     <td className="cy-hide-sm">{e.grade}학년</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="cy-none">
+                  <td colSpan={6} className="cy-none">
                     {ranked.length === 0 ? '아직 기록이 없어요. 첫 번째 챔피언이 되어 보세요!' : '4위부터는 아직 비어 있어요.'}
                   </td>
                 </tr>

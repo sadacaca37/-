@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { KOREAN_WORD_PRACTICE_CATEGORIES, ENGLISH_WORD_PRACTICE_CATEGORIES } from '../../data/practiceData';
 import { getKeyGuideForChar, getActiveKeystrokeGuide, countKeystrokes, isHangulPrefix, decomposeToAtomicKeystrokes } from '../../utils/hangul';
@@ -159,7 +160,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const finishPractice = () => {
     setIsFinished(true);
     soundManager.playVictory();
-    addTypingPracticePoints(50, `${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`);
+    addTypingPracticePoints(PRACTICE_SET_POINTS, `${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`);
     markQuestUnitDone(currentUser?.id, 'word-practice', currentCategory.name, language);
     
     const isAccPassed = stats.accuracy >= 95;
@@ -435,90 +436,6 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      {/* 10 Star Progress & MyChew Mission Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-pink-50 via-teal-50 to-emerald-50 p-3.5 sm:p-4 rounded-2xl border-2 border-teal-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl animate-bounce">🍬</span>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black text-teal-800">5분 집중 낱말 연습 코스</span>
-              <span className="text-[11px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                1회 약 5분 소요 (50단어)
-              </span>
-              <span className="text-[11px] font-black text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300">
-                마이쮸 미션: 정확도 90% 이상 통과 시 지급!
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-600 font-medium mt-0.5">
-              5분 동안 한 단어씩 바른 손가락 위치로 리듬감 있게 타이핑해보세요!
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 코스 선택기 */}
-          <div className="flex bg-white/90 p-1 rounded-xl border border-slate-200 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('3min'); handleReset(); }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                practiceCourse === '3min' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              ⏱️ 3분 (30단어)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('5min'); handleReset(); }}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                practiceCourse === '5min' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              ⚡ 5분 표준 (50단어)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('10min'); handleReset(); }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                practiceCourse === '10min' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🏆 10분 심화 (100단어)
-            </button>
-          </div>
-
-          {/* 진행도 & 시간 표시기 */}
-          <div className="flex items-center gap-2 bg-white/90 px-3 py-1.5 rounded-xl border border-teal-200 shadow-2xs">
-            <span className="text-amber-500 text-sm">⭐</span>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 font-bold">진행도</span>
-              <span className="font-mono font-black text-xs text-teal-800">
-                {wordIndex + 1}/{TOTAL_TRIALS} ({Math.round(((wordIndex) / TOTAL_TRIALS) * 100)}%)
-              </span>
-            </div>
-            <div className="h-6 w-px bg-slate-200 mx-1" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 font-bold">경과 시간</span>
-              <span className="font-mono font-black text-xs text-emerald-700">
-                {Math.floor(stats.elapsedSeconds / 60)}분 {String(stats.elapsedSeconds % 60).padStart(2, '0')}초
-              </span>
-            </div>
-          </div>
-
-          {wordIndex >= 10 && (
-            <button
-              type="button"
-              onClick={finishPractice}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-xs cursor-pointer flex items-center gap-1 active:scale-95"
-              title="지금까지 연습한 결과로 완료하고 보상을 확인합니다"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>완료하기 ({wordIndex}개 완료)</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Top Header & Language Selector */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
         <div className="flex items-center gap-2">
@@ -533,9 +450,35 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
         {/* Simultaneous Keyboard Badge, Language Tabs & Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-500/10 text-teal-700 border border-teal-400/50 text-xs font-black shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-            <span>⌨️ 키보드 동시 보기 [ON]</span>
+          {/* 코스 선택 */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => { setPracticeCourse('3min'); handleReset(); }}
+              className={`px-3 py-1 rounded-lg text-sm font-black transition-all cursor-pointer ${
+                practiceCourse === '3min' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              3분
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPracticeCourse('5min'); handleReset(); }}
+              className={`px-3 py-1 rounded-lg text-sm font-black transition-all cursor-pointer ${
+                practiceCourse === '5min' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              5분
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPracticeCourse('10min'); handleReset(); }}
+              className={`px-3 py-1 rounded-lg text-sm font-black transition-all cursor-pointer ${
+                practiceCourse === '10min' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              10분
+            </button>
           </div>
 
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -601,7 +544,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
          ========================================================================= */}
       <div className="bg-gradient-to-b from-slate-200 via-slate-100 to-slate-300 p-2.5 sm:p-4 rounded-3xl border-4 border-slate-300 shadow-2xl relative">
         {/* Top Status Strip: 진행도 / 오타수 / 정확도 / 타수 */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl px-3 sm:px-4 py-1.5 border border-slate-300 shadow-xs mb-2 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm font-black text-slate-700">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl px-3 sm:px-4 py-1.5 border border-slate-300 shadow-xs mb-2 flex flex-wrap items-center justify-between gap-3 text-base sm:text-lg font-black text-slate-700">
           {/* 진행도 */}
           <div className="flex items-center gap-2">
             <span className="text-slate-600">진행도</span>
@@ -611,13 +554,14 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <span className="w-8 text-right font-black text-slate-800 text-xs">{progressPercent}%</span>
+            <span className="w-16 text-right font-black text-slate-800 text-base">{progressPercent}%</span>
+            <span className="font-mono text-slate-500 text-sm">({wordIndex + 1}/{TOTAL_TRIALS})</span>
           </div>
 
           {/* 오타수 */}
           <div className="flex items-center gap-2">
             <span className="text-slate-600">오타수</span>
-            <div className="px-2.5 py-0.5 bg-slate-100 border border-slate-300 rounded-md font-mono font-black text-rose-600 text-xs min-w-[32px] text-center shadow-inner">
+            <div className="px-2.5 py-0.5 bg-slate-100 border border-slate-300 rounded-md font-mono font-black text-rose-600 text-base min-w-[40px] text-center shadow-inner">
               {stats.errorCount}
             </div>
           </div>
@@ -665,7 +609,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               className="bg-gradient-to-b from-white to-slate-100 rounded-2xl p-2.5 sm:p-3.5 border-3 border-slate-300 shadow-[0_6px_16px_rgba(0,0,0,0.15)] min-w-[180px] sm:min-w-[220px] text-center cursor-text relative"
             >
               {/* Target Word Text */}
-              <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-wider select-none mb-1">
+              <div className="text-5xl sm:text-6xl font-black text-slate-900 tracking-wider select-none mb-1">
                 {currentWord.split('').map((char, index) => {
                   let charState: 'matched' | 'composing' | 'error' | 'pending' = 'pending';
                   if (index < inputVal.length - 1) {
@@ -700,7 +644,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               </div>
 
               {/* Typing Line & Blinking Cursor Area */}
-              <div className="min-h-[32px] flex items-center justify-center text-xl sm:text-2xl font-black text-teal-600 font-mono">
+              <div className="min-h-[48px] flex items-center justify-center text-4xl sm:text-5xl font-black text-teal-600 font-mono">
                 <span>{inputVal}</span>
                 <span className="inline-block w-2.5 h-6 bg-slate-900 ml-0.5 animate-pulse rounded-xs" />
               </div>
@@ -728,7 +672,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] sm:text-xs font-black text-sky-100 tracking-tight">다음 낱말</span>
-                <span className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+                <span className="text-3xl sm:text-4xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                   {nextWord || '완주 직전!'}
                 </span>
               </div>

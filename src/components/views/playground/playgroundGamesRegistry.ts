@@ -1,5 +1,4 @@
 import React from 'react';
-import { PlaygroundTamagotchi } from './PlaygroundTamagotchi';
 import { TetrisGame } from './TetrisGame';
 import { InfiniteStairsGame } from './InfiniteStairsGame';
 import { Game2048 } from './Game2048';
@@ -75,13 +74,6 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '기본',
     icon: '🔢',
     component: Game2048,
-  },
-  {
-    id: 'tamagotchi',
-    title: '타자 다마고치 룸',
-    category: '기본',
-    icon: '🐾',
-    component: PlaygroundTamagotchi,
   },
 
   // --- 펀펀 플레이 (깃허브 게임 7종 전면 교체 & 100% 정상 작동) ---

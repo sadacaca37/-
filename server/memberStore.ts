@@ -375,6 +375,26 @@ export class MemberStore {
     };
   }
 
+  /** 씨앗 백업에서 "없는 학생만" 되살리기 (이미 있는 학생은 건드리지 않음) */
+  importMissing(file: FixedFile): number {
+    if (!file || !Array.isArray(file.members)) return 0;
+    let added = 0;
+    for (const raw of file.members) {
+      if (!raw || !raw.id || !raw.name) continue;
+      if (this.byId.has(raw.id)) continue;
+      const m = { ...raw } as Member;
+      this.members.push(m);
+      this.byId.set(m.id, m);
+      added++;
+    }
+    if (!this.masterPasswordHash && file.masterPasswordHash) this.masterPasswordHash = file.masterPasswordHash;
+    if (added) {
+      this.changed();
+      this.flush(true);
+    }
+    return added;
+  }
+
   /** 백업 파일에서 명단 되돌리기 (같은 id는 최신 것으로 덮어씀) */
   importFixed(file: FixedFile): number {
     if (!file || !Array.isArray(file.members)) return 0;

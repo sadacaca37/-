@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import {
   Code2,
@@ -231,7 +232,7 @@ export const PythonPracticeView: React.FC<PythonPracticeViewProps> = ({
     } else {
       // Completed all items in current level set! Award set points at completion!
       const totalLevelPoints = activeLevelConfig.items.length * (activeLevelConfig.type === 'word' ? 10 : 25) + 50;
-      addTypingPracticePoints(totalLevelPoints, `🐍 파이썬 Lv.${activeLevelConfig.level} 1세트 완주`);
+      addTypingPracticePoints(PRACTICE_SET_POINTS, `🐍 파이썬 Lv.${activeLevelConfig.level} 1세트 완주`);
       soundManager.playVictory();
       try {
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });

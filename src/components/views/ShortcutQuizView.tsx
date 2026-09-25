@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { GAME_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { SHORTCUT_QUIZ_DATA } from '../../data/practiceData';
 import { soundManager } from '../../utils/sound';
@@ -140,7 +141,7 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({
     } else {
       setIsQuizComplete(true);
       soundManager.playVictory();
-      addTypingPracticePoints(50, '단축키 퀴즈 정복');
+      addTypingPracticePoints(GAME_POINTS, '단축키 퀴즈 정복');
       try {
         confetti({
           particleCount: 100,

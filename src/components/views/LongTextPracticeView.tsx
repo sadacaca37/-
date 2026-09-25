@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { 
   RotateCcw, 
@@ -483,7 +484,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     // Check for 0 errors and minimum 90% accuracy before awarding points
     if (stats.errorCount === 0 && stats.accuracy >= 90) {
       soundManager.playPageTurn();
-      addTypingPracticePoints(20, '긴 글 한 쪽 필사 완주');
+      // 쪽마다 주지 않고, 글 한 편을 끝낼 때 한 번에 지급
     } else {
       soundManager.playPageTurn();
     }
@@ -545,7 +546,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     
     // Only award 120 completion points if accuracy >= 90%
     if (stats.accuracy >= 90 && stats.errorCount === 0) {
-      addTypingPracticePoints(120, `긴 글 완독: ${currentText.title}`);
+      addTypingPracticePoints(PRACTICE_SET_POINTS, `긴 글 완독: ${currentText.title}`);
       checkMychewRenewal(stats.cpm, stats.accuracy);
     }
     

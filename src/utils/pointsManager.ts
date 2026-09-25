@@ -193,8 +193,8 @@ export class PointsManager {
       return this.getPoints(userId);
     }
 
-    // 점수가 너무 빨리 쌓이지 않도록 지급 포인트를 기존 대비 반(1/2)으로 축소
-    const safeAmount = Math.max(1, Math.round(rawAmount / 6));
+    // 규칙대로 받은 값을 그대로 적립 (연습 100P, 게임 20P 는 pointRules.ts 에서 관리)
+    const safeAmount = rawAmount;
 
     try {
       const key = this.getStorageKey(userId);

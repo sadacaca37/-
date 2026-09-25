@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { GAME_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../../utils/sound';
 import { UserSession, LeaderboardEntry } from '../../types';
@@ -245,7 +246,7 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
     soundManager.playError();
 
     const earnedPoints = Math.min(150, Math.max(15, Math.round(score / 50)));
-    addTypingPracticePoints(earnedPoints, `타자비 방어 (${score}점)`);
+    addTypingPracticePoints(GAME_POINTS, `타자비 방어 (${score}점)`);
     dailyMissionsManager.incrementProgress('game', 1, currentUser?.id);
 
     if (currentUser && score > 200) {
