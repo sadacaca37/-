@@ -2053,3 +2053,24 @@
 
 /* 펀펀 게임(원본 게임 창)을 큰 창에서 꽉 채우기 */
 .pg-full .ifg { height: 100%; }
+
+/* ===== 퀘스트맵: 직전에 치던 곳 표시 ===== */
+.qm-last {
+  position: absolute; bottom: -34px; left: 50%; z-index: 4; white-space: nowrap;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 0; padding: 4px 10px 4px 6px;
+  font-style: normal; font-family: 'Galmuri11', 'Jua', monospace; font-weight: 700; font-size: 12px; letter-spacing: 0.3px; line-height: 1.15;
+  color: #fff; background: linear-gradient(180deg, #ff7ab8, #e0308a); border: 3px solid #6b0f3f; border-radius: 10px;
+  box-shadow: 0 3px 0 #6b0f3f, 0 0 0 3px #fff inset, 0 0 16px 4px rgba(255, 122, 184, 0.7); text-shadow: 0 1px 0 #6b0f3f;
+  transform: translateX(-50%); animation: qm-last-bounce 1.2s ease-in-out infinite;
+}
+.qm-last b {
+  position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  background: #ffe14a; color: #6b0f3f; font-size: 11px; border: 2px solid #6b0f3f; text-shadow: none;
+}
+.qm-last small { font-size: 10px; opacity: 0.95; font-weight: 700; }
+.qm-stop--last .qm-flag { filter: hue-rotate(-40deg) saturate(1.6) brightness(1.15); animation: qm-flag-wave 0.9s ease-in-out infinite; }
+.qm-stop--last .qm-sign { box-shadow: 0 0 0 3px #fff inset, 0 0 22px 6px rgba(255, 122, 184, 0.85), 0 4px 0 #6b4300 !important; }
+@keyframes qm-last-bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-4px); } }
+@keyframes qm-flag-wave { 0%, 100% { transform: skewY(0deg); } 50% { transform: skewY(-6deg); } }
+@media (prefers-reduced-motion: reduce) { .qm-last, .qm-stop--last .qm-flag { animation: none; } }

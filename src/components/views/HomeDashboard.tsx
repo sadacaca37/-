@@ -32,8 +32,6 @@ import {
 } from 'lucide-react';
 import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { CharacterAvatar, DEFAULT_AVATAR_CONFIG } from '../CharacterAvatar';
-import { StudentProgressCard } from '../StudentProgressCard';
-import { LastPracticeGuideCard } from '../LastPracticeGuideCard';
 // 그래프 라이브러리는 커서 따로 불러옴 (첫 화면 속도)
 const PracticePerformanceChart = lazy(() => import('../PracticePerformanceChart').then((m) => ({ default: m.PracticePerformanceChart })));
 import { TapangHome, RetroFrame } from './TapangHome';
@@ -172,23 +170,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         onOpenProfile={onOpenProfile}
       />
 
-      <RetroFrame variant="sky" tag="PLAYER STATUS" title="내 타자 능력치">
-      {/* STUDENT CURRICULUM ROADMAP & PROGRESS SECTION */}
-      <StudentProgressCard
-        currentUser={currentUser}
-        onSelectMode={onSelectMode}
-        onOpenHistory={onOpenHistory}
-      />
-      </RetroFrame>
-
-      <RetroFrame variant="wood" tag="CONTINUE?" title="이어하기">
-      {/* LAST PRACTICED STAGE RE-TYPING & RESUME GUIDE CARD */}
-      <LastPracticeGuideCard
-        currentUser={currentUser}
-        onSelectMode={onSelectMode}
-      />
-      </RetroFrame>
-
+      {/* 성장 그래프와 최근 기록은 로그인한 학생에게만 보여 줌 */}
+      {currentUser && (
+      <>
       <RetroFrame variant="arcade" tag="SCORE BOARD" title="성장 그래프">
       {/* RECHARTS WEEKLY / MONTHLY PRACTICE PERFORMANCE CHART */}
       <Suspense fallback={<div className="h-64 rounded-3xl bg-white/70 animate-pulse" />}>
@@ -342,6 +326,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         )}
       </div>
       </RetroFrame>
+      </>
+      )}
     </div>
   );
 };

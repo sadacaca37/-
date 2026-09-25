@@ -3,6 +3,7 @@ import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { soundManager } from '../../utils/sound';
 import { pointsManager } from '../../utils/pointsManager';
 import { getQuestProgress, QuestMode } from '../../utils/questProgress';
+import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 
 /* ================================================================== */
 /*  Pixel sprite helper                                                 */
@@ -261,6 +262,22 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
   }, []);
   const quest = useMemo(() => getQuestProgress(currentUser?.id, records), [currentUser, records, questTick]);
 
+  // 로그인한 학생이 나가기 직전에 치던 곳 → 퀘스트 맵에 표시하고, 누르면 그 단계로 바로 들어감
+  const [lastPractice, setLastPractice] = useState(() => (currentUser ? dailyMissionsManager.getLastPractice(currentUser.id) : null));
+  useEffect(() => {
+    const refresh = () => setLastPractice(currentUser ? dailyMissionsManager.getLastPractice(currentUser.id) : null);
+    refresh();
+    window.addEventListener('last-practice-updated', refresh);
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('last-practice-updated', refresh);
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [currentUser]);
+  const lastMode = lastPractice?.mode === 'transcription-challenge' ? 'long-practice' : lastPractice?.mode;
+
   const stats = useMemo(() => {
     const byMode: Record<string, number> = {};
     records.forEach((r) => {
@@ -348,12 +365,14 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
               const q = quest[s.mode as QuestMode];
               const complete = q ? q.complete : false;
               const cleared = !q && (stats.byMode[s.mode] || 0) >= s.goal;
+              const isLast = !!currentUser && lastMode === s.mode;
               return (
                 <button
                   key={s.mode}
                   type="button"
                   onClick={() => go(s.mode)}
-                  className={`qm-stop ${s.kind ? `qm-stop--${s.kind}` : ''} ${complete ? 'qm-stop--complete' : ''}`}
+                  className={`qm-stop ${s.kind ? `qm-stop--${s.kind}` : ''} ${complete ? 'qm-stop--complete' : ''} ${isLast ? 'qm-stop--last' : ''}`}
+                  data-testid={isLast ? 'quest-last' : undefined}
                   style={{ ['--x' as any]: `${s.x}%`, ['--y' as any]: `${s.y}%`, ['--mx' as any]: `${s.mx}%`, ['--my' as any]: `${s.my}%` }}
                   aria-label={`${s.label} ${s.name}${q ? ` (${q.done}/${q.total}${complete ? ' 모두 완료' : ''})` : ''}`}
                 >
@@ -388,6 +407,12 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                         <b>✔</b>완료!
                       </i>
                     )}
+                    {isLast && (
+                      <i className="qm-last" title="지난번에 여기까지 쳤어요. 누르면 바로 이어서 쳐요!">
+                        <b>▶</b>여기까지 쳤어요 · 이어서
+                        {lastPractice?.stageTitle ? <small>{lastPractice.stageTitle}</small> : null}
+                      </i>
+                    )}
                   </span>
                   {s.kind === 'special' && (
                     <>
@@ -403,7 +428,9 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
             {/* 파팡 on tracks */}
             <div className="qm-bot">
               <div className="qm-bot-bubble">
-                {currentUser ? `${currentUser.name}! ` : ''}차근차근 퀘스트를 깨고 전설의 타자 왕에 도전해봐!
+                {currentUser && lastPractice
+                  ? `${currentUser.name}! 지난번엔 ${lastPractice.modeTitle || ''}${lastPractice.stageTitle ? ` (${lastPractice.stageTitle})` : ''}까지 쳤어. 깃발이 반짝이는 곳을 누르면 바로 이어서 할 수 있어!`
+                  : `${currentUser ? `${currentUser.name}! ` : ''}차근차근 퀘스트를 깨고 전설의 타자 왕에 도전해봐!`}
               </div>
               <Pixel grid={TV_BOT} pal={TV_PAL} size={70} />
               <span className="qm-tracks" />

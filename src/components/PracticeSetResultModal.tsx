@@ -1,4 +1,5 @@
 import React from 'react';
+import { BodyPortal } from './GameFitStage';
 import { 
   X, 
   RotateCcw, 
@@ -55,14 +56,16 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
   const isAccuracyPassed = accuracy >= 95;
   const canAdvanceStage = modeType === 'key_word' ? currentStars >= 10 : true;
 
+  // 연습 화면은 창 크기에 맞춰 축소되어 그려지므로, 결과 창은 축소되지 않도록 화면 맨 위(body)에 띄우고 글자도 크게
   return (
+    <BodyPortal>
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 tp-result-big"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-md bg-gradient-to-b from-amber-50 via-white to-pink-50 border-4 border-amber-300 rounded-3xl p-6 sm:p-7 shadow-2xl text-center space-y-4 overflow-x-hidden overflow-y-auto max-h-[92vh]">
+      <div className="relative w-full max-w-2xl bg-gradient-to-b from-amber-50 via-white to-pink-50 border-4 border-amber-300 rounded-3xl p-7 sm:p-9 shadow-2xl text-center space-y-5 overflow-x-hidden overflow-y-auto max-h-[94vh]">
         {/* Prominent Close Button at Top-Right */}
         <button
           onClick={onClose}
@@ -81,17 +84,17 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         </div>
 
         {/* Big Icon */}
-        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-300 via-yellow-200 to-pink-200 mx-auto flex items-center justify-center text-3xl shadow-md ring-4 ring-amber-100">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-300 via-yellow-200 to-pink-200 mx-auto flex items-center justify-center text-5xl shadow-md ring-4 ring-amber-100">
           {modeType === 'key_word' ? (currentStars >= 10 ? '🎉' : '⭐') : (isRecordBeat ? '🍬' : '📊')}
         </div>
 
         <div>
-          <h3 className="text-xl sm:text-2xl font-black text-stone-900">
+          <h3 className="text-3xl sm:text-4xl font-black text-stone-900">
             {modeType === 'key_word'
               ? (currentStars >= 10 ? '축하합니다! 10세트 모두 완료!' : '한 세트 완주 성공!')
               : (isRecordBeat ? '최고 타수 신기록 달성!' : '세트 연습 완료!')}
           </h3>
-          <p className="text-xs text-stone-600 font-medium mt-1">
+          <p className="text-base text-stone-600 font-medium mt-1">
             연습 결과를 확인하고 다음 단계로 진행하세요.
           </p>
         </div>
@@ -100,24 +103,24 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         <div className="grid grid-cols-3 gap-2 bg-white p-3.5 rounded-2xl border-2 border-amber-200 shadow-xs">
           {/* 타자수 */}
           <div className="bg-amber-50/80 rounded-xl p-2.5 border border-amber-100">
-            <div className="text-[11px] font-bold text-stone-500">타자수 (속도)</div>
-            <div className="text-xl font-black text-amber-700 font-mono mt-0.5">
+            <div className="text-sm font-bold text-stone-500">타자수 (속도)</div>
+            <div className="text-4xl font-black text-amber-700 font-mono mt-0.5">
               {cpm} <span className="text-xs font-bold text-stone-400">타</span>
             </div>
           </div>
 
           {/* 오타수 */}
           <div className="bg-rose-50/80 rounded-xl p-2.5 border border-rose-100">
-            <div className="text-[11px] font-bold text-stone-500">오타수</div>
-            <div className="text-xl font-black text-rose-600 font-mono mt-0.5">
+            <div className="text-sm font-bold text-stone-500">오타수</div>
+            <div className="text-4xl font-black text-rose-600 font-mono mt-0.5">
               {errorCount} <span className="text-xs font-bold text-stone-400">개</span>
             </div>
           </div>
 
           {/* 정확도 */}
           <div className="bg-emerald-50/80 rounded-xl p-2.5 border border-emerald-100">
-            <div className="text-[11px] font-bold text-stone-500">정확도</div>
-            <div className="text-xl font-black text-emerald-600 font-mono mt-0.5">
+            <div className="text-sm font-bold text-stone-500">정확도</div>
+            <div className="text-4xl font-black text-emerald-600 font-mono mt-0.5">
               {accuracy}%
             </div>
           </div>
@@ -127,16 +130,16 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         {modeType === 'key_word' ? (
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-200 space-y-2 text-left">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-900 flex items-center gap-1">
+              <span className="text-base font-black text-amber-900 flex items-center gap-1">
                 <span>별 적립 현황 (10세트 완주 시 다음 단계 & 마이쮸)</span>
               </span>
-              <span className="text-xs font-black text-amber-700 font-mono">
+              <span className="text-base font-black text-amber-700 font-mono">
                 {currentStars} / 10 세트
               </span>
             </div>
 
             {/* Visual 10 Stars Grid */}
-            <div className="flex items-center justify-center gap-1.5 py-1 text-lg">
+            <div className="flex items-center justify-center gap-2 py-1 text-3xl">
               {Array.from({ length: 10 }).map((_, i) => (
                 <span 
                   key={i} 
@@ -149,7 +152,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
               ))}
             </div>
 
-            <div className="text-xs font-medium text-stone-700 leading-relaxed border-t border-amber-200/60 pt-2">
+            <div className="text-sm font-medium text-stone-700 leading-relaxed border-t border-amber-200/60 pt-2">
               {isAccuracyPassed ? (
                 starsEarned ? (
                   <div className="text-emerald-700 font-bold flex items-center gap-1">
@@ -171,7 +174,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
             </div>
 
             {currentStars < 10 && (
-              <p className="text-[11px] text-stone-500 font-medium">
+              <p className="text-sm text-stone-500 font-medium">
                 💡 10세트(별 10개)가 모이면 다음 단계로 갈 수 있고 마이쮸를 받습니다! (앞으로 {10 - currentStars}세트 남음)
               </p>
             )}
@@ -179,7 +182,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         ) : (
           /* Short / Long Text Rules Box */
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 space-y-2 text-left">
-            <div className="flex items-center justify-between text-xs font-bold text-pink-900">
+            <div className="flex items-center justify-between text-base font-bold text-pink-900">
               <span>이전 최고 기록: <strong>{prevBestCpm > 0 ? `${prevBestCpm} 타` : '측정 전 (첫 타자)'}</strong></span>
               <span>이번 달성 기록: <strong className="text-pink-600">{cpm} 타</strong></span>
             </div>
@@ -232,7 +235,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
               onClose();
               onRetry();
             }}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border-2 border-stone-200 text-stone-700 font-bold text-xs transition flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+            className="flex-1 py-4 px-5 rounded-xl bg-white hover:bg-stone-50 border-2 border-stone-200 text-stone-700 font-bold text-lg transition flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>다시 연습하기</span>
@@ -250,7 +253,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
                   onNext();
                 }
               }}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-black text-xs transition flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+              className="flex-1 py-4 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-black text-lg transition flex items-center justify-center gap-1 cursor-pointer shadow-sm"
             >
               <span>{modeType === 'key_word' && !canAdvanceStage ? '다음 세트 시작' : '다음 단계로'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -259,5 +262,6 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         </div>
       </div>
     </div>
+    </BodyPortal>
   );
 };
