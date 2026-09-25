@@ -1,3 +1,4 @@
+import { isSavableUser } from './session';
 /**
  * 첫 화면 퀘스트맵의 "단계 완료" 진행도
  * - 각 단계의 모든 한글 코스(자리 8단계, 낱말 8단계, 짧은 글 주제, 긴 글 작품)를 한 번씩 끝까지 치면 완료
@@ -33,6 +34,7 @@ const load = (userId?: string): Record<string, string[]> => {
 /** 한 코스를 끝까지 쳤을 때 호출 (한글 코스만 집계) */
 export function markQuestUnitDone(userId: string | undefined, mode: QuestMode, unit: string, language: 'ko' | 'en' = 'ko') {
   if (language !== 'ko' || !units[mode].includes(unit)) return;
+  if (!isSavableUser(userId)) return; // 로그아웃 상태: 저장 안 함
   const data = load(userId);
   const list = new Set(data[mode] || []);
   if (list.has(unit)) return;

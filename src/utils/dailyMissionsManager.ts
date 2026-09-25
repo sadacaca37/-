@@ -1,3 +1,4 @@
+import { isSavableUser } from './session';
 import { AppMode } from '../types';
 import { addTypingPracticePoints } from './tamagotchiStorage';
 import { soundManager } from './sound';
@@ -150,6 +151,7 @@ export const dailyMissionsManager = {
 
   // Optimized increment: buffers typing character counts in memory to eliminate input keystroke load
   incrementProgress(type: 'chars' | 'game' | 'lesson', amount: number = 1, userId?: string): DailyMission[] {
+    if (!isSavableUser(userId)) return []; // 로그아웃 상태: 저장 안 함
     const safeAmount = Math.max(0, Math.round(Number(amount) || 0));
     if (safeAmount <= 0) return this.getMissions(userId);
 
@@ -203,6 +205,7 @@ export const dailyMissionsManager = {
   ): void {
     try {
       if (!location || !location.mode) return;
+      if (!isSavableUser(userId)) return; // 로그아웃 상태: 저장 안 함
 
       const userKey = userId || 'guest';
       const now = Date.now();

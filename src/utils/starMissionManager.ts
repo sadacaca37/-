@@ -1,3 +1,4 @@
+import { isSavableUser } from './session';
 import { soundManager } from './sound';
 
 const STAR_MISSION_KEY_PREFIX = 'typang_star_mission_v1_';
@@ -62,6 +63,9 @@ export class StarMissionManager {
    * Max 10 stars.
    */
   public addStar(missionTitle: string, userId?: string, scope?: string): { stars: number; isFull: boolean; justFilled: boolean } {
+    if (!isSavableUser(userId || this.resolveCurrentUserId())) {
+      return { stars: 0, isFull: false, justFilled: false }; // 로그아웃 상태: 저장 안 함
+    }
     const key = this.getStorageKey(userId, scope);
     const current = this.getState(userId, scope);
 

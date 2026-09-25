@@ -140,13 +140,10 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
         setStats((prev) => {
           const cpm = Math.round((prev.totalKeystrokes / elapsedSec) * 60);
-          const totalAttempts = prev.correctCount + prev.errorCount;
-          const accuracy = totalAttempts > 0 ? Math.round((prev.correctCount / totalAttempts) * 100) : 100;
           return {
             ...prev,
             elapsedSeconds: elapsedSec,
             cpm,
-            accuracy,
           };
         });
       }, 300);
@@ -157,7 +154,11 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     };
   }, [isFinished]);
 
+  const statsRef = useRef(stats);
+  statsRef.current = stats;
+
   const finishPractice = () => {
+    const stats = statsRef.current; // 마지막 낱말 채점까지 반영된 최신 값
     setIsFinished(true);
     soundManager.playVictory();
     addTypingPracticePoints(PRACTICE_SET_POINTS, `${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`);
@@ -239,6 +240,35 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     }
   };
 
+  /**
+   * 낱말 하나를 넘길 때 최종 입력으로 채점.
+   * - 오타 수: 틀린 글자 + 빠진 글자 + 더 친 글자 (세트 동안 누적)
+   * - 정확도: 맞은 글자 수 ÷ 전체 글자 수
+   * 백스페이스로 고친 뒤 넘기면 그 낱말은 오타 0으로 계산됨
+   */
+  const commitWord = (typed: string, target: string) => {
+    const t = target.trim();
+    const v = typed.trim();
+    let wrong = 0;
+    let right = 0;
+    for (let i = 0; i < t.length; i++) {
+      if (i < v.length && v[i] === t[i]) right++;
+      else wrong++;
+    }
+    if (v.length > t.length) wrong += v.length - t.length;
+    setStats((prev) => {
+      const errorCount = prev.errorCount + wrong;
+      const correctCount = prev.correctCount + right;
+      const totalChars = correctCount + errorCount;
+      return {
+        ...prev,
+        errorCount,
+        correctCount,
+        accuracy: totalChars > 0 ? Math.max(0, Math.round((correctCount / totalChars) * 100)) : 100,
+      };
+    });
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
 
@@ -282,17 +312,11 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
         if (nextCombo % 5 === 0) {
           soundManager.playCombo(nextCombo);
         }
-        const newCorrect = prev.correctCount + 1;
-        const newTotal = prev.totalKeystrokes + strokesAdded;
-        const totalAttempts = newCorrect + prev.errorCount;
-        const accuracy = totalAttempts > 0 ? Math.round((newCorrect / totalAttempts) * 100) : 100;
         return {
           ...prev,
-          correctCount: newCorrect,
-          totalKeystrokes: newTotal,
+          totalKeystrokes: prev.totalKeystrokes + strokesAdded,
           combo: nextCombo,
           maxCombo: Math.max(prev.maxCombo, nextCombo),
-          accuracy,
         };
       });
     } else {
@@ -300,19 +324,13 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
       soundManager.playError();
       setIsCorrectLastKey(false);
 
-      setStats((prev) => {
-        const newErrors = prev.errorCount + 1;
-        const newTotal = prev.totalKeystrokes + strokesAdded;
-        const totalAttempts = prev.correctCount + newErrors;
-        const accuracy = totalAttempts > 0 ? Math.round((prev.correctCount / totalAttempts) * 100) : 100;
-        return {
-          ...prev,
-          errorCount: newErrors,
-          totalKeystrokes: newTotal,
-          combo: 0,
-          accuracy,
-        };
-      });
+      // 오타는 여기서 세지 않음 — 낱말을 넘길 때(commitWord) 최종 입력으로 채점하므로,
+      // 백스페이스로 고치면 오타로 남지 않음
+      setStats((prev) => ({
+        ...prev,
+        totalKeystrokes: prev.totalKeystrokes + strokesAdded,
+        combo: 0,
+      }));
     }
 
     // If typed length exceeds current word length, reset input as requested
@@ -325,12 +343,13 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
     if (val === currentWord || val.trim() === currentWord.trim()) {
       soundManager.playSuccess();
+      commitWord(val, currentWord);
       if (wordIndex + 1 < TOTAL_TRIALS) {
         setWordIndex((prev) => prev + 1);
         setInputVal('');
         setIsCorrectLastKey(null);
       } else {
-        finishPractice();
+        setTimeout(finishPractice, 0);
       }
     }
   };
@@ -351,13 +370,14 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
         soundManager.playError();
         setIsCorrectLastKey(false);
       }
+      commitWord(inputVal, currentWord);
 
       if (wordIndex + 1 < TOTAL_TRIALS) {
         setWordIndex((prev) => prev + 1);
         setInputVal('');
         setIsCorrectLastKey(null);
       } else {
-        finishPractice();
+        setTimeout(finishPractice, 0);
       }
     }
   };

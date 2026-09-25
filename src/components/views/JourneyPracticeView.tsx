@@ -134,7 +134,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   const [selectedContinent, setSelectedContinent] = useState<string>('전체');
   const [conqueredCapitals, setConqueredCapitals] = useState<number[]>(() => {
     try {
-      const saved = localStorage.getItem('pangpang_conquered_capitals');
+      const saved = currentUser?.id ? localStorage.getItem(`pangpang_conquered_capitals_${currentUser.id}`) : null;
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -157,7 +157,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   const [joseonStep, setJoseonStep] = useState<'name' | 'achievement'>('name');
   const [conqueredKings, setConqueredKings] = useState<number[]>(() => {
     try {
-      const saved = localStorage.getItem('pangpang_conquered_kings');
+      const saved = currentUser?.id ? localStorage.getItem(`pangpang_conquered_kings_${currentUser.id}`) : null;
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -182,7 +182,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   const [bookLineIndex, setBookLineIndex] = useState(0);
   const [conqueredBooks, setConqueredBooks] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('pangpang_conquered_books');
+      const saved = currentUser?.id ? localStorage.getItem(`pangpang_conquered_books_${currentUser.id}`) : null;
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -406,7 +406,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       if (!conqueredCapitals.includes(currentCapital.id)) {
         const updated = [...conqueredCapitals, currentCapital.id];
         setConqueredCapitals(updated);
-        localStorage.setItem('pangpang_conquered_capitals', JSON.stringify(updated));
+        if (currentUser?.id) localStorage.setItem(`pangpang_conquered_capitals_${currentUser.id}`, JSON.stringify(updated));
       }
 
       // 문제당 +5P 적립 (세트를 끝까지 쳐야 지급)
@@ -438,7 +438,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
         if (!conqueredKings.includes(currentKing.order)) {
           const updated = [...conqueredKings, currentKing.order];
           setConqueredKings(updated);
-          localStorage.setItem('pangpang_conquered_kings', JSON.stringify(updated));
+          if (currentUser?.id) localStorage.setItem(`pangpang_conquered_kings_${currentUser.id}`, JSON.stringify(updated));
         }
 
         setJoseonStep('name');
@@ -479,7 +479,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
         if (!conqueredBooks.includes(currentBook.id)) {
           const updated = [...conqueredBooks, currentBook.id];
           setConqueredBooks(updated);
-          localStorage.setItem('pangpang_conquered_books', JSON.stringify(updated));
+          if (currentUser?.id) localStorage.setItem(`pangpang_conquered_books_${currentUser.id}`, JSON.stringify(updated));
         }
         finishCourse('book');
       }

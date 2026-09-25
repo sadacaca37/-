@@ -848,7 +848,7 @@
 @media (min-width: 640px) { .qm-stop { left: var(--x); top: var(--y); } }
 .qm-shadow { position: absolute; left: -38px; top: -8px; width: 76px; height: 16px; border-radius: 50%; background: rgba(28, 110, 30, 0.55); }
 .qm-post { position: absolute; left: -7px; bottom: 0; width: 14px; height: 70px; background: linear-gradient(90deg, #5a3417, #8a5a44 50%, #5a3417); border: 3px solid #2e160b; }
-.qm-flag { position: absolute; left: 3px; bottom: 70px; width: 4px; height: 44px; background: #2e160b; }
+.qm-flag { position: absolute; left: 18px; bottom: calc(100% - 2px); width: 4px; height: 40px; background: #2e160b; z-index: 1; }
 .qm-flag::after {
   content: ''; position: absolute; left: 4px; top: 0; width: 34px; height: 22px;
   background: var(--qm-red); border: 3px solid #7a0d18; border-left: none;
@@ -959,7 +959,7 @@
   .qm-sign { padding: 5px 10px 5px 6px; gap: 6px; }
   .qm-sign-icon { width: 30px; height: 30px; font-size: 1.1rem; }
   .qm-sign-text { font-size: 0.92rem; }
-  .qm-post { height: 50px; } .qm-flag { bottom: 50px; height: 34px; } .qm-flag::after { width: 26px; height: 17px; }
+  .qm-post { height: 50px; } .qm-flag { height: 32px; } .qm-flag::after { width: 26px; height: 17px; }
   .qm-sign { bottom: 22px; }
   .qm-arch { width: 140px; height: 118px; } .qm-arch::before { height: 104px; border-width: 15px; }
   .qm-spark { display: none; }

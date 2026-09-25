@@ -385,12 +385,11 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                       <span className="qm-pillar qm-pillar--r" />
                     </span>
                   ) : (
-                    <>
-                      <span className="qm-post" />
-                      {!s.kind && <span className="qm-flag" />}
-                    </>
+                    <span className="qm-post" />
                   )}
                   <span className="qm-sign">
+                    {/* 깃발은 표지판 위에 온전히 보이도록 표지판 안쪽에 붙임 */}
+                    {!s.kind && <span className="qm-flag" />}
                     <span className="qm-sign-icon"><PixelIcon name={s.icon} size={26} /></span>
                     <span className="qm-sign-text">
                       <b>{s.label}:</b>

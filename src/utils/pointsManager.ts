@@ -1,3 +1,4 @@
+import { isSavableUser } from './session';
 import { soundManager } from './sound';
 import { getStoredTamagotchi, saveStoredTamagotchi } from './tamagotchiStorage';
 import { typangSync } from './excelStudentManager';
@@ -170,6 +171,7 @@ export class PointsManager {
   }
 
   public getPoints(userId?: string): number {
+    if (!isSavableUser(userId || resolveCurrentUserId())) return 0;
     try {
       const key = this.getStorageKey(userId);
       const raw = localStorage.getItem(key);
@@ -184,10 +186,12 @@ export class PointsManager {
   }
 
   public getBalance(userId?: string): number {
+    if (!isSavableUser(userId || resolveCurrentUserId())) return 0;
     return this.getPoints(userId);
   }
 
   public addPoints(amount: number, reason: string, userId?: string): number {
+    if (!isSavableUser(userId || resolveCurrentUserId())) return 0; // 로그아웃 상태: 저장 안 함
     const rawAmount = Math.max(0, Math.round(Number(amount) || 0));
     if (rawAmount <= 0 || !Number.isFinite(rawAmount)) {
       return this.getPoints(userId);
@@ -245,6 +249,7 @@ export class PointsManager {
   }
 
   public spendPoints(amount: number, reason: string, userId?: string): boolean {
+    if (!isSavableUser(userId || resolveCurrentUserId())) return false;
     const safeAmount = Math.max(0, Math.round(Number(amount) || 0));
     if (safeAmount <= 0) return true;
 

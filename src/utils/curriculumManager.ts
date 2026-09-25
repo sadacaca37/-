@@ -1,3 +1,4 @@
+import { isSavableUser } from './session';
 import { UserSession, PracticeHistoryRecord, CurriculumStep, MasterConfig, AppMode } from '../types';
 export type { CurriculumStep };
 import { 
@@ -808,6 +809,8 @@ export function recordPracticeHistory(
     dateStr,
     feedback: entry.feedback || feedback,
   };
+
+  if (!isSavableUser(entry.userId)) return record; // 로그아웃 상태: 기록 저장 안 함
 
   try {
     // 1. Save to User History

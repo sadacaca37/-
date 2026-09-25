@@ -16,6 +16,9 @@ const USER_KEY_PREFIXES = [
   'typang_last_practice_',
   'typang_autosave_session_',
   'pangpang_python_',
+  'pangpang_conquered_',
+  'pangpang_best_sentence_cpm_',
+  'typang_sentence_progress_',
 ];
 
 /** 이 브라우저에 하나만 있지만 학생 개인 것에 가까운 자료 */
@@ -23,9 +26,6 @@ const SHARED_PERSONAL_KEYS = [
   'taja_unlocked_avatar_items_v2',
   'avatar_favorites',
   'tamagotchi_animal_pet_v2',
-  'pangpang_conquered_books',
-  'pangpang_conquered_capitals',
-  'pangpang_conquered_kings',
   'suika_high_score',
   'brick_breaker_high_score',
   'cat_runner_high_score',
