@@ -6,7 +6,7 @@ import { getKeyGuideForChar, getActiveKeystrokeGuide, countKeystrokes, isHangulP
 import { soundManager } from '../../utils/sound';
 import { VirtualKeyboard } from '../VirtualKeyboard';
 import { TypingStats, UserSession, LeaderboardEntry } from '../../types';
-import { RotateCcw, Award, ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles, Shuffle, CheckCircle2 } from 'lucide-react';
+import { RotateCcw, Award, ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles, CheckCircle2 } from 'lucide-react';
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { recordPracticeHistory } from '../../utils/curriculumManager';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
@@ -417,6 +417,8 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   };
 
   const handleReset = () => {
+    // 다시 칠 때마다 낱말 순서를 자동으로 새로 섞음
+    setShuffledWords(shuffleWordsList(currentCategory.words));
     setWordIndex(0);
     setInputVal('');
     setIsFinished(false);
@@ -540,22 +542,6 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               <span>🇺🇸 영어 낱말</span>
             </button>
           </div>
-
-          {/* Random Question Shuffle Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setShuffledWords(shuffleWordsList(currentCategory.words));
-              setWordIndex(0);
-              setInputVal('');
-              handleReset();
-            }}
-            className="px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-            title="낱말 순서를 무작위로 섞어 랜덤하게 문제를 제시합니다"
-          >
-            <Shuffle className="w-3.5 h-3.5 text-purple-600" />
-            <span>🎲 낱말 랜덤 출제</span>
-          </button>
 
           {/* Quick Re-type Button */}
           <button
@@ -682,17 +668,13 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
               {/* 방금 친 낱말 결과 + 안내 */}
               <div className="mt-1 min-h-[28px] text-lg sm:text-xl font-black select-none" data-testid="word-feedback">
-                {lastWordResult ? (
-                  lastWordResult.wrong === 0 ? (
-                    <span className="text-teal-600">✓ {lastWordResult.word} 정확해요!</span>
-                  ) : (
-                    <span className="text-rose-600">
-                      ✗ {lastWordResult.word} → {lastWordResult.typed} (오타 {lastWordResult.wrong}개)
-                    </span>
-                  )
-                ) : (
+                {lastWordResult && lastWordResult.wrong > 0 ? (
+                  <span className="text-rose-600">
+                    ✗ {lastWordResult.word} → {lastWordResult.typed} (오타 {lastWordResult.wrong}개)
+                  </span>
+                ) : !lastWordResult ? (
                   <span className="text-slate-400 text-base">다 치면 엔터나 스페이스를 눌러요</span>
-                )}
+                ) : null}
               </div>
 
               {/* Hidden Real Input */}

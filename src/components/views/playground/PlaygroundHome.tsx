@@ -186,9 +186,41 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   }
 
   const funfunGames = PLAYGROUND_GAMES.filter((g) => g.category === '펀펀');
+  let markInvite = '';
+  try {
+    markInvite = sessionStorage.getItem('typang_mark_invite') || '';
+  } catch {}
+  const markGame = PLAYGROUND_GAMES.find((g) => g.id === 'app-blockcraft');
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 space-y-6 animate-fade-in">
+      {markInvite && markGame && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl bg-amber-50 border-2 border-amber-300 shadow-xs" data-testid="mark-invite">
+          <div className="text-sm font-black text-amber-900">
+            ⛏️ 친구가 <b>마크</b> 방 <span className="font-mono text-amber-600">{markInvite}</span> 에 초대했어요!
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleLaunchFunfunGame(markGame)}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-black cursor-pointer"
+            >
+              방에 들어가기
+            </button>
+            <button
+              onClick={() => {
+                try {
+                  sessionStorage.removeItem('typang_mark_invite');
+                } catch {}
+                setNotice(null);
+                setSelectedGameId(null);
+              }}
+              className="px-3 py-2 rounded-xl bg-white border border-amber-300 text-amber-800 text-xs font-bold cursor-pointer"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
       {/* Top Banner & Return to Home */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
         <div>

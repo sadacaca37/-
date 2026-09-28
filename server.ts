@@ -3,7 +3,7 @@ import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
-import { attachBlockcraft } from './server/blockcraftRooms';
+import { attachBlockcraft, registerBlockcraftHttp } from './server/blockcraftRooms';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -438,6 +438,9 @@ app.post('/api/backup/restore', (req, res) => {
     restoredProgress: Object.keys(backup.progress || {}).length,
   });
 });
+
+// 마크 멀티플레이: 소켓이 막힌 곳에서도 방 만들기·참가가 되도록 HTTP 접속 길도 열어 둠
+registerBlockcraftHttp(app);
 
 app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '없는 API 입니다.' }));
 

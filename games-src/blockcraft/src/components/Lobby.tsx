@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Users,
   Play,
@@ -10,6 +10,7 @@ import {
   Shield,
   Gamepad2,
   Dice5,
+  Link2,
 } from "lucide-react";
 import { PlayerData, RoomState } from "../types";
 
@@ -50,8 +51,17 @@ export const Lobby: React.FC<LobbyProps> = ({
     } catch {}
     return DEFAULT_NICKNAMES[Math.floor(Math.random() * DEFAULT_NICKNAMES.length)];
   });
-  const [joinCode, setJoinCode] = useState("");
+  // 친구 초대 링크로 들어오면(?room=코드) 방 코드를 미리 채우고 바로 참가
+  const inviteCode = (() => {
+    try {
+      return (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    } catch {
+      return "";
+    }
+  })();
+  const [joinCode, setJoinCode] = useState(inviteCode);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -61,11 +71,45 @@ export const Lobby: React.FC<LobbyProps> = ({
     setNickname(`${random}_${num}`);
   };
 
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  };
+
   const handleCopyCode = () => {
     if (!room) return;
-    navigator.clipboard.writeText(room.code);
+    void copyText(room.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  /** 친구 초대 링크: 타자팡팡 안이면 사이트 첫 화면(?mark=코드), 따로 실행 중이면 이 게임 주소(?room=코드) */
+  const inviteLink = (code: string) => {
+    const p = location.pathname;
+    const i = p.indexOf("/games/blockcraft/");
+    if (i >= 0) return `${location.origin}${p.slice(0, i + 1)}?mark=${code}`;
+    return `${location.origin}${p}?room=${code}`;
+  };
+
+  const handleCopyLink = () => {
+    if (!room) return;
+    void copyText(inviteLink(room.code));
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2500);
   };
 
   const handleCreate = async () => {
@@ -100,6 +144,15 @@ export const Lobby: React.FC<LobbyProps> = ({
     }
   };
 
+  const autoJoined = useRef(false);
+  useEffect(() => {
+    if (!inviteCode || room || autoJoined.current) return;
+    autoJoined.current = true;
+    const t = setTimeout(() => void handleJoin(), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const isHost = room?.hostId === selfId;
   const playerCount = room?.players.length || 0;
   const maxPlayers = room?.maxPlayers || 6;
@@ -120,7 +173,7 @@ export const Lobby: React.FC<LobbyProps> = ({
             3D BLOCK BUILDER
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-1 font-mono">
-            Three.js & Socket.io 기반 실시간 6인 멀티플레이어 Voxel Sandbox
+            방을 만들고 친구를 초대해 최대 6명이 함께 노는 블록 샌드박스
           </p>
         </div>
 
@@ -161,6 +214,22 @@ export const Lobby: React.FC<LobbyProps> = ({
                     <span>코드 복사</span>
                   </>
                 )}
+              </button>
+            </div>
+
+            {/* 친구 초대 */}
+            <div className="bg-amber-500/10 p-3.5 rounded-2xl border border-amber-500/40 space-y-2">
+              <p className="text-xs text-amber-200 leading-relaxed">
+                👫 <b>친구 초대:</b> 친구에게 방 코드 <b className="font-mono text-amber-300">{room.code}</b> 를 알려 주면, 친구가
+                마크 첫 화면의 <b>방 참가하기</b> 칸에 코드를 넣고 들어올 수 있어요. 아래 링크를 보내 주면 바로 들어와요.
+              </p>
+              <button
+                id="btn-copy-invite"
+                onClick={handleCopyLink}
+                className="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-black flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {linkCopied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+                {linkCopied ? "초대 링크를 복사했어요! 친구에게 보내 주세요" : "초대 링크 복사"}
               </button>
             </div>
 

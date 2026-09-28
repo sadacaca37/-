@@ -104,8 +104,27 @@ const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
 
 
 // Helper to detect initial mode synchronously from URL params (?mode=...)
+/** 마크 친구 초대 링크(?mark=방코드)로 들어오면 코드를 기억해 두고 놀이터로 */
+const MARK_INVITE_KEY = 'typang_mark_invite';
+const readMarkInvite = (): string => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const code = (params.get('mark') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    if (code) {
+      sessionStorage.setItem(MARK_INVITE_KEY, code);
+      params.delete('mark');
+      const qs = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+    }
+    return code;
+  } catch {
+    return '';
+  }
+};
+
 const getInitialMode = (): AppMode => {
   if (typeof window !== 'undefined') {
+    if (readMarkInvite()) return 'playground';
     try {
       const params = new URLSearchParams(window.location.search);
       const urlMode = params.get('mode') as AppMode;

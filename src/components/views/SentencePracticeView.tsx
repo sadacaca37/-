@@ -9,8 +9,7 @@ import {
   Timer, 
   Globe,
   Lock,
-  CheckCircle2,
-  Shuffle
+  CheckCircle2
 } from 'lucide-react';
 import { SENTENCE_PRACTICE_DATA, ENGLISH_SENTENCE_PRACTICE_DATA } from '../../data/practiceData';
 import { TypingStats, UserSession, LeaderboardEntry } from '../../types';
@@ -673,6 +672,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleResetSession = () => {
+    // 다시 시작할 때마다 문장 순서를 자동으로 새로 섞음
+    if (currentCategory?.sentences) setShuffledSentences(shuffleSentenceList(currentCategory.sentences));
     setInputVal('');
     setSentenceIndex(0);
     setCompletedInSession(0);
@@ -788,23 +789,6 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               🇺🇸 영어 짧은 글
             </button>
           </div>
-
-          {/* Random Sentence Shuffle Button */}
-          <button
-            onClick={() => {
-              if (currentCategory?.sentences) {
-                setShuffledSentences(shuffleSentenceList(currentCategory.sentences));
-                setSentenceIndex(0);
-                setInputVal('');
-                handleResetSession();
-              }
-            }}
-            className="px-3.5 py-2 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-black border border-purple-300 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
-            title="문장 순서를 무작위로 섞어 랜덤하게 문제를 제시합니다"
-          >
-            <Shuffle className="w-4 h-4 text-purple-600" />
-            <span>🎲 문장 랜덤 출제</span>
-          </button>
 
           {/* 5-Min Marathon Button */}
           <button
