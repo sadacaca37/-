@@ -675,9 +675,9 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               </div>
 
               {/* Typing Line & Blinking Cursor Area */}
-              <div className="min-h-[48px] flex items-center justify-center text-4xl sm:text-5xl font-black text-teal-600 font-mono">
+              <div className="min-h-[60px] flex items-center justify-center text-5xl sm:text-6xl font-black text-teal-600 tracking-wider" data-testid="typed-word">
                 <span>{inputVal}</span>
-                <span className="inline-block w-2.5 h-6 bg-slate-900 ml-0.5 animate-pulse rounded-xs" />
+                <span className="inline-block w-2.5 h-12 bg-slate-900 ml-0.5 animate-pulse rounded-xs" />
               </div>
 
               {/* 방금 친 낱말 결과 + 안내 */}
