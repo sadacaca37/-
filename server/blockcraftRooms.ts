@@ -49,6 +49,11 @@ const playerRoom = new Map<string, string>(); // playerId -> roomCode
 
 const PLAYER_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#ec4899', '#a855f7', '#eab308', '#06b6d4', '#ef4444'];
 
+/** 지금 열려 있는 방 수 */
+export function activeRoomCount() {
+  return Object.keys(rooms).length;
+}
+
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
