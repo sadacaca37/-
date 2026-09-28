@@ -1,3 +1,4 @@
+import { backupKeeper, LAST_AUTO_BACKUP_KEY } from '../utils/backupKeeper';
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
@@ -183,6 +184,14 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     };
   }, [onUpdateUsersList]);
 
+  const [autoBackupAt, setAutoBackupAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(LAST_AUTO_BACKUP_KEY)) || 0;
+    } catch {
+      return 0;
+    }
+  });
+
   useEffect(() => {
     if (currentUser?.role === 'master' && typangApi.getMasterKey()) {
       setIsAuthenticated(true);
@@ -207,7 +216,13 @@ export const MasterModal: React.FC<MasterModalProps> = ({
         setIsAuthenticated(false);
         setAuthError('마스터 비밀번호를 다시 입력해 주세요.');
       } else {
-        refreshFromServer();
+        // 선생님 컴퓨터에 전체 백업 자동 보관(서버가 새로 시작했으면 자동 복원)
+        void backupKeeper.tick().then(() => {
+          refreshFromServer();
+          try {
+            setAutoBackupAt(Number(localStorage.getItem(LAST_AUTO_BACKUP_KEY)) || 0);
+          } catch {}
+        });
       }
     });
   }, [isOpen, isAuthenticated, refreshFromServer]);
@@ -688,6 +703,11 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                       }}
                     />
                   </label>
+                  <span className="w-full text-[11px] text-slate-600" data-testid="auto-backup-status">
+                    🔒 자동 백업: 이 컴퓨터에 학생 아이디·전화번호·포인트·기록을 3분마다 보관 중
+                    {autoBackupAt ? ` (마지막 ${new Date(autoBackupAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})` : ''}
+                    . 코드를 업데이트해도 이 컴퓨터에서 마스터로 들어오면 자동으로 되살아나요.
+                  </span>
                   {rosterMsg && <span className="w-full text-[11px]">{rosterMsg}</span>}
                 </div>
 

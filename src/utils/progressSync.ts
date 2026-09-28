@@ -32,6 +32,8 @@ const SHARED_PERSONAL_KEYS = [
 ];
 
 const SYNC_INTERVAL_MS = 15000;
+/** 이 브라우저가 서버에 마지막으로 올린 시각(학생별) — 서버가 비워져 옛날 백업으로 돌아갔는지 판단용 */
+const PUSHED_AT_PREFIX = 'typang_progress_pushed_at_';
 
 function belongsToUser(key: string, userId: string): boolean {
   if (SHARED_PERSONAL_KEYS.includes(key)) return true;
@@ -46,6 +48,7 @@ function collect(userId: string): Record<string, string> {
       const key = localStorage.key(i);
       if (!key) continue;
       if (key === 'typang_current_user' || key === 'typang_users_db' || key === 'typang_master_key') continue;
+      if (key.startsWith(PUSHED_AT_PREFIX)) continue;
       if (!belongsToUser(key, userId)) continue;
       const v = localStorage.getItem(key);
       if (v != null && v.length < 400000) out[key] = v;
@@ -81,9 +84,14 @@ class ProgressSync {
       if (json && json.success) {
         if (json.data && Object.keys(json.data).length) {
           const mine = collect(userId);
-          // 이 컴퓨터에 남아 있던 자료가 더 최신이면 그대로 두고 올려 보냄
           const localCount = Object.keys(mine).length;
-          if (!localCount || (json.updatedAt || 0) >= Date.now() - 1000 * 60 * 60 * 24 * 365) {
+          let pushedAt = 0;
+          try {
+            pushedAt = Number(localStorage.getItem(PUSHED_AT_PREFIX + userId)) || 0;
+          } catch {}
+          // 서버 자료가 이 컴퓨터가 마지막으로 올린 것보다 오래됐으면(서버가 업데이트로 비워졌다가
+          // 옛 백업으로 돌아간 경우) 이 컴퓨터의 최신 포인트·기록을 지키고 서버에 다시 올림
+          if (!localCount || (json.updatedAt || 0) >= pushedAt) {
             apply(json.data);
             restored = true;
           }
@@ -133,7 +141,17 @@ class ProgressSync {
         navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
         return;
       }
-      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+      const uid = this.userId;
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true })
+        .then((r) => r.json())
+        .then((j) => {
+          if (j?.success && !j.skipped) {
+            try {
+              localStorage.setItem(PUSHED_AT_PREFIX + uid, String(j.updatedAt || Date.now()));
+            } catch {}
+          }
+        })
+        .catch(() => {});
     } catch {}
   }
 }

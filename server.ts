@@ -25,6 +25,12 @@ const ROOT = process.cwd();
 const DATA_DIR = path.join(ROOT, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// 서버가 "빈 상태로 새로 시작"했는지(코드 업데이트·재배포로 data 폴더가 비워짐).
+// 이때 선생님 컴퓨터에 자동 보관된 백업으로 학생 계정·포인트를 되살림.
+const FRESH_START = !fs.existsSync(path.join(DATA_DIR, 'members-live.json')) && !fs.existsSync(path.join(DATA_DIR, 'progress.json'));
+let needsRestore = FRESH_START;
+if (FRESH_START) console.log('[backup] 새로 시작한 서버입니다. 선생님(마스터)이 접속하면 자동 백업으로 되살립니다.');
+
 /** members.json = 코드와 함께 고정되는 회원 명단, data/members-live.json = 실행 중 최신 상태 */
 const members = new MemberStore(path.join(ROOT, 'members.json'), path.join(DATA_DIR, 'members-live.json'));
 
@@ -368,13 +374,47 @@ app.get('/api/backup', (req, res) => {
   });
 });
 
+// 자동 백업 상태 (마스터 전용): 새로 시작해서 되살려야 하는지
+app.get('/api/backup/status', (req, res) => {
+  if (!isMaster(req)) return denyMaster(res);
+  res.json({
+    success: true,
+    needsRestore,
+    members: members.status().total,
+    progress: Object.keys(progressCache).length,
+  });
+});
+
 // 백업 되돌리기 (마스터 전용)
+//  mode 'merge' (자동 복원): 없는 학생만 추가, 학생 자료는 더 최신 것만, 명예의 전당은 합치기
 app.post('/api/backup/restore', (req, res) => {
   if (!isMaster(req)) return denyMaster(res);
   const backup = req.body?.backup;
+  const merge = req.body?.mode === 'merge';
   if (!backup || typeof backup !== 'object') return res.status(400).json({ success: false, message: '백업 파일 내용을 읽을 수 없습니다.' });
   let restoredMembers = 0;
   try {
+    if (merge) {
+      if (backup.members) restoredMembers = members.importMissing(backup.members);
+      if (backup.progress && typeof backup.progress === 'object') {
+        for (const [uid, rec] of Object.entries<any>(backup.progress)) {
+          const prev = progressCache[uid];
+          const stamp = Number(rec?.updatedAt) || 0;
+          if (!prev || prev.updatedAt < stamp) progressCache[uid] = { data: rec?.data || {}, updatedAt: stamp || Date.now() };
+        }
+        persistProgress(true);
+      }
+      if (Array.isArray(backup.leaderboard)) {
+        const seen = new Set(leaderboardCache.map((e: any) => e.id));
+        for (const e of backup.leaderboard) if (e && !seen.has(e.id)) leaderboardCache.push(e);
+        leaderboardCache.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        if (leaderboardCache.length > 100) leaderboardCache.length = 100;
+        persistLeaderboard(true);
+      }
+      needsRestore = false;
+      return res.json({ success: true, message: `학생 ${restoredMembers}명과 학습 자료를 되살렸습니다.`, restoredMembers });
+    }
+    needsRestore = false;
     if (backup.members) restoredMembers = members.importFixed(backup.members);
     if (backup.progress && typeof backup.progress === 'object') {
       for (const [uid, rec] of Object.entries<any>(backup.progress)) {

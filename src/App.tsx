@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
 import { progressSync } from './utils/progressSync';
+import { backupKeeper } from './utils/backupKeeper';
 import { Navbar } from './components/Navbar';
 import { AuthModal } from './components/AuthModal';
 import { HomeDashboard } from './components/views/HomeDashboard';
@@ -167,6 +168,12 @@ export default function App() {
       setUsersDb(userPersistenceManager.getLocalUsers());
       typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
 
+      // 1-1. 선생님(마스터) 컴퓨터: 전체 백업 자동 보관 + 업데이트로 서버가 비면 자동 복원
+      backupKeeper.start();
+      window.addEventListener('typang-backup-restored', () => {
+        typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
+      });
+
       // 2. Current User Session
       const savedUser = localStorage.getItem('typang_current_user');
       if (savedUser) {
@@ -229,6 +236,7 @@ export default function App() {
   const handleLoginSuccess = (user: UserSession) => {
     setCurrentUser(user);
     localStorage.setItem('typang_current_user', JSON.stringify(user));
+    if (user.role === 'master') setTimeout(() => void backupKeeper.tick(), 300);
     // 다른 컴퓨터에서 하던 기록·포인트를 이어서 쓰도록 서버 자료를 받아 옴
     void progressSync.start(user.id).then((r) => {
       if (r.restored) window.dispatchEvent(new Event('storage'));

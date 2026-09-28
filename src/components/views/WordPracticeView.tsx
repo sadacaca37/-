@@ -241,21 +241,29 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   };
 
   /**
-   * 낱말 하나를 넘길 때 최종 입력으로 채점.
-   * - 오타 수: 틀린 글자 + 빠진 글자 + 더 친 글자 (세트 동안 누적)
-   * - 정확도: 맞은 글자 수 ÷ 전체 글자 수
+   * 낱말 하나를 넘길 때(엔터·스페이스) 최종 입력으로 채점.
+   * - 오타 수: 틀린 글자 + 빠진 글자 + 더 친 글자 (편집 거리, 세트 동안 누적)
+   * - 정확도: 맞은 글자 수 ÷ 전체 글자 수 (전체 = 맞은 글자 + 오타)
    * 백스페이스로 고친 뒤 넘기면 그 낱말은 오타 0으로 계산됨
    */
+  const [lastWordResult, setLastWordResult] = useState<{ word: string; typed: string; wrong: number } | null>(null);
+  const composingRef = useRef(false);
+  const pendingCommitRef = useRef(false);
+
   const commitWord = (typed: string, target: string) => {
     const t = target.trim();
     const v = typed.trim();
-    let wrong = 0;
-    let right = 0;
-    for (let i = 0; i < t.length; i++) {
-      if (i < v.length && v[i] === t[i]) right++;
-      else wrong++;
+    // 편집 거리(바꿔 친 글자·빠진 글자·더 친 글자 수)
+    const dp: number[][] = Array.from({ length: t.length + 1 }, (_, i) => [i, ...Array(v.length).fill(0)]);
+    for (let j = 1; j <= v.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= t.length; i++) {
+      for (let j = 1; j <= v.length; j++) {
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (t[i - 1] === v[j - 1] ? 0 : 1));
+      }
     }
-    if (v.length > t.length) wrong += v.length - t.length;
+    const wrong = dp[t.length][v.length];
+    const right = Math.max(0, Math.max(t.length, v.length) - wrong);
+    setLastWordResult({ word: t, typed: v, wrong });
     setStats((prev) => {
       const errorCount = prev.errorCount + wrong;
       const correctCount = prev.correctCount + right;
@@ -269,8 +277,48 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     });
   };
 
+  /** 엔터·스페이스로 낱말을 넘김 (다 치기 전에는 절대 자동으로 넘어가지 않음) */
+  const submitWord = (typedRaw?: string) => {
+    const typed = (typedRaw ?? inputRef.current?.value ?? inputVal).trim();
+    if (!typed) {
+      setInputVal('');
+      return;
+    }
+    if (!startTimeRef.current) startTimeRef.current = Date.now();
+    if (typed === currentWord.trim()) {
+      soundManager.playSuccess();
+    } else {
+      soundManager.playError();
+    }
+    commitWord(typed, currentWord);
+    setInputVal('');
+    if (inputRef.current) inputRef.current.value = '';
+    setIsCorrectLastKey(null);
+    if (wordIndex + 1 < TOTAL_TRIALS) {
+      setWordIndex((prev) => prev + 1);
+    } else {
+      setTimeout(finishPractice, 0);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+    let val = e.target.value;
+
+    // 스페이스 = 이 낱말 다 쳤어요(낱말 안에 띄어쓰기가 있으면 그 자리까지는 글자로 받음)
+    if (val.endsWith(' ')) {
+      const body = val.slice(0, -1);
+      const wordHasSpace = currentWord.includes(' ');
+      if (!wordHasSpace || body.length >= currentWord.length) {
+        if (!body.trim()) {
+          setInputVal('');
+          return;
+        }
+        pendingCommitRef.current = false;
+        submitWord(body);
+        return;
+      }
+    }
+    val = val.replace(/^\s+/, '');
 
     if (!startTimeRef.current) {
       startTimeRef.current = Date.now();
@@ -333,25 +381,9 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
       }));
     }
 
-    // If typed length exceeds current word length, reset input as requested
-    if (val.length > currentWord.length) {
-      setInputVal('');
-      return;
-    }
-
-    setInputVal(val);
-
-    if (val === currentWord || val.trim() === currentWord.trim()) {
-      soundManager.playSuccess();
-      commitWord(val, currentWord);
-      if (wordIndex + 1 < TOTAL_TRIALS) {
-        setWordIndex((prev) => prev + 1);
-        setInputVal('');
-        setIsCorrectLastKey(null);
-      } else {
-        setTimeout(finishPractice, 0);
-      }
-    }
+    // 너무 길게 치면 더 이상 받지 않음(지워서 고치거나 엔터로 넘기기)
+    const maxLen = currentWord.length + 3;
+    setInputVal(val.length > maxLen ? val.slice(0, maxLen) : val);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -360,25 +392,27 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (inputVal.length === 0) return;
-
-      // Even if typo exists, pressing Enter advances to next word
-      if (inputVal === currentWord || inputVal.trim() === currentWord.trim()) {
-        soundManager.playSuccess();
-        setIsCorrectLastKey(true);
-      } else {
-        soundManager.playError();
-        setIsCorrectLastKey(false);
+      // 한글 조합 중에 엔터 → 조합이 끝난 뒤 넘김(마지막 글자가 다음 낱말로 새지 않게)
+      if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
+        pendingCommitRef.current = true;
+        return;
       }
-      commitWord(inputVal, currentWord);
+      pendingCommitRef.current = false;
+      submitWord();
+    }
+  };
 
-      if (wordIndex + 1 < TOTAL_TRIALS) {
-        setWordIndex((prev) => prev + 1);
-        setInputVal('');
-        setIsCorrectLastKey(null);
-      } else {
-        setTimeout(finishPractice, 0);
-      }
+  const handleCompositionStart = () => {
+    composingRef.current = true;
+  };
+  const handleCompositionEnd = () => {
+    composingRef.current = false;
+    if (pendingCommitRef.current) {
+      setTimeout(() => {
+        if (!pendingCommitRef.current) return;
+        pendingCommitRef.current = false;
+        submitWord(inputRef.current?.value);
+      }, 0);
     }
   };
 
@@ -386,6 +420,8 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     setWordIndex(0);
     setInputVal('');
     setIsFinished(false);
+    setLastWordResult(null);
+    pendingCommitRef.current = false;
     startTimeRef.current = null;
     setStats({
       cpm: 0,
@@ -570,7 +606,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                 style={{ width: `${stats.accuracy}%` }}
               />
             </div>
-            <span className="w-8 text-right font-black text-slate-800 text-xs">{stats.accuracy}%</span>
+            <span className="w-14 text-right font-black text-slate-800 text-base">{stats.accuracy}%</span>
           </div>
 
           {/* 타수 / CPM */}
@@ -644,6 +680,21 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                 <span className="inline-block w-2.5 h-6 bg-slate-900 ml-0.5 animate-pulse rounded-xs" />
               </div>
 
+              {/* 방금 친 낱말 결과 + 안내 */}
+              <div className="mt-1 min-h-[28px] text-lg sm:text-xl font-black select-none" data-testid="word-feedback">
+                {lastWordResult ? (
+                  lastWordResult.wrong === 0 ? (
+                    <span className="text-teal-600">✓ {lastWordResult.word} 정확해요!</span>
+                  ) : (
+                    <span className="text-rose-600">
+                      ✗ {lastWordResult.word} → {lastWordResult.typed} (오타 {lastWordResult.wrong}개)
+                    </span>
+                  )
+                ) : (
+                  <span className="text-slate-400 text-base">다 치면 엔터나 스페이스를 눌러요</span>
+                )}
+              </div>
+
               {/* Hidden Real Input */}
               <input
                 ref={inputRef}
@@ -651,6 +702,8 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
                 value={inputVal}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
                 className="opacity-0 absolute inset-0 w-full h-full cursor-text"
                 autoFocus
                 autoComplete="off"
