@@ -19,7 +19,7 @@ build 너구리 ponpoko
 build 보글보글 bubblebobble
 build 슈퍼마이오 supermario
 cp "$GAME_REPO/GAME/라스터워/outputs/bridge-assault-3d.html" "$ROOT/public/games/lastwar/index.html"
-echo "완료. 카트라이더는 포켓카트_실행.html 을 public/games/pocketkart/index.html 로 복사하세요."
+echo "완료. 카트라이더는 GAME/카트라이더 폴더를 public/games/kartrider 로 복사하세요."
 
 # 비행기 슈팅: 깃허브 sadacaca37/airplane-game-v1 원본 빌드
 # 사용법: AIRPLANE_REPO=../airplane-game-v1 bash scripts/build-github-games.sh ../game

@@ -119,10 +119,10 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-pocket-kart',
-    title: '카트라이더 (포켓 카트 GP)',
+    title: '카트라이더',
     category: '펀펀',
     icon: '🏎️',
-    description: '캐릭터·카트를 골라 달리는 3D 드리프트 레이싱 (원본 그대로)',
+    description: '캐릭터·카트·트랙(사막·네온 시티·숲·좀비마을)을 골라 달리는 3D 드리프트 레이싱 · 별·부스터·점프·비행',
     component: PocketKartOriginal,
   },
   {
