@@ -1,12 +1,15 @@
 import { pointsManager } from '../../../utils/pointsManager';
 import { soundManager } from '../../../utils/sound';
+import { currentUserId } from '../../../utils/session';
 
 export const PLAYGROUND_MIN_POINTS = 1000;
 export const POINTS_PER_MINUTE = 100; // 10분 = 1000포인트 (분당 100P)
 
-const STORAGE_PLAYGROUND_TIME = 'playground_remaining_seconds_v2';
-const STORAGE_PLAYGROUND_LAST_TICK = 'playground_last_tick_v2';
-const STORAGE_PLAYGROUND_IS_ACTIVE = 'playground_is_active_v2';
+// 남은 이용 시간은 학생마다 따로 (같은 컴퓨터에서 다른 학생 시간을 쓰지 못하게)
+const userSuffix = () => currentUserId() || 'guest';
+const K_TIME = () => `playground_remaining_seconds_v3_${userSuffix()}`;
+const K_TICK = () => `playground_last_tick_v3_${userSuffix()}`;
+const K_ACTIVE = () => `playground_is_active_v3_${userSuffix()}`;
 
 export class PlaygroundManager {
   private static instance: PlaygroundManager;
@@ -20,7 +23,7 @@ export class PlaygroundManager {
     // Listen to storage events for cross-tab and cross-window real-time synchronization
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', (e: StorageEvent) => {
-        if (e.key === STORAGE_PLAYGROUND_TIME && e.newValue !== null) {
+        if (e.key === K_TIME() && e.newValue !== null) {
           const parsed = parseInt(e.newValue, 10);
           if (!isNaN(parsed)) {
             this.remainingSeconds = Math.max(0, parsed);
@@ -35,7 +38,7 @@ export class PlaygroundManager {
 
   private syncFromStorage(): void {
     try {
-      const saved = localStorage.getItem(STORAGE_PLAYGROUND_TIME);
+      const saved = localStorage.getItem(K_TIME());
       if (saved !== null) {
         this.remainingSeconds = Math.max(0, parseInt(saved, 10));
       } else {
@@ -120,7 +123,7 @@ export class PlaygroundManager {
 
     this.isRunning = true;
     try {
-      localStorage.setItem(STORAGE_PLAYGROUND_IS_ACTIVE, 'true');
+      localStorage.setItem(K_ACTIVE(), 'true');
     } catch {}
 
     if (this.timerInterval) clearInterval(this.timerInterval);
@@ -165,7 +168,7 @@ export class PlaygroundManager {
   public pauseTimer(): void {
     this.isRunning = false;
     try {
-      localStorage.setItem(STORAGE_PLAYGROUND_IS_ACTIVE, 'false');
+      localStorage.setItem(K_ACTIVE(), 'false');
     } catch {}
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
@@ -175,8 +178,8 @@ export class PlaygroundManager {
 
   private persistTime(): void {
     try {
-      localStorage.setItem(STORAGE_PLAYGROUND_TIME, this.remainingSeconds.toString());
-      localStorage.setItem(STORAGE_PLAYGROUND_LAST_TICK, Date.now().toString());
+      localStorage.setItem(K_TIME(), this.remainingSeconds.toString());
+      localStorage.setItem(K_TICK(), Date.now().toString());
     } catch {}
   }
 

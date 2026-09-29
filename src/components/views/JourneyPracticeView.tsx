@@ -321,10 +321,49 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       .replace(/\s+/g, ' ')
       .trim();
 
+  /**
+   * 한 줄(문제)을 넘길 때 최종 입력으로 채점 — 틀린 글자·빠진 글자·더 친 글자(편집 거리)
+   * 정확도 = 맞은 글자 ÷ (맞은 글자 + 틀린 글자). 반환값: 이 줄의 정확도(0~1)
+   */
+  const commitLine = (typed: string, target: string): number => {
+    const t = normalizeLyricsText(target);
+    const v = normalizeLyricsText(typed);
+    const dp: number[][] = Array.from({ length: t.length + 1 }, (_, i) => [i, ...Array(v.length).fill(0)]);
+    for (let j = 1; j <= v.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= t.length; i++) {
+      for (let j = 1; j <= v.length; j++) {
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (t[i - 1] === v[j - 1] ? 0 : 1));
+      }
+    }
+    const wrong = dp[t.length][v.length];
+    const right = Math.max(0, Math.max(t.length, v.length) - wrong);
+    const lineRatio = t.length > 0 ? right / Math.max(t.length, v.length) : 1;
+    return lineRatio;
+  };
+  const applyLineScore = (typed: string, target: string) => {
+    const t = normalizeLyricsText(target);
+    const v = normalizeLyricsText(typed);
+    const ratio = commitLine(typed, target);
+    const total = Math.max(t.length, v.length);
+    const right = Math.round(ratio * total);
+    const wrong = total - right;
+    setStats((prev) => {
+      const correctCount = prev.correctCount + right;
+      const errorCount = prev.errorCount + wrong;
+      const sum = correctCount + errorCount;
+      return { ...prev, correctCount, errorCount, accuracy: sum > 0 ? Math.round((correctCount / sum) * 100) : 100 };
+    });
+    return ratio;
+  };
+  /** 가사·필사: 절반도 맞게 치지 않았으면(스페이스만 친 경우 등) 다음 줄로 넘어가지 않음 */
+  const MIN_LINE_RATIO = 0.5;
+  const [lineWarning, setLineWarning] = useState('');
+
   // Typing Input Change Handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInputVal(val);
+    if (lineWarning) setLineWarning('');
 
     if (!isTimerRunning && val.length > 0) {
       setIsTimerRunning(true);
@@ -349,7 +388,6 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
           ...prev,
           combo: newCombo,
           maxCombo: newMax,
-          correctCount: prev.correctCount + 1,
           totalKeystrokes: prev.totalKeystrokes + strokes,
         };
       });
@@ -363,7 +401,6 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       soundManager.play('error');
       setStats((prev) => ({
         ...prev,
-        errorCount: prev.errorCount + 1,
         combo: 0,
         totalKeystrokes: prev.totalKeystrokes + strokes,
       }));
@@ -371,7 +408,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
 
     // In lyrics or book mode: when length reaches or exceeds target, auto-advance smoothly!
     if ((activeTab === 'lyrics' || activeTab === 'book') && val.length >= currentExpectedAnswer.length) {
-      handleStepSuccess(val.trim());
+      submitLine(val);
     }
   };
 
@@ -385,8 +422,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       const normTarget = normalizeLyricsText(currentExpectedAnswer);
 
       if (activeTab === 'lyrics' || activeTab === 'book') {
-        // In lyrics and book mode, pressing Enter ALWAYS advances to next line smoothly
-        handleStepSuccess(inputVal.trim());
+        submitLine(inputVal);
       } else {
         if (inputVal.trim() === currentExpectedAnswer.trim() || normVal === normTarget) {
           handleStepSuccess(inputVal.trim());
@@ -397,9 +433,28 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
     }
   };
 
+  /** 가사·필사 한 줄 제출: 제대로 친 줄만 다음으로 넘어가고, 정확도에 반영 */
+  const submitLine = (typed: string) => {
+    if (!typed.trim()) {
+      soundManager.play('error');
+      setLineWarning('✋ 가사를 보고 똑같이 쳐야 다음 줄로 넘어가요. (스페이스만 치면 넘어가지 않아요)');
+      return;
+    }
+    const ratio = commitLine(typed, currentExpectedAnswer);
+    if (ratio < MIN_LINE_RATIO) {
+      soundManager.play('error');
+      setLineWarning('✋ 가사를 보고 똑같이 쳐야 다음 줄로 넘어가요. (스페이스만 치면 넘어가지 않아요)');
+      return;
+    }
+    setLineWarning('');
+    applyLineScore(typed, currentExpectedAnswer);
+    handleStepSuccess(typed.trim(), true);
+  };
+
   // Step Success Handler
-  const handleStepSuccess = (finalInput: string) => {
+  const handleStepSuccess = (finalInput: string, alreadyScored = false) => {
     soundManager.play('success');
+    if (!alreadyScored) applyLineScore(finalInput, currentExpectedAnswer);
 
     // ================= TAB 1: CAPITALS =================
     if (activeTab === 'capitals') {
@@ -1476,7 +1531,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                     />
                     <button
                       type="button"
-                      onClick={() => handleStepSuccess(inputVal || currentSongLine)}
+                      onClick={() => submitLine(inputVal)}
                       className="px-4 sm:px-6 py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:brightness-110 active:scale-95 text-white font-black text-sm whitespace-nowrap shadow-xl transition flex items-center gap-1.5 cursor-pointer shrink-0"
                       title="다음 소절로 넘어가기 (Enter)"
                     >
@@ -1484,8 +1539,13 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
+                  {lineWarning && (
+                    <div className="text-sm font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-center" data-testid="line-warning">
+                      {lineWarning}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-xs text-gray-400 px-2">
-                    <span>💡 소절 완성 후 엔터(Enter)를 치거나 [다음 소절] 버튼을 누르면 즉시 넘어갑니다!</span>
+                    <span>💡 가사를 똑같이 친 뒤 엔터(Enter)나 [다음 소절]을 누르면 넘어가요. 틀린 글자는 정확도에 반영돼요.</span>
                     <span className="text-pink-400 font-bold">
                       {inputVal.length} / {currentSongLine.length}자
                     </span>
@@ -1700,6 +1760,11 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                       className="w-full text-center font-serif text-lg sm:text-xl font-bold py-4 px-6 rounded-2xl border-2 border-amber-600/80 focus:ring-4 focus:ring-amber-200 outline-none transition bg-white shadow-inner placeholder-stone-400 text-stone-900"
                       autoFocus
                     />
+                    {lineWarning && (
+                      <div className="text-sm font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-center">
+                        {lineWarning}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-xs text-stone-500 px-2">
                       <span>Enter 또는 문장 완성 시 다음 줄로 넘김</span>
                       <span className="font-bold text-amber-800">

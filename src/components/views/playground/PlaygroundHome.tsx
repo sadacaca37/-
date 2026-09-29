@@ -1,3 +1,4 @@
+import { requestFunPass, leaveFunPass } from '../../../utils/funfunPass';
 import { FitToBox, BodyPortal } from '../../GameFitStage';
 import { FUNFUN_ENTRY_POINTS } from '../../../utils/pointRules';
 import React, { useState, useEffect } from 'react';
@@ -58,16 +59,40 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
       setPoints(pointsManager.getBalance());
     };
 
+    // 시간이 다 되면(포인트로 자동 연장도 안 되면) 펀펀 게임을 닫고 입장권 회수
+    const handleExpired = () => {
+      if (isMaster) return;
+      leaveFunPass();
+      setSelectedGameId((cur) => {
+        const g = PLAYGROUND_GAMES.find((x) => x.id === cur);
+        if (g && g.category === '펀펀') {
+          setIsFullView(false);
+          setNotice('⏰ 펀펀 플레이 이용 시간이 끝났어요. 포인트(10분 1,000P)를 내면 다시 들어갈 수 있어요.');
+          setTimeout(() => setNotice(null), 6000);
+          return null;
+        }
+        return cur;
+      });
+    };
+    // 시간을 연장하면 입장권도 연장
+    const handleRenew = () => {
+      void requestFunPass(playgroundManager.getRemainingSeconds());
+    };
+
     window.addEventListener('points-updated', handlePointsUpdate);
     window.addEventListener('playground-tick', handleTick);
     window.addEventListener('playground-time-updated', handleTimeUpdated);
+    window.addEventListener('playground-time-expired', handleExpired);
+    window.addEventListener('playground-time-updated', handleRenew);
 
     return () => {
       window.removeEventListener('points-updated', handlePointsUpdate);
       window.removeEventListener('playground-tick', handleTick);
       window.removeEventListener('playground-time-updated', handleTimeUpdated);
+      window.removeEventListener('playground-time-expired', handleExpired);
+      window.removeEventListener('playground-time-updated', handleRenew);
     };
-  }, []);
+  }, [isMaster]);
 
   const activeGame = PLAYGROUND_GAMES.find((g) => g.id === selectedGameId);
   const [activeFunfunGame, setActiveFunfunGame] = useState<PlaygroundGameDef | null>(null);
@@ -87,8 +112,13 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     soundManager.play('achievement');
   };
 
-  const handleLaunchFunfunGame = (game: PlaygroundGameDef) => {
+  const handleLaunchFunfunGame = async (game: PlaygroundGameDef) => {
     soundManager.play('achievement');
+    if (!currentUser) {
+      setNotice('🔒 펀펀 플레이는 로그인해야 들어갈 수 있어요.');
+      setTimeout(() => setNotice(null), 4000);
+      return;
+    }
 
     // 마스터가 아니면 1,000P 가 모여 있어야 펀펀 플레이 입장 가능
     if (!isMaster) {
@@ -109,6 +139,15 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
           return;
         }
       }
+    }
+
+    // 서버에서 게임 입장권 받기 (로그인 확인 + 남은 이용 시간만큼만 유효)
+    const pass = await requestFunPass(isMaster ? 3600 : playgroundManager.getRemainingSeconds());
+    if (pass === 'login') {
+      setNotice('🔐 안전한 입장을 위해 한 번 더 로그인해 주세요. (로그인 후 다시 누르면 바로 들어가요, 충전한 시간은 그대로예요)');
+      setTimeout(() => setNotice(null), 6000);
+      window.dispatchEvent(new Event('typang-require-login'));
+      return;
     }
 
     // Always select and activate game view immediately
@@ -150,6 +189,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
           isFullView={isFullView}
           onToggleFullView={() => setIsFullView(!isFullView)}
           onBack={() => {
+            if (activeGame.category === '펀펀') leaveFunPass();
             setIsFullView(false);
             setSelectedGameId(null);
           }}

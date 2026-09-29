@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
 import { progressSync } from './utils/progressSync';
 import { backupKeeper } from './utils/backupKeeper';
+import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
 import { AuthModal } from './components/AuthModal';
 import { HomeDashboard } from './components/views/HomeDashboard';
@@ -193,6 +194,16 @@ export default function App() {
         typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
       });
 
+      // 펀펀 플레이 입장 시 서버 로그인 확인표가 없으면(예전 로그인) 다시 로그인 창 열기
+      window.addEventListener('typang-require-login', () => {
+        progressSync.flush();
+        progressSync.stop();
+        localStorage.removeItem('typang_current_user');
+        typangApi.clearMasterKey();
+        setCurrentUser(null);
+        setIsAuthOpen(true);
+      });
+
       // 2. Current User Session
       const savedUser = localStorage.getItem('typang_current_user');
       if (savedUser) {
@@ -247,6 +258,7 @@ export default function App() {
   const handleLogout = () => {
     progressSync.flush(); // 나가기 전에 마지막으로 자료를 서버에 보관
     progressSync.stop();
+    serverLogout(); // 서버 로그인 확인표·게임 입장권도 지움
     localStorage.removeItem('typang_current_user');
     typangApi.clearMasterKey();
     setCurrentUser(null);

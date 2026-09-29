@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
 import { attachBlockcraft, registerBlockcraftHttp } from './server/blockcraftRooms';
+import { registerFunfunGate, setLoginCookie } from './server/funfunGate';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -143,6 +144,7 @@ app.post('/api/users/login', limit(300), (req, res) => {
     });
   }
   members.touchLogin(r.member);
+  setLoginCookie(req, res, r.member.id, 'student');
   res.json({ success: true, user: members.toClient(r.member, false) });
 });
 
@@ -150,6 +152,7 @@ app.post('/api/users/login', limit(300), (req, res) => {
 app.post('/api/master/login', limit(30), (req, res) => {
   const ok = members.checkMaster(req.body?.password);
   if (!ok) return res.status(401).json({ success: false, message: '마스터 비밀번호가 올바르지 않습니다.' });
+  setLoginCookie(req, res, 'master', 'master');
   res.json({ success: true, status: members.status() });
 });
 
@@ -442,6 +445,9 @@ app.post('/api/backup/restore', (req, res) => {
 // 마크 멀티플레이: 소켓이 막힌 곳에서도 방 만들기·참가가 되도록 HTTP 접속 길도 열어 둠
 registerBlockcraftHttp(app);
 
+// 펀펀 플레이 게임(/games)은 로그인 + 포인트로 받은 입장권이 있어야 열림
+registerFunfunGate(app, DATA_DIR);
+
 app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '없는 API 입니다.' }));
 
 // =========================================================================
@@ -449,7 +455,17 @@ app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '
 // =========================================================================
 // 게임 파일(public/games 등): 하루 캐시
 const publicDir = path.join(ROOT, 'public');
-if (fs.existsSync(publicDir)) app.use(express.static(publicDir, { maxAge: '1d', index: false }));
+if (fs.existsSync(publicDir))
+  app.use(
+    express.static(publicDir, {
+      maxAge: '1d',
+      index: false,
+      // 게임 첫 화면(html)은 저장해 두지 않음 → 즐겨찾기로 열어도 매번 입장권 확인
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-store');
+      },
+    }),
+  );
 
 async function startServer() {
   if (!isProd) {
