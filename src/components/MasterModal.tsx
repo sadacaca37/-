@@ -1,3 +1,4 @@
+import { FunfunFreePanel } from './FunfunFreePanel';
 import { backupKeeper, LAST_AUTO_BACKUP_KEY } from '../utils/backupKeeper';
 import React, { useState, useEffect } from 'react';
 import { 
@@ -710,6 +711,9 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   </span>
                   {rosterMsg && <span className="w-full text-[11px]">{rosterMsg}</span>}
                 </div>
+
+                {/* 펀펀 플레이 무료 개방 (한 달에 한 번 등) */}
+                <FunfunFreePanel />
 
                 <div className="flex items-center justify-between gap-3 shrink-0 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">

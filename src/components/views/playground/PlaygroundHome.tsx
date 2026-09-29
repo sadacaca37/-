@@ -1,3 +1,4 @@
+import { fetchFunfunFree, isFreeActive, formatKDate, FunfunFreeInfo } from '../../../utils/funfunFree';
 import { requestFunPass, leaveFunPass } from '../../../utils/funfunPass';
 import { FitToBox, BodyPortal } from '../../GameFitStage';
 import { FUNFUN_ENTRY_POINTS } from '../../../utils/pointRules';
@@ -50,6 +51,54 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   const [selectedGameId, setSelectedGameId] = useState<string | null>(initialGameId || null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isFullView, setIsFullView] = useState(Boolean(initialGameId));
+  // 선생님이 정한 펀펀 플레이 무료 개방 기간
+  const [freeInfo, setFreeInfo] = useState<FunfunFreeInfo | null>(null);
+  const [, setClock] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () => void fetchFunfunFree().then((f) => alive && setFreeInfo(f));
+    load();
+    const t = window.setInterval(() => {
+      load();
+      setClock((c) => c + 1);
+    }, 60000);
+    window.addEventListener('funfun-free-updated', load);
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+      window.removeEventListener('funfun-free-updated', load);
+    };
+  }, []);
+  const isFree = isFreeActive(freeInfo);
+  const freeRef = React.useRef(isFree);
+  freeRef.current = isFree;
+  // 무료 개방이 끝나는 순간 다시 계산
+  useEffect(() => {
+    if (!freeInfo || !isFree) return;
+    const ms = freeInfo.freeUntil - Date.now() + 500;
+    if (ms <= 0 || ms > 2147483000) return;
+    const t = window.setTimeout(() => setClock((c) => c + 1), ms);
+    return () => window.clearTimeout(t);
+  }, [freeInfo, isFree]);
+  // 무료 개방이 끝났는데 충전한 시간이 없으면 펀펀 게임을 닫음
+  const wasFreeRef = React.useRef(isFree);
+  useEffect(() => {
+    const was = wasFreeRef.current;
+    wasFreeRef.current = isFree;
+    if (!was || isFree || isMaster) return;
+    if (playgroundManager.getRemainingSeconds() > 0) return;
+    setSelectedGameId((cur) => {
+      const g = PLAYGROUND_GAMES.find((x) => x.id === cur);
+      if (g && g.category === '펀펀') {
+        leaveFunPass();
+        setIsFullView(false);
+        setNotice('⏰ 펀펀 플레이 무료 개방 시간이 끝났어요. 이제는 포인트(10분 1,000P)로 들어갈 수 있어요.');
+        setTimeout(() => setNotice(null), 6000);
+        return null;
+      }
+      return cur;
+    });
+  });
 
   useEffect(() => {
     const handlePointsUpdate = () => setPoints(pointsManager.getBalance());
@@ -61,7 +110,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
 
     // 시간이 다 되면(포인트로 자동 연장도 안 되면) 펀펀 게임을 닫고 입장권 회수
     const handleExpired = () => {
-      if (isMaster) return;
+      if (isMaster || freeRef.current) return;
       leaveFunPass();
       setSelectedGameId((cur) => {
         const g = PLAYGROUND_GAMES.find((x) => x.id === cur);
@@ -120,8 +169,8 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
       return;
     }
 
-    // 마스터가 아니면 1,000P 가 모여 있어야 펀펀 플레이 입장 가능
-    if (!isMaster) {
+    // 마스터가 아니면 1,000P 가 모여 있어야 펀펀 플레이 입장 가능 (무료 개방 기간은 예외)
+    if (!isMaster && !isFree) {
       if (remainingSeconds <= 0) {
         if (pointsManager.getBalance() < FUNFUN_ENTRY_POINTS) {
           setNotice(
@@ -142,7 +191,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     }
 
     // 서버에서 게임 입장권 받기 (로그인 확인 + 남은 이용 시간만큼만 유효)
-    const pass = await requestFunPass(isMaster ? 3600 : playgroundManager.getRemainingSeconds());
+    const pass = await requestFunPass(isMaster || isFree ? 3600 : playgroundManager.getRemainingSeconds());
     if (pass === 'login') {
       setNotice('🔐 안전한 입장을 위해 한 번 더 로그인해 주세요. (로그인 후 다시 누르면 바로 들어가요, 충전한 시간은 그대로예요)');
       setTimeout(() => setNotice(null), 6000);
@@ -186,6 +235,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
           gameTitle={activeGame.title}
           currentUser={currentUser}
           isBasicPlay={isBasic}
+          freeUntil={isFree && freeInfo ? freeInfo.freeUntil : 0}
           isFullView={isFullView}
           onToggleFullView={() => setIsFullView(!isFullView)}
           onBack={() => {
@@ -234,6 +284,14 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 space-y-6 animate-fade-in">
+      {isFree && freeInfo && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white shadow-lg flex flex-wrap items-center justify-between gap-2" data-testid="funfun-free-banner">
+          <div className="text-lg font-black">🎉 펀펀 플레이 무료 개방 중! 포인트 없이 무제한으로 즐겨요</div>
+          <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full">
+            {formatKDate(freeInfo.freeUntil)}까지{freeInfo.note ? ` · ${freeInfo.note}` : ''}
+          </div>
+        </div>
+      )}
       {markInvite && markGame && (
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl bg-amber-50 border-2 border-amber-300 shadow-xs" data-testid="mark-invite">
           <div className="text-sm font-black text-amber-900">

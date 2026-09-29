@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
 import { attachBlockcraft, registerBlockcraftHttp } from './server/blockcraftRooms';
-import { registerFunfunGate, setLoginCookie } from './server/funfunGate';
+import { registerFunfunGate, setLoginCookie, getFunfunFree, setFunfunFree } from './server/funfunGate';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -373,6 +373,7 @@ app.get('/api/backup', (req, res) => {
       members: members.exportFixed(),
       progress: progressCache,
       leaderboard: leaderboardCache,
+      funfunFree: getFunfunFree(),
     },
   });
 });
@@ -394,6 +395,11 @@ app.post('/api/backup/restore', (req, res) => {
   if (!isMaster(req)) return denyMaster(res);
   const backup = req.body?.backup;
   const merge = req.body?.mode === 'merge';
+  // 펀펀 무료 개방 설정도 되살림 (서버 쪽이 더 최근에 바뀌었으면 그대로)
+  try {
+    const f = req.body?.backup?.funfunFree;
+    if (f && Number(f.updatedAt) > getFunfunFree().updatedAt) setFunfunFree(f);
+  } catch {}
   if (!backup || typeof backup !== 'object') return res.status(400).json({ success: false, message: '백업 파일 내용을 읽을 수 없습니다.' });
   let restoredMembers = 0;
   try {
@@ -446,7 +452,7 @@ app.post('/api/backup/restore', (req, res) => {
 registerBlockcraftHttp(app);
 
 // 펀펀 플레이 게임(/games)은 로그인 + 포인트로 받은 입장권이 있어야 열림
-registerFunfunGate(app, DATA_DIR);
+registerFunfunGate(app, DATA_DIR, isMaster);
 
 app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '없는 API 입니다.' }));
 

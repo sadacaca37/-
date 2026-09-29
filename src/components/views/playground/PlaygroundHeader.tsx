@@ -13,6 +13,8 @@ interface PlaygroundHeaderProps {
   isBasicPlay?: boolean;
   isFullView?: boolean;
   onToggleFullView?: () => void;
+  /** 선생님이 정한 무료 개방 기간이면 끝나는 시각(ms) */
+  freeUntil?: number;
 }
 
 export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
@@ -23,8 +25,10 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
   isBasicPlay = false,
   isFullView = false,
   onToggleFullView,
+  freeUntil = 0,
 }) => {
   const isMaster = currentUser?.role === 'master';
+  const isFree = freeUntil > Date.now();
   const [remainingSeconds, setRemainingSeconds] = useState(playgroundManager.getRemainingSeconds());
   const [points, setPoints] = useState(pointsManager.getBalance());
   const [isPaused, setIsPaused] = useState(!playgroundManager.isTimerRunning());
@@ -32,7 +36,7 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
 
   useEffect(() => {
     // If master or basic play, do not run countdown or expire
-    if (isMaster || isBasicPlay) return;
+    if (isMaster || isBasicPlay || isFree) return;
 
     // Start countdown if not started
     if (!isPaused && remainingSeconds > 0) {
@@ -77,7 +81,7 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
       window.removeEventListener('playground-time-expired', handleExpired);
       window.removeEventListener('playground-auto-renewed', handleAutoRenewed);
     };
-  }, [isPaused, remainingSeconds, isMaster, isBasicPlay]);
+  }, [isPaused, remainingSeconds, isMaster, isBasicPlay, isFree]);
 
   const handleAddTime = (minutes: number) => {
     const res = playgroundManager.purchasePlayTime(minutes);
@@ -153,7 +157,7 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
       </div>
 
       {/* Right: Time Countdown & Points recharge */}
-      {isMaster ? (
+      {isMaster || isFree ? (
         <div className="flex items-center gap-2 sm:gap-3 ml-auto">
           {onToggleFullView && (
             <button
@@ -167,7 +171,11 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
           )}
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border-2 border-amber-400 bg-amber-950/80 text-amber-300 font-black text-xs sm:text-sm shadow-md">
             <Crown className="w-4 h-4 text-amber-400 animate-bounce shrink-0" />
-            <span>👑 마스터 무제한 FREE (포인트 차감 없음)</span>
+            <span>
+              {isMaster
+                ? '👑 마스터 무제한 FREE (포인트 차감 없음)'
+                : `🎉 무료 개방 중! ${new Date(freeUntil).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}까지 포인트 없이 무제한`}
+            </span>
           </div>
           <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300">
             <span>보유: {points.toLocaleString()} P</span>
