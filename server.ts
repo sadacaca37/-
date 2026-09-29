@@ -452,6 +452,8 @@ app.post('/api/backup/restore', (req, res) => {
 registerBlockcraftHttp(app);
 
 // 펀펀 플레이 게임(/games)은 로그인 + 포인트로 받은 입장권이 있어야 열림
+// 예전 화면 코드가 남아 있어도 카트라이더가 열리도록: 옛 주소(games/pocketkart) → 새 카트라이더
+app.get(/^\/games\/pocketkart(\/.*)?$/, (_req, res) => res.redirect(302, '/games/kartrider/index.html'));
 registerFunfunGate(app, DATA_DIR, isMaster);
 
 app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '없는 API 입니다.' }));
