@@ -12,6 +12,7 @@ import { SuperMarioGameWrapper } from './games/SuperMarioGameWrapper';
 import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
+import { CookieKingdomRun } from './games/CookieKingdomRun';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -124,6 +125,14 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '🏎️',
     description: '캐릭터·카트·트랙(사막·네온 시티·숲·좀비마을)을 골라 달리는 3D 드리프트 레이싱 · 별·부스터·점프·비행',
     component: PocketKartOriginal,
+  },
+  {
+    id: 'app-cookie-run',
+    title: '과자 왕국 런',
+    category: '펀펀',
+    icon: '🍪',
+    description: '쿠키가 달리는 러너 게임 · 쿠키 4종 · 스테이지 4개 · 점프·2단 점프·슬라이드로 젤리와 코인 모으기',
+    component: CookieKingdomRun,
   },
   {
     id: 'app-blockcraft',
