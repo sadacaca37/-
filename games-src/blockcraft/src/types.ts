@@ -945,6 +945,80 @@ export interface PlayerData {
   selectedBlock: BlockType;
   color: string;
   isHost?: boolean;
+  // Which of the 4 preset character looks (see CHARACTER_PRESETS) this
+  // player chose on the character-select screen before entering the game.
+  // Older clients / players who joined before this feature existed won't
+  // send it, so every reader must fall back to 0 via getCharacterPreset().
+  characterId?: number;
+}
+
+// --- Character Selection (4 preset "skins" players pick from before entering) ---
+
+export type CharacterAccessory = "none" | "visor" | "hood" | "cap";
+
+export interface CharacterPreset {
+  id: number;
+  nameKo: string;
+  emoji: string;
+  skinColor: string;
+  hairColor: string;
+  shirtColor: string; // used as a fallback; the live shirt color is usually the room-assigned player color
+  pantsColor: string;
+  accessory: CharacterAccessory;
+  accessoryColor?: string;
+}
+
+export const CHARACTER_PRESETS: CharacterPreset[] = [
+  {
+    id: 0,
+    nameKo: "모험가",
+    emoji: "🙂",
+    skinColor: "#d9a578",
+    hairColor: "#3b2a1a",
+    shirtColor: "#2fa3a0",
+    pantsColor: "#3c4a8a",
+    accessory: "none",
+  },
+  {
+    id: 1,
+    nameKo: "로봇 탐험가",
+    emoji: "🤖",
+    skinColor: "#a1a8b3",
+    hairColor: "#2b3138",
+    shirtColor: "#5b6673",
+    pantsColor: "#3a4148",
+    accessory: "visor",
+    accessoryColor: "#38bdf8",
+  },
+  {
+    id: 2,
+    nameKo: "숲의 요정",
+    emoji: "🧝",
+    skinColor: "#d8c9a0",
+    hairColor: "#2f6b2f",
+    shirtColor: "#4c8f3a",
+    pantsColor: "#5a4636",
+    accessory: "hood",
+    accessoryColor: "#2e5c2a",
+  },
+  {
+    id: 3,
+    nameKo: "유령 전사",
+    emoji: "👻",
+    skinColor: "#e8ecf2",
+    hairColor: "#b8c0cc",
+    shirtColor: "#4b5563",
+    pantsColor: "#2f3542",
+    accessory: "cap",
+    accessoryColor: "#1f2937",
+  },
+];
+
+export function getCharacterPreset(id?: number | null): CharacterPreset {
+  if (typeof id === "number" && CHARACTER_PRESETS[id]) {
+    return CHARACTER_PRESETS[id];
+  }
+  return CHARACTER_PRESETS[0];
 }
 
 export interface RoomState {

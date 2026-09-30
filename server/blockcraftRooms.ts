@@ -18,6 +18,13 @@ interface PlayerData {
   selectedBlock: number;
   color: string;
   isHost: boolean;
+  /** 캐릭터 고르기에서 고른 모습(0~3) */
+  characterId: number;
+}
+
+function normalizeCharacterId(value: unknown): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 && n <= 3 ? n : 0;
 }
 
 interface Room {
@@ -114,7 +121,7 @@ function makeCore(hooks: RoomHooks) {
 
   return {
     leave,
-    create(pid: string, sink: Sink, data: { nickname?: string; userId?: string }) {
+    create(pid: string, sink: Sink, data: { nickname?: string; userId?: string; characterId?: number }) {
       if (playerRoom.has(pid)) leave(pid);
       const code = generateRoomCode();
       const host: PlayerData = {
@@ -127,6 +134,7 @@ function makeCore(hooks: RoomHooks) {
         selectedBlock: 1,
         color: PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)],
         isHost: true,
+        characterId: normalizeCharacterId(data?.characterId),
       };
       const room: Room = {
         code,
@@ -142,7 +150,7 @@ function makeCore(hooks: RoomHooks) {
       playerRoom.set(pid, code);
       return { success: true, room: roomView(room), selfId: pid, player: host };
     },
-    join(pid: string, sink: Sink, data: { roomCode?: string; nickname?: string; userId?: string }) {
+    join(pid: string, sink: Sink, data: { roomCode?: string; nickname?: string; userId?: string; characterId?: number }) {
       const code = String(data?.roomCode || '').toUpperCase().trim();
       const room = rooms[code];
       if (!room) return { success: false, error: '해당 방을 찾을 수 없어요. 방 코드를 다시 확인해 주세요.' };
@@ -159,6 +167,7 @@ function makeCore(hooks: RoomHooks) {
         selectedBlock: 1,
         color: PLAYER_COLORS.find((c) => !used.includes(c)) || PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)],
         isHost: false,
+        characterId: normalizeCharacterId(data?.characterId),
       };
       room.players[pid] = player;
       sinks.set(pid, sink);

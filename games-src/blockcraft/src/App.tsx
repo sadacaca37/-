@@ -10,6 +10,7 @@ import { MonsterManager } from "./game/MonsterManager";
 import { authService } from "./game/AuthService";
 import { soundFx } from "./game/SoundEffects";
 import { Lobby } from "./components/Lobby";
+import { CharacterSelect } from "./components/CharacterSelect";
 import { Hotbar } from "./components/Hotbar";
 import { InventoryModal } from "./components/InventoryModal";
 import { ChatBox } from "./components/ChatBox";
@@ -66,6 +67,22 @@ export default function App() {
   const gameStartedRef = useRef<boolean>(false);
   // 로비 → 게임 화면: 로비가 부드럽게 사라진 뒤 치움
   const [showLobby, setShowLobby] = useState<boolean>(true);
+  // 로비에 들어가기 전에 고르는 캐릭터(4종 중 1). null = 아직 안 고름 → 캐릭터 고르기 화면
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  const lastCharacterId = (() => {
+    try {
+      const v = Number(localStorage.getItem("blockcraft_character_id"));
+      return Number.isInteger(v) && v >= 0 && v <= 3 ? v : null;
+    } catch {
+      return null;
+    }
+  })();
+  const chooseCharacter = (id: number) => {
+    try {
+      localStorage.setItem("blockcraft_character_id", String(id));
+    } catch {}
+    setSelectedCharacterId(id);
+  };
   useEffect(() => {
     if (!gameStarted) {
       setShowLobby(true);
@@ -443,7 +460,7 @@ export default function App() {
   // Handler: Create Room
   const handleCreateRoom = async (nickname: string) => {
     if (!multiRef.current) return { success: false, error: "Multiplayer offline" };
-    const res = await multiRef.current.createRoom(nickname);
+    const res = await multiRef.current.createRoom(nickname, selectedCharacterId ?? 0);
     if (res.success && multiRef.current.currentRoom) {
       setSelfId(multiRef.current.selfId);
       setRoom({ ...multiRef.current.currentRoom });
@@ -454,7 +471,7 @@ export default function App() {
   // Handler: Join Room
   const handleJoinRoom = async (code: string, nickname: string) => {
     if (!multiRef.current) return { success: false, error: "Multiplayer offline" };
-    const res = await multiRef.current.joinRoom(code, nickname);
+    const res = await multiRef.current.joinRoom(code, nickname, selectedCharacterId ?? 0);
     if (res.success && multiRef.current.currentRoom) {
       setSelfId(multiRef.current.selfId);
       setRoom({ ...multiRef.current.currentRoom });
@@ -530,8 +547,13 @@ export default function App() {
         className="w-full h-full cursor-crosshair"
       />
 
-      {/* Lobby Overlay Screen (before game start) */}
-      {showLobby && (
+      {/* 캐릭터 고르기 (4종 중 1) – 로비 전에 한 번 */}
+      {!gameStarted && selectedCharacterId === null && (
+        <CharacterSelect onSelect={chooseCharacter} initialSelected={lastCharacterId} />
+      )}
+
+      {/* Lobby Overlay Screen (before game start, after a character is chosen) */}
+      {showLobby && (gameStarted || selectedCharacterId !== null) && (
         <div
           style={{ opacity: gameStarted ? 0 : 1, transition: "opacity 450ms ease", pointerEvents: gameStarted ? "none" : "auto" }}
         >
@@ -543,6 +565,15 @@ export default function App() {
           onJoinRoom={handleJoinRoom}
           onSingleplayer={handleSingleplayer}
         />
+        {!gameStarted && !room && (
+          <button
+            type="button"
+            onClick={() => setSelectedCharacterId(null)}
+            className="fixed left-4 top-4 z-50 rounded-lg border border-amber-500/40 bg-stone-900/80 px-3 py-1.5 text-xs font-bold text-amber-300 backdrop-blur-md hover:bg-stone-800"
+          >
+            캐릭터 변경
+          </button>
+        )}
         </div>
       )}
 

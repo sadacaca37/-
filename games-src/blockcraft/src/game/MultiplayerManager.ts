@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { io, Socket } from "socket.io-client";
-import { BlockType, BLOCK_DEFINITIONS, ChatMessage, PlayerData, RoomState } from "../types";
+import { BlockType, BLOCK_DEFINITIONS, ChatMessage, PlayerData, RoomState, getCharacterPreset } from "../types";
+import { createCharacterModel } from "./CharacterSkin";
 import { soundFx } from "./SoundEffects";
 import { VoxelTextureAtlas } from "./TextureAtlas";
 import { VoxelWorld } from "./VoxelWorld";
@@ -8,12 +9,12 @@ import { VoxelWorld } from "./VoxelWorld";
 interface RemotePlayerVisual {
   data: PlayerData;
   group: THREE.Group;
-  head: THREE.Mesh;
+  head: THREE.Object3D;
   torso: THREE.Mesh;
-  leftArm: THREE.Mesh;
-  rightArm: THREE.Mesh;
-  leftLeg: THREE.Mesh;
-  rightLeg: THREE.Mesh;
+  leftArm: THREE.Object3D;
+  rightArm: THREE.Object3D;
+  leftLeg: THREE.Object3D;
+  rightLeg: THREE.Object3D;
   handBlock: THREE.Mesh;
   nameSprite: THREE.Sprite;
   targetPosition: THREE.Vector3;
@@ -281,13 +282,13 @@ export class MultiplayerManager {
   }
 
   // Create room
-  public createRoom(nickname: string): Promise<{ success: boolean; error?: string }> {
-    return this.enterRoom("create", { nickname });
+  public createRoom(nickname: string, characterId: number = 0): Promise<{ success: boolean; error?: string }> {
+    return this.enterRoom("create", { nickname, characterId });
   }
 
   // Join room
-  public joinRoom(roomCode: string, nickname: string): Promise<{ success: boolean; error?: string }> {
-    return this.enterRoom("join", { roomCode: roomCode.toUpperCase().trim(), nickname });
+  public joinRoom(roomCode: string, nickname: string, characterId: number = 0): Promise<{ success: boolean; error?: string }> {
+    return this.enterRoom("join", { roomCode: roomCode.toUpperCase().trim(), nickname, characterId });
   }
 
   // Host starts game
@@ -326,84 +327,24 @@ export class MultiplayerManager {
   private createRemoteAvatar(data: PlayerData) {
     if (this.remotePlayers.has(data.id)) return;
 
-    const group = new THREE.Group();
+    // Each player picked 1 of 4 preset characters before entering. The model
+    // is a classic blocky humanoid (0.5 head, 0.75 body, 0.75 limbs = 1.8 tall)
+    // with a pixel-art skin painted per preset (see CharacterSkin.ts). The
+    // room-assigned per-player color is painted as the belt, so two players
+    // using the same character still tell apart.
+    const preset = getCharacterPreset(data.characterId);
+    const model = createCharacterModel(preset, data.color || preset.shirtColor);
+    const group = model.group;
     group.position.set(data.position[0], data.position[1], data.position[2]);
 
-    const playerColor = new THREE.Color(data.color || "#3b82f6");
-    const skinMat = new THREE.MeshLambertMaterial({ color: 0xe0a982 }); // Peach skin tone
-    const shirtMat = new THREE.MeshLambertMaterial({ color: playerColor });
-    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x2b3856 }); // Dark blue pants
-    const hairMat = new THREE.MeshLambertMaterial({ color: 0x4a2e1b }); // Brown hair
-
-    // Head (0.45 x 0.45 x 0.45)
-    const headGroup = new THREE.Group();
-    headGroup.position.set(0, 1.45, 0);
-
-    const headGeo = new THREE.BoxGeometry(0.42, 0.42, 0.42);
-    const head = new THREE.Mesh(headGeo, skinMat);
-    head.castShadow = true;
-    headGroup.add(head);
-
-    // Hair cap
-    const hairGeo = new THREE.BoxGeometry(0.44, 0.15, 0.44);
-    const hair = new THREE.Mesh(hairGeo, hairMat);
-    hair.position.set(0, 0.18, 0);
-    headGroup.add(hair);
-
-    // Eyes
-    const eyeGeo = new THREE.BoxGeometry(0.08, 0.05, 0.02);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.1, 0.02, 0.22);
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.1, 0.02, 0.22);
-    headGroup.add(leftEye, rightEye);
-
-    group.add(headGroup);
-
-    // Torso (0.48 x 0.65 x 0.26)
-    const torsoGeo = new THREE.BoxGeometry(0.48, 0.62, 0.26);
-    const torso = new THREE.Mesh(torsoGeo, shirtMat);
-    torso.position.set(0, 0.95, 0);
-    torso.castShadow = true;
-    group.add(torso);
-
-    // Left Arm
-    const armGeo = new THREE.BoxGeometry(0.18, 0.62, 0.18);
-    const leftArm = new THREE.Mesh(armGeo, shirtMat);
-    leftArm.position.set(-0.35, 0.95, 0);
-    leftArm.castShadow = true;
-    group.add(leftArm);
-
-    // Right Arm (holds the block)
-    const rightArmGroup = new THREE.Group();
-    rightArmGroup.position.set(0.35, 1.25, 0); // Pivot at shoulder
-    const rightArm = new THREE.Mesh(armGeo, shirtMat);
-    rightArm.position.set(0, -0.3, 0);
-    rightArm.castShadow = true;
-    rightArmGroup.add(rightArm);
-
-    // 3D Block held in hand
+    // 3D block held in the right hand
     const handBlockGeo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
     const handBlock = new THREE.Mesh(handBlockGeo, this.atlas.opaqueMaterial);
-    handBlock.position.set(0, -0.58, 0.15);
-    rightArmGroup.add(handBlock);
-    group.add(rightArmGroup);
+    model.handAnchor.add(handBlock);
 
-    // Legs
-    const legGeo = new THREE.BoxGeometry(0.2, 0.62, 0.2);
-    const leftLeg = new THREE.Mesh(legGeo, pantsMat);
-    leftLeg.position.set(-0.12, 0.32, 0);
-    leftLeg.castShadow = true;
-
-    const rightLeg = new THREE.Mesh(legGeo, pantsMat);
-    rightLeg.position.set(0.12, 0.32, 0);
-    rightLeg.castShadow = true;
-    group.add(leftLeg, rightLeg);
-
-    // Billboard Nickname Sprite
-    const nameSprite = this.createNicknameSprite(data.nickname, data.color, data.isHost);
-    nameSprite.position.set(0, 2.05, 0);
+    // Billboard Nickname Sprite (prefixed with the character emoji)
+    const nameSprite = this.createNicknameSprite(`${preset.emoji} ${data.nickname}`, data.color, data.isHost);
+    nameSprite.position.set(0, model.height + 0.3, 0);
     group.add(nameSprite);
 
     this.scene.add(group);
@@ -411,12 +352,12 @@ export class MultiplayerManager {
     const visual: RemotePlayerVisual = {
       data,
       group,
-      head,
-      torso,
-      leftArm,
-      rightArm: rightArm as any,
-      leftLeg,
-      rightLeg,
+      head: model.head,
+      torso: model.torso,
+      leftArm: model.leftArm,
+      rightArm: model.rightArm,
+      leftLeg: model.leftLeg,
+      rightLeg: model.rightLeg,
       handBlock,
       nameSprite,
       targetPosition: new THREE.Vector3(...data.position),
@@ -521,10 +462,12 @@ export class MultiplayerManager {
         visual.leftLeg.rotation.x = swing;
         visual.rightLeg.rotation.x = -swing;
         visual.leftArm.rotation.x = -swing;
+        visual.rightArm.rotation.x = swing;
       } else {
         visual.leftLeg.rotation.x = THREE.MathUtils.lerp(visual.leftLeg.rotation.x, 0, 0.2);
         visual.rightLeg.rotation.x = THREE.MathUtils.lerp(visual.rightLeg.rotation.x, 0, 0.2);
         visual.leftArm.rotation.x = THREE.MathUtils.lerp(visual.leftArm.rotation.x, 0, 0.2);
+        visual.rightArm.rotation.x = THREE.MathUtils.lerp(visual.rightArm.rotation.x, 0, 0.2);
       }
     }
   }
