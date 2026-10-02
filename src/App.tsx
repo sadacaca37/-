@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
 import { progressSync } from './utils/progressSync';
 import { activityTracker } from './utils/activityLog';
+import { buildTodaySummary, fetchMyReports, fetchUncheckedCount } from './utils/dailyReport';
 import { backupKeeper } from './utils/backupKeeper';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
@@ -18,6 +19,7 @@ import { userPersistenceManager } from './utils/userPersistenceManager';
 const ProfileModal = lazy(() => import('./components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const MasterModal = lazy(() => import('./components/MasterModal').then((m) => ({ default: m.MasterModal })));
 const MonthlyReportModal = lazy(() => import('./components/MonthlyReportModal').then((m) => ({ default: m.MonthlyReportModal })));
+const SendReportModal = lazy(() => import('./components/SendReportModal').then((m) => ({ default: m.SendReportModal })));
 const PracticeHistoryModal = lazy(() => import('./components/PracticeHistoryModal').then((m) => ({ default: m.PracticeHistoryModal })));
 const KeyPracticeView = lazy(() => import('./components/views/KeyPracticeView').then((m) => ({ default: m.KeyPracticeView })));
 const WordPracticeView = lazy(() => import('./components/views/WordPracticeView').then((m) => ({ default: m.WordPracticeView })));
@@ -167,6 +169,47 @@ export default function App() {
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
 
+  // 오늘의 연습 보고 상태: 학생 = 보냈는지/선생님이 확인했는지, 선생님 = 새 보고 수 (1분마다 + 바뀔 때)
+  useEffect(() => {
+    const uid = currentUser?.id;
+    if (!uid) {
+      setSendReportState('none');
+      setNewReportsCount(0);
+      return;
+    }
+    let alive = true;
+    const refresh = async () => {
+      if (currentUser?.role === 'master') {
+        const n = await fetchUncheckedCount();
+        if (alive) setNewReportsCount(n);
+        return;
+      }
+      const today = buildTodaySummary(uid);
+      const mine = await fetchMyReports(uid);
+      if (!alive) return;
+      const sent = mine.find((r) => r.day === today.day);
+      if (sent && (sent.sets !== today.summary.sets || sent.keys < today.summary.keys - 50)) setSendReportState('ready'); // 보낸 뒤에 더 연습함
+      else if (sent) setSendReportState(sent.checkedAt ? 'checked' : 'sent');
+      else setSendReportState(today.active ? 'ready' : 'none');
+    };
+    void refresh();
+    // 로그인 직후에는 서버에서 학생 자료를 받아 오는 중일 수 있어 몇 초 뒤에 다시 확인
+    const early = [3000, 9000].map((ms) => window.setTimeout(() => void refresh(), ms));
+    const t = window.setInterval(() => void refresh(), 60000);
+    const onChange = () => void refresh();
+    window.addEventListener('daily-report-updated', onChange);
+    window.addEventListener('typing-history-updated', onChange);
+    window.addEventListener('focus', onChange);
+    return () => {
+      alive = false;
+      early.forEach((id) => window.clearTimeout(id));
+      window.clearInterval(t);
+      window.removeEventListener('daily-report-updated', onChange);
+      window.removeEventListener('typing-history-updated', onChange);
+      window.removeEventListener('focus', onChange);
+    };
+  }, [currentUser?.id, currentUser?.role]);
+
   // 학습 일지: 학생이 타자 연습 화면에서 실제로 친 글자 수·시간을 날짜별로 쌓음 (선생님 화면·성적표용)
   useEffect(() => {
     const isStudent = !!currentUser?.id && currentUser.role !== 'master';
@@ -177,6 +220,10 @@ export default function App() {
   const [profileInitialTab, setProfileInitialTab] = useState<'avatar' | 'account'>('account');
   const [isMasterOpen, setIsMasterOpen] = useState<boolean>(false);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
+  // 오늘의 연습 보고: 학생은 [선생님께 보내기], 선생님은 관리실 버튼에 새 보고 수
+  const [isSendReportOpen, setIsSendReportOpen] = useState<boolean>(false);
+  const [sendReportState, setSendReportState] = useState<'none' | 'ready' | 'sent' | 'checked'>('none');
+  const [newReportsCount, setNewReportsCount] = useState<number>(0);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [reportTargetUser, setReportTargetUser] = useState<UserSession | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(soundManager.getMuted());
@@ -430,6 +477,9 @@ export default function App() {
             setIsReportOpen(true);
           }}
           onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenSendReport={() => setIsSendReportOpen(true)}
+          sendReportState={sendReportState}
+          newReportsCount={newReportsCount}
           onLogout={handleLogout}
           soundEnabled={!isMuted}
           onToggleSound={handleToggleSound}
@@ -721,6 +771,11 @@ export default function App() {
         currentUser={currentUser}
         targetUser={reportTargetUser}
       />}
+
+      {/* 학생: 오늘 연습을 선생님께 보내는 창 */}
+      {isSendReportOpen && currentUser && currentUser.role !== 'master' && (
+        <SendReportModal isOpen={isSendReportOpen} onClose={() => setIsSendReportOpen(false)} currentUser={currentUser} />
+      )}
 
       {/* Student Typing Practice History Modal */}
       {isHistoryOpen && <PracticeHistoryModal

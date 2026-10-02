@@ -5,6 +5,7 @@ import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
 import { attachBlockcraft, registerBlockcraftHttp } from './server/blockcraftRooms';
 import { registerFunfunGate, setLoginCookie, getFunfunFree, setFunfunFree } from './server/funfunGate';
+import { registerDailyReports, getDailyReports, mergeDailyReports } from './server/dailyReports';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -418,6 +419,7 @@ app.get('/api/backup', (req, res) => {
       progress: progressCache,
       leaderboard: leaderboardCache,
       funfunFree: getFunfunFree(),
+      reports: getDailyReports(),
     },
   });
 });
@@ -445,6 +447,10 @@ app.post('/api/backup/restore', (req, res) => {
     if (f && Number(f.updatedAt) > getFunfunFree().updatedAt) setFunfunFree(f);
   } catch {}
   if (!backup || typeof backup !== 'object') return res.status(400).json({ success: false, message: '백업 파일 내용을 읽을 수 없습니다.' });
+  // 학생이 보낸 '오늘의 연습 보고'도 되살림 (이미 있는 것은 더 나중 것·확인 표시를 살림)
+  try {
+    mergeDailyReports(backup.reports);
+  } catch {}
   let restoredMembers = 0;
   try {
     if (merge) {
@@ -499,6 +505,12 @@ registerBlockcraftHttp(app);
 // 예전 화면 코드가 남아 있어도 카트라이더가 열리도록: 옛 주소(games/pocketkart) → 새 카트라이더
 app.get(/^\/games\/pocketkart(\/.*)?$/, (_req, res) => res.redirect(302, '/games/kartrider/index.html'));
 registerFunfunGate(app, DATA_DIR, isMaster);
+
+// 오늘의 연습 보고: 학생이 [선생님께 보내기] → 선생님이 '받은 보고' 창에서 모아 보기
+registerDailyReports(app, DATA_DIR, isMaster, (id) => {
+  const u: any = members.list(true).find((m: any) => m.id === id && m.role !== 'master');
+  return u ? { name: String(u.name || ''), grade: Number(u.grade) || 0 } : null;
+});
 
 app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '없는 API 입니다.' }));
 

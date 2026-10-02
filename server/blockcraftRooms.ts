@@ -35,7 +35,12 @@ interface Room {
   modifiedBlocks: Record<string, number>; // "x,y,z" => blockType (0 = air)
   started: boolean;
   maxPlayers: number;
+  /** 방장이 고른 게임 방식: creative(자유 건축) / survival(생존) */
+  gameMode: GameMode;
 }
+
+type GameMode = 'creative' | 'survival';
+const normalizeGameMode = (value: unknown): GameMode => (value === 'survival' ? 'survival' : 'creative');
 
 export interface RoomHooks {
   /** 방을 만들 때 저장해 둔 블록 불러오기 (없으면 빈 월드) */
@@ -76,6 +81,7 @@ function roomView(room: Room) {
     seed: room.seed,
     started: room.started,
     maxPlayers: room.maxPlayers,
+    gameMode: room.gameMode,
     modifiedBlocks: room.modifiedBlocks,
   };
 }
@@ -121,7 +127,7 @@ function makeCore(hooks: RoomHooks) {
 
   return {
     leave,
-    create(pid: string, sink: Sink, data: { nickname?: string; userId?: string; characterId?: number }) {
+    create(pid: string, sink: Sink, data: { nickname?: string; userId?: string; characterId?: number; gameMode?: string }) {
       if (playerRoom.has(pid)) leave(pid);
       const code = generateRoomCode();
       const host: PlayerData = {
@@ -144,6 +150,7 @@ function makeCore(hooks: RoomHooks) {
         modifiedBlocks: { ...(hooks.loadRoomBlocks?.(code) || {}) },
         started: false,
         maxPlayers: 6,
+        gameMode: normalizeGameMode(data?.gameMode),
       };
       rooms[code] = room;
       sinks.set(pid, sink);
@@ -186,7 +193,7 @@ function makeCore(hooks: RoomHooks) {
         case 'start_game':
           if (room.hostId !== pid) return;
           room.started = true;
-          broadcast(code, 'game_started', { seed: room.seed, modifiedBlocks: room.modifiedBlocks });
+          broadcast(code, 'game_started', { seed: room.seed, gameMode: room.gameMode, modifiedBlocks: room.modifiedBlocks });
           return;
         case 'player_move':
           if (!data) return;
@@ -217,6 +224,12 @@ function makeCore(hooks: RoomHooks) {
             message: msg,
             timestamp: Date.now(),
           });
+          return;
+        }
+        case 'effect': {
+          // 폭탄·TNT 효과: 같은 방의 다른 친구들 화면에도 보이게 전달
+          if (!data || !Array.isArray(data.pos) || typeof data.kind !== 'string') return;
+          broadcast(code, 'effect', { kind: String(data.kind).slice(0, 24), pos: data.pos.slice(0, 3), dir: Array.isArray(data.dir) ? data.dir.slice(0, 3) : [0, 0, 0], by: pid }, pid);
           return;
         }
         case 'authenticate_player': {
@@ -375,7 +388,7 @@ export function attachBlockcraft(server: HttpServer, hooks: RoomHooks = {}) {
       const r = core.join(pid, sink, data || {});
       if (typeof cb === 'function') cb(r);
     });
-    for (const ev of ['start_game', 'player_move', 'block_place', 'block_break', 'chat_message', 'authenticate_player', 'leave_room']) {
+    for (const ev of ['start_game', 'player_move', 'block_place', 'block_break', 'chat_message', 'effect', 'authenticate_player', 'leave_room']) {
       socket.on(ev, (data: any) => core.act(pid, ev, data));
     }
     socket.on('disconnect', () => core.leave(pid));

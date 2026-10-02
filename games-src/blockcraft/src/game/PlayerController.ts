@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { BlockType, BLOCK_DEFINITIONS, RaycastResult } from "../types";
+import { BlockType, BLOCK_DEFINITIONS, BombType, GameMode, RaycastResult } from "../types";
 import { SoundEffects, soundFx } from "./SoundEffects";
 import { VoxelTextureAtlas } from "./TextureAtlas";
 import { VoxelWorld } from "./VoxelWorld";
@@ -40,6 +40,13 @@ export class PlayerController {
   public animalManager: AnimalManager | null = null;
   public monsterManager: MonsterManager | null = null;
   public particleManager: ParticleManager | null = null;
+
+  // Game mode: creative = fly, no hunger; survival = no flying, hunger, death resets
+  public gameMode: GameMode = "creative";
+  public onDeath?: () => void;
+  // Effect bombs / TNT (handled by EffectsManager via App)
+  public onUseBomb?: (kind: BombType, origin: THREE.Vector3, dir: THREE.Vector3) => void;
+  public onIgniteTnt?: (x: number, y: number, z: number) => void;
 
   // Health and Combat System
   public health: number = 20;
@@ -169,13 +176,23 @@ export class PlayerController {
     this.keys = {};
   }
 
-  public resetToSpawn() {
+  public lastSpawnIndex: number = 0;
+
+  public resetToSpawn(spawnIndex: number = 0) {
+    this.lastSpawnIndex = spawnIndex;
     this.resetKeys();
     this.velocity.set(0, 0, 0);
-    // Find dry land near the world origin rather than assuming (0.5, 0.5)
-    // is safe — with rivers/lakes now part of terrain gen, that spot can
-    // land underwater depending on the seed.
-    const spawn = this.world.findSafeSpawnXZ(0.5, 0.5);
+    // MULTIPLAYER FIX: every player used to spawn on the exact same block. With
+    // player-vs-player collision on, six people stacked in one spot meant every
+    // move was blocked by someone else's hitbox ("방향키가 안 먹음"). Each
+    // player now gets their own spot on a ring around the spawn point.
+    const ringAngle = (spawnIndex % 8) * (Math.PI * 2 / 8);
+    const ringRadius = spawnIndex === 0 ? 0 : 2.5 + Math.floor(spawnIndex / 8) * 2.5;
+    const ox = 0.5 + Math.cos(ringAngle) * ringRadius;
+    const oz = 0.5 + Math.sin(ringAngle) * ringRadius;
+    // Find dry land near that spot rather than assuming it is safe — with
+    // rivers/lakes now part of terrain gen, it can land underwater.
+    const spawn = this.world.findSafeSpawnXZ(ox, oz);
     const groundY = this.world.getSurfaceHeight(spawn.x, spawn.z);
     this.position.set(spawn.x, groundY + 1.0, spawn.z);
     this.isGrounded = true;
@@ -529,10 +546,8 @@ export class PlayerController {
 
       // Tool durability logic
       if (toolMeta?.toolStats) {
-        // BUGFIX: `toolStats.durability` doesn't exist on ToolStats (only `maxDurability`
-        // does — see types.ts), so this always read `undefined`, making every durability
-        // comparison NaN. That silently broke tool wear (tools never reached 0 and the
-        // durability HUD showed NaN).
+        // BUGFIX: `toolStats.durability` doesn't exist on ToolStats (only `maxDurability`),
+        // so this read undefined and every durability comparison became NaN.
         const maxDur = toolMeta.toolStats.maxDurability;
         const currentDur = this.toolDurabilities.get(this.activeSlot) ?? maxDur;
         const nextDur = currentDur - 1;
@@ -569,6 +584,25 @@ export class PlayerController {
         this.onOpenCraftingTable();
         return;
       }
+    }
+
+    // 1b. Right-clicking a placed TNT block lights its fuse
+    if (this.currentRaycast.hit && this.currentRaycast.blockType === BlockType.TNT && this.currentRaycast.blockPos) {
+      const [tx, ty, tz] = this.currentRaycast.blockPos;
+      if (this.onIgniteTnt) {
+        this.onIgniteTnt(tx, ty, tz);
+        return;
+      }
+    }
+
+    // 1c. Effect bombs (firework / smoke / heal / thunder): throw where you look
+    const heldMeta = BLOCK_DEFINITIONS[this.selectedBlock];
+    if (heldMeta?.bombType && heldMeta.bombType !== "tnt") {
+      if (this.onUseBomb) {
+        this.onUseBomb(heldMeta.bombType, this.camera.position.clone(), lookDir.clone());
+        if (this.gameMode === "survival" && this.onConsumeItem) this.onConsumeItem(this.activeSlot);
+      }
+      return;
     }
 
     // 2. Check if feeding an animal in crosshair
@@ -779,8 +813,8 @@ export class PlayerController {
       }
     }
 
-    // Toggle Creative Flight mode with 'F'
-    if (code === "KeyF") {
+    // Toggle Creative Flight mode with 'F' (creative only)
+    if (code === "KeyF" && this.gameMode === "creative") {
       this.isFlying = !this.isFlying;
       this.velocity.y = 0;
       if (this.onFlyChange) {
@@ -795,8 +829,8 @@ export class PlayerController {
       const timeSinceLastSpace = now - this.lastSpacePressTime;
       this.lastSpacePressTime = now;
 
-      // Double tap Space within 320ms toggles Flight Mode
-      if (timeSinceLastSpace < 320) {
+      // Double tap Space within 320ms toggles Flight Mode (creative only)
+      if (timeSinceLastSpace < 320 && this.gameMode === "creative") {
         this.isFlying = !this.isFlying;
         this.velocity.y = 0;
         if (this.onFlyChange) {
@@ -874,6 +908,13 @@ export class PlayerController {
     if (!this.getOtherPlayerPositions) return false;
     const others = this.getOtherPlayerPositions();
 
+    // MULTIPLAYER FIX: a move is only blocked when it brings us CLOSER to a
+    // player we would overlap. If we already overlap someone (spawn pile-up,
+    // lag, someone walked into us) moving away is always allowed, so nobody
+    // gets stuck in place.
+    const curXZ = new THREE.Vector2(this.position.x, this.position.z);
+    const candXZ = new THREE.Vector2(candidatePos.x, candidatePos.z);
+
     const minX = candidatePos.x - this.width / 2;
     const maxX = candidatePos.x + this.width / 2;
     const minY = candidatePos.y;
@@ -897,10 +938,47 @@ export class PlayerController {
         minZ < oMaxZ &&
         maxZ > oMinZ;
 
-      if (overlap) return true;
+      if (overlap) {
+        const oXZ = new THREE.Vector2(other.x, other.z);
+        const movingCloser = candXZ.distanceTo(oXZ) < curXZ.distanceTo(oXZ) - 1e-4;
+        if (movingCloser) return true;
+      }
     }
 
     return false;
+  }
+
+  // Gently push apart from any player we are overlapping with (e.g. after
+  // spawning on the same block) so the pile untangles on its own.
+  private separateFromPlayers(dt: number) {
+    if (!this.getOtherPlayerPositions) return;
+    const others = this.getOtherPlayerPositions();
+    for (const other of others) {
+      const dx = this.position.x - other.x;
+      const dz = this.position.z - other.z;
+      const dist = Math.hypot(dx, dz);
+      const minDist = this.width * 1.05;
+      const overlapY = this.position.y < other.y + this.height && this.position.y + this.height > other.y;
+      if (dist < minDist && overlapY) {
+        let px: number, pz: number;
+        if (dist < 1e-3) {
+          const a = Math.random() * Math.PI * 2;
+          px = Math.cos(a);
+          pz = Math.sin(a);
+        } else {
+          px = dx / dist;
+          pz = dz / dist;
+        }
+        const push = (minDist - dist) * Math.min(1, dt * 6);
+        const cand = this.position.clone();
+        cand.x += px * push;
+        cand.z += pz * push;
+        if (!this.isCollidingAt(cand)) {
+          this.position.x = cand.x;
+          this.position.z = cand.z;
+        }
+      }
+    }
   }
 
   // Main physics & update loop
@@ -957,6 +1035,8 @@ export class PlayerController {
         this.position.z = newPosZ.z;
       }
     }
+
+    this.separateFromPlayers(dt);
 
     // 3. Move Y (Vertical)
     if (this.isFlying) {
@@ -1043,8 +1123,20 @@ export class PlayerController {
     // Animate First-Person hand held item
     this.animateHand(dt, moveVector.length() > 0.1);
 
-    // Hunger exhaustion & Natural health regeneration
-    if (!this.isFlying) {
+    // Hunger exhaustion & Natural health regeneration (survival mode only)
+    if (this.gameMode === "creative") {
+      if (this.hunger < this.maxHunger) {
+        this.hunger = this.maxHunger;
+        if (this.onHungerChange) this.onHungerChange(this.hunger, this.maxHunger);
+      }
+      if (this.health < this.maxHealth) {
+        this.regenTimer += dt;
+        if (this.regenTimer >= 1.0) {
+          this.regenTimer = 0;
+          this.heal(1);
+        }
+      }
+    } else if (!this.isFlying) {
       // Walking / running exhaustion
       if (moveVector.length() > 0.1) {
         this.hungerTimer += dt * (this.keys["ControlLeft"] || this.keys["ShiftLeft"] ? 0.35 : 0.12);
@@ -1057,7 +1149,7 @@ export class PlayerController {
     }
 
     // Health regeneration when well-fed (>= 18)
-    if (this.hunger >= 18 && this.health < this.maxHealth) {
+    if (this.gameMode === "survival" && this.hunger >= 18 && this.health < this.maxHealth) {
       this.regenTimer += dt;
       if (this.regenTimer >= 3.0) {
         this.regenTimer = 0;
@@ -1065,7 +1157,7 @@ export class PlayerController {
         this.hunger = Math.max(0, this.hunger - 0.5);
         if (this.onHungerChange) this.onHungerChange(this.hunger, this.maxHunger);
       }
-    } else if (this.hunger <= 0) {
+    } else if (this.gameMode === "survival" && this.hunger <= 0) {
       // Starvation damage when hunger is 0
       this.regenTimer += dt;
       if (this.regenTimer >= 4.0 && this.health > 1) {
@@ -1106,12 +1198,15 @@ export class PlayerController {
 
     // Respawn if dead
     if (this.health <= 0) {
+      if (this.onDeath) this.onDeath();
       setTimeout(() => {
-        this.resetToSpawn();
+        this.resetToSpawn(this.lastSpawnIndex);
         this.health = this.maxHealth;
+        this.hunger = this.maxHunger;
         if (this.onHealthChange) {
           this.onHealthChange(this.health, this.maxHealth);
         }
+        if (this.onHungerChange) this.onHungerChange(this.hunger, this.maxHunger);
       }, 1000);
     }
   }

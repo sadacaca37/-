@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
-import { BlockType, BLOCK_DEFINITIONS, ChatMessage, RoomState, UserAccount } from "./types";
+import { BlockType, BLOCK_DEFINITIONS, ChatMessage, GameMode, RoomState, UserAccount } from "./types";
 import { VoxelTextureAtlas } from "./game/TextureAtlas";
 import { VoxelWorld } from "./game/VoxelWorld";
 import { PlayerController, DEFAULT_HOTBAR } from "./game/PlayerController";
 import { MultiplayerManager } from "./game/MultiplayerManager";
 import { AnimalManager } from "./game/AnimalManager";
 import { MonsterManager } from "./game/MonsterManager";
+import { EffectsManager } from "./game/EffectsManager";
 import { authService } from "./game/AuthService";
 import { soundFx } from "./game/SoundEffects";
 import { Lobby } from "./components/Lobby";
@@ -16,6 +17,7 @@ import { InventoryModal } from "./components/InventoryModal";
 import { ChatBox } from "./components/ChatBox";
 import { GameHUD } from "./components/GameHUD";
 import { HealthBar } from "./components/HealthBar";
+import { HungerBar } from "./components/HungerBar";
 import { AuthModal } from "./components/AuthModal";
 
 export default function App() {
@@ -31,6 +33,7 @@ export default function App() {
   const multiRef = useRef<MultiplayerManager | null>(null);
   const animalManagerRef = useRef<AnimalManager | null>(null);
   const monsterManagerRef = useRef<MonsterManager | null>(null);
+  const effectsRef = useRef<EffectsManager | null>(null);
   const animFrameIdRef = useRef<number>(0);
 
   // Persistence Refs
@@ -41,6 +44,26 @@ export default function App() {
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [selfId, setSelfId] = useState<string>("");
+  // Character chosen on the pre-Lobby character-select screen (1 of 4 presets).
+  // null = not chosen yet, so we show CharacterSelect instead of the Lobby.
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  // 지난번에 고른 캐릭터를 기억해 두었다가 미리 골라 둠
+  const lastCharacterId = (() => {
+    try {
+      const raw = localStorage.getItem("blockcraft_character_id");
+      const v = raw === null ? NaN : Number(raw);
+      return Number.isInteger(v) && v >= 0 && v <= 3 ? v : null;
+    } catch {
+      return null;
+    }
+  })();
+  // Creative (fly, infinite) or Survival (hunger, no flying, death). In
+  // multiplayer the host's choice wins and arrives with game_started.
+  const [gameMode, setGameMode] = useState<GameMode>("creative");
+  const gameModeRef = useRef<GameMode>("creative");
+  gameModeRef.current = gameMode;
+  const [playerHunger, setPlayerHunger] = useState<number>(20);
+  const [screenFlash, setScreenFlash] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<number>(0);
   const [hotbarBlocks, setHotbarBlocks] = useState<BlockType[]>(() => [...DEFAULT_HOTBAR]);
   const [icons, setIcons] = useState<Record<BlockType, string>>({} as any);
@@ -67,22 +90,6 @@ export default function App() {
   const gameStartedRef = useRef<boolean>(false);
   // 로비 → 게임 화면: 로비가 부드럽게 사라진 뒤 치움
   const [showLobby, setShowLobby] = useState<boolean>(true);
-  // 로비에 들어가기 전에 고르는 캐릭터(4종 중 1). null = 아직 안 고름 → 캐릭터 고르기 화면
-  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
-  const lastCharacterId = (() => {
-    try {
-      const v = Number(localStorage.getItem("blockcraft_character_id"));
-      return Number.isInteger(v) && v >= 0 && v <= 3 ? v : null;
-    } catch {
-      return null;
-    }
-  })();
-  const chooseCharacter = (id: number) => {
-    try {
-      localStorage.setItem("blockcraft_character_id", String(id));
-    } catch {}
-    setSelectedCharacterId(id);
-  };
   useEffect(() => {
     if (!gameStarted) {
       setShowLobby(true);
@@ -158,7 +165,7 @@ export default function App() {
           }
         }
 
-        setPickupNotice(`💾 ${user.username} 님의 월드 & 소지품 복원 완료!`);
+        setPickupNotice(`[SQLite DB] ${user.username} 님의 월드 & 소지품 복원 완료!`);
         setTimeout(() => setPickupNotice(null), 3000);
       }
     }
@@ -237,11 +244,16 @@ export default function App() {
       setRoom({ ...updatedRoom });
     };
 
-    multi.onGameStart = () => {
+    multi.onGameStart = (_seed, hostMode) => {
+      if (hostMode) {
+        setGameMode(hostMode);
+        gameModeRef.current = hostMode;
+        player.gameMode = hostMode;
+      }
       setGameStarted(true);
       gameStartedRef.current = true;
       world.updateChunksAroundPlayer(0, 0);
-      player.resetToSpawn();
+      player.resetToSpawn(multi.getSelfIndex());
       setTimeout(() => {
         player.requestLock();
       }, 120);
@@ -259,9 +271,51 @@ export default function App() {
     const monsters = new MonsterManager(scene, world);
     monsterManagerRef.current = monsters;
 
+    // 9b. Effects (TNT, fireworks, smoke, heal, thunder)
+    const effects = new EffectsManager(scene, world);
+    effectsRef.current = effects;
+    effects.monsterManager = monsters;
+
     // 10. Player Controller
     const player = new PlayerController(camera, world, atlas, renderer.domElement);
     playerRef.current = player;
+    player.gameMode = gameModeRef.current;
+
+    // Effects <-> player / network wiring
+    effects.getPlayerPosition = () => player.position.clone();
+    effects.damagePlayer = (amount, from) => player.takeDamage(amount, from);
+    effects.healPlayer = (amount) => player.heal(amount);
+    effects.onBlockDestroyed = (x, y, z) => {
+      multi.sendBlockBreak(x, y, z);
+      modifiedBlocksRef.current.push({ x, y, z, type: BlockType.AIR });
+    };
+    effects.onBroadcast = (kind, pos, dir) => multi.sendEffect(kind, pos, dir);
+    effects.onScreenFlash = (color, duration) => {
+      setScreenFlash(color);
+      setTimeout(() => setScreenFlash(null), duration);
+    };
+    effects.onNotice = (text) => {
+      setPickupNotice(text);
+      setTimeout(() => setPickupNotice(null), 2000);
+    };
+    multi.onEffect = (kind, pos, dir) => effects.playRemote(kind, pos, dir);
+    player.onUseBomb = (kind, origin, dir) => effects.throwBomb(kind, origin, dir);
+    player.onIgniteTnt = (x, y, z) => effects.igniteTnt(x, y, z);
+    player.onHungerChange = (h) => setPlayerHunger(h);
+    player.onConsumeItem = (slotIdx) => {
+      // Survival: bombs & food are single-use — clear the slot
+      if (gameModeRef.current !== "survival") return;
+      setHotbarBlocks((prev) => {
+        const next = [...prev];
+        next[slotIdx] = BlockType.AIR;
+        return next;
+      });
+      player.setSlotBlock(slotIdx, BlockType.AIR);
+    };
+    player.onDeath = () => {
+      setPickupNotice("💀 쓰러졌습니다... 스폰 지점에서 다시 시작합니다");
+      setTimeout(() => setPickupNotice(null), 3000);
+    };
     // 화면 퀵슬롯과 실제 손에 든 블록을 같은 목록으로 (잔디를 골랐는데 몹이 나오던 문제)
     player.hotbarBlocks = [...hotbarRef.current];
     player.setActiveSlot(0);
@@ -397,6 +451,7 @@ export default function App() {
           player.selectedBlock
         );
         multi.update(deltaTime);
+        effects.update(deltaTime);
 
         // Update React UI states
         setPlayerPos([player.position.x, player.position.y, player.position.z]);
@@ -428,6 +483,7 @@ export default function App() {
       cancelAnimationFrame(animFrameIdRef.current);
       animals.dispose();
       monsters.dispose();
+      effects.dispose();
       player.dispose();
       multi.dispose();
       world.dispose();
@@ -460,7 +516,7 @@ export default function App() {
   // Handler: Create Room
   const handleCreateRoom = async (nickname: string) => {
     if (!multiRef.current) return { success: false, error: "Multiplayer offline" };
-    const res = await multiRef.current.createRoom(nickname, selectedCharacterId ?? 0);
+    const res = await multiRef.current.createRoom(nickname, selectedCharacterId ?? 0, gameMode);
     if (res.success && multiRef.current.currentRoom) {
       setSelfId(multiRef.current.selfId);
       setRoom({ ...multiRef.current.currentRoom });
@@ -475,6 +531,12 @@ export default function App() {
     if (res.success && multiRef.current.currentRoom) {
       setSelfId(multiRef.current.selfId);
       setRoom({ ...multiRef.current.currentRoom });
+      const roomMode = multiRef.current.currentRoom.gameMode;
+      if (roomMode) {
+        setGameMode(roomMode);
+        gameModeRef.current = roomMode;
+        if (playerRef.current) playerRef.current.gameMode = roomMode;
+      }
     }
     return res;
   };
@@ -488,7 +550,8 @@ export default function App() {
     gameStartedRef.current = true;
     worldRef.current?.updateChunksAroundPlayer(0, 0);
     animalManagerRef.current?.populateInitialFauna();
-    playerRef.current?.resetToSpawn();
+    if (playerRef.current) playerRef.current.gameMode = gameMode;
+    playerRef.current?.resetToSpawn(multiRef.current?.getSelfIndex() ?? 0);
     setTimeout(() => {
       playerRef.current?.requestLock();
     }, 120);
@@ -500,7 +563,8 @@ export default function App() {
     gameStartedRef.current = true;
     worldRef.current?.updateChunksAroundPlayer(0, 0);
     animalManagerRef.current?.populateInitialFauna();
-    playerRef.current?.resetToSpawn();
+    if (playerRef.current) playerRef.current.gameMode = gameMode;
+    playerRef.current?.resetToSpawn(0);
     setTimeout(() => {
       playerRef.current?.requestLock();
     }, 120);
@@ -508,6 +572,11 @@ export default function App() {
 
   // Handler: Toggle Flight
   const handleToggleFly = () => {
+    if (gameMode === "survival") {
+      setPickupNotice("⚔️ 서바이벌 모드에서는 날 수 없어요");
+      setTimeout(() => setPickupNotice(null), 1500);
+      return;
+    }
     if (playerRef.current) {
       playerRef.current.isFlying = !playerRef.current.isFlying;
       playerRef.current.velocity.y = 0;
@@ -547,13 +616,25 @@ export default function App() {
         className="w-full h-full cursor-crosshair"
       />
 
-      {/* 캐릭터 고르기 (4종 중 1) – 로비 전에 한 번 */}
+      {/* Character Select (1-of-4 preset look), shown once before the Lobby */}
       {!gameStarted && selectedCharacterId === null && (
-        <CharacterSelect onSelect={chooseCharacter} initialSelected={lastCharacterId} />
+        <CharacterSelect
+          initialSelected={lastCharacterId}
+          onSelect={(id, mode) => {
+            try {
+              localStorage.setItem("blockcraft_character_id", String(id));
+            } catch {}
+            setSelectedCharacterId(id);
+            setGameMode(mode);
+            gameModeRef.current = mode;
+            if (playerRef.current) playerRef.current.gameMode = mode;
+          }}
+          initialMode={gameMode}
+        />
       )}
 
       {/* Lobby Overlay Screen (before game start, after a character is chosen) */}
-      {showLobby && (gameStarted || selectedCharacterId !== null) && (
+      {showLobby && selectedCharacterId !== null && (
         <div
           style={{ opacity: gameStarted ? 0 : 1, transition: "opacity 450ms ease", pointerEvents: gameStarted ? "none" : "auto" }}
         >
@@ -601,6 +682,22 @@ export default function App() {
             }}
           />
 
+          {/* Explosion / thunder screen flash */}
+          {screenFlash && (
+            <div className="pointer-events-none fixed inset-0 z-50" style={{ background: screenFlash }} />
+          )}
+
+          {/* Game mode badge */}
+          <div
+            className={`fixed top-16 left-1/2 -translate-x-1/2 z-30 rounded-full border px-3 py-0.5 text-[11px] font-bold backdrop-blur-md ${
+              gameMode === "survival"
+                ? "border-red-500/50 bg-red-950/70 text-red-300"
+                : "border-sky-500/50 bg-sky-950/70 text-sky-300"
+            }`}
+          >
+            {gameMode === "survival" ? "⚔️ 서바이벌" : "🪽 크리에이티브"}
+          </div>
+
           {/* Item Pickup / Toast Notification */}
           {pickupNotice && (
             <div
@@ -623,7 +720,10 @@ export default function App() {
 
           {/* Bottom HUD: Health Bar & Hotbar */}
           <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 pointer-events-auto">
-            <HealthBar health={playerHealth} maxHealth={20} isHurt={isHurt} />
+            <div className="flex items-end gap-6">
+              <HealthBar health={playerHealth} maxHealth={20} isHurt={isHurt} />
+              {gameMode === "survival" && <HungerBar hunger={Math.round(playerHunger)} maxHunger={20} />}
+            </div>
             <Hotbar
               activeSlot={activeSlot}
               hotbarBlocks={hotbarBlocks}

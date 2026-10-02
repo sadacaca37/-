@@ -448,17 +448,21 @@ export class VoxelWorld {
     const key = `${bx},${by},${bz}`;
     const prevType = this.getBlock(bx, by, bz);
 
-    // Handle Torch light management
-    if (prevType === BlockType.TORCH && type !== BlockType.TORCH) {
+    // Light-emitting blocks (torch, lantern): one PointLight per block
+    const prevLight = BLOCK_DEFINITIONS[prevType]?.lightLevel ?? 0;
+    const newLight = BLOCK_DEFINITIONS[type]?.lightLevel ?? 0;
+    if (prevLight > 0 && type !== prevType) {
       const light = this.torches.get(key);
       if (light) {
         this.worldGroup.remove(light);
         light.dispose();
         this.torches.delete(key);
       }
-    } else if (type === BlockType.TORCH) {
+    }
+    if (newLight > 0 && type !== BlockType.GLOWSTONE) {
       if (!this.torches.has(key)) {
-        const torchLight = new THREE.PointLight(0xffb74d, 1.8, 11, 1.4);
+        const isLantern = type === BlockType.LANTERN;
+        const torchLight = new THREE.PointLight(isLantern ? 0xffd27a : 0xffb74d, isLantern ? 2.2 : 1.8, isLantern ? 13 : 11, 1.4);
         torchLight.position.set(bx + 0.5, by + 0.65, bz + 0.5);
         this.worldGroup.add(torchLight);
         this.torches.set(key, torchLight);

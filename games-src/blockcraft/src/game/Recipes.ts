@@ -150,6 +150,24 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     key: { P: BlockType.PLANK, S: BlockType.STICK },
     result: { blockType: BlockType.BOOKSHELF, count: 1 },
   },
+  // Props: stone bricks, door, bed, table, chair, chest, lantern, fence, window
+  { id: "stone_brick_recipe", name: "Stone Bricks", nameKo: "돌 벽돌 (4개)", pattern: ["SS", "SS"], key: { S: BlockType.STONE }, result: { blockType: BlockType.STONE_BRICK, count: 4 } },
+  { id: "oak_door_recipe", name: "Oak Door", nameKo: "참나무 문", pattern: ["PP", "PP", "PP"], key: { P: BlockType.PLANK }, is3x3Only: true, result: { blockType: BlockType.OAK_DOOR, count: 2 } },
+  { id: "bed_recipe", name: "Bed", nameKo: "침대", pattern: ["WWW", "PPP"], key: { W: BlockType.WOOL_WHITE, P: BlockType.PLANK }, is3x3Only: true, result: { blockType: BlockType.BED, count: 1 } },
+  { id: "table_recipe", name: "Table", nameKo: "탁자", pattern: ["PPP", "S S"], key: { P: BlockType.PLANK, S: BlockType.STICK }, is3x3Only: true, result: { blockType: BlockType.TABLE, count: 1 } },
+  { id: "chair_recipe", name: "Chair", nameKo: "의자", pattern: ["P ", "PP", "SS"], key: { P: BlockType.PLANK, S: BlockType.STICK }, is3x3Only: true, result: { blockType: BlockType.CHAIR, count: 1 } },
+  { id: "chest_recipe", name: "Chest", nameKo: "상자", pattern: ["PPP", "P P", "PPP"], key: { P: BlockType.PLANK }, is3x3Only: true, result: { blockType: BlockType.CHEST, count: 1 } },
+  { id: "lantern_recipe", name: "Lantern", nameKo: "랜턴", pattern: ["I", "T"], key: { I: BlockType.IRON_INGOT, T: BlockType.TORCH }, result: { blockType: BlockType.LANTERN, count: 1 } },
+  { id: "fence_recipe", name: "Fence", nameKo: "울타리 (3개)", pattern: ["PSP", "PSP"], key: { P: BlockType.PLANK, S: BlockType.STICK }, is3x3Only: true, result: { blockType: BlockType.FENCE, count: 3 } },
+  { id: "window_recipe", name: "Window", nameKo: "창문", pattern: ["SGS", "SGS"], key: { S: BlockType.STICK, G: BlockType.GLASS }, is3x3Only: true, result: { blockType: BlockType.WINDOW, count: 2 } },
+  { id: "wool_red_recipe", name: "Red Wool", nameKo: "빨간 양털", shapeless: [BlockType.WOOL_WHITE, BlockType.BRICK], result: { blockType: BlockType.WOOL_RED, count: 1 } },
+  { id: "wool_blue_recipe", name: "Blue Wool", nameKo: "파란 양털", shapeless: [BlockType.WOOL_WHITE, BlockType.WATER], result: { blockType: BlockType.WOOL_BLUE, count: 1 } },
+  { id: "wool_yellow_recipe", name: "Yellow Wool", nameKo: "노란 양털", shapeless: [BlockType.WOOL_WHITE, BlockType.GOLD_BLOCK], result: { blockType: BlockType.WOOL_YELLOW, count: 1 } },
+  // Effect bombs
+  { id: "firework_recipe", name: "Firework", nameKo: "폭죽 (3개)", pattern: ["C", "T", "S"], key: { C: BlockType.COAL, T: BlockType.TNT, S: BlockType.STICK }, is3x3Only: true, result: { blockType: BlockType.FIREWORK, count: 3 } },
+  { id: "smoke_bomb_recipe", name: "Smoke Bomb", nameKo: "연막탄 (2개)", shapeless: [BlockType.COAL, BlockType.GRAVEL, BlockType.SLIME_BALL], result: { blockType: BlockType.SMOKE_BOMB, count: 2 } },
+  { id: "heal_bomb_recipe", name: "Healing Bomb", nameKo: "치유 폭탄", shapeless: [BlockType.GOLDEN_APPLE, BlockType.GLASS, BlockType.SLIME_BALL], result: { blockType: BlockType.HEAL_BOMB, count: 1 } },
+  { id: "thunder_bomb_recipe", name: "Thunder Bomb", nameKo: "번개 폭탄", pattern: ["D", "T", "I"], key: { D: BlockType.DIAMOND, T: BlockType.TNT, I: BlockType.IRON_INGOT }, is3x3Only: true, result: { blockType: BlockType.THUNDER_BOMB, count: 1 } },
   // 14. TNT: 4 Sand + 1 Slimeball/Flesh in X
   {
     id: "tnt_recipe",

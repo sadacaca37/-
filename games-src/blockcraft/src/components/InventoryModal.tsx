@@ -73,6 +73,21 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     BlockType.BOOKSHELF,
     BlockType.GLOWSTONE,
     BlockType.SNOW,
+    // House-building props
+    BlockType.STONE_BRICK,
+    BlockType.OAK_DOOR,
+    BlockType.WINDOW,
+    BlockType.FENCE,
+    BlockType.BED,
+    BlockType.TABLE,
+    BlockType.CHAIR,
+    BlockType.CHEST,
+    BlockType.LANTERN,
+    BlockType.FLOWER_POT,
+    BlockType.WOOL_RED,
+    BlockType.WOOL_BLUE,
+    BlockType.WOOL_WHITE,
+    BlockType.WOOL_YELLOW,
   ];
 
   const itemsList = [
@@ -84,6 +99,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     BlockType.BREAD,
     BlockType.GOLDEN_APPLE,
     BlockType.WHEAT,
+      // Effect bombs
+    BlockType.TNT,
+    BlockType.FIREWORK,
+    BlockType.SMOKE_BOMB,
+    BlockType.HEAL_BOMB,
+    BlockType.THUNDER_BOMB,
   ];
 
   let displayItems: BlockType[] = [];

@@ -1,5 +1,7 @@
 import { FunfunFreePanel } from './FunfunFreePanel';
 import { StudentActivityPanel } from './StudentActivityPanel';
+import { ReportsInboxPanel } from './ReportsInboxPanel';
+import { fetchUncheckedCount } from '../utils/dailyReport';
 import { backupKeeper, LAST_AUTO_BACKUP_KEY } from '../utils/backupKeeper';
 import React, { useState, useEffect } from 'react';
 import { 
@@ -81,8 +83,21 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   const [membersStatus, setMembersStatus] = useState<MembersStatus | null>(null);
   const [rosterMsg, setRosterMsg] = useState('');
   const [authError, setAuthError] = useState('');
-  const [activeConsoleTab, setActiveConsoleTab] = useState<'students' | 'history-inspector' | 'security'>('history-inspector');
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'reports' | 'students' | 'history-inspector' | 'security'>('reports');
   const [searchQuery, setSearchQuery] = useState('');
+  // 아직 확인하지 않은 '오늘의 연습 보고' 수 (탭의 빨간 숫자)
+  const [newReportsCount, setNewReportsCount] = useState(0);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const refresh = () => void fetchUncheckedCount().then(setNewReportsCount);
+    refresh();
+    const t = window.setInterval(refresh, 60000);
+    window.addEventListener('daily-report-updated', refresh);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('daily-report-updated', refresh);
+    };
+  }, [isAuthenticated]);
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved'>('all');
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
@@ -559,13 +574,30 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    학생 가입 승인, 비밀번호 조회/수정, 타자 연습 기록 및 비밀 마스터키 보안 설정
+                    학생이 보낸 연습 보고, 학습 현황, 가입 승인·비밀번호, 보안 설정
                   </p>
                 </div>
               </div>
 
               {/* Master Console Navigation Tabs */}
               <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0 gap-1 overflow-x-auto no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setActiveConsoleTab('reports')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    activeConsoleTab === 'reports'
+                      ? 'bg-emerald-500 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>📮 받은 보고</span>
+                  {newReportsCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
+                      {newReportsCount}
+                    </span>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setActiveConsoleTab('history-inspector')}
@@ -576,7 +608,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   }`}
                 >
                   <History className="w-3.5 h-3.5" />
-                  <span>학습 현황 (오늘·이번 달·진도)</span>
+                  <span className="whitespace-nowrap">학습 현황</span>
                 </button>
 
                 <button
@@ -1328,6 +1360,16 @@ export const MasterModal: React.FC<MasterModalProps> = ({
             )}
 
             {/* TAB 2: STUDENT PRACTICE HISTORY INSPECTOR */}
+            {activeConsoleTab === 'reports' && (
+              <ReportsInboxPanel
+                students={users.filter((u) => u.role !== 'master')}
+                onOpenStudent={(st) => {
+                  setSelectedStudentForHistory(st);
+                  setActiveConsoleTab('history-inspector');
+                }}
+              />
+            )}
+
             {activeConsoleTab === 'history-inspector' && (
               <StudentActivityPanel
                 students={users.filter((u) => u.role !== 'master')}

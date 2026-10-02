@@ -41,6 +41,24 @@ export enum TileID {
   COAL = 24,
   IRON_INGOT = 25,
   SNOW = 26,
+  // House props
+  STONE_BRICK = 27,
+  DOOR = 28,
+  BED_TOP = 29,
+  BED_SIDE = 30,
+  TABLE_TOP = 31,
+  TABLE_SIDE = 32,
+  CHAIR = 33,
+  CHEST_FRONT = 34,
+  CHEST_SIDE = 35,
+  LANTERN = 36,
+  WOOL_RED = 37,
+  WOOL_BLUE = 38,
+  WOOL_WHITE = 39,
+  WOOL_YELLOW = 40,
+  FENCE = 41,
+  WINDOW = 42,
+  FLOWER_POT = 43,
 }
 
 // Deterministic pseudo-random noise for pixel art
@@ -556,6 +574,198 @@ export class VoxelTextureAtlas {
     });
 
     // Create Three.js Texture
+
+    // ---------------- House-building props ----------------
+    const px = (tctx: CanvasRenderingContext2D, x: number, y: number, c: string) => {
+      tctx.fillStyle = c;
+      tctx.fillRect(x, y, 1, 1);
+    };
+    const noisyFill = (tctx: CanvasRenderingContext2D, base: [number, number, number], amp: number, seed: number) => {
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, seed) - 0.5) * amp;
+          px(tctx, x, y, `rgb(${base[0] + n | 0},${base[1] + n | 0},${base[2] + n | 0})`);
+        }
+      }
+    };
+
+    // STONE BRICK: 2 rows of offset bricks with dark mortar
+    paintTile(TileID.STONE_BRICK, (tctx) => {
+      noisyFill(tctx, [128, 132, 138], 18, 2701);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const row = Math.floor(y / 8);
+          const offset = row % 2 === 0 ? 0 : 4;
+          const mortarH = y % 8 === 0;
+          const mortarV = (x + offset) % 8 === 0;
+          if (mortarH || mortarV) px(tctx, x, y, "#4b4f55");
+          else if (y % 8 === 1 || (x + offset) % 8 === 1) px(tctx, x, y, "#a3a7ad");
+        }
+      }
+    });
+
+    // DOOR: planks with a window and a handle
+    paintTile(TileID.DOOR, (tctx) => {
+      noisyFill(tctx, [150, 103, 46], 14, 2702);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          if (x === 0 || x === 15 || y === 0 || y === 15) px(tctx, x, y, "#5b3a14");
+          if (x === 7 && y > 1 && y < 15) px(tctx, x, y, "#7a4f1f");
+          if (x >= 3 && x <= 12 && y >= 2 && y <= 6) px(tctx, x, y, (x === 3 || x === 12 || y === 2 || y === 6) ? "#5b3a14" : (x + y) % 2 ? "#bae6fd" : "#e0f2fe");
+          if (x >= 11 && x <= 12 && y >= 9 && y <= 10) px(tctx, x, y, "#e5e7eb");
+        }
+      }
+    });
+
+    // BED top: white pillow + red blanket
+    paintTile(TileID.BED_TOP, (tctx) => {
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2703) - 0.5) * 16;
+          if (y < 5) px(tctx, x, y, `rgb(${235 + n | 0},${235 + n | 0},${240 + n | 0})`);
+          else if (y === 5) px(tctx, x, y, "#7f1d1d");
+          else px(tctx, x, y, `rgb(${200 + n | 0},${36 + n / 2 | 0},${36 + n / 2 | 0})`);
+          if (x === 0 || x === 15) px(tctx, x, y, "#5b3a14");
+        }
+      }
+    });
+    // BED side: wooden frame with mattress band
+    paintTile(TileID.BED_SIDE, (tctx) => {
+      noisyFill(tctx, [120, 80, 35], 12, 2704);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          if (y >= 4 && y <= 8) px(tctx, x, y, y === 4 ? "#f3f4f6" : "#b91c1c");
+          if (y >= 12 && (x < 3 || x > 12)) px(tctx, x, y, "#5b3a14");
+          else if (y >= 12) px(tctx, x, y, "rgba(0,0,0,0)");
+        }
+      }
+    });
+
+    // TABLE top: plank with dark rim
+    paintTile(TileID.TABLE_TOP, (tctx) => {
+      noisyFill(tctx, [184, 136, 76], 14, 2705);
+      for (let i = 0; i < TILE_PX; i++) {
+        px(tctx, i, 0, "#7a4f1f"); px(tctx, i, 15, "#7a4f1f"); px(tctx, 0, i, "#7a4f1f"); px(tctx, 15, i, "#7a4f1f");
+        if (i % 4 === 2) for (let y = 1; y < 15; y++) px(tctx, i, y, "#a3763f");
+      }
+    });
+    // TABLE side: top board + legs with air between
+    paintTile(TileID.TABLE_SIDE, (tctx) => {
+      tctx.clearRect(0, 0, TILE_PX, TILE_PX);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2706) - 0.5) * 14;
+          const isTop = y <= 2;
+          const isLeg = (x <= 2 || x >= 13);
+          if (isTop || isLeg) px(tctx, x, y, `rgb(${170 + n | 0},${120 + n | 0},${65 + n | 0})`);
+          if (y === 3 && isLeg === false) px(tctx, x, y, "#7a4f1f");
+        }
+      }
+    });
+
+    // CHAIR: seat + back rest slats
+    paintTile(TileID.CHAIR, (tctx) => {
+      tctx.clearRect(0, 0, TILE_PX, TILE_PX);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2707) - 0.5) * 14;
+          const c = `rgb(${160 + n | 0},${112 + n | 0},${62 + n | 0})`;
+          const back = x >= 2 && x <= 13 && y <= 7 && (y % 3 !== 2);
+          const seat = y >= 8 && y <= 10 && x >= 1 && x <= 14;
+          const legs = y > 10 && (x <= 2 || x >= 13);
+          if (back || seat || legs) px(tctx, x, y, c);
+          if (seat && y === 8) px(tctx, x, y, "#7a4f1f");
+        }
+      }
+    });
+
+    // CHEST front (latch) & side
+    const chestBase = (tctx: CanvasRenderingContext2D, seed: number) => {
+      noisyFill(tctx, [139, 90, 43], 14, seed);
+      for (let i = 0; i < TILE_PX; i++) {
+        px(tctx, i, 0, "#4a2e12"); px(tctx, i, 15, "#4a2e12"); px(tctx, 0, i, "#4a2e12"); px(tctx, 15, i, "#4a2e12");
+        px(tctx, i, 6, "#4a2e12");
+      }
+    };
+    paintTile(TileID.CHEST_SIDE, (tctx) => chestBase(tctx, 2708));
+    paintTile(TileID.CHEST_FRONT, (tctx) => {
+      chestBase(tctx, 2709);
+      for (let y = 5; y <= 8; y++) for (let x = 7; x <= 8; x++) px(tctx, x, y, y === 6 ? "#1f2937" : "#9ca3af");
+    });
+
+    // LANTERN: dark frame with glowing glass
+    paintTile(TileID.LANTERN, (tctx) => {
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const frame = x <= 2 || x >= 13 || y <= 2 || y >= 13 || (y === 7 || y === 8);
+          const n = noise(x, y, 2710);
+          if (frame) px(tctx, x, y, (x + y) % 2 ? "#1f2937" : "#374151");
+          else {
+            const glow = 220 + Math.floor(n * 35);
+            px(tctx, x, y, `rgb(${glow + 20 > 255 ? 255 : glow + 20},${glow - 30},${60 + Math.floor(n * 40)})`);
+          }
+          if (y === 0 && (x < 6 || x > 9)) px(tctx, x, y, "rgba(0,0,0,0)");
+        }
+      }
+    });
+
+    // WOOL colors: soft noisy fiber texture
+    const wool = (id: TileID, base: [number, number, number], seed: number) =>
+      paintTile(id, (tctx) => {
+        for (let y = 0; y < TILE_PX; y++) {
+          for (let x = 0; x < TILE_PX; x++) {
+            const n = (noise(x, y, seed) - 0.5) * 22 + ((x + y) % 2 ? 6 : -6);
+            px(tctx, x, y, `rgb(${Math.min(255, base[0] + n) | 0},${Math.min(255, base[1] + n) | 0},${Math.min(255, base[2] + n) | 0})`);
+          }
+        }
+      });
+    wool(TileID.WOOL_RED, [205, 40, 40], 2711);
+    wool(TileID.WOOL_BLUE, [45, 90, 220], 2712);
+    wool(TileID.WOOL_WHITE, [232, 234, 238], 2713);
+    wool(TileID.WOOL_YELLOW, [240, 200, 40], 2714);
+
+    // FENCE: two posts + two rails, rest transparent
+    paintTile(TileID.FENCE, (tctx) => {
+      tctx.clearRect(0, 0, TILE_PX, TILE_PX);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2715) - 0.5) * 14;
+          const post = (x >= 1 && x <= 3) || (x >= 12 && x <= 14);
+          const rail = (y >= 3 && y <= 5) || (y >= 9 && y <= 11);
+          if (post || rail) px(tctx, x, y, `rgb(${163 + n | 0},${112 + n | 0},${46 + n | 0})`);
+        }
+      }
+    });
+
+    // WINDOW: wooden frame + cross bars over glass
+    paintTile(TileID.WINDOW, (tctx) => {
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const frame = x <= 1 || x >= 14 || y <= 1 || y >= 14 || x === 7 || x === 8 || y === 7 || y === 8;
+          if (frame) px(tctx, x, y, (x + y) % 3 ? "#8a5a2b" : "#6b4320");
+          else px(tctx, x, y, (x + y) % 5 === 0 ? "rgba(224,242,254,0.9)" : "rgba(186,230,253,0.55)");
+        }
+      }
+    });
+
+    // FLOWER POT: small clay pot with a pink flower, transparent around
+    paintTile(TileID.FLOWER_POT, (tctx) => {
+      tctx.clearRect(0, 0, TILE_PX, TILE_PX);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const pot = y >= 10 && x >= 4 && x <= 11 && !(y === 10 && (x === 4 || x === 11));
+          const rim = y === 9 && x >= 3 && x <= 12;
+          const stem = x === 7 && y >= 5 && y <= 9;
+          const leaf = (x === 6 && y === 7) || (x === 8 && y === 6);
+          const petal = ((x >= 6 && x <= 8 && y >= 2 && y <= 4) || (x === 7 && (y === 1 || y === 5)) || (y === 3 && (x === 5 || x === 9)));
+          if (pot) px(tctx, x, y, (x + y) % 2 ? "#b45309" : "#c2410c");
+          else if (rim) px(tctx, x, y, "#9a3412");
+          else if (stem || leaf) px(tctx, x, y, "#15803d");
+          else if (petal) px(tctx, x, y, (x === 7 && y === 3) ? "#fde047" : "#f472b6");
+        }
+      }
+    });
+
     this.atlasTexture = new THREE.CanvasTexture(canvas);
     this.atlasTexture.magFilter = THREE.NearestFilter;
     this.atlasTexture.minFilter = THREE.NearestFilter;
@@ -607,6 +817,20 @@ export class VoxelTextureAtlas {
       [BlockType.IRON_INGOT]: TileID.IRON_INGOT,
       [BlockType.CRAFTING_TABLE]: TileID.CRAFTING_TOP,
       [BlockType.SNOW]: TileID.SNOW,
+      [BlockType.STONE_BRICK]: TileID.STONE_BRICK,
+      [BlockType.OAK_DOOR]: TileID.DOOR,
+      [BlockType.BED]: TileID.BED_TOP,
+      [BlockType.TABLE]: TileID.TABLE_SIDE,
+      [BlockType.CHAIR]: TileID.CHAIR,
+      [BlockType.CHEST]: TileID.CHEST_FRONT,
+      [BlockType.LANTERN]: TileID.LANTERN,
+      [BlockType.WOOL_RED]: TileID.WOOL_RED,
+      [BlockType.WOOL_BLUE]: TileID.WOOL_BLUE,
+      [BlockType.WOOL_WHITE]: TileID.WOOL_WHITE,
+      [BlockType.WOOL_YELLOW]: TileID.WOOL_YELLOW,
+      [BlockType.FENCE]: TileID.FENCE,
+      [BlockType.WINDOW]: TileID.WINDOW,
+      [BlockType.FLOWER_POT]: TileID.FLOWER_POT,
     };
 
     const iconCanvas = document.createElement("canvas");
@@ -907,6 +1131,32 @@ export class VoxelTextureAtlas {
     this.icons[BlockType.ZOMBIE_SPAWN_EGG] = drawEggIcon("#059669", "#064e3b", "#0284c7");
     this.icons[BlockType.SLIME_SPAWN_EGG] = drawEggIcon("#22c55e", "#15803d", "#86efac");
 
+    // Effect bomb icons: round bomb body with colored band + fuse
+    const drawBombIcon = (body: string, band: string, fuse: string, spark: string): string => {
+      ictx.clearRect(0, 0, 32, 32);
+      ictx.fillStyle = body;
+      ictx.beginPath();
+      ictx.arc(16, 19, 10, 0, Math.PI * 2);
+      ictx.fill();
+      ictx.strokeStyle = "rgba(0,0,0,0.35)";
+      ictx.lineWidth = 1.5;
+      ictx.stroke();
+      ictx.fillStyle = band;
+      ictx.fillRect(7, 17, 18, 4);
+      ictx.fillStyle = "rgba(255,255,255,0.35)";
+      ictx.fillRect(11, 12, 3, 3);
+      ictx.fillStyle = fuse;
+      ictx.fillRect(15, 6, 2, 5);
+      ictx.fillRect(17, 4, 2, 3);
+      ictx.fillStyle = spark;
+      ictx.fillRect(18, 2, 3, 3);
+      return iconCanvas.toDataURL();
+    };
+    this.icons[BlockType.FIREWORK] = drawBombIcon("#ef4444", "#fde047", "#78350f", "#f472b6");
+    this.icons[BlockType.SMOKE_BOMB] = drawBombIcon("#4b5563", "#9ca3af", "#78350f", "#d1d5db");
+    this.icons[BlockType.HEAL_BOMB] = drawBombIcon("#16a34a", "#bbf7d0", "#78350f", "#4ade80");
+    this.icons[BlockType.THUNDER_BOMB] = drawBombIcon("#1e3a8a", "#facc15", "#78350f", "#fef08a");
+
     // Iron Tools
     // Iron Pickaxe
     ictx.clearRect(0, 0, 32, 32);
@@ -1034,6 +1284,42 @@ export class VoxelTextureAtlas {
         return TileID.GLOWSTONE;
       case BlockType.SNOW:
         return TileID.SNOW;
+      case BlockType.STONE_BRICK:
+        return TileID.STONE_BRICK;
+      case BlockType.OAK_DOOR:
+        if (faceIndex === 2 || faceIndex === 3) return TileID.PLANK;
+        return TileID.DOOR;
+      case BlockType.BED:
+        if (faceIndex === 2) return TileID.BED_TOP;
+        if (faceIndex === 3) return TileID.PLANK;
+        return TileID.BED_SIDE;
+      case BlockType.TABLE:
+        if (faceIndex === 2) return TileID.TABLE_TOP;
+        if (faceIndex === 3) return TileID.PLANK;
+        return TileID.TABLE_SIDE;
+      case BlockType.CHAIR:
+        if (faceIndex === 2 || faceIndex === 3) return TileID.PLANK;
+        return TileID.CHAIR;
+      case BlockType.CHEST:
+        if (faceIndex === 2 || faceIndex === 3) return TileID.CHEST_SIDE;
+        if (faceIndex === 4) return TileID.CHEST_FRONT;
+        return TileID.CHEST_SIDE;
+      case BlockType.LANTERN:
+        return TileID.LANTERN;
+      case BlockType.WOOL_RED:
+        return TileID.WOOL_RED;
+      case BlockType.WOOL_BLUE:
+        return TileID.WOOL_BLUE;
+      case BlockType.WOOL_WHITE:
+        return TileID.WOOL_WHITE;
+      case BlockType.WOOL_YELLOW:
+        return TileID.WOOL_YELLOW;
+      case BlockType.FENCE:
+        return TileID.FENCE;
+      case BlockType.WINDOW:
+        return TileID.WINDOW;
+      case BlockType.FLOWER_POT:
+        return TileID.FLOWER_POT;
       default:
         return TileID.DIRT;
     }

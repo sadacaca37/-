@@ -784,11 +784,10 @@ export class AnimalManager {
     if (!nearestAnimal) return false;
 
     // BUGFIX: this used to be `action === "feed" || heldItem === WHEAT || heldItem === GOLDEN_APPLE`.
-    // PlayerController always calls this with action="feed" on every right-click near an animal
-    // (see placeSelectedBlock step 2), so that OR made the "feed" branch fire for ANY held item —
-    // not just food. Right-clicking near a duck/chicken/sheep/cow while holding a block (e.g. Bricks)
-    // silently ate the click, blocked normal block placement, and had a 25% chance to spawn a baby
-    // animal regardless of what was held. It must require BOTH the feed action AND an actual food item.
+    // PlayerController always calls this with action="feed" on every right-click near an animal,
+    // so that OR made the "feed" branch fire for ANY held item — right-clicking near an animal while
+    // holding a block (e.g. Bricks) silently ate the click and could spawn a baby animal.
+    // It must require BOTH the feed action AND an actual food item.
     const isFoodItem = heldItem === BlockType.WHEAT || heldItem === BlockType.GOLDEN_APPLE;
     if (action === "feed" && isFoodItem) {
       // Feed animal!

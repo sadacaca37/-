@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { io, Socket } from "socket.io-client";
-import { BlockType, BLOCK_DEFINITIONS, ChatMessage, PlayerData, RoomState, getCharacterPreset } from "../types";
+import { BlockType, BLOCK_DEFINITIONS, BombType, ChatMessage, GameMode, PlayerData, RoomState, getCharacterPreset } from "../types";
 import { createCharacterModel } from "./CharacterSkin";
 import { soundFx } from "./SoundEffects";
 import { VoxelTextureAtlas } from "./TextureAtlas";
@@ -34,7 +34,8 @@ export class MultiplayerManager {
 
   // Callbacks to notify React UI
   public onRoomUpdate?: (room: RoomState) => void;
-  public onGameStart?: (seed: number) => void;
+  public onGameStart?: (seed: number, gameMode?: GameMode) => void;
+  public onEffect?: (kind: BombType, pos: [number, number, number], dir: [number, number, number]) => void;
   public onChatMessage?: (msg: ChatMessage) => void;
   public onHostChanged?: (newHostId: string) => void;
 
@@ -92,13 +93,18 @@ export class MultiplayerManager {
         soundFx.playBreak();
       },
       // Host started game
-      game_started: (data: { seed: number; modifiedBlocks: Record<string, number> }) => {
+      game_started: (data: { seed: number; gameMode?: GameMode; modifiedBlocks: Record<string, number> }) => {
         if (this.currentRoom) {
           this.currentRoom.started = true;
+          if (data.gameMode) this.currentRoom.gameMode = data.gameMode;
           if (this.onRoomUpdate) this.onRoomUpdate(this.currentRoom);
         }
         this.world.applyModifiedBlocks(data.modifiedBlocks);
-        if (this.onGameStart) this.onGameStart(data.seed);
+        if (this.onGameStart) this.onGameStart(data.seed, data.gameMode);
+      },
+      // Effect bombs / TNT from other players
+      effect: (data: { kind: BombType; pos: [number, number, number]; dir: [number, number, number] }) => {
+        if (this.onEffect) this.onEffect(data.kind, data.pos, data.dir);
       },
       chat_message: (msg: ChatMessage) => {
         if (this.onChatMessage) this.onChatMessage(msg);
@@ -282,8 +288,8 @@ export class MultiplayerManager {
   }
 
   // Create room
-  public createRoom(nickname: string, characterId: number = 0): Promise<{ success: boolean; error?: string }> {
-    return this.enterRoom("create", { nickname, characterId });
+  public createRoom(nickname: string, characterId: number = 0, gameMode: GameMode = "creative"): Promise<{ success: boolean; error?: string }> {
+    return this.enterRoom("create", { nickname, characterId, gameMode });
   }
 
   // Join room
@@ -316,6 +322,18 @@ export class MultiplayerManager {
   // Send block break event
   public sendBlockBreak(x: number, y: number, z: number) {
     this.send("block_break", { x, y, z });
+  }
+
+  // Broadcast an effect (bomb throw / TNT fuse) so other players see it too
+  public sendEffect(kind: BombType, pos: [number, number, number], dir: [number, number, number]) {
+    this.send("effect", { kind, pos, dir });
+  }
+
+  // Index of the local player in the room (0 = host) — used to spread spawns
+  public getSelfIndex(): number {
+    if (!this.currentRoom) return 0;
+    const idx = this.currentRoom.players.findIndex((p) => p.id === this.selfId);
+    return idx < 0 ? 0 : idx;
   }
 
   // Send chat message

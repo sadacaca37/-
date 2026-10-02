@@ -281,39 +281,6 @@ export class SoundEffects {
     }
   }
 
-  // Eat / Munch sound
-  public playEat() {
-    try {
-      this.init();
-      if (!this.ctx) return;
-
-      const bufferSize = this.ctx.sampleRate * 0.06;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
-      }
-
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
-
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.06);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      noise.start();
-    } catch {
-      // Audio fallback
-    }
-  }
 
   // Animal spawn pop sound
   public playSpawn() {
@@ -599,6 +566,112 @@ export class SoundEffects {
       osc.stop(this.ctx.currentTime + 0.055);
     } catch {}
   }
+
+  // --- Effect bombs ---
+  private noiseBurst(duration: number, startFreq: number, endFreq: number, volume: number) {
+    this.init();
+    if (!this.ctx) return;
+    const n = Math.floor(this.ctx.sampleRate * duration);
+    const buffer = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.3));
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + duration);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    src.start();
+  }
+
+  // Deep boom (TNT)
+  public playExplosion() {
+    try {
+      this.noiseBurst(0.9, 1200, 60, 0.9);
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(90, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.6);
+      gain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.7);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.7);
+    } catch {}
+  }
+
+  // Short hiss (lit fuse)
+  public playFuse() {
+    try { this.noiseBurst(0.25, 5000, 2500, 0.18); } catch {}
+  }
+
+  // Firework launch whistle + pop
+  public playFireworkLaunch() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1400, this.ctx.currentTime + 0.9);
+      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.9);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.9);
+    } catch {}
+  }
+
+  public playFireworkBurst() {
+    try { this.noiseBurst(0.45, 3000, 300, 0.45); } catch {}
+  }
+
+  // Thunder crack
+  public playThunder() {
+    try {
+      this.noiseBurst(0.15, 8000, 3000, 0.6);
+      setTimeout(() => this.noiseBurst(1.2, 700, 50, 0.7), 80);
+    } catch {}
+  }
+
+  // Soft chime (heal)
+  public playHealChime() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      [523, 659, 784].forEach((f, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = "sine";
+        osc.frequency.value = f;
+        const t = this.ctx!.currentTime + i * 0.09;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.2, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.5);
+      });
+    } catch {}
+  }
+
+  // Puff (smoke bomb)
+  public playSmokePuff() {
+    try { this.noiseBurst(0.6, 900, 200, 0.3); } catch {}
+  }
+
 }
 
 export const soundFx = new SoundEffects();

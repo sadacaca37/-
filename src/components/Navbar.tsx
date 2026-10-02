@@ -39,6 +39,12 @@ interface NavbarProps {
   onOpenMaster: () => void;
   onOpenReport?: () => void;
   onOpenHistory?: () => void;
+  /** 학생: 오늘 연습을 선생님께 보내는 창 열기 */
+  onOpenSendReport?: () => void;
+  /** 학생의 오늘 보고 상태: ready=쳤는데 아직 안 보냄, sent=보냄, checked=선생님 확인 */
+  sendReportState?: 'none' | 'ready' | 'sent' | 'checked';
+  /** 선생님: 아직 확인하지 않은 보고 수 */
+  newReportsCount?: number;
   soundEnabled: boolean;
   onToggleSound: () => void;
   pendingStudentsCount?: number;
@@ -54,6 +60,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMaster,
   onOpenReport,
   onOpenHistory,
+  onOpenSendReport,
+  sendReportState = 'none',
+  newReportsCount = 0,
   soundEnabled,
   onToggleSound,
   pendingStudentsCount = 0,
@@ -187,6 +196,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* 학생: 오늘 연습을 선생님께 보내기 */}
+            {onOpenSendReport && currentUser && currentUser.role !== 'master' && (
+              <button
+                onClick={onOpenSendReport}
+                data-testid="nav-send-report"
+                className={`tp-nbtn relative px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black border-2 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  sendReportState === 'ready'
+                    ? 'bg-sky-500 hover:bg-sky-400 text-white border-sky-600 animate-pulse'
+                    : sendReportState === 'none'
+                    ? 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                }`}
+                title="오늘 연습한 것을 선생님께 보내요"
+              >
+                <span>{sendReportState === 'checked' ? '💮' : '📮'}</span>
+                <span className="hidden md:inline">{sendReportState === 'checked' ? '선생님 확인!' : sendReportState === 'sent' ? '오늘 보냄' : '선생님께 보내기'}</span>
+                <span className="md:hidden">{sendReportState === 'sent' || sendReportState === 'checked' ? '보냄' : '보내기'}</span>
+              </button>
+            )}
+
             {/* Half-Year Report Card Button (For Parents & Students) */}
             {onOpenReport && (
               <button
@@ -212,6 +241,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {pendingStudentsCount > 0 && (
                   <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[10px] font-black animate-bounce shadow-xs">
                     {pendingStudentsCount}
+                  </span>
+                )}
+                {newReportsCount > 0 && (
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-white text-rose-600 text-[10px] font-black shadow-xs" title="아직 확인하지 않은 학생 보고" data-testid="nav-new-reports">
+                    📮 {newReportsCount}
                   </span>
                 )}
               </button>
