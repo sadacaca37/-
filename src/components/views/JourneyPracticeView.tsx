@@ -363,6 +363,21 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
   // Typing Input Change Handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
+
+    // 다 친 뒤 스페이스를 누르면 다음으로 넘어감 (다 치기만 해서는 넘어가지 않음)
+    if (val.endsWith(' ') && val.trim().length > 0) {
+      const body = val.trimEnd();
+      if (activeTab === 'lyrics' || activeTab === 'book') {
+        if (body.length >= currentExpectedAnswer.trimEnd().length) {
+          submitLine(body);
+          return;
+        }
+      } else if (body.trim() === currentExpectedAnswer.trim() || normalizeLyricsText(body) === normalizeLyricsText(currentExpectedAnswer)) {
+        handleStepSuccess(body.trim());
+        return;
+      }
+    }
+
     setInputVal(val);
     if (lineWarning) setLineWarning('');
 
@@ -393,11 +408,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
         };
       });
 
-      // Auto-submit if exact answer reached (or normalized match)
-      if (val.trim() === currentExpectedAnswer.trim() || normVal === normTarget) {
-        handleStepSuccess(val.trim());
-        return;
-      }
+      // 다 쳤어도 자동으로 넘어가지 않음: [Enter] 또는 [스페이스]를 눌러야 넘어감
     } else {
       soundManager.play('error');
       setStats((prev) => ({
@@ -407,30 +418,44 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       }));
     }
 
-    // In lyrics or book mode: when length reaches or exceeds target, auto-advance smoothly!
-    if ((activeTab === 'lyrics' || activeTab === 'book') && val.length >= currentExpectedAnswer.length) {
-      submitLine(val);
+  };
+
+  // 한글 조합 중에 Enter 를 누르면, 글자가 완성된 뒤에 넘김 (마지막 글자가 다음 문제로 딸려 가지 않게)
+  const composingRef = useRef(false);
+  const pendingEnterRef = useRef(false);
+  const handleCompositionStart = () => {
+    composingRef.current = true;
+  };
+  const handleCompositionEnd = () => {
+    composingRef.current = false;
+    if (!pendingEnterRef.current) return;
+    pendingEnterRef.current = false;
+    setTimeout(() => submitByEnter(inputRef.current?.value ?? ''), 0);
+  };
+
+  /** Enter 로 제출: 가사·필사는 줄 채점, 수도·조선 왕은 정답일 때만 넘어감 */
+  const submitByEnter = (typed: string) => {
+    if (typed.length === 0) return;
+    if (activeTab === 'lyrics' || activeTab === 'book') {
+      submitLine(typed);
+      return;
+    }
+    if (typed.trim() === currentExpectedAnswer.trim() || normalizeLyricsText(typed) === normalizeLyricsText(currentExpectedAnswer)) {
+      handleStepSuccess(typed.trim());
+    } else {
+      soundManager.play('error');
     }
   };
 
-  // On Enter Key Press: Never get stuck on lyrics or book!
+  // Enter: 다음으로 넘기기
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (inputVal.length === 0) return;
-
-      const normVal = normalizeLyricsText(inputVal);
-      const normTarget = normalizeLyricsText(currentExpectedAnswer);
-
-      if (activeTab === 'lyrics' || activeTab === 'book') {
-        submitLine(inputVal);
-      } else {
-        if (inputVal.trim() === currentExpectedAnswer.trim() || normVal === normTarget) {
-          handleStepSuccess(inputVal.trim());
-        } else {
-          soundManager.play('error');
-        }
+      if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
+        pendingEnterRef.current = true; // 조합이 끝나면 넘김
+        return;
       }
+      submitByEnter(inputVal);
     }
   };
 
@@ -881,12 +906,14 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                     value={inputVal}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    placeholder="수도를 입력하세요..."
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
+                    placeholder="수도를 치고 Enter 또는 스페이스"
                     className="w-full text-center text-xl font-black py-4 px-6 rounded-2xl border-2 border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition bg-white shadow-inner"
                     autoFocus
                   />
                   <div className="flex items-center justify-between text-xs text-gray-400 px-2">
-                    <span>엔터(Enter)로 제출</span>
+                    <span>엔터(Enter)나 스페이스로 제출</span>
                     <button
                       type="button"
                       onClick={() => setShowAnswerHint(!showAnswerHint)}
@@ -1294,10 +1321,12 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                   value={inputVal}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onCompositionStart={handleCompositionStart}
+                  onCompositionEnd={handleCompositionEnd}
                   placeholder={
                     joseonStep === 'name'
-                      ? `1단계: 왕조 이름 입력 (예: ${currentKing.name})`
-                      : '2단계: 위 핵심 지식 문장을 그대로 입력하세요'
+                      ? `1단계: 왕조 이름을 치고 Enter 또는 스페이스 (예: ${currentKing.name})`
+                      : '2단계: 위 문장을 그대로 치고 Enter 또는 스페이스'
                   }
                   className="w-full text-center text-lg font-bold py-4 px-6 rounded-2xl border-2 border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition bg-white shadow-inner placeholder-gray-400 text-gray-800"
                   autoFocus
@@ -1550,7 +1579,9 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                       value={inputVal}
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDown}
-                      placeholder="가사를 입력하세요 (엔터 또는 완성 시 다음 소절)..."
+                      onCompositionStart={handleCompositionStart}
+                      onCompositionEnd={handleCompositionEnd}
+                      placeholder="가사를 다 치고 Enter 또는 스페이스를 누르면 다음 소절"
                       className="flex-1 text-center text-xl font-black py-4 px-4 sm:px-6 rounded-2xl border-2 border-pink-400 focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20 outline-none transition bg-white text-gray-900 shadow-xl"
                       autoFocus
                     />
@@ -1570,7 +1601,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                     </div>
                   )}
                   <div className="flex items-center justify-between text-xs text-gray-400 px-2">
-                    <span>💡 가사를 똑같이 친 뒤 엔터(Enter)나 [다음 소절]을 누르면 넘어가요. 틀린 글자는 정확도에 반영돼요.</span>
+                    <span>💡 가사를 똑같이 친 뒤 엔터(Enter)·스페이스나 [다음 소절]을 누르면 넘어가요. 틀린 글자는 정확도에 반영돼요.</span>
                     <span className="text-pink-400 font-bold">
                       {inputVal.length} / {currentSongLine.length}자
                     </span>
@@ -1781,7 +1812,9 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                       value={inputVal}
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDown}
-                      placeholder="위 명문장을 그대로 필사하세요..."
+                      onCompositionStart={handleCompositionStart}
+                      onCompositionEnd={handleCompositionEnd}
+                      placeholder="문장을 다 치고 Enter 또는 스페이스를 누르면 다음 문장"
                       className="w-full text-center font-serif text-lg sm:text-xl font-bold py-4 px-6 rounded-2xl border-2 border-amber-600/80 focus:ring-4 focus:ring-amber-200 outline-none transition bg-white shadow-inner placeholder-stone-400 text-stone-900"
                       autoFocus
                     />

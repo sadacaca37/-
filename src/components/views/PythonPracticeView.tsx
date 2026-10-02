@@ -152,6 +152,12 @@ export const PythonPracticeView: React.FC<PythonPracticeViewProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
 
+    // 한 줄을 끝까지 친 뒤 스페이스를 누르면 다음으로 넘어감 (다 치기만 해서는 넘어가지 않음)
+    if (val.endsWith(' ') && val.trimEnd().length >= currentItem.code.trimEnd().length) {
+      handleItemComplete();
+      return;
+    }
+
     if (!isTimerRunning && val.length > 0) {
       setIsTimerRunning(true);
     }
@@ -196,10 +202,7 @@ export const PythonPracticeView: React.FC<PythonPracticeViewProps> = ({
 
     setInputVal(val);
 
-    // Auto complete when full text matches
-    if (val === currentItem.code) {
-      handleItemComplete();
-    }
+    // 다 쳤어도 자동으로 넘어가지 않음: [Enter] 또는 [스페이스]를 눌러야 다음으로 넘어감
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

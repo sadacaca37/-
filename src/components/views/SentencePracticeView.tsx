@@ -336,9 +336,31 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     handleNextSentence(sentenceErrors);
   };
 
+  // 한글 조합 중에 Enter 를 누르면, 글자가 완성된 뒤에 넘김 (마지막 글자가 다음 문장으로 딸려 가지 않게)
+  const composingRef = useRef(false);
+  const pendingSubmitRef = useRef(false);
+  const handleCompositionStart = () => {
+    composingRef.current = true;
+  };
+  const handleCompositionEnd = () => {
+    composingRef.current = false;
+    if (!pendingSubmitRef.current) return;
+    pendingSubmitRef.current = false;
+    setTimeout(() => {
+      const v = (inputRef.current?.value ?? '').replace(/\s+$/, '');
+      if (v) handleSentenceSubmit(v);
+    }, 0);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     lastKeyAtRef.current = Date.now();
+
+    // 문장을 끝까지 친 뒤 스페이스를 누르면 다음 문장으로 넘어감 (다 치기만 해서는 넘어가지 않음)
+    if (val.endsWith(' ') && val.trimEnd().length >= currentSentence.trimEnd().length) {
+      handleSentenceSubmit(val.trimEnd());
+      return;
+    }
     
     // Start timer on first keystroke
     if (!isTimerRunning && val.length > 0) {
@@ -426,16 +448,16 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     // Buffer keystrokes in memory to eliminate input overhead for concurrent users
     bufferedCharsRef.current += 1;
 
-    // Auto-advance ONLY when the sentence is exactly matched!
-    // (Prevents cutting off unfinished Korean syllables like '하ㄴ' for '하늘')
-    if (val === currentSentence) {
-      handleSentenceSubmit(val);
-    }
+    // 다 쳤어도 자동으로 넘어가지 않음: [Enter] 또는 [스페이스]를 눌러야 다음 문장으로 넘어감
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputVal.length > 0) {
       e.preventDefault();
+      if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
+        pendingSubmitRef.current = true; // 조합이 끝나면 넘김
+        return;
+      }
       handleSentenceSubmit(inputVal);
     }
   };
@@ -938,13 +960,21 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             value={inputVal}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={language === 'ko' ? "위의 한글 문장을 타이핑하세요 (오타가 있어도 자연스럽게 넘어가요!)..." : "Type the sentence above (typos won't block you)..."}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
+            placeholder={language === 'ko' ? "문장을 다 치고 Enter 또는 스페이스를 누르면 다음 문장으로 넘어가요" : "Type the sentence, then press Enter or Space to go on"}
             className="block w-full text-center text-xl sm:text-2xl md:text-3xl font-black px-6 py-4 rounded-2xl border-4 border-pink-300 focus:border-pink-500 focus:ring-4 focus:ring-pink-200 outline-hidden bg-pink-50/30 text-slate-800 tracking-wide font-arcade placeholder:text-base sm:placeholder:text-lg placeholder:text-slate-400"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
           />
+
+          {inputVal.length >= currentSentence.length && (
+            <span className="absolute right-3 top-2 px-2 py-0.5 rounded-full bg-pink-500 text-white text-[11px] font-black pointer-events-none animate-pulse">
+              Enter ↵ 또는 스페이스
+            </span>
+          )}
 
           {/* Quick Progress Bar for Current Sentence */}
           <div className="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden border border-slate-200">

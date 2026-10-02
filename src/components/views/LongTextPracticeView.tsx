@@ -334,10 +334,15 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
   }, [pageIndex, currentText.id]);
 
   // Turn page smoothly with sound and realistic page leaf animation
-  const turnPageTo = (newIndex: number, direction: 'next' | 'prev') => {
+  /**
+   * @param latestLog 방금 저장한 쪽 기록 (쪽을 다 치고 넘어갈 때 전달).
+   *   전달하지 않으면 화면의 기록(pageLog)을 씀. 다 친 쪽을 '치다 만 쪽'으로 덮어쓰지 않게 하기 위함.
+   */
+  const turnPageTo = (newIndex: number, direction: 'next' | 'prev', latestLog?: PageLog) => {
     if (newIndex < 0 || newIndex >= totalPages) return;
-    if (inputVal && !pageLog[pageIndex]?.done && inputVal.length > (pageLog[pageIndex]?.typed || '').length) {
-      writePageLog({ ...pageLog, [pageIndex]: { typed: inputVal, done: false } });
+    const log = latestLog || pageLog;
+    if (inputVal && !log[pageIndex]?.done && inputVal.length > (log[pageIndex]?.typed || '').length) {
+      writePageLog({ ...log, [pageIndex]: { typed: inputVal, done: false } });
     }
     setPageTurnDirection(direction);
     setIsPageTurning(true);
@@ -410,6 +415,12 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       val = fixed;
     }
 
+    // 한 쪽을 다 친 뒤 스페이스(또는 엔터)를 누르면 다음 쪽으로 넘어감 — 다 치기만 해서는 넘어가지 않음
+    if (val.length === targetPageText.length + 1 && val.slice(0, -1) === targetPageText && /[ \n]$/.test(val)) {
+      if (!composingRef.current) handlePageFinished();
+      return;
+    }
+
     // Start timer on first input
     if (!startTimeRef.current && val.length > 0) {
       startTimeRef.current = Date.now();
@@ -473,11 +484,23 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       }
     }
 
-    // A page is only finished if 100% of characters match with zero errors!
-    // Simply typing spaces or random letters will NEVER finish the page.
-    if (val.length === targetPageText.length && currentErrors === 0 && val === targetPageText) {
-      handlePageFinished();
-    }
+    // 다 쳤어도 자동으로 넘어가지 않음: [Enter] 또는 [스페이스]를 눌러야 다음 쪽으로 넘어감
+  };
+
+  // 한글 조합 중에 Enter 를 누르면, 글자가 완성된 뒤에 넘김 (마지막 글자가 다음 쪽으로 딸려 가지 않게)
+  const composingRef = useRef(false);
+  const pendingFinishRef = useRef(false);
+  const handleCompositionStart = () => {
+    composingRef.current = true;
+  };
+  const handleCompositionEnd = () => {
+    composingRef.current = false;
+    if (!pendingFinishRef.current) return;
+    pendingFinishRef.current = false;
+    setTimeout(() => {
+      const v = inputRef.current?.value ?? '';
+      if (v === targetPageText || v === targetPageText + ' ' || v === targetPageText + '\n') handlePageFinished();
+    }, 0);
   };
 
   const handlePageFinished = () => {
@@ -512,7 +535,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       const rest = findMissingPages(log);
       if (rest.length) {
         setInputVal('');
-        turnPageTo(rest[0], rest[0] > pageIndex ? 'next' : 'prev');
+        turnPageTo(rest[0], rest[0] > pageIndex ? 'next' : 'prev', log);
         return;
       }
       reviewModeRef.current = false;
@@ -522,7 +545,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
 
     // Check if next page exists
     if (pageIndex + 1 < totalPages) {
-      turnPageTo(pageIndex + 1, 'next');
+      turnPageTo(pageIndex + 1, 'next', log);
     } else {
       // Completed entire book!
       handleAllPagesCompleted(log);
@@ -601,6 +624,10 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       // Only advance on Enter if text strictly matches target text with 0 errors
       if (inputVal === targetPageText && stats.errorCount === 0) {
         e.preventDefault();
+        if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
+          pendingFinishRef.current = true; // 조합이 끝나면 넘김
+          return;
+        }
         handlePageFinished();
         return;
       }
@@ -980,6 +1007,8 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                   value={inputVal}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onCompositionStart={handleCompositionStart}
+                  onCompositionEnd={handleCompositionEnd}
                   className="absolute opacity-0 inset-0 w-full h-full cursor-text z-20 resize-none p-3.5 sm:p-4 font-serif text-sm sm:text-base leading-[2.1]"
                   autoFocus
                   spellCheck={false}
@@ -1043,7 +1072,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                   {inputVal === targetPageText && stats.errorCount === 0 && (
                     <div className="mt-2 p-1.5 bg-amber-100/90 border border-amber-300 rounded-lg text-center">
                       <span className="text-xs font-bold text-amber-950 font-serif">
-                        ✨ 이번 쪽 필사 완료! [Enter ↵] 또는 [다음 쪽] 버튼을 누르세요!
+                        ✨ 이번 쪽 필사 완료! [Enter ↵] 또는 [스페이스]를 누르면 다음 쪽으로 넘어가요!
                       </span>
                     </div>
                   )}
