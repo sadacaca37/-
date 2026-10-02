@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
 import { progressSync } from './utils/progressSync';
+import { activityTracker } from './utils/activityLog';
 import { backupKeeper } from './utils/backupKeeper';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
@@ -165,6 +166,12 @@ const openPracticeWindows = new Map<string, Window>();
 export default function App() {
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+
+  // 학습 일지: 학생이 타자 연습 화면에서 실제로 친 글자 수·시간을 날짜별로 쌓음 (선생님 화면·성적표용)
+  useEffect(() => {
+    const isStudent = !!currentUser?.id && currentUser.role !== 'master';
+    activityTracker.setContext(isStudent ? currentUser!.id : '', currentMode);
+  }, [currentUser, currentMode]);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [profileInitialTab, setProfileInitialTab] = useState<'avatar' | 'account'>('account');

@@ -37,6 +37,7 @@ import { BOOK_CHALLENGE_LIST, BookItem } from '../../data/bookData';
 import { soundManager } from '../../utils/sound';
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
+import { recordPracticeHistory } from '../../utils/curriculumManager';
 import { countKeystrokes, getWordChosung } from '../../utils/hangul';
 import confetti from 'canvas-confetti';
 
@@ -573,6 +574,30 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
 
     dailyMissionsManager.incrementProgress('lesson', 1, currentUser?.id);
     dailyMissionsManager.incrementProgress('chars', stats.totalKeystrokes || 100, currentUser?.id);
+
+    // 연습 기록·학습 일지에 남김 (선생님 화면과 성적표에 보임)
+    if (currentUser?.id && stats.totalKeystrokes > 0) {
+      const info = {
+        capitals: { mode: 'capital-journey', title: '세계 수도 여행', stage: '세계 수도 완주' },
+        joseon: { mode: 'joseon-journey', title: '조선 왕 계보', stage: '조선 왕 계보 완주' },
+        lyrics: { mode: 'lyrics-challenge', title: '명곡 챌린지', stage: currentSong.title },
+        book: { mode: 'transcription-challenge', title: '필사 챌린지', stage: currentBook.title },
+      }[tab];
+      recordPracticeHistory({
+        userId: currentUser.id,
+        userName: currentUser.name,
+        mode: info.mode as any,
+        modeTitle: `지식 타자 (${info.title})`,
+        language: 'ko',
+        stageTitle: String(info.stage || info.title),
+        cpm: stats.cpm,
+        accuracy: stats.accuracy,
+        errorCount: stats.errorCount,
+        correctCount: stats.correctCount,
+        totalKeystrokes: stats.totalKeystrokes,
+        elapsedSeconds: stats.elapsedSeconds,
+      });
+    }
   };
 
   return (

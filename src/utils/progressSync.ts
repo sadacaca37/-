@@ -7,10 +7,14 @@
  * - 서버가 없는 미리보기에서는 조용히 아무 일도 하지 않음(브라우저에만 저장)
  */
 
+import { activityTracker } from './activityLog';
+
 /** 학생 한 명에게 딸린 자료의 키 앞부분 */
 const USER_KEY_PREFIXES = [
   'taja_practice_points_wallet_v2',
   'typang_history_user_',
+  'typang_activity_log_',
+  'tp_quest_done_',
   'typang_star_mission_v1_',
   'typang_daily_missions_',
   'typang_last_practice_',
@@ -125,6 +129,7 @@ class ProgressSync {
 
   /** 지금 바로 한 번 올리기 (로그아웃 전 등) */
   public flush = () => {
+    activityTracker.flush(); // 방금까지 친 글자 수·시간을 일지에 먼저 적어 두고 올림
     this.push(true);
   };
 

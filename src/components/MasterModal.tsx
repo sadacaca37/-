@@ -1,4 +1,5 @@
 import { FunfunFreePanel } from './FunfunFreePanel';
+import { StudentActivityPanel } from './StudentActivityPanel';
 import { backupKeeper, LAST_AUTO_BACKUP_KEY } from '../utils/backupKeeper';
 import React, { useState, useEffect } from 'react';
 import { 
@@ -80,7 +81,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
   const [membersStatus, setMembersStatus] = useState<MembersStatus | null>(null);
   const [rosterMsg, setRosterMsg] = useState('');
   const [authError, setAuthError] = useState('');
-  const [activeConsoleTab, setActiveConsoleTab] = useState<'students' | 'history-inspector' | 'security'>('students');
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'students' | 'history-inspector' | 'security'>('history-inspector');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved'>('all');
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
@@ -427,8 +428,6 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
   const handleInspectStudentHistory = (student: UserSession) => {
     setSelectedStudentForHistory(student);
-    const records = getUserPracticeHistory(student.id);
-    setStudentPracticeRecords(records);
     setActiveConsoleTab('history-inspector');
   };
 
@@ -478,7 +477,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-5xl w-full p-5 sm:p-8 shadow-2xl border-4 border-pink-200 relative my-8 arcade-card-glow max-h-[92vh] flex flex-col">
+      <div className="bg-white rounded-3xl max-w-6xl w-full p-5 sm:p-8 shadow-2xl border-4 border-pink-200 relative my-8 arcade-card-glow max-h-[92vh] flex flex-col">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -569,6 +568,19 @@ export const MasterModal: React.FC<MasterModalProps> = ({
               <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0 gap-1 overflow-x-auto no-scrollbar">
                 <button
                   type="button"
+                  onClick={() => setActiveConsoleTab('history-inspector')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeConsoleTab === 'history-inspector'
+                      ? 'bg-sky-500 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>학습 현황 (오늘·이번 달·진도)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveConsoleTab('students')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeConsoleTab === 'students'
@@ -583,19 +595,6 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                       {pendingCount}
                     </span>
                   )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveConsoleTab('history-inspector')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                    activeConsoleTab === 'history-inspector'
-                      ? 'bg-sky-500 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <History className="w-3.5 h-3.5" />
-                  <span>학생 타자 기록 열람</span>
                 </button>
 
                 <button
@@ -1330,91 +1329,12 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
             {/* TAB 2: STUDENT PRACTICE HISTORY INSPECTOR */}
             {activeConsoleTab === 'history-inspector' && (
-              <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
-                {/* Student Selector Toolbar */}
-                <div className="flex items-center justify-between gap-3 shrink-0 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-extrabold text-slate-700">학생 선택:</label>
-                    <select
-                      value={selectedStudentForHistory?.id || ''}
-                      onChange={(e) => {
-                        const std = users.find((u) => u.id === e.target.value);
-                        if (std) handleInspectStudentHistory(std);
-                      }}
-                      className="px-3 py-1.5 rounded-xl border border-sky-300 bg-sky-50 text-xs font-bold text-slate-800"
-                    >
-                      <option value="">학생을 선택하세요</option>
-                      {users.filter((u) => u.role !== 'master').map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name} ({u.studentId || u.phone})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedStudentForHistory && (
-                    <div className="flex items-center gap-2 text-xs font-extrabold text-sky-700">
-                      <span>최고 타수: {selectedStudentForHistory.highestCpm || 0} CPM</span>
-                      <span>•</span>
-                      <span>누적 연습: {studentPracticeRecords.length}회</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* History Content */}
-                <div className="flex-1 overflow-y-auto border-2 border-slate-200 rounded-2xl bg-white p-4 space-y-3">
-                  {!selectedStudentForHistory ? (
-                    <div className="py-14 text-center text-slate-400 space-y-2">
-                      <History className="w-10 h-10 mx-auto text-slate-300" />
-                      <p className="text-xs font-bold">열람할 학생을 상단에서 선택하세요.</p>
-                    </div>
-                  ) : studentPracticeRecords.length === 0 ? (
-                    <div className="py-14 text-center text-slate-400 space-y-2">
-                      <History className="w-10 h-10 mx-auto text-slate-300" />
-                      <p className="text-xs font-bold">'{selectedStudentForHistory.name}' 학생의 연습 기록이 아직 없습니다.</p>
-                    </div>
-                  ) : (
-                    studentPracticeRecords.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2 text-xs"
-                      >
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded-md font-black text-[10px] ${
-                              item.language === 'ko' ? 'bg-sky-100 text-sky-700' : 'bg-indigo-100 text-indigo-700'
-                            }`}>
-                              {item.language === 'ko' ? '🇰🇷 한글' : '🇺🇸 영어'}
-                            </span>
-                            <span className="font-extrabold text-slate-800">{item.modeTitle}</span>
-                            <span className="text-slate-400 text-[11px]">• {item.dateStr}</span>
-                          </div>
-                          {item.feedback && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
-                              {item.feedback}
-                            </span>
-                          )}
-                        </div>
-
-                        {item.sampleText && (
-                          <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-mono text-slate-800 font-bold text-xs">
-                            "{item.sampleText}"
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-4 text-slate-600 font-bold text-[11px]">
-                          <span>속도: <strong className="text-sky-600">{item.cpm}</strong> CPM</span>
-                          <span>정확도: <strong className="text-teal-600">{item.accuracy}%</strong></span>
-                          <span>소요시간: {item.elapsedSeconds}초</span>
-                          {item.errorCount !== undefined && item.errorCount > 0 && (
-                            <span className="text-rose-500">오타: {item.errorCount}회</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+              <StudentActivityPanel
+                students={users.filter((u) => u.role !== 'master')}
+                focusStudentId={selectedStudentForHistory?.id || null}
+                onFocusHandled={() => setSelectedStudentForHistory(null)}
+                onOpenReport={onOpenReportForUser}
+              />
             )}
 
             {/* TAB 3: MASTER SECURITY & SECRET MASTER KEY SETTINGS */}

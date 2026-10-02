@@ -1,10 +1,12 @@
 import { UserSession } from '../types';
+import { summarizeMonth } from './activityLog';
+import { readLocalActivity, StudentActivity } from './studentActivity';
 
 export interface CurriculumStepInfo {
   name: string;
   stageName: string;
   progressPercent: number;
-  status: '완료' | '학습중' | '도전중';
+  status: '완료' | '학습중' | '도전중' | '시작 전';
 }
 
 export interface MonthlyGrowthItem {
@@ -17,7 +19,10 @@ export interface MonthlyGrowthItem {
   accuracy: number; // e.g. 96.5%
   practiceCount: number; // e.g. 20
   completedSentences: number;
-  stageEvaluation: string; // e.g. "기본 자리 완성", "낱말 속도 가속", "짧은 글 도약", "타자왕 달성"
+  stageEvaluation: string; // 예: "⌨️ 자리연습 8일 연습 · 23세트"
+  activeDays?: number; // 그 달에 연습한 날 수
+  keystrokes?: number; // 그 달에 친 글자 수
+  minutes?: number; // 그 달 연습 시간(분)
 }
 
 export interface FourMonthStudentReport {
@@ -48,7 +53,11 @@ export interface FourMonthStudentReport {
   totalPracticeMinutes: number;
   speedTier: string;
   speedEvaluation: string;
-  gradeBadge: 'S' | 'A+' | 'A' | 'B+';
+  gradeBadge: 'S' | 'A+' | 'A' | 'B+' | '-';
+  /** 이 기간에 끝까지 친 연습 기록이 하나라도 있는지 */
+  hasData: boolean;
+  /** 4개월 동안 연습한 날 수 */
+  totalActiveDays: number;
 
   // Curriculum progress (진도표)
   curriculum: {
@@ -66,114 +75,159 @@ export interface FourMonthStudentReport {
 // Backward compatibility alias
 export type MonthlyTypingStats = FourMonthStudentReport;
 
+const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+/** "+43타 상승 ↑" / "12타 내려감 ↓" / "그대로" */
+export const improvementText = (n: number) => (n > 0 ? `+${n}타 상승 ↑` : n < 0 ? `${Math.abs(n)}타 내려감 ↓` : '변동 없음');
+
+const MODE_LABEL: Record<string, string> = { key: '⌨️ 자리연습', word: '📖 낱말연습', sent: '📝 짧은글', long: '📚 긴글', etc: '🎓 지식타자' };
+
 /**
- * Calculates or synthesizes realistic 4-Month periodic metrics showing month-by-month speed growth
+ * 4개월 성적표를 "실제 연습 기록"으로 만듦
+ *  - activity: 학생의 학습 일지·진도 (선생님이 볼 때는 서버에서 받은 것, 학생 본인은 이 브라우저의 것)
+ *  - 연습 기록이 없는 달은 0 으로, 기록이 전혀 없으면 hasData=false
  */
-export function getMonthlyStudentReport(user: UserSession | null, targetPeriodOffset = 0): FourMonthStudentReport {
+export function getMonthlyStudentReport(
+  user: UserSession | null,
+  targetPeriodOffset = 0,
+  activity?: StudentActivity | null,
+): FourMonthStudentReport {
   const now = new Date();
   // 4-month window ending month
   const endTargetDate = new Date(now.getFullYear(), now.getMonth() - targetPeriodOffset * 4, 1);
   const endMonth = endTargetDate.getMonth() + 1;
   const year = endTargetDate.getFullYear();
 
-  // 4 consecutive months calculation: (endMonth - 3) to endMonth
-  const months: number[] = [];
+  // 4 consecutive months: (끝 달 - 3) ~ 끝 달, 해가 바뀌는 경우까지 정확히
+  const monthList: { y: number; m: number }[] = [];
   for (let i = 3; i >= 0; i--) {
-    let m = endMonth - i;
-    while (m <= 0) m += 12;
-    months.push(m);
+    const d = new Date(endTargetDate.getFullYear(), endTargetDate.getMonth() - i, 1);
+    monthList.push({ y: d.getFullYear(), m: d.getMonth() + 1 });
   }
-  const startMonth = months[0];
+  const startMonth = monthList[0].m;
 
-  const studentName = user?.name || '김철수';
-  const studentPhone = user?.phone || '010-1234-5678';
-  const parentPhone = user?.parentPhone || user?.phone || '010-9876-5432';
-  const userPeakCpm = user?.highestCpm && user.highestCpm > 0 ? user.highestCpm : 420;
+  const studentName = user?.name || '학생';
+  const studentPhone = user?.phone || '';
+  const parentPhone = user?.parentPhone || user?.phone || '';
   const studentGrade = user?.grade || 3;
-  const baseCount = user?.totalPracticeCount || 32;
 
-  // Synthesize realistic 4-month progressive growth based on user's actual peak or grade
-  const targetFinalAvg = Math.max(160, Math.round(userPeakCpm * 0.86));
-  const targetStartAvg = Math.max(80, Math.round(targetFinalAvg * 0.58));
-  const totalGrowth = targetFinalAvg - targetStartAvg;
+  const act = activity || (user?.id ? readLocalActivity(user.id) : null);
+  const days = act?.days || {};
 
-  // Month-by-month step curve
-  const stepDeltas = [0, Math.round(totalGrowth * 0.28), Math.round(totalGrowth * 0.34), Math.round(totalGrowth * 0.38)];
-  
-  const evaluations = [
-    '🌱 기본 손가락 자리잡기 및 홈포지션 완성',
-    '⚡ 낱말 타이핑 리듬감 형성 및 가속화',
-    '📖 짧은 글 문장 완주 및 타건 집중력 도약',
-    '👑 실전 타자왕 등극 및 오타율 1% 미만 달성',
-  ];
-
-  let runningAvg = targetStartAvg;
-  const monthlyBreakdown: MonthlyGrowthItem[] = months.map((m, idx) => {
-    if (idx > 0) {
-      runningAvg += stepDeltas[idx];
-    }
-    const mHighest = idx === 3 ? userPeakCpm : Math.round(runningAvg * 1.22);
-    const mAccuracy = +(96.2 + idx * 0.9 + Math.min(1.2, (userPeakCpm % 10) * 0.1)).toFixed(1);
-    const mCount = Math.max(12, Math.round((baseCount / 4) * (0.8 + idx * 0.15)));
-    const mImprovement = idx === 0 ? 0 : stepDeltas[idx];
-
+  let prevAvg = 0;
+  const monthlyBreakdown: MonthlyGrowthItem[] = monthList.map(({ y, m }, idx) => {
+    const sm = summarizeMonth(days, y, m);
+    const has = sm.sets > 0;
+    const improvement = has && prevAvg > 0 ? sm.avgCpm - prevAvg : 0;
+    if (has) prevAvg = sm.avgCpm;
+    const top = Object.entries(sm.byMode).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const stageEvaluation = has
+      ? `${MODE_LABEL[top || 'etc'] || MODE_LABEL.etc} ${sm.activeDays}일 연습 · ${sm.sets}세트`
+      : sm.activeDays > 0
+      ? `✏️ 연습중 ${sm.activeDays}일 연습 · 완주 0세트`
+      : '💤 기록없음 이 달은 연습하지 않았어요';
     return {
       monthIndex: idx + 1,
       monthNumber: m,
       monthLabel: `${m}월 (${idx + 1}월차)`,
-      avgCpm: runningAvg,
-      highestCpm: mHighest,
-      improvement: mImprovement,
-      accuracy: Math.min(99.8, mAccuracy),
-      practiceCount: mCount,
-      completedSentences: Math.round(mCount * 8.5),
-      stageEvaluation: evaluations[idx],
+      avgCpm: sm.avgCpm,
+      highestCpm: sm.bestCpm,
+      improvement,
+      accuracy: sm.avgAcc,
+      practiceCount: sm.sets,
+      completedSentences: sm.sets,
+      stageEvaluation,
+      activeDays: sm.activeDays,
+      keystrokes: sm.keys,
+      minutes: sm.minutes,
     };
   });
 
-  const startCpm = monthlyBreakdown[0].avgCpm;
-  const finalAvgCpm = monthlyBreakdown[3].avgCpm;
-  const highestCpm = Math.max(...monthlyBreakdown.map((m) => m.highestCpm));
+  const withData = monthlyBreakdown.filter((m) => m.practiceCount > 0);
+  const hasData = withData.length > 0;
+  const startCpm = hasData ? withData[0].avgCpm : 0;
+  const finalAvgCpm = hasData ? withData[withData.length - 1].avgCpm : 0;
+  const highestCpm = Math.max(0, ...monthlyBreakdown.map((m) => m.highestCpm));
   const totalImprovement = finalAvgCpm - startCpm;
   const totalPracticeCount = monthlyBreakdown.reduce((acc, m) => acc + m.practiceCount, 0);
-  const totalKeystrokes = Math.round(totalPracticeCount * finalAvgCpm * 4.6);
-  const totalPracticeMinutes = Math.round(totalPracticeCount * 24);
-  const avgAccuracy = +(monthlyBreakdown.reduce((acc, m) => acc + m.accuracy, 0) / 4).toFixed(1);
+  const totalKeystrokes = monthlyBreakdown.reduce((acc, m) => acc + (m.keystrokes || 0), 0);
+  const totalPracticeMinutes = monthlyBreakdown.reduce((acc, m) => acc + (m.minutes || 0), 0);
+  const totalActiveDays = monthlyBreakdown.reduce((acc, m) => acc + (m.activeDays || 0), 0);
+  const avgAccuracy = totalPracticeCount
+    ? +(monthlyBreakdown.reduce((acc, m) => acc + m.accuracy * m.practiceCount, 0) / totalPracticeCount).toFixed(1)
+    : 0;
 
-  // Speed Tier & Evaluation
-  let speedTier = '⚡ 쾌속 타이핑 마스터';
-  let speedEvaluation = `4개월간 시작 ${startCpm}타에서 ${finalAvgCpm}타로 총 +${totalImprovement}타의 가파른 속도 성장을 기록했습니다!`;
-  if (totalImprovement >= 120) {
-    speedTier = '🚀 초고속 폭풍성장형 마스터';
-    speedEvaluation = `초기(${startCpm}타) 대비 4개월간 +${totalImprovement}타 폭발적 상승! 매달 비약적으로 실력이 향상되었습니다.`;
-  } else if (totalImprovement >= 70) {
-    speedTier = '🌟 안정형 계단식 도약형';
-    speedEvaluation = `4개월 동안 월평균 +${Math.round(totalImprovement / 3)}타씩 꾸준히 상승하며 매우 탄탄한 타법을 확립했습니다.`;
+  // 속도 유형 & 한 줄 분석 (실제 숫자 기준)
+  let speedTier = '🌱 기초 다지기';
+  let speedEvaluation = '';
+  if (!hasData) {
+    speedTier = '💤 기록 없음';
+    speedEvaluation = '이 기간에는 끝까지 친 연습 기록이 없어요.';
+  } else if (withData.length === 1) {
+    speedTier = finalAvgCpm >= 250 ? '⚡ 빠른 손' : '🌱 기초 다지기';
+    speedEvaluation = `${withData[0].monthNumber}월 평균 ${finalAvgCpm}타 · 최고 ${highestCpm}타 (${totalActiveDays}일 연습).`;
+  } else if (totalImprovement >= 100) {
+    speedTier = '🚀 폭풍 성장형';
+    speedEvaluation = `${startCpm}타 → ${finalAvgCpm}타, ${signed(totalImprovement)}타! 크게 빨라졌어요.`;
+  } else if (totalImprovement >= 30) {
+    speedTier = '🌟 꾸준한 성장형';
+    speedEvaluation = `${startCpm}타 → ${finalAvgCpm}타, ${signed(totalImprovement)}타 꾸준히 올랐어요.`;
+  } else if (totalImprovement > -15) {
+    speedTier = '🎯 안정 유지형';
+    speedEvaluation = `평균 ${finalAvgCpm}타를 안정적으로 유지했어요 (${signed(totalImprovement)}타).`;
   } else {
-    speedTier = '🌱 기초 완성형 도약 준비';
-    speedEvaluation = '정확한 손가락 자리를 완벽히 체득하여 다음 분기 폭발적인 속도 도약의 발판을 마련했습니다.';
+    speedTier = '💪 다시 도전형';
+    speedEvaluation = `${startCpm}타 → ${finalAvgCpm}타. 조금 더 자주 연습하면 금방 회복할 수 있어요.`;
   }
 
-  let gradeBadge: 'S' | 'A+' | 'A' | 'B+' = 'A+';
-  if (finalAvgCpm >= 360) gradeBadge = 'S';
-  else if (finalAvgCpm >= 260) gradeBadge = 'A+';
-  else if (finalAvgCpm >= 170) gradeBadge = 'A';
-  else gradeBadge = 'B+';
+  let gradeBadge: FourMonthStudentReport['gradeBadge'] = '-';
+  if (hasData) {
+    if (finalAvgCpm >= 360) gradeBadge = 'S';
+    else if (finalAvgCpm >= 260) gradeBadge = 'A+';
+    else if (finalAvgCpm >= 170) gradeBadge = 'A';
+    else gradeBadge = 'B+';
+  }
 
-  // Curriculum progress
-  const keyPct = 100;
-  const wordPct = Math.min(100, Math.round(75 + (totalPracticeCount % 25)));
-  const sentPct = Math.min(100, Math.round(60 + (totalPracticeCount % 35)));
-  const gamePct = Math.min(100, Math.round(70 + (totalPracticeCount % 25)));
-  const overallPct = Math.round((keyPct + wordPct + sentPct + gamePct) / 4);
+  // 진도표: 실제로 끝낸 코스 수
+  const q = act?.quest;
+  const step = (name: string, mode: 'key-practice' | 'word-practice' | 'sentence-practice' | 'long-practice'): CurriculumStepInfo => {
+    const done = q?.[mode]?.done || 0;
+    const total = q?.[mode]?.total || 0;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    return { name, stageName: `${done} / ${total} 코스 완료`, progressPercent: pct, status: pct >= 100 ? '완료' : pct > 0 ? '학습중' : '시작 전' };
+  };
+  const keyPractice = step('자리 연습', 'key-practice');
+  const wordPractice = step('낱말 연습', 'word-practice');
+  const sentencePractice = step('짧은 글 연습', 'sentence-practice');
+  const gamePractice = step('긴 글 연습', 'long-practice');
+  const overallPct = act?.questPercent || 0;
+  const currentStageTitle =
+    keyPractice.progressPercent < 100
+      ? '자리 연습 과정'
+      : wordPractice.progressPercent < 100
+      ? '낱말 연습 과정'
+      : sentencePractice.progressPercent < 100
+      ? '짧은 글 연습 과정'
+      : gamePractice.progressPercent < 100
+      ? '긴 글 연습 과정'
+      : '전 과정 완료';
 
   // Half term determination (1~6월: 상반기, 7~12월: 하반기)
   const halfTerm: '상반기' | '하반기' = endMonth <= 6 || (startMonth <= 5 && endMonth <= 7) ? '상반기' : '하반기';
   const periodTitle = `${year}년 ${halfTerm} (${startMonth}월~${endMonth}월) 타자 성장 종합 성적표`;
 
-  let teacherComment = `${studentName} 학생(${studentGrade}학년)은 지난 ${year}년 ${halfTerm}(${startMonth}월~${endMonth}월) 동안 총 ${totalPracticeCount}회의 타자 학습을 완수하여, 타수가 초기에 비해 +${totalImprovement}타 대폭 향상(최종 평균 ${finalAvgCpm}타/최고 ${highestCpm}타)되었습니다! 특히 매달 오타율을 줄이며 바른 손가락 자세가 완벽히 자리 잡았습니다.`;
-  if (gradeBadge === 'S') {
-    teacherComment = `👑 특급 칭찬! ${studentName} 학생은 ${year}년 ${halfTerm} 동안 시작 ${startCpm}타에서 ${finalAvgCpm}타(최고 ${highestCpm}타)로 총 +${totalImprovement}타의 눈부신 성장을 이루며 학년 최상위 [${speedTier}]로 선정되었습니다!`;
+  let teacherComment: string;
+  if (!hasData) {
+    teacherComment = `${studentName} 학생은 ${startMonth}월~${endMonth}월 동안 끝까지 친 타자 연습 기록이 아직 없습니다. 하루 10분씩 자리 연습부터 차근차근 시작해 보아요!`;
+  } else {
+    const growth =
+      withData.length > 1
+        ? totalImprovement > 0
+          ? ` 평균 타수는 ${startCpm}타에서 ${finalAvgCpm}타로 ${totalImprovement}타 올랐습니다.`
+          : totalImprovement < 0
+          ? ` 평균 타수는 ${startCpm}타에서 ${finalAvgCpm}타로 조금 내려갔으니, 정확하게 치는 연습을 꾸준히 이어가면 좋겠습니다.`
+          : ` 평균 타수는 ${finalAvgCpm}타를 유지했습니다.`
+        : ` 평균 타수는 ${finalAvgCpm}타입니다.`;
+    teacherComment = `${studentName} 학생(${studentGrade}학년)은 ${startMonth}월~${endMonth}월 동안 ${totalActiveDays}일, 모두 ${totalPracticeCount}세트(${totalKeystrokes.toLocaleString()}타)를 연습했습니다.${growth} 최고 기록은 ${highestCpm}타, 평균 정확도는 ${avgAccuracy}%이며 현재 ${currentStageTitle}(전체 진도 ${overallPct}%)을 진행하고 있습니다.`;
   }
 
   return {
@@ -187,7 +241,7 @@ export function getMonthlyStudentReport(user: UserSession | null, targetPeriodOf
     parentPhone,
     avatarEmoji: user?.avatar || '🐱',
     avatarConfig: user?.avatarConfig,
-    levelTitle: user?.levelTitle || `${studentGrade}학년 타자 마스터`,
+    levelTitle: user?.levelTitle || `${studentGrade}학년 타자 꿈나무`,
     grade: studentGrade,
     monthlyBreakdown,
     startCpm,
@@ -198,16 +252,18 @@ export function getMonthlyStudentReport(user: UserSession | null, targetPeriodOf
     totalPracticeCount,
     totalKeystrokes,
     totalPracticeMinutes,
+    totalActiveDays,
+    hasData,
     speedTier,
     speedEvaluation,
     gradeBadge,
     curriculum: {
-      keyPractice: { name: '자리 연습', stageName: '기본/윗/아랫자리', progressPercent: keyPct, status: '완료' },
-      wordPractice: { name: '낱말 연습', stageName: '필수 어휘 & 초성', progressPercent: wordPct, status: wordPct >= 100 ? '완료' : '학습중' },
-      sentencePractice: { name: '짧은 글 연습', stageName: '속담 & 명언 완주', progressPercent: sentPct, status: sentPct >= 100 ? '완료' : '학습중' },
-      gamePractice: { name: '타자 게임 & 퀴즈', stageName: '두더지 & 산성비 & 단축키', progressPercent: gamePct, status: gamePct >= 100 ? '완료' : '도전중' },
+      keyPractice,
+      wordPractice,
+      sentencePractice,
+      gamePractice,
       overallProgressPercent: overallPct,
-      currentStageTitle: sentPct > 65 ? '짧은 글 완성 및 속도 가속화 과정' : '낱말 완성 및 문장 도전 과정',
+      currentStageTitle,
     },
     teacherComment,
   };
@@ -328,13 +384,17 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   ctx.fillStyle = '#0369A1';
   ctx.font = '900 20px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(`📈 4개월간 월별 타구 속도 성장 추이 (${report.startMonth}월 ~ ${report.endMonth}월)`, 85, growthY + 36);
+  ctx.fillText(`📈 4개월간 월별 타자 속도 (${report.startMonth}월 ~ ${report.endMonth}월)`, 85, growthY + 36);
 
   // Growth Summary Badge Top-Right
   ctx.fillStyle = '#EC4899';
   ctx.font = '900 16px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText(`총 속도 성장: +${report.totalImprovement}타 상승 ↑ (${report.startCpm}타 ➔ ${report.finalAvgCpm}타)`, 875, growthY + 36);
+  ctx.fillText(
+    report.hasData ? `평균 타수: ${improvementText(report.totalImprovement)} (${report.startCpm}타 ➔ ${report.finalAvgCpm}타)` : '연습 기록 없음',
+    875,
+    growthY + 36,
+  );
 
   // 4 Month Cards side-by-side
   const cardW = 185;
@@ -376,20 +436,24 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
     ctx.fillText('CPM', cx + cardW / 2 + 25, cy + 74);
 
     // Improvement Tag
-    if (idx === 0) {
+    if (m.practiceCount <= 0) {
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = 'bold 12px "Malgun Gothic", sans-serif';
+      ctx.fillText('연습 기록 없음', cx + cardW / 2, cy + 96);
+    } else if (m.improvement === 0) {
       ctx.fillStyle = '#64748B';
       ctx.font = 'bold 12px "Malgun Gothic", sans-serif';
-      ctx.fillText('초기 진단 타수', cx + cardW / 2, cy + 96);
+      ctx.fillText('평균 타수', cx + cardW / 2, cy + 96);
     } else {
-      ctx.fillStyle = '#EC4899';
+      ctx.fillStyle = m.improvement > 0 ? '#EC4899' : '#64748B';
       ctx.font = '900 13px "Malgun Gothic", sans-serif';
-      ctx.fillText(`+${m.improvement}타 상승 ↑`, cx + cardW / 2, cy + 96);
+      ctx.fillText(improvementText(m.improvement), cx + cardW / 2, cy + 96);
     }
 
     // Monthly Peak & Accuracy
     ctx.fillStyle = '#475569';
     ctx.font = '11px "Malgun Gothic", sans-serif';
-    ctx.fillText(`최고 ${m.highestCpm}타 • 정확 ${m.accuracy}%`, cx + cardW / 2, cy + 118);
+    ctx.fillText(m.practiceCount > 0 ? `최고 ${m.highestCpm}타 • 정확 ${m.accuracy}%` : '–', cx + cardW / 2, cy + 118);
 
     // Stage Step tag
     ctx.fillStyle = '#FFFFFF';
@@ -428,12 +492,12 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   ctx.textAlign = 'left';
   ctx.fillStyle = '#166534';
   ctx.font = '900 14px "Malgun Gothic", sans-serif';
-  ctx.fillText(`⚡ 4개월 종합 속도 분석: ${report.speedEvaluation}`, 98, growthY + 266);
+  ctx.fillText(`⚡ 4개월 종합 분석: ${report.speedEvaluation}`, 98, growthY + 266);
 
   ctx.fillStyle = '#475569';
   ctx.font = 'bold 13px "Malgun Gothic", sans-serif';
   ctx.fillText(
-    `4개월 총 누적 연습량: ${report.totalKeystrokes.toLocaleString()}타 (${report.totalPracticeCount}회 완료 • ${report.totalPracticeMinutes}분 학습)  |  최고 속도: ${report.highestCpm} CPM`,
+    `4개월 연습량: ${report.totalActiveDays}일 · ${report.totalKeystrokes.toLocaleString()}타 (${report.totalPracticeCount}세트 • ${report.totalPracticeMinutes}분)  |  최고 속도: ${report.highestCpm} CPM`,
     98,
     growthY + 287
   );

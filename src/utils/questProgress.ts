@@ -53,7 +53,23 @@ export interface QuestStageProgress {
 }
 
 export function getQuestProgress(userId: string | undefined, records: PracticeHistoryRecord[]): Record<QuestMode, QuestStageProgress> {
-  const data = load(userId);
+  return computeQuestProgress(load(userId), records);
+}
+
+/** 단계별 코스 수 (자리·낱말·짧은 글·긴 글) */
+export const QUEST_TOTALS: Record<QuestMode, number> = {
+  'key-practice': units['key-practice'].length,
+  'word-practice': units['word-practice'].length,
+  'sentence-practice': units['sentence-practice'].length,
+  'long-practice': units['long-practice'].length,
+};
+
+/** 저장된 완료 목록 + 연습 기록으로 진도 계산 (선생님 화면에서 다른 학생 자료로도 계산할 수 있게 분리) */
+export function computeQuestProgress(
+  data: Record<string, string[]> | null | undefined,
+  records: PracticeHistoryRecord[],
+): Record<QuestMode, QuestStageProgress> {
+  data = data || {};
   const done: Record<QuestMode, Set<string>> = {
     'key-practice': new Set(data['key-practice'] || []),
     'word-practice': new Set(data['word-practice'] || []),

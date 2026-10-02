@@ -1,4 +1,5 @@
 import { isSavableUser } from './session';
+import { logPracticeRecord } from './activityLog';
 import { UserSession, PracticeHistoryRecord, CurriculumStep, MasterConfig, AppMode } from '../types';
 export type { CurriculumStep };
 import { 
@@ -813,6 +814,9 @@ export function recordPracticeHistory(
   if (!isSavableUser(entry.userId)) return record; // 로그아웃 상태: 기록 저장 안 함
 
   try {
+    // 0. 학습 일지(날짜별 연습량)에 쌓기 → 선생님 화면·성적표에 쓰임
+    logPracticeRecord(record);
+
     // 1. Save to User History
     const userHistoryKey = `${HISTORY_PREFIX}${entry.userId}`;
     const userHistoryRaw = localStorage.getItem(userHistoryKey);

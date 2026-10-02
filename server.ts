@@ -362,6 +362,50 @@ app.post('/api/progress/:userId', (req, res) => {
   res.json({ success: true, updatedAt: stamp });
 });
 
+// 선생님용 학습 현황 (마스터 전용): 학생별 학습 일지·최근 연습 기록·진도·포인트
+//  - 학생 자료(progress)에 들어 있는 것을 읽기 좋게 추려서 보냄
+app.get('/api/activity', (req, res) => {
+  if (!isMaster(req)) return denyMaster(res);
+  const users: Record<string, any> = {};
+  for (const [uid, rec] of Object.entries(progressCache)) {
+    const d = rec?.data || {};
+    const parse = (k: string) => {
+      try {
+        return d[k] ? JSON.parse(d[k]) : null;
+      } catch {
+        return null;
+      }
+    };
+    const hist = parse(`typang_history_user_${uid}`);
+    const wallet = parse(`taja_practice_points_wallet_v2_${uid}`);
+    users[uid] = {
+      updatedAt: rec?.updatedAt || 0,
+      log: parse(`typang_activity_log_${uid}`),
+      quest: parse(`tp_quest_done_${uid}`),
+      points: typeof wallet?.points === 'number' ? wallet.points : null,
+      history: Array.isArray(hist)
+        ? hist.slice(0, 100).map((r: any) => ({
+            id: r?.id,
+            mode: r?.mode,
+            modeTitle: r?.modeTitle,
+            language: r?.language,
+            stageTitle: r?.stageTitle,
+            cpm: r?.cpm,
+            accuracy: r?.accuracy,
+            errorCount: r?.errorCount,
+            correctCount: r?.correctCount,
+            totalKeystrokes: r?.totalKeystrokes,
+            elapsedSeconds: r?.elapsedSeconds,
+            timestamp: r?.timestamp,
+            dateStr: r?.dateStr,
+          }))
+        : [],
+    };
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ success: true, users, now: Date.now() });
+});
+
 // 전체 백업 내려받기 (마스터 전용): 명단 + 학생 자료 + 명예의 전당
 app.get('/api/backup', (req, res) => {
   if (!isMaster(req)) return denyMaster(res);

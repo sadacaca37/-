@@ -18,7 +18,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { UserSession } from '../types';
-import { getMonthlyStudentReport, generateReportCardImage, FourMonthStudentReport } from '../utils/reportGenerator';
+import { getMonthlyStudentReport, generateReportCardImage, FourMonthStudentReport, improvementText } from '../utils/reportGenerator';
+import { fetchStudentActivity, StudentActivity } from '../utils/studentActivity';
 import { soundManager } from '../utils/sound';
 
 interface MonthlyReportModalProps {
@@ -52,11 +53,18 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
     }
   }, [isOpen, effectiveUser, periodOffset]);
 
+  // 학생의 실제 학습 기록: 선생님이 다른 학생 것을 볼 때는 서버에서, 학생 본인은 이 브라우저에서
+  const activityRef = React.useRef<{ id: string; data: StudentActivity } | null>(null);
   const loadReport = async (offset: number) => {
     setIsGenerating(true);
     setShareSuccessMsg('');
     try {
-      const stats = getMonthlyStudentReport(effectiveUser, offset);
+      const uid = effectiveUser?.id || '';
+      if (uid && activityRef.current?.id !== uid) {
+        const asMaster = currentUser?.role === 'master' && !!targetUser && targetUser.id !== currentUser.id;
+        activityRef.current = { id: uid, data: await fetchStudentActivity(uid, asMaster) };
+      }
+      const stats = getMonthlyStudentReport(effectiveUser, offset, activityRef.current?.data);
       if (customComment) {
         stats.teacherComment = customComment;
       }
@@ -79,22 +87,25 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
     const breakdownLines = reportData.monthlyBreakdown
       .map(
         (m) =>
-          `• ${m.monthNumber}월 (${m.monthIndex}월차): 평균 ${m.avgCpm}타 ${
-            m.improvement > 0 ? `(+${m.improvement}타 ↑)` : ''
-          } / 최고 ${m.highestCpm}타 [${m.stageEvaluation.split(' ')[0]} ${m.stageEvaluation.split(' ')[1] || ''}]`
+          m.practiceCount > 0
+            ? `• ${m.monthNumber}월: 평균 ${m.avgCpm}타${m.improvement ? ` (${improvementText(m.improvement)})` : ''} / 최고 ${m.highestCpm}타 / ${m.activeDays || 0}일 · ${m.practiceCount}세트 연습`
+            : `• ${m.monthNumber}월: 연습 기록 없음`
       )
       .join('\n');
 
-    return `[타자팡팡] 💌 ${reportData.studentName} 학생 ${reportData.year}년 ${reportData.halfTerm}(${reportData.startMonth}월~${reportData.endMonth}월) 타자 성장 종합 성적표
+    return `[타자팡팡] 💌 ${reportData.studentName} 학생 ${reportData.year}년 ${reportData.halfTerm}(${reportData.startMonth}월~${reportData.endMonth}월) 타자 성적표
 
-📈 ${reportData.halfTerm} 월별 타구 속도 성장 추이:
+📈 월별 타자 기록:
 ${breakdownLines}
 
-🏆 ${reportData.halfTerm} 총 속도 성장: 시작 ${reportData.startCpm}타 ➔ 최종 평균 ${reportData.finalAvgCpm}타 (+${reportData.totalImprovement}타 대폭 상승!)
-🎯 ${reportData.halfTerm} 최고 기록: ${reportData.highestCpm}타 (평균 정확도 ${reportData.avgAccuracy}%)
-📋 4대 영역 진도율: ${reportData.curriculum.overallProgressPercent}% (${reportData.curriculum.currentStageTitle})
-⭐ 종합 평가 등급: [${reportData.gradeBadge}등급] - ${reportData.speedTier}
-총 누적 학습: ${reportData.totalKeystrokes.toLocaleString()}타 완주 (${reportData.totalPracticeCount}회 완료)
+${
+  reportData.hasData
+    ? `🏆 평균 타수: ${reportData.startCpm}타 ➔ ${reportData.finalAvgCpm}타 (${improvementText(reportData.totalImprovement)})
+🎯 최고 기록: ${reportData.highestCpm}타 (평균 정확도 ${reportData.avgAccuracy}%)
+⌨️ 연습량: ${reportData.totalActiveDays}일 · ${reportData.totalPracticeCount}세트 · ${reportData.totalKeystrokes.toLocaleString()}타
+`
+    : ''
+}📋 진도율: ${reportData.curriculum.overallProgressPercent}% (${reportData.curriculum.currentStageTitle})
 
 선생님 총평: ${reportData.teacherComment}`;
   };
@@ -235,7 +246,7 @@ ${breakdownLines}
           <div className="flex items-center gap-2 text-xs font-bold">
             <span className="bg-pink-100 text-pink-700 border border-pink-300 px-2.5 py-0.5 rounded-full font-black text-xs flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-pink-600" />
-              {reportData?.halfTerm || ''} 총 성장: +{reportData?.totalImprovement || 0}타 ↑
+              {reportData?.hasData ? `평균 타수 ${improvementText(reportData.totalImprovement)}` : '연습 기록 없음'}
             </span>
             <span className="bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-full font-black text-xs">
               진도율 {reportData?.curriculum.overallProgressPercent || 0}%
@@ -298,10 +309,10 @@ ${breakdownLines}
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-pink-900 flex items-center gap-1">
                     <TrendingUp className="w-3.5 h-3.5 text-pink-600" />
-                    4개월간 월별 타수 성장 상세
+                    4개월간 월별 타수 (실제 기록)
                   </span>
                   <span className="text-[11px] font-black text-pink-700">
-                    시작 {reportData.startCpm}타 ➔ 최종 {reportData.finalAvgCpm}타
+                    {reportData.hasData ? `${reportData.startCpm}타 ➔ ${reportData.finalAvgCpm}타` : '연습 기록 없음'}
                   </span>
                 </div>
 
@@ -326,12 +337,12 @@ ${breakdownLines}
                       </span>
                       <span
                         className={`text-[10px] font-black px-1.5 py-0.2 rounded-full inline-block ${
-                          idx === 0
+                          item.practiceCount <= 0 || item.improvement <= 0
                             ? 'bg-slate-200 text-slate-600'
                             : 'bg-pink-200 text-pink-800'
                         }`}
                       >
-                        {idx === 0 ? '기초' : `+${item.improvement}타`}
+                        {item.practiceCount <= 0 ? '기록 없음' : item.improvement === 0 ? `${item.activeDays || 0}일 연습` : `${item.improvement > 0 ? '+' : ''}${item.improvement}타`}
                       </span>
                     </div>
                   ))}
@@ -340,7 +351,7 @@ ${breakdownLines}
                 {/* Growth Highlights */}
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 pt-1 border-t border-pink-200/60">
                   <span>최고 속도: <strong className="text-purple-700 font-black">{reportData.highestCpm}타</strong></span>
-                  <span>4개월 총 연습: <strong className="text-pink-700 font-black">{reportData.totalKeystrokes.toLocaleString()}타</strong> ({reportData.totalPracticeCount}회)</span>
+                  <span>4개월 연습: <strong className="text-pink-700 font-black">{reportData.totalActiveDays}일 · {reportData.totalKeystrokes.toLocaleString()}타</strong> ({reportData.totalPracticeCount}세트)</span>
                 </div>
               </div>
             )}
@@ -379,7 +390,7 @@ ${breakdownLines}
               <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-[11px] font-medium flex items-start gap-1.5">
                 <Info className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
                 <span>
-                  <strong>안내:</strong> 타자 성적표는 년도별 <strong>상반기 / 하반기</strong> 성적표로 발송되도록 구성되었습니다. 해당 기간 동안의 월별 타수 증가 그래프와 4대 영역 진도표 카드가 함께 전달됩니다.
+                  <strong>안내:</strong> 이 성적표는 학생이 <strong>실제로 연습한 기록</strong>(월별 평균·최고 타수, 연습한 날 수, 끝낸 코스)으로 만들어져요. 연습하지 않은 달은 '기록 없음'으로 나와요.
                 </span>
               </div>
             )}
