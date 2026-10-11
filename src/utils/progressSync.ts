@@ -127,6 +127,15 @@ class ProgressSync {
     this.lastSent = '';
   }
 
+  /** 서버가 빈 상태로 새로 켜졌을 때: 바뀐 게 없어도 이 컴퓨터의 자료를 다시 통째로 올림 */
+  public resync() {
+    if (!this.userId) return;
+    this.serverAvailable = true;
+    this.lastSent = '';
+    activityTracker.flush();
+    this.push();
+  }
+
   /** 지금 바로 한 번 올리기 (로그아웃 전 등) */
   public flush = () => {
     activityTracker.flush(); // 방금까지 친 글자 수·시간을 일지에 먼저 적어 두고 올림

@@ -47,6 +47,8 @@ interface FixedFile {
   updatedAt: number;
   masterPasswordHash?: string;
   members: Member[];
+  /** 선생님이 지운 학생 (id → 지운 시각). 학생 컴퓨터의 회원증으로 되살아나지 않게 */
+  removed?: Record<string, number>;
 }
 
 interface LiveFile extends FixedFile {
@@ -96,6 +98,8 @@ export class MemberStore {
   masterPasswordHash = '';
   baseUpdatedAt = 0;
   pendingChanges = 0;
+  /** 선생님이 지운 학생 id → 지운 시각 */
+  removed: Record<string, number> = {};
   private writeTimer: NodeJS.Timeout | null = null;
   private writing = false;
   private writeAgain = false;
@@ -139,6 +143,7 @@ export class MemberStore {
         }
       : null;
 
+    this.removed = { ...(fixedRaw?.removed || {}), ...(liveRaw?.removed || {}) };
     if (live && live.baseUpdatedAt >= fixed.updatedAt) {
       // 서버가 재시작만 된 경우: 마지막 상태 그대로
       this.members = live.members;
@@ -187,6 +192,7 @@ export class MemberStore {
       pendingChanges: this.pendingChanges,
       masterPasswordHash: this.masterPasswordHash,
       members: this.members,
+      removed: this.removed,
     };
     const body = JSON.stringify(data);
     const tmp = `${this.livePath}.tmp`;
@@ -352,6 +358,7 @@ export class MemberStore {
     this.members = this.members.filter((m) => m.id !== id);
     if (this.members.length === before) return false;
     this.byId.delete(id);
+    this.removed[id] = Date.now();
     this.changed();
     return true;
   }
@@ -372,23 +379,85 @@ export class MemberStore {
       updatedAt: now,
       masterPasswordHash: this.masterPasswordHash || undefined,
       members: this.members,
+      removed: this.removed,
     };
+  }
+
+  /** 지운 학생 표시를 백업에서 받아 적용 (그 학생이 명단에 남아 있으면 지움) */
+  private applyRemoved(removed: Record<string, number> | undefined) {
+    if (!removed || typeof removed !== 'object') return false;
+    let changed = false;
+    for (const [id, at] of Object.entries(removed)) {
+      const t = Number(at) || Date.now();
+      if (!this.removed[id] || this.removed[id] < t) this.removed[id] = t;
+      const m = this.byId.get(id);
+      // 지운 뒤에 다시 만들어진 학생이 아니면 지움
+      if (m && (m.createdAt || 0) <= t) {
+        this.members = this.members.filter((x) => x.id !== id);
+        this.byId.delete(id);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /** 학생 컴퓨터에 보관된 '회원증'에 담을 내용 (로그인에 필요한 최소한) */
+  toPass(m: Member) {
+    return {
+      v: 1,
+      id: m.id,
+      name: m.name,
+      studentId: m.studentId,
+      grade: m.grade,
+      isApproved: m.isApproved,
+      phoneMasked: m.phoneMasked,
+      phoneLast4: m.phoneLast4,
+      phoneHash: m.phoneHash,
+      passwordHash: m.passwordHash,
+      avatar: m.avatar,
+      avatarBg: m.avatarBg,
+      levelTitle: m.levelTitle,
+      createdAt: m.createdAt,
+      at: Date.now(),
+    };
+  }
+
+  /**
+   * 서버가 빈 상태로 다시 켜졌을 때, 학생 컴퓨터의 회원증으로 그 학생을 명단에 되살림
+   * - 이미 있으면 그대로 둠 / 선생님이 지운 학생이면 되살리지 않음
+   */
+  rejoin(rec: any): 'restored' | 'exists' | 'removed' | 'invalid' {
+    if (!rec || !rec.id || !rec.name || !rec.passwordHash) return 'invalid';
+    const id = String(rec.id);
+    if (this.byId.has(id)) return 'exists';
+    if (this.removed[id] && this.removed[id] >= (Number(rec.createdAt) || 0)) return 'removed';
+    const m = normalize({ ...rec, role: 'student' });
+    if (!m) return 'invalid';
+    m.id = id;
+    m.phoneHash = String(rec.phoneHash || m.phoneHash);
+    m.passwordHash = String(rec.passwordHash);
+    this.members.push(m);
+    this.byId.set(m.id, m);
+    this.saveSoon(); // 명단 고정 파일과 달라진 것은 아니므로 '고정 안 된 변경'으로 세지 않음
+    return 'restored';
   }
 
   /** 씨앗 백업에서 "없는 학생만" 되살리기 (이미 있는 학생은 건드리지 않음) */
   importMissing(file: FixedFile): number {
     if (!file || !Array.isArray(file.members)) return 0;
     let added = 0;
+    const removedChanged = this.applyRemoved(file.removed);
     for (const raw of file.members) {
       if (!raw || !raw.id || !raw.name) continue;
       if (this.byId.has(raw.id)) continue;
+      if (this.removed[raw.id] && this.removed[raw.id] >= (raw.createdAt || 0)) continue;
       const m = { ...raw } as Member;
       this.members.push(m);
       this.byId.set(m.id, m);
       added++;
     }
     if (!this.masterPasswordHash && file.masterPasswordHash) this.masterPasswordHash = file.masterPasswordHash;
-    if (added) {
+    if (added || removedChanged) {
       this.changed();
       this.flush(true);
     }
@@ -399,6 +468,7 @@ export class MemberStore {
   importFixed(file: FixedFile): number {
     if (!file || !Array.isArray(file.members)) return 0;
     let count = 0;
+    this.applyRemoved(file.removed);
     for (const raw of file.members) {
       if (!raw || !raw.id || !raw.name) continue;
       const exist = this.byId.get(raw.id);

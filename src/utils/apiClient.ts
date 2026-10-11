@@ -1,3 +1,4 @@
+import { rejoinMembers, rememberMemberPass } from './serverHeal';
 import { UserSession, LeaderboardEntry } from '../types';
 
 export interface BatchRegisterResult {
@@ -161,12 +162,17 @@ class TypangApiClient {
 
   public async login(identifier: string, password?: string): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
     try {
-      const r = await this.request('/api/users/login', {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({ identifier: identifier.trim(), password: (password || '').trim() }),
-      });
+      const send = () =>
+        this.request('/api/users/login', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ identifier: identifier.trim(), password: (password || '').trim() }),
+        });
+      let r = await send();
+      // 서버가 빈 상태로 다시 켜져 학생을 못 찾으면: 이 컴퓨터의 회원증으로 되살린 뒤 한 번 더
+      if (r.status === 404 && this.isApi(r) && (await rejoinMembers()) > 0) r = await send();
       if (r.ok && r.data?.success && r.data.user) {
+        rememberMemberPass(r.data.user.id, r.data.memberPass);
         try {
           localStorage.setItem('typang_current_user', JSON.stringify(r.data.user));
           sessionStorage.setItem('typang_active_user_id', r.data.user.id);

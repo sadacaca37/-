@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
+import { makeLeaderboardEntry, readCachedBoard, rememberMyRecord, saveCachedBoard, serverHeal, syncLeaderboard } from './utils/serverHeal';
 import { progressSync } from './utils/progressSync';
 import { activityTracker } from './utils/activityLog';
 import { buildTodaySummary, fetchMyReports, fetchUncheckedCount } from './utils/dailyReport';
@@ -37,74 +38,7 @@ const TamagotchiView = lazy(() => import('./components/views/TamagotchiView').th
 const PlaygroundHome = lazy(() => import('./components/views/playground/PlaygroundHome').then((m) => ({ default: m.PlaygroundHome })));
 const MiniGamesHubView = lazy(() => import('./components/views/MiniGamesHubView').then((m) => ({ default: m.MiniGamesHubView })));
 
-// Initial Hall of Fame data (Strictly for Short Sentence Practice)
-const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
-  {
-    id: 'lead_1',
-    userName: '타자마스터',
-    userAvatar: '👑',
-    mode: 'sentence',
-    modeTitle: '짧은 글 (5분 마라톤 완주)',
-    score: 5800,
-    cpm: 520,
-    accuracy: 99,
-    date: '2026.08.24',
-    details: '5분 연속 완주 (18문장 완료)',
-    completedSentences: 18,
-  },
-  {
-    id: 'lead_2',
-    userName: '초등타자왕',
-    userAvatar: '⚡',
-    mode: 'sentence',
-    modeTitle: '짧은 글 (지혜의 속담)',
-    score: 4900,
-    cpm: 460,
-    accuracy: 100,
-    date: '2026.08.24',
-    details: '속담 명언 (15문장 완주)',
-    completedSentences: 15,
-  },
-  {
-    id: 'lead_3',
-    userName: '서정문학소녀',
-    userAvatar: '🐱',
-    mode: 'sentence',
-    modeTitle: '짧은 글 (서정 동시 & 문학)',
-    score: 4300,
-    cpm: 410,
-    accuracy: 98,
-    date: '2026.08.23',
-    details: '동시 문학 (12문장 완주)',
-    completedSentences: 12,
-  },
-  {
-    id: 'lead_4',
-    userName: '과학탐험대',
-    userAvatar: '🚀',
-    mode: 'sentence',
-    modeTitle: '짧은 글 (신비한 자연 과학)',
-    score: 3850,
-    cpm: 370,
-    accuracy: 97,
-    date: '2026.08.22',
-    details: '자연 과학 (10문장 완주)',
-    completedSentences: 10,
-  },
-  {
-    id: 'lead_5',
-    userName: '성실연습생',
-    userAvatar: '🌟',
-    mode: 'sentence',
-    modeTitle: '짧은 글 (영문 속담 명언)',
-    score: 3400,
-    cpm: 330,
-    accuracy: 99,
-    date: '2026.08.21',
-    details: '영문 속담 (10문장 완주)',
-    completedSentences: 10,
-  },
-];
+
 
 
 // Helper to detect initial mode synchronously from URL params (?mode=...)
@@ -269,36 +203,24 @@ export default function App() {
         });
       }
 
-      // 3. Hall of Fame Leaderboard - Reset on the 1st of every month
-      const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const storedMonth = localStorage.getItem('typang_leaderboard_month');
+      // 3. 명예의 전당: 이 컴퓨터가 마지막으로 본 순위표를 먼저 보여 주고, 서버와 합친 순위표로 바꿈
+      //    (서버가 빈 상태로 다시 켜져도 학생 컴퓨터들이 기억하는 기록이 다시 올라감)
+      const nowMonth = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7).replace('-', '.');
+      setLeaderboard(readCachedBoard().filter((e) => String(e.date || '').startsWith(nowMonth)));
 
-      if (storedMonth !== currentMonth) {
-        // Reset on the 1st of the month
-        localStorage.setItem('typang_leaderboard_month', currentMonth);
-        localStorage.setItem('typang_leaderboard', JSON.stringify([]));
-        setLeaderboard([]);
-      } else {
-        const savedLeaderboard = localStorage.getItem('typang_leaderboard');
-        if (savedLeaderboard) {
-          setLeaderboard(JSON.parse(savedLeaderboard));
-        } else {
-          setLeaderboard(INITIAL_LEADERBOARD);
-          localStorage.setItem('typang_leaderboard', JSON.stringify(INITIAL_LEADERBOARD));
-        }
-      }
-
-      // Sync leaderboard from server
-      fetch('/api/leaderboard')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.success && Array.isArray(data.leaderboard)) {
-            setLeaderboard(data.leaderboard);
-            localStorage.setItem('typang_leaderboard', JSON.stringify(data.leaderboard));
+      // 4. 서버 되살리기 + 접속 유지: 회원증·명예의 전당·보낸 보고·학습 자료를 서버가 새로 켜지면 다시 올림
+      serverHeal.start({
+        onBoard: (list) => setLeaderboard(list),
+        onServerRestart: () => progressSync.resync(),
+        currentUserId: () => {
+          try {
+            const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+            return u && u.role !== 'master' ? String(u.id || '') : '';
+          } catch {
+            return '';
           }
-        })
-        .catch(() => {});
+        },
+      });
     } catch {
       // Fallback
     }
@@ -357,38 +279,22 @@ export default function App() {
     // Only sentence practice goes to Hall of Fame
     if (entry.mode !== 'sentence') return;
 
-    const todayStr = new Date().toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).replace(/\. /g, '.').replace('.', '');
-
-    const newRecord: LeaderboardEntry = {
-      ...entry,
-      id: `lead_${Date.now()}`,
+    const newRecord = makeLeaderboardEntry(entry, {
+      userId: currentUser.id,
       userName: currentUser.name,
       userAvatar: currentUser.avatar || '👑',
-      date: todayStr || '2026.08.24',
-    };
+      grade: currentUser.grade && currentUser.grade >= 1 && currentUser.grade <= 6 ? currentUser.grade : undefined,
+    } as Partial<LeaderboardEntry>);
+    rememberMyRecord(currentUser.id, newRecord); // 서버가 비워져도 다시 올릴 수 있게 이 컴퓨터에도 적어 둠
 
-    const updated = [newRecord, ...leaderboard].sort((a, b) => (b.cpm || 0) - (a.cpm || 0)).slice(0, 100);
+    const updated = [newRecord, ...leaderboard].sort((a, b) => (b.cpm || 0) - (a.cpm || 0)).slice(0, 300);
     setLeaderboard(updated);
-    localStorage.setItem('typang_leaderboard', JSON.stringify(updated));
+    saveCachedBoard(updated);
 
-    // 서버에도 저장 → 다른 컴퓨터에서도, 다시 배포해도 명예의 전당이 남음
-    fetch('/api/leaderboard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newRecord),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.success && Array.isArray(data.leaderboard)) {
-          setLeaderboard(data.leaderboard);
-          localStorage.setItem('typang_leaderboard', JSON.stringify(data.leaderboard));
-        }
-      })
-      .catch(() => {});
+    // 서버에 저장 (내 기록 + 이 컴퓨터가 아는 순위표를 함께 맞춤 → 서버가 비어 있었어도 바로 채워짐)
+    void syncLeaderboard().then((list) => {
+      if (list) setLeaderboard(list);
+    });
 
     // Update currentUser high stats
     const updatedUser: UserSession = {
@@ -406,7 +312,7 @@ export default function App() {
 
   const handleClearLeaderboard = () => {
     setLeaderboard([]);
-    localStorage.removeItem('typang_leaderboard');
+    saveCachedBoard([]);
   };
 
   // Detect standalone popup window mode (?popup=true)

@@ -244,6 +244,9 @@ export interface UserSession {
   email?: string; // 학생 또는 복구용 이메일
   parentPhone?: string; // 학부모님 전화번호 (선택)
   grade?: number; // 1~6학년
+  userId?: string;
+  /** 기록한 시각(ms) */
+  ts?: number;
   password?: string;
   avatar: string;
   avatarBg?: string;
@@ -357,6 +360,9 @@ export interface LeaderboardEntry {
   userName: string;
   userAvatar?: string;
   grade?: number; // 1~6학년
+  userId?: string;
+  /** 기록한 시각(ms) */
+  ts?: number;
   mode: 'sentence' | 'mole-game' | 'rain-game' | 'shortcut-quiz'; // 명예의 전당에는 짧은 글만 기록됨
   modeTitle: string;
   score: number;

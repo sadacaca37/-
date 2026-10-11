@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LeaderboardEntry } from '../../types';
 import { Pixel, TvBot } from './TapangHome';
 
@@ -49,18 +49,48 @@ const RACER_PALS = [
 
 const GRADES: Array<number | 'all'> = ['all', 1, 2, 3, 4, 5, 6];
 
+const monthLabel = (m: string) => `${m.slice(0, 4)}년 ${Number(m.slice(5, 7))}월`;
+const thisMonth = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onStartSentencePractice }) => {
   const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
+  // 지난달 순위는 보관함에서 볼 수 있음 ('' = 이번 달)
+  const [month, setMonth] = useState<string>('');
+  const [months, setMonths] = useState<string[]>([]);
+  const [archived, setArchived] = useState<LeaderboardEntry[] | null>(null);
 
-  // Only sentence-practice records count; entries without a grade get a stable 1~6 grade
-  const ranked = entries
-    .filter((e) => e.mode === 'sentence' || !e.mode)
-    .map((e, index) => ({ ...e, grade: e.grade || (index % 6) + 1 }))
+  useEffect(() => {
+    let alive = true;
+    const q = month ? `?month=${encodeURIComponent(month)}` : '';
+    fetch(`/api/leaderboard${q}`, { cache: 'no-store' })
+      .then((r) => ((r.headers.get('content-type') || '').includes('application/json') ? r.json() : null))
+      .then((j) => {
+        if (!alive || !j?.success) return;
+        if (Array.isArray(j.months)) setMonths(j.months.filter((m: string) => m !== j.currentMonth));
+        setArchived(month ? (Array.isArray(j.leaderboard) ? j.leaderboard : []) : null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [month]);
+
+  const source = month ? archived || [] : entries;
+
+  // 짧은 글 기록만, 한 학생은 가장 좋은 기록 하나만 (같은 학생이 순위를 다 차지하지 않게)
+  const bestByStudent = new Map<string, LeaderboardEntry>();
+  for (const e of source) {
+    if (!(e.mode === 'sentence' || !e.mode)) continue;
+    const who = e.userId || e.userName;
+    const prev = bestByStudent.get(who);
+    if (!prev || (e.cpm || 0) > (prev.cpm || 0) || ((e.cpm || 0) === (prev.cpm || 0) && (e.accuracy || 0) > (prev.accuracy || 0))) bestByStudent.set(who, e);
+  }
+  const ranked = [...bestByStudent.values()]
     .filter((e) => selectedGrade === 'all' || e.grade === selectedGrade)
-    .sort((a, b) => b.cpm - a.cpm);
+    .sort((a, b) => (b.cpm || 0) - (a.cpm || 0) || (b.accuracy || 0) - (a.accuracy || 0));
 
   const podium = [ranked[1], ranked[0], ranked[2]]; // 2 · 1 · 3
-  const rest = ranked.slice(3, 10);
+  const rest = ranked.slice(3, 30);
   const fmtTime = (sec?: number) => {
     if (!sec || sec <= 0) return '-';
     const m = Math.floor(sec / 60);
@@ -91,6 +121,26 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
           </button>
         ))}
       </nav>
+
+      <div className="flex flex-wrap items-center justify-center gap-2 -mt-1 mb-2 text-[12px] font-black" style={{ position: 'relative', zIndex: 2 }}>
+        <span style={{ color: '#9fe8ff' }}>📅 {month ? `${monthLabel(month)} 기록 (보관함)` : `${monthLabel(thisMonth())} 명예의 전당 · 매달 1일 새로 시작`}</span>
+        {months.length > 0 && (
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="px-2 py-1 rounded-lg bg-slate-900 text-cyan-100 border border-cyan-400/60 cursor-pointer"
+            aria-label="달 고르기"
+            data-testid="lb-month"
+          >
+            <option value="">이번 달</option>
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {/* podium */}
       <div className="cy-podium">
@@ -157,13 +207,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
                     <td className="cy-num">{e.cpm}</td>
                     <td className="cy-acc">{e.accuracy}%</td>
                     <td className="cy-num">{fmtTime(e.elapsedSeconds)}</td>
-                    <td className="cy-hide-sm">{e.grade}학년</td>
+                    <td className="cy-hide-sm">{e.grade ? `${e.grade}학년` : '-'}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={6} className="cy-none">
-                    {ranked.length === 0 ? '아직 기록이 없어요. 첫 번째 챔피언이 되어 보세요!' : '4위부터는 아직 비어 있어요.'}
+                    {ranked.length === 0 ? (month ? '이 달에는 기록이 없어요.' : '이번 달 기록이 아직 없어요. 첫 번째 챔피언이 되어 보세요!') : '4위부터는 아직 비어 있어요.'}
                   </td>
                 </tr>
               )}

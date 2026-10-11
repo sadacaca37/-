@@ -8,6 +8,7 @@ import type { UserSession } from '../types';
 import { typangApi } from './apiClient';
 import { activityTracker, dayActive, dayKey, dayKeys, daySeconds } from './activityLog';
 import { readLocalActivity } from './studentActivity';
+import { markMyReportsChecked, rejoinMembers, rememberMyReport } from './serverHeal';
 
 export interface ReportSummary {
   sets: number;
@@ -90,14 +91,19 @@ export async function sendTodayReport(user: UserSession, note: string): Promise<
   const { day, active, summary } = buildTodaySummary(user.id);
   if (!active) return { success: false, message: '오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요.' };
   try {
-    const r = await fetch('/api/reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, day, summary, note }),
-    });
+    const send = () =>
+      fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, day, summary, note }),
+      });
+    let r = await send();
+    // 서버가 새로 켜져 학생 명단이 비어 있으면 회원증으로 되살리고 한 번 더
+    if (r.status === 400 && isJson(r) && (await rejoinMembers()) > 0) r = await send();
     if (isJson(r)) {
       const j = await r.json();
       if (j?.success) {
+        if (j.report) rememberMyReport(j.report); // 서버가 비워져도 다시 올릴 수 있게 사본 보관
         window.dispatchEvent(new Event('daily-report-updated'));
         return { success: true, report: j.report };
       }
@@ -119,7 +125,10 @@ export async function fetchMyReports(userId: string): Promise<MyReport[]> {
     const r = await fetch(`/api/reports/mine?userId=${encodeURIComponent(userId)}`, { cache: 'no-store' });
     if (isJson(r)) {
       const j = await r.json();
-      if (j?.success && Array.isArray(j.reports)) return j.reports;
+      if (j?.success && Array.isArray(j.reports)) {
+        markMyReportsChecked(userId, j.reports);
+        return j.reports;
+      }
     }
   } catch {}
   return localAll()

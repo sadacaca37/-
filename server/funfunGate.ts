@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type { Express, Request, Response, NextFunction } from 'express';
+import { stableSecret } from './stableSecret';
 
 const AUTH_COOKIE = 'tp_auth';
 const FUN_COOKIE = 'tp_fun';
@@ -18,6 +19,12 @@ let SECRET = process.env.SESSION_SECRET || '';
 
 function loadSecret(dataDir: string) {
   if (SECRET) return;
+  // 서버가 다시 켜져도 로그인 확인표가 그대로 통하도록, 바뀌지 않는 비밀값을 먼저 씀
+  const stable = stableSecret('session');
+  if (stable) {
+    SECRET = stable;
+    return;
+  }
   const file = path.join(dataDir, '.session-secret');
   try {
     if (fs.existsSync(file)) SECRET = fs.readFileSync(file, 'utf-8').trim();

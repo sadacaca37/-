@@ -150,6 +150,40 @@ export function registerDailyReports(
     res.json({ success: true, report: reports[id] });
   });
 
+  // 학생 컴퓨터에 남아 있는 '보낸 보고'를 다시 올림 (서버가 빈 상태로 다시 켜졌을 때 되살리기)
+  //  - 이미 있는 보고는 더 나중 것만, 선생님 확인 표시는 남김
+  app.post('/api/reports/sync', (req, res) => {
+    const list: any[] = Array.isArray(req.body?.reports) ? req.body.reports.slice(0, 40) : [];
+    const now = Date.now();
+    const oldest = now - KEEP_DAYS * 86400000;
+    let added = 0;
+    for (const raw of list) {
+      const userId = String(raw?.userId || '');
+      const day = String(raw?.day || '');
+      const who = findStudent(userId);
+      if (!who || !/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      const sentAt = Math.min(now, Number(raw.sentAt) || 0);
+      if (sentAt < oldest) continue;
+      const id = `${userId}_${day}`;
+      const prev = reports[id];
+      if (prev && prev.sentAt >= sentAt) continue;
+      reports[id] = {
+        id,
+        userId,
+        name: who.name,
+        grade: who.grade,
+        day,
+        sentAt,
+        checkedAt: Math.max(prev?.checkedAt || 0, Math.min(now, Number(raw.checkedAt) || 0)),
+        note: String(raw.note || '').slice(0, 120),
+        summary: clean(raw.summary),
+      };
+      added++;
+    }
+    if (added) persist();
+    res.json({ success: true, added });
+  });
+
   // 학생: 내가 보낸 보고 (최근 14일) — 보냈는지, 선생님이 확인했는지
   app.get('/api/reports/mine', (req, res) => {
     const userId = String(req.query.userId || '');

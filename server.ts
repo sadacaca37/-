@@ -4,7 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
 import { attachBlockcraft, registerBlockcraftHttp } from './server/blockcraftRooms';
-import { registerFunfunGate, setLoginCookie, getFunfunFree, setFunfunFree } from './server/funfunGate';
+import { registerFunfunGate, setLoginCookie, readLogin, getFunfunFree, setFunfunFree } from './server/funfunGate';
+import { stableSecret, sealPayload, unsealPayload } from './server/stableSecret';
 import { registerDailyReports, getDailyReports, mergeDailyReports } from './server/dailyReports';
 
 const app = express();
@@ -37,14 +38,22 @@ if (FRESH_START) console.log('[backup] 새로 시작한 서버입니다. 선생�
 const members = new MemberStore(path.join(ROOT, 'members.json'), path.join(DATA_DIR, 'members-live.json'));
 
 const LEADERBOARD_FILE = path.join(DATA_DIR, 'leaderboard.json');
+const LEADERBOARD_ARCHIVE_FILE = path.join(DATA_DIR, 'leaderboard-archive.json');
 const RESET_META_FILE = path.join(DATA_DIR, 'leaderboard_reset_meta.json');
 let leaderboardCache: any[] = [];
+/** 지난달들의 명예의 전당 보관함: { '2026-09': [기록...] } (최근 12달) */
+let leaderboardArchive: Record<string, any[]> = {};
 let lastLeaderboardMonth = '';
 try {
   if (fs.existsSync(LEADERBOARD_FILE)) leaderboardCache = JSON.parse(fs.readFileSync(LEADERBOARD_FILE, 'utf-8'));
   if (!Array.isArray(leaderboardCache)) leaderboardCache = [];
 } catch {
   leaderboardCache = [];
+}
+try {
+  if (fs.existsSync(LEADERBOARD_ARCHIVE_FILE)) leaderboardArchive = JSON.parse(fs.readFileSync(LEADERBOARD_ARCHIVE_FILE, 'utf-8')) || {};
+} catch {
+  leaderboardArchive = {};
 }
 try {
   if (fs.existsSync(RESET_META_FILE)) lastLeaderboardMonth = JSON.parse(fs.readFileSync(RESET_META_FILE, 'utf-8')).lastMonth || '';
@@ -58,6 +67,7 @@ function persistLeaderboard(sync = false) {
     try {
       fs.writeFileSync(tmp, JSON.stringify(leaderboardCache), 'utf-8');
       fs.renameSync(tmp, LEADERBOARD_FILE);
+      fs.writeFileSync(LEADERBOARD_ARCHIVE_FILE, JSON.stringify(leaderboardArchive), 'utf-8');
     } catch (e) {
       console.error('[leaderboard] 저장 실패', e);
     }
@@ -70,19 +80,123 @@ function persistLeaderboard(sync = false) {
   }, 500);
 }
 
-function checkMonthlyLeaderboardReset() {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  if (currentMonth === lastLeaderboardMonth) return;
-  if (lastLeaderboardMonth) {
-    console.log(`[Leaderboard] Monthly reset ${lastLeaderboardMonth} -> ${currentMonth}`);
-    leaderboardCache = [];
-    persistLeaderboard();
+/** 한국 시간 기준 '2026-10' (서버 시계가 다른 나라 시간이어도 학교 달력과 맞게) */
+const kstMonth = (ts: number = Date.now()) => new Date(ts + 9 * 3600 * 1000).toISOString().slice(0, 7);
+
+/** 기록이 어느 달 것인지: 보낸 시각(ts) → 없으면 날짜 글자에서 연·월 */
+function entryMonth(e: any): string {
+  const ts = Number(e?.ts);
+  if (ts > 1600000000000 && ts < Date.now() + 86400000) return kstMonth(ts);
+  const d = String(e?.date || '').replace(/[^0-9]/g, '');
+  if (d.length >= 6) return `${d.slice(0, 4)}-${d.slice(4, 6)}`;
+  return '';
+}
+
+const LB_ID = /^lead_[A-Za-z0-9_]{6,48}$/;
+const lbNum = (v: any, max: number) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
+/** 받은 기록을 깨끗하게 다듬음 (모르는 값·너무 긴 글 제거) */
+function cleanLeaderboardEntry(raw: any): any | null {
+  if (!raw || !raw.userName) return null;
+  const now = Date.now();
+  // 보낸 시각(ts)이 있으면 그것으로, 없으면 날짜 글자(예전 기록)로, 둘 다 없으면 지금으로
+  const hasTs = Number(raw.ts) > 1600000000000 && Number(raw.ts) < now + 86400000;
+  const digits = String(raw.date || '').replace(/[^0-9]/g, '');
+  const ts = hasTs ? Number(raw.ts) : digits.length >= 8 ? undefined : now;
+  const d = ts
+    ? new Date(ts + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '.')
+    : `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`;
+  const grade = Number(raw.grade);
+  return {
+    id: LB_ID.test(String(raw.id || '')) ? String(raw.id) : `lead_${now}_${Math.random().toString(36).substring(2, 8)}`,
+    userId: raw.userId ? String(raw.userId).slice(0, 60) : undefined,
+    userName: String(raw.userName).slice(0, 30),
+    userAvatar: raw.userAvatar ? String(raw.userAvatar).slice(0, 8) : undefined,
+    grade: grade >= 1 && grade <= 6 ? grade : undefined,
+    mode: String(raw.mode || 'sentence').slice(0, 20),
+    modeTitle: String(raw.modeTitle || '').slice(0, 60),
+    score: lbNum(raw.score, 1000000),
+    cpm: lbNum(raw.cpm, 2000),
+    accuracy: lbNum(raw.accuracy, 100),
+    date: d,
+    ts,
+    details: raw.details ? String(raw.details).slice(0, 80) : undefined,
+    completedSentences: raw.completedSentences ? lbNum(raw.completedSentences, 9999) : undefined,
+    elapsedSeconds: raw.elapsedSeconds ? lbNum(raw.elapsedSeconds, 86400) : undefined,
+  };
+}
+
+function sortLeaderboard() {
+  leaderboardCache.sort((a, b) => (b.cpm || 0) - (a.cpm || 0) || (b.score || 0) - (a.score || 0));
+  if (leaderboardCache.length > 300) leaderboardCache.length = 300;
+}
+
+/** 지난달 기록을 보관함으로 옮김 (지우지 않음) */
+function archiveMonth(month: string, list: any[]) {
+  if (!month || !list.length) return;
+  const seen = new Set((leaderboardArchive[month] || []).map((e: any) => e.id));
+  const merged = [...(leaderboardArchive[month] || []), ...list.filter((e) => e && !seen.has(e.id))];
+  merged.sort((a, b) => (b.cpm || 0) - (a.cpm || 0));
+  leaderboardArchive[month] = merged.slice(0, 300);
+  const months = Object.keys(leaderboardArchive).sort();
+  for (const m of months.slice(0, Math.max(0, months.length - 12))) delete leaderboardArchive[m];
+}
+
+/** 이번 달이 아닌 기록이 섞여 있으면 그 달 보관함으로 옮김 (백업에서 되살린 뒤 등) */
+function sweepOldMonths() {
+  const current = kstMonth();
+  const keep: any[] = [];
+  const old: Record<string, any[]> = {};
+  for (const e of leaderboardCache) {
+    const m = entryMonth(e) || current;
+    if (m === current) keep.push(e);
+    else (old[m] = old[m] || []).push(e);
   }
+  if (keep.length === leaderboardCache.length) return;
+  for (const [m, list] of Object.entries(old)) archiveMonth(m, list);
+  leaderboardCache = keep;
+  persistLeaderboard();
+}
+
+/** 달이 바뀌면 새 달의 명예의 전당을 시작하고, 지난달 기록은 보관함으로 */
+function checkMonthlyLeaderboardReset() {
+  const currentMonth = kstMonth();
+  if (currentMonth === lastLeaderboardMonth) return;
+  if (lastLeaderboardMonth) console.log(`[Leaderboard] ${lastLeaderboardMonth} -> ${currentMonth} (지난달 기록은 보관)`);
   lastLeaderboardMonth = currentMonth;
+  sweepOldMonths();
   try {
     fs.writeFileSync(RESET_META_FILE, JSON.stringify({ lastMonth: currentMonth, resetAt: Date.now() }), 'utf-8');
   } catch {}
+}
+
+/** 기록 여러 개를 합쳐 넣음 (같은 id 는 한 번만). 이번 달 것만 명예의 전당에, 지난달 것은 보관함에 */
+function mergeLeaderboardEntries(list: any[]): number {
+  if (!Array.isArray(list)) return 0;
+  const current = kstMonth();
+  const seen = new Set(leaderboardCache.map((e) => e.id));
+  let added = 0;
+  const old: Record<string, any[]> = {};
+  for (const raw of list.slice(0, 400)) {
+    if (!raw || !LB_ID.test(String(raw.id || ''))) continue;
+    const m = entryMonth(raw);
+    if (!m) continue;
+    const e = cleanLeaderboardEntry(raw);
+    if (!e) continue;
+    if (m !== current) {
+      (old[m] = old[m] || []).push(e);
+      continue;
+    }
+    if (seen.has(e.id)) continue;
+    seen.add(e.id);
+    leaderboardCache.push(e);
+    added++;
+  }
+  for (const [m, l] of Object.entries(old)) archiveMonth(m, l);
+  if (added || Object.keys(old).length) {
+    sortLeaderboard();
+    persistLeaderboard();
+  }
+  return added;
 }
 
 // =========================================================================
@@ -115,8 +229,14 @@ app.use('/api', (_req, res, next) => {
   next();
 });
 
+// 서버가 켜질 때마다 바뀌는 번호: 학생 화면이 이것이 바뀐 것을 보면 '서버가 새로 켜졌다' → 자기 자료를 다시 올림
+const BOOT_ID = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', usersCount: members.members.length, time: Date.now() });
+  res.json({ status: 'ok', usersCount: members.members.length, time: Date.now(), bootId: BOOT_ID, stableSecret: !!stableSecret('member') });
+});
+// 접속 유지 신호 (학생 화면이 몇 분마다 보냄 → 수업 중에 서버가 잠들지 않게)
+app.get('/api/ping', (_req, res) => {
+  res.json({ ok: true, bootId: BOOT_ID, usersCount: members.members.length, leaderboard: leaderboardCache.length });
 });
 
 // 명단 조회: 마스터에게는 관리용 전체 정보(전화번호는 가려진 형태), 그 외에는 이름·아바타만
@@ -146,7 +266,35 @@ app.post('/api/users/login', limit(300), (req, res) => {
   }
   members.touchLogin(r.member);
   setLoginCookie(req, res, r.member.id, 'student');
-  res.json({ success: true, user: members.toClient(r.member, false) });
+  res.json({ success: true, user: members.toClient(r.member, false), memberPass: makeMemberPass(r.member) });
+});
+
+// ---------------------------------------------------------------------------
+// 회원증: AI 스튜디오 서버는 한동안 아무도 안 쓰면 빈 상태로 다시 켜짐
+//  → 학생 컴퓨터에 '서버가 서명한 회원증'을 보관해 두었다가, 서버가 비어 있으면 그 학생을 스스로 되살림
+//  → 선생님이 들어와서 복원하지 않아도 학생이 바로 로그인 가능
+// ---------------------------------------------------------------------------
+const MEMBER_PASS_SECRET = stableSecret('member') || 'typang-member-pass-fallback';
+function makeMemberPass(m: any) {
+  return sealPayload(MEMBER_PASS_SECRET, members.toPass(m));
+}
+// 로그인한 학생: 내 회원증 새로 받기 (이름·학년이 바뀌었을 때 등)
+app.post('/api/members/pass', limit(120), (req, res) => {
+  const who = readLogin(req);
+  const m = who && who.role === 'student' ? members.byId.get(who.uid) : null;
+  if (!m || !m.isApproved) return res.json({ success: false });
+  res.json({ success: true, memberPass: makeMemberPass(m) });
+});
+// 회원증으로 되살리기 (서버에 이미 있으면 그대로, 선생님이 지운 학생이면 안 됨)
+app.post('/api/members/rejoin', limit(300), (req, res) => {
+  const passes: string[] = (Array.isArray(req.body?.passes) ? req.body.passes : [req.body?.pass]).filter((x: any) => typeof x === 'string').slice(0, 20);
+  const result: Record<string, string> = {};
+  for (const token of passes) {
+    const rec = unsealPayload(MEMBER_PASS_SECRET, token);
+    if (!rec || rec.v !== 1) continue;
+    result[String(rec.id)] = members.rejoin(rec);
+  }
+  res.json({ success: true, result });
 });
 
 // 마스터 로그인 확인
@@ -310,7 +458,8 @@ function restoreFromSeed() {
       if (addedProgress) persistProgress(true);
     }
     if (Array.isArray(backup?.leaderboard) && leaderboardCache.length === 0 && backup.leaderboard.length) {
-      leaderboardCache = backup.leaderboard.slice(0, 100);
+      leaderboardCache = backup.leaderboard.slice(0, 300);
+      sweepOldMonths();
       persistLeaderboard(true);
     }
     if (addedMembers || addedProgress) {
@@ -323,27 +472,34 @@ function restoreFromSeed() {
 restoreFromSeed();
 
 // 명예의 전당
-app.get('/api/leaderboard', (_req, res) => {
+//  - 매달 새로 시작하고, 지난달 기록은 보관함에 남음 (?month=2026-09 로 볼 수 있음)
+app.get('/api/leaderboard', (req, res) => {
   checkMonthlyLeaderboardReset();
-  res.json({ success: true, leaderboard: leaderboardCache, currentMonth: lastLeaderboardMonth });
+  const months = Object.keys(leaderboardArchive).sort().reverse();
+  const month = String(req.query.month || '');
+  if (month && month !== lastLeaderboardMonth) {
+    return res.json({ success: true, leaderboard: leaderboardArchive[month] || [], month, currentMonth: lastLeaderboardMonth, months });
+  }
+  res.json({ success: true, leaderboard: leaderboardCache, month: lastLeaderboardMonth, currentMonth: lastLeaderboardMonth, months });
 });
 
 app.post('/api/leaderboard', (req, res) => {
   checkMonthlyLeaderboardReset();
-  const entry = req.body;
-  if (!entry || !entry.userName) return res.status(400).json({ success: false, message: '유효한 기록 정보가 없습니다.' });
-  leaderboardCache.push({
-    ...entry,
-    userName: String(entry.userName).slice(0, 30),
-    id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    date: entry.date || new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
-  });
-  leaderboardCache.sort((a, b) => (b.score || 0) - (a.score || 0));
-  if (leaderboardCache.length > 100) leaderboardCache.length = 100;
+  const entry = cleanLeaderboardEntry(req.body);
+  if (!entry) return res.status(400).json({ success: false, message: '유효한 기록 정보가 없습니다.' });
+  if (!leaderboardCache.some((e) => e.id === entry.id)) leaderboardCache.push(entry);
+  sortLeaderboard();
   persistLeaderboard();
-  res.json({ success: true, leaderboard: leaderboardCache });
+  res.json({ success: true, leaderboard: leaderboardCache, entry });
 });
 
+// 학생 컴퓨터에 남아 있는 기록을 서버와 맞춤: 서버가 새로 시작해 명예의 전당이 비어도
+// 학생이 접속하는 순간 자기 기록과 마지막으로 본 순위표가 다시 올라옴
+app.post('/api/leaderboard/sync', limit(600), (req, res) => {
+  checkMonthlyLeaderboardReset();
+  const added = mergeLeaderboardEntries(req.body?.entries);
+  res.json({ success: true, added, leaderboard: leaderboardCache, currentMonth: lastLeaderboardMonth });
+});
 
 // ---- 학생 자료 (어느 컴퓨터에서든 이어서 쓰기) ----
 app.get('/api/progress/:userId', (req, res) => {
@@ -407,6 +563,31 @@ app.get('/api/activity', (req, res) => {
   res.json({ success: true, users, now: Date.now() });
 });
 
+/** 백업 속 명예의 전당을 합쳐 넣음: 같은 기록은 한 번만, 지난달 기록은 보관함으로 */
+function restoreLeaderboardFromBackup(backup: any) {
+  try {
+    if (backup?.leaderboardArchive && typeof backup.leaderboardArchive === 'object') {
+      for (const [m, list] of Object.entries<any>(backup.leaderboardArchive)) {
+        if (/^\d{4}-\d{2}$/.test(m) && Array.isArray(list)) archiveMonth(m, list.filter((e: any) => e && e.id));
+      }
+    }
+    if (Array.isArray(backup?.leaderboard)) {
+      const seen = new Set(leaderboardCache.map((e: any) => e.id));
+      for (const e of backup.leaderboard) {
+        if (e && e.id && !seen.has(e.id)) {
+          seen.add(e.id);
+          leaderboardCache.push(e);
+        }
+      }
+    }
+    sortLeaderboard();
+    sweepOldMonths();
+    persistLeaderboard(true);
+  } catch (e) {
+    console.warn('[leaderboard] 백업에서 되살리지 못했습니다', e);
+  }
+}
+
 // 전체 백업 내려받기 (마스터 전용): 명단 + 학생 자료 + 명예의 전당
 app.get('/api/backup', (req, res) => {
   if (!isMaster(req)) return denyMaster(res);
@@ -418,6 +599,7 @@ app.get('/api/backup', (req, res) => {
       members: members.exportFixed(),
       progress: progressCache,
       leaderboard: leaderboardCache,
+      leaderboardArchive,
       funfunFree: getFunfunFree(),
       reports: getDailyReports(),
     },
@@ -463,13 +645,7 @@ app.post('/api/backup/restore', (req, res) => {
         }
         persistProgress(true);
       }
-      if (Array.isArray(backup.leaderboard)) {
-        const seen = new Set(leaderboardCache.map((e: any) => e.id));
-        for (const e of backup.leaderboard) if (e && !seen.has(e.id)) leaderboardCache.push(e);
-        leaderboardCache.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
-        if (leaderboardCache.length > 100) leaderboardCache.length = 100;
-        persistLeaderboard(true);
-      }
+      restoreLeaderboardFromBackup(backup);
       needsRestore = false;
       return res.json({ success: true, message: `학생 ${restoredMembers}명과 학습 자료를 되살렸습니다.`, restoredMembers });
     }
@@ -483,10 +659,8 @@ app.post('/api/backup/restore', (req, res) => {
       }
       persistProgress(true);
     }
-    if (Array.isArray(backup.leaderboard)) {
-      leaderboardCache = backup.leaderboard.slice(0, 100);
-      persistLeaderboard(true);
-    }
+    // 명예의 전당은 덮어쓰지 않고 합침 (백업을 되돌려도 그 뒤에 쌓인 기록이 지워지지 않게)
+    restoreLeaderboardFromBackup(backup);
   } catch (e) {
     return res.status(500).json({ success: false, message: '되돌리는 중 문제가 생겼습니다.' });
   }
