@@ -2132,3 +2132,22 @@
 .sd-toast--bad { background: #ff5a6e; color: #fff; }
 .sd-toast--wave { background: #5ad0ff; color: #0a2a44; }
 @keyframes sd-toast { 0%{transform:translate(-50%,-10px) scale(.8);opacity:0} 15%{transform:translate(-50%,0) scale(1.05);opacity:1} 80%{opacity:1} 100%{opacity:0} }
+
+/* 타자 치는 화면: 뒤를 흐리게 하는 효과(backdrop-filter)는 글자를 칠 때마다 화면 전체를 다시 그려
+   느린 학교 컴퓨터에서 빠르게 치면 입력이 밀리고 멈춘 것처럼 보임 → 끔 (모양은 반투명 배경 그대로) */
+.tp-typing-screen,
+.tp-typing-screen *,
+body:has(.tp-typing-screen) .tp-result-big,
+body:has(.tp-typing-screen) .tp-result-big * {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* 깜빡이는 표시는 따로 그려서(합성) 글자 칠 때 화면 전체를 다시 그리지 않게, 자판 불빛은 바로 바뀌게 */
+.tp-typing-screen .animate-pulse {
+  will-change: opacity;
+}
+.tp-typing-screen input,
+.tp-typing-screen textarea,
+.tp-typing-screen [class*='transition'] {
+  transition-duration: 0s !important;
+}

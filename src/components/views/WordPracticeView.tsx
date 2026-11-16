@@ -1,3 +1,4 @@
+import { gradeText, netCpm } from '../../utils/typingScore';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
@@ -131,7 +132,8 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     inputRef.current?.focus();
   }, [selectedCatId, wordIndex, isFinished, language]);
 
-  // Timer interval for real-time CPM
+  // Timer interval for real-time CPM (첫 키를 누르면 시작)
+  const [timerOn, setTimerOn] = useState(false);
   useEffect(() => {
     if (startTimeRef.current && !isFinished) {
       timerRef.current = window.setInterval(() => {
@@ -139,20 +141,21 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
         const elapsedSec = Math.max(1, Math.floor((now - startTimeRef.current!) / 1000));
 
         setStats((prev) => {
-          const cpm = Math.round((prev.totalKeystrokes / elapsedSec) * 60);
+          // 순타수 = 맞게 친 타수 ÷ 시간 (틀린 글자는 빠짐)
+          const cpm = netCpm(prev.correctStrokes || 0, elapsedSec);
           return {
             ...prev,
             elapsedSeconds: elapsedSec,
             cpm,
           };
         });
-      }, 300);
+      }, 1000);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isFinished]);
+  }, [isFinished, timerOn]);
 
   const statsRef = useRef(stats);
   statsRef.current = stats;
@@ -166,7 +169,10 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const finishPractice = () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    const stats = statsRef.current; // 마지막 낱말 채점까지 반영된 최신 값
+    const s0 = statsRef.current; // 마지막 낱말 채점까지 반영된 최신 값
+    const el = startTimeRef.current ? Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000)) : s0.elapsedSeconds;
+    const stats = { ...s0, elapsedSeconds: el, cpm: netCpm(s0.correctStrokes || 0, el) };
+    setStats(stats);
     setIsFinished(true);
     soundManager.playVictory();
     addTypingPracticePoints(PRACTICE_SET_POINTS, `${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`);
@@ -261,16 +267,10 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const commitWord = (typed: string, target: string) => {
     const t = target.trim();
     const v = typed.trim();
-    // 편집 거리(바꿔 친 글자·빠진 글자·더 친 글자 수)
-    const dp: number[][] = Array.from({ length: t.length + 1 }, (_, i) => [i, ...Array(v.length).fill(0)]);
-    for (let j = 1; j <= v.length; j++) dp[0][j] = j;
-    for (let i = 1; i <= t.length; i++) {
-      for (let j = 1; j <= v.length; j++) {
-        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (t[i - 1] === v[j - 1] ? 0 : 1));
-      }
-    }
-    const wrong = dp[t.length][v.length];
-    const right = Math.max(0, Math.max(t.length, v.length) - wrong);
+    // 편집 거리로 채점(바꿔 친 글자·빠진 글자·더 친 글자 = 오타), 맞게 친 글자의 타수만 셈
+    const g = gradeText(t, v);
+    const wrong = g.errors;
+    const right = g.correct;
     setLastWordResult({ word: t, typed: v, wrong });
     setStats((prev) => {
       const errorCount = prev.errorCount + wrong;
@@ -280,6 +280,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
         ...prev,
         errorCount,
         correctCount,
+        correctStrokes: (prev.correctStrokes || 0) + g.strokes,
         accuracy: totalChars > 0 ? Math.max(0, Math.round((correctCount / totalChars) * 100)) : 100,
       };
     });
@@ -293,7 +294,10 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
       setInputVal('');
       return;
     }
-    if (!startTimeRef.current) startTimeRef.current = Date.now();
+    if (!startTimeRef.current) {
+      startTimeRef.current = Date.now();
+      setTimerOn(true);
+    }
     if (typed === currentWord.trim()) {
       soundManager.playSuccess();
     } else {
@@ -332,6 +336,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
     if (!startTimeRef.current) {
       startTimeRef.current = Date.now();
+      setTimerOn(true);
     }
 
     const prevStrokes = decomposeToAtomicKeystrokes(inputVal);
@@ -433,6 +438,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     setWordIndex(0);
     setInputVal('');
     setIsFinished(false);
+    setTimerOn(false);
     setLastWordResult(null);
     pendingCommitRef.current = false;
     startTimeRef.current = null;
@@ -456,6 +462,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
       setWordIndex(0);
       setInputVal('');
       setIsFinished(false);
+      setTimerOn(false);
       startTimeRef.current = null;
     }
   };
@@ -637,7 +644,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
               className="bg-gradient-to-b from-white to-slate-100 rounded-2xl p-2.5 sm:p-3.5 border-3 border-slate-300 shadow-[0_6px_16px_rgba(0,0,0,0.15)] min-w-[180px] sm:min-w-[220px] text-center cursor-text relative"
             >
               {/* Target Word Text */}
-              <div className="text-5xl sm:text-6xl font-black text-slate-900 tracking-wider select-none mb-1">
+              <div className="text-5xl sm:text-6xl font-black text-slate-900 tracking-wider select-none mb-1" data-word={currentWord}>
                 {currentWord.split('').map((char, index) => {
                   let charState: 'matched' | 'composing' | 'error' | 'pending' = 'pending';
                   if (index < inputVal.length - 1) {

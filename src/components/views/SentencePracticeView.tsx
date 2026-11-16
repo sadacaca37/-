@@ -1,3 +1,5 @@
+import { RecordRuleNote } from '../RecordRuleNote';
+import { accuracyOf, canAdvanceByEnter, canAdvanceBySpace, gradeLive, gradeText, isRecordable, netCpm } from '../../utils/typingScore';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
@@ -242,7 +244,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
           if (idle) return prev; // 쉬는 동안은 시간도 타수도 그대로
           const newElapsed = prev.elapsedSeconds + 1;
           const mins = newElapsed / 60;
-          const currentCpm = newElapsed > 0 ? Math.round(((prev.correctStrokes || 0) * 60) / newElapsed) : 0;
+          // 순타수 = 맞게 친 타수 ÷ 시간 (오타 글자는 빠짐)
+          const currentCpm = netCpm(prev.correctStrokes || 0, newElapsed);
           return {
             ...prev,
             elapsedSeconds: newElapsed,
@@ -299,34 +302,19 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   const zeroCommitted = () => {
     committedRef.current = { errors: 0, correct: 0, total: 0, strokes: 0 };
   };
-  /** 한 문장 채점: 자리마다 비교해서 맞은 글자·오타·맞은 타수 */
-  const gradeSentence = (target: string, typed: string) => {
-    let correct = 0;
-    let errors = 0;
-    let strokes = 0;
-    for (let i = 0; i < target.length; i++) {
-      if (i < typed.length && typed[i] === target[i]) {
-        correct += 1;
-        strokes += countKeystrokes(target[i]);
-      } else errors += 1; // 틀린 글자 또는 빠뜨린 글자
-    }
-    if (typed.length > target.length) errors += typed.length - target.length; // 더 친 글자
-    return { correct, errors, strokes, total: Math.max(typed.length, target.length) };
-  };
-
   // 문장 넘기기: 오타가 있어도 넘어가지만, 오타는 오타로 세고 타수에는 맞게 친 글자만 들어감
   const handleSentenceSubmit = (typedVal: string) => {
     if (!typedVal || setFinishedRef.current) return;
     const target = currentSentence.trimEnd();
     const typed = typedVal.replace(/\s+$/, '');
     // 절반도 안 치고 넘기는 것은 막음 (Enter 만 눌러 건너뛰기 방지)
-    if (typed.replace(/\s/g, '').length < Math.ceil(target.replace(/\s/g, '').length / 2)) {
+    if (!canAdvanceByEnter(target, typed)) {
       setShortHint('문장을 끝까지 치고 넘어가요!');
       soundManager.playError();
       window.setTimeout(() => setShortHint(''), 1800);
       return;
     }
-    const g = gradeSentence(target, typed);
+    const g = gradeText(target, typed);
     const c = committedRef.current;
     c.errors += g.errors;
     c.correct += g.correct;
@@ -341,7 +329,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       correctCount: c.correct,
       totalKeystrokes: c.strokes,
       accuracy: acc,
-      cpm: prev.elapsedSeconds > 0 ? Math.round((c.strokes * 60) / prev.elapsedSeconds) : prev.cpm,
+      cpm: netCpm(c.strokes, prev.elapsedSeconds),
     }));
 
     saveTypedLog({ ...loadTypedLog(), [currentSentence]: typed });
@@ -370,7 +358,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     lastKeyAtRef.current = Date.now();
 
     // 문장을 끝까지 친 뒤 스페이스를 누르면 다음 문장으로 넘어감 (다 치기만 해서는 넘어가지 않음)
-    if (val.endsWith(' ') && val.trimEnd().length >= currentSentence.trimEnd().length) {
+    //  (빠르게 치다 한두 글자를 빠뜨려도 끝에서 스페이스가 먹힘 — 빠뜨린 글자는 오타)
+    if (val.endsWith(' ') && val.trim().length > 0 && canAdvanceBySpace(currentSentence, val.trimEnd())) {
       handleSentenceSubmit(val.trimEnd());
       return;
     }
@@ -392,26 +381,10 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     setIsCorrectLastKey(isValidPrefix);
 
     // 지금 치는 문장: 오타 수와 맞게 친 타수 (마지막 글자는 한글 조합 중일 수 있어 앞부분이 맞으면 맞음으로)
-    let currentErrors = 0;
-    let currentCorrect = 0;
-    let currentStrokes = 0;
-    for (let i = 0; i < val.length; i++) {
-      if (i >= currentSentence.length) {
-        currentErrors++;
-      } else if (i === val.length - 1) {
-        if (val[i] === currentSentence[i]) {
-          currentCorrect++;
-          currentStrokes += countKeystrokes(val[i]);
-        } else if (isHangulPrefix(currentSentence.slice(0, val.length), val)) {
-          currentStrokes += countKeystrokes(val[i]); // 조합 중인 글자
-        } else currentErrors++;
-      } else if (val[i] === currentSentence[i]) {
-        currentCorrect++;
-        currentStrokes += countKeystrokes(val[i]);
-      } else {
-        currentErrors++;
-      }
-    }
+    const lg = gradeLive(currentSentence, val, isHangulPrefix);
+    const currentErrors = lg.errors;
+    const currentCorrect = lg.correct;
+    const currentStrokes = lg.strokes;
 
     const c = committedRef.current;
     const totalChars = c.total + val.length;
@@ -570,11 +543,13 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
 
       // 맞게 친 타수 ÷ 시간 (넘긴 문장들의 합계로 바로 계산)
       const c = committedRef.current;
-      const finalCpm = stats.elapsedSeconds > 0 ? Math.round((c.strokes * 60) / stats.elapsedSeconds) : stats.cpm;
       const finalErrors = c.errors;
-      const finalAccuracy = c.total > 0 ? Math.max(0, Math.round(((c.total - c.errors) / c.total) * 100)) : 100;
-      const isFirst = bestCpm === 0;
-      const isBeat = !isFirst && finalCpm > bestCpm && finalAccuracy >= 95;
+      const finalAccuracy = accuracyOf(c);
+      const finalCpm = netCpm(c.strokes, stats.elapsedSeconds);
+      // 최고 기록도 정확도 기준을 넘어야 남김 (오타가 많은 기록이 '최고 타수'가 되지 않게)
+      const recordable = isRecordable(finalCpm, finalAccuracy);
+      const isFirst = bestCpm === 0 && recordable;
+      const isBeat = !isFirst && recordable && finalCpm > bestCpm && finalAccuracy >= 95;
 
       if (isFirst && finalCpm > 0) {
         try {
@@ -637,7 +612,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
           totalKeystrokes: c.strokes,
           elapsedSeconds: stats.elapsedSeconds,
         });
-        if (currentUser && finalCpm > 30) {
+        // 명예의 전당: 한컴타자처럼 타수가 높을수록 정확도가 더 높아야 인정 (70~90%)
+        if (currentUser && finalCpm > 30 && isRecordable(finalCpm, finalAccuracy)) {
           onRecordScore({
             userName: currentUser.name,
             userAvatar: currentUser.avatar || '⭐',
@@ -717,7 +693,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     } catch {}
 
     // Only logged-in users get recorded in the Hall of Fame Leaderboard
-    if (currentUser) {
+    if (currentUser && isRecordable(stats.cpm, stats.accuracy)) {
       onRecordScore({
         userName: currentUser.name,
         userAvatar: currentUser.avatar || '👑',
@@ -1131,7 +1107,12 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         }}
         onRetry={handleRetrySetFromModal}
         onNext={handleNextSetFromModal}
-        review={<TypingReviewList items={reviewItems} title="아직 안 친 문장" emptyText="이번 세트의 문장을 빠짐없이 모두 쳤어요! 👏" />}
+        review={
+          <>
+            <RecordRuleNote cpm={setResultData.cpm} accuracy={setResultData.accuracy} />
+            <TypingReviewList items={reviewItems} title="아직 안 친 문장" emptyText="이번 세트의 문장을 빠짐없이 모두 쳤어요! 👏" />
+          </>
+        }
       />
 
       {/* MyChew High Score Reward Modal */}

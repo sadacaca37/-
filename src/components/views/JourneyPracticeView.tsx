@@ -1,3 +1,4 @@
+import { canAdvanceBySpace, gradeText, netCpm } from '../../utils/typingScore';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import {
@@ -286,8 +287,8 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       timerIntervalRef.current = window.setInterval(() => {
         setStats((prev) => {
           const newElapsed = prev.elapsedSeconds + 1;
-          const minutes = newElapsed / 60;
-          const currentCpm = minutes > 0 ? Math.round(bufferedCharsRef.current / minutes) : 0;
+          // 순타수 = 맞게 친 타수 ÷ 시간 (틀린 글자는 빠짐)
+          const currentCpm = netCpm(prev.correctStrokes || 0, newElapsed);
           return {
             ...prev,
             elapsedSeconds: newElapsed,
@@ -345,14 +346,14 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
     const t = normalizeLyricsText(target);
     const v = normalizeLyricsText(typed);
     const ratio = commitLine(typed, target);
-    const total = Math.max(t.length, v.length);
-    const right = Math.round(ratio * total);
-    const wrong = total - right;
+    const g = gradeText(t, v);
+    const right = g.correct;
+    const wrong = g.errors;
     setStats((prev) => {
       const correctCount = prev.correctCount + right;
       const errorCount = prev.errorCount + wrong;
       const sum = correctCount + errorCount;
-      return { ...prev, correctCount, errorCount, accuracy: sum > 0 ? Math.round((correctCount / sum) * 100) : 100 };
+      return { ...prev, correctCount, errorCount, correctStrokes: (prev.correctStrokes || 0) + g.strokes, accuracy: sum > 0 ? Math.round((correctCount / sum) * 100) : 100 };
     });
     return ratio;
   };
@@ -368,7 +369,8 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
     if (val.endsWith(' ') && val.trim().length > 0) {
       const body = val.trimEnd();
       if (activeTab === 'lyrics' || activeTab === 'book') {
-        if (body.length >= currentExpectedAnswer.trimEnd().length) {
+        // 끝까지(또는 거의 끝까지) 쳤으면 스페이스로 넘어감 — 빠뜨린 글자는 오타로 셈
+        if (canAdvanceBySpace(currentExpectedAnswer, body)) {
           submitLine(body);
           return;
         }

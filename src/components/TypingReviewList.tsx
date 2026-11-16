@@ -26,7 +26,12 @@ export function diffTyping(target: string, typed = ''): Seg[] {
 }
 
 /** 끝까지 치지 않은(빠진 글자가 있는) 항목인지 */
-export const isUnfinished = (target: string, typed?: string) => !typed || typed.replace(/\s+$/, '').length < target.replace(/\s+$/, '').length;
+/** 덜 친 줄: 끝까지 안 쳤음 (빠르게 치다 빠뜨린 글자 10% 이내는 '다 친 것'으로 보고, 빠뜨린 글자는 오타로 셈) */
+export const isUnfinished = (target: string, typed?: string) => {
+  if (!typed) return true;
+  const t = target.replace(/\s+$/, '').length;
+  return typed.replace(/\s+$/, '').length < t - Math.floor(t * 0.1);
+};
 
 export const TypingReviewList: React.FC<{
   items: TypingReviewItem[];

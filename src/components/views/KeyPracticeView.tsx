@@ -1,3 +1,4 @@
+import { netCpm } from '../../utils/typingScore';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
@@ -105,6 +106,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
   }, [selectedStageId, sampleIndex, isFinished, language]);
 
   // Timer interval for real-time CPM
+  // 첫 키를 누르면 시계 시작 (예전에는 시계가 시작되지 않아 타수가 0으로 남는 경우가 있었음)
+  const [timerOn, setTimerOn] = useState(false);
   useEffect(() => {
     if (startTimeRef.current && !isFinished) {
       timerRef.current = window.setInterval(() => {
@@ -112,7 +115,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
         const elapsedSec = Math.max(1, Math.floor((now - startTimeRef.current!) / 1000));
 
         setStats((prev) => {
-          const cpm = Math.round((prev.totalKeystrokes / elapsedSec) * 60);
+          // 순타수 = 맞게 친 타수 ÷ 시간 (틀리게 누른 키는 빠짐)
+          const cpm = netCpm(prev.correctStrokes || 0, elapsedSec);
           const totalAttempts = prev.correctCount + prev.errorCount;
           const accuracy = totalAttempts > 0 ? Math.round((prev.correctCount / totalAttempts) * 100) : 100;
           return {
@@ -122,13 +126,13 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
             accuracy,
           };
         });
-      }, 300);
+      }, 1000);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isFinished]);
+  }, [isFinished, timerOn]);
 
   /** 세트가 끝난 뒤 키를 더 눌러도 다시 끝나거나 별·기록이 또 쌓이지 않게 */
   const finishedRef = useRef(false);
@@ -136,9 +140,18 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
     if (!isFinished) finishedRef.current = false;
   }, [isFinished]);
 
+  const statsRef = useRef(stats);
+  statsRef.current = stats;
+
   const finishPractice = () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
+    // 마지막 키까지 반영된 값으로 최종 타수·정확도 계산
+    const s0 = statsRef.current;
+    const el = startTimeRef.current ? Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000)) : s0.elapsedSeconds;
+    const attempts = s0.correctCount + s0.errorCount;
+    const stats = { ...s0, elapsedSeconds: el, cpm: netCpm(s0.correctStrokes || 0, el), accuracy: attempts > 0 ? Math.round((s0.correctCount / attempts) * 100) : 100 };
+    setStats(stats);
     setIsFinished(true);
     soundManager.playVictory();
     addTypingPracticePoints(PRACTICE_SET_POINTS, `${language === 'ko' ? '한글' : '영어'} 자리 (${stage.title}) 완주`);
@@ -234,6 +247,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
 
     if (!startTimeRef.current) {
       startTimeRef.current = Date.now();
+      setTimerOn(true);
     }
 
     if (!val) {
@@ -278,6 +292,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
           ...prev,
           correctCount: prev.correctCount + 1,
           totalKeystrokes: prev.totalKeystrokes + strokesAdded,
+          correctStrokes: (prev.correctStrokes || 0) + strokesAdded,
           combo: nextCombo,
           maxCombo: Math.max(prev.maxCombo, nextCombo),
         };
@@ -287,7 +302,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
       if (sampleIndex + 1 < TOTAL_TRIALS) {
         setSampleIndex((prev) => prev + 1);
       } else {
-        finishPractice();
+        setTimeout(finishPractice, 0);
       }
     } else {
       soundManager.playKeyClick(false);
@@ -332,7 +347,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
         setSampleIndex((prev) => prev + 1);
         setInputVal('');
       } else {
-        finishPractice();
+        setTimeout(finishPractice, 0);
       }
     }
   };
@@ -341,6 +356,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
     setSampleIndex(0);
     setInputVal('');
     setIsFinished(false);
+    setTimerOn(false);
     startTimeRef.current = null;
     setStats({
       cpm: 0,
@@ -362,6 +378,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
       setSampleIndex(0);
       setInputVal('');
       setIsFinished(false);
+      setTimerOn(false);
       startTimeRef.current = null;
     }
   };

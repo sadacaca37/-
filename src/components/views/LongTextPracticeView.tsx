@@ -1,3 +1,4 @@
+import { accuracyOf, addGrade, canAdvanceBySpace, emptyGrade, Grade, gradeLive, gradeText, netCpm } from '../../utils/typingScore';
 import { SendReportCTA } from '../SendReportCTA';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
@@ -350,14 +351,17 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     soundManager.playPageTurn();
     setPageIndex(newIndex);
     setInputVal('');
-    startTimeRef.current = null;
     setTimeout(() => {
       setIsPageTurning(false);
       inputRef.current?.focus();
     }, 380);
   };
 
+  /** 이 글에서 넘긴 쪽들의 합계 (화면의 타수·오타·정확도 = 이것 + 지금 치는 쪽) */
+  const committedRef = useRef<Grade>(emptyGrade());
+
   const resetSessionStats = () => {
+    committedRef.current = emptyGrade();
     setIsTimerRunning(false);
     startTimeRef.current = null;
     setStats({
@@ -384,7 +388,8 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       timerIntervalRef.current = window.setInterval(() => {
         setStats((prev) => {
           const nextSec = prev.elapsedSeconds + 1;
-          const currentCPM = Math.round((prev.correctCount / Math.max(1, nextSec)) * 60);
+          // 순타수 = 맞게 친 타수 ÷ 시간 (오타 글자는 빠짐, 쪽이 바뀌어도 이어서 셈)
+          const currentCPM = netCpm(prev.correctStrokes || 0, nextSec);
           return {
             ...prev,
             elapsedSeconds: nextSec,
@@ -417,58 +422,41 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     }
 
     // 한 쪽을 다 친 뒤 스페이스(또는 엔터)를 누르면 다음 쪽으로 넘어감 — 다 치기만 해서는 넘어가지 않음
-    if (val.length === targetPageText.length + 1 && val.slice(0, -1) === targetPageText && /[ \n]$/.test(val)) {
-      if (!composingRef.current) handlePageFinished();
-      return;
-    }
-
-    // Start timer on first input
-    if (!startTimeRef.current && val.length > 0) {
-      startTimeRef.current = Date.now();
-      setIsTimerRunning(true);
-    }
-
-    // Accurately calculate typos and correct keystrokes
-    // Support Korean IME composing characters:
-    let currentErrors = 0;
-    let correctCharsCount = 0;
-    for (let i = 0; i < val.length; i++) {
-      if (i === val.length - 1 && i < targetPageText.length) {
-        // Current character might be mid-composition
-        const targetSub = targetPageText.slice(0, val.length);
-        if (!isHangulPrefix(targetSub, val)) {
-          currentErrors++;
-        } else {
-          correctCharsCount++;
+    //  (빠르게 치다 몇 글자를 빠뜨렸거나 틀려도 끝에서 넘어감: 틀린·빠뜨린 글자는 오타로 셈 → 멈춘 것처럼 보이지 않게)
+    if (/[ \n]$/.test(val) && val.length > inputVal.length) {
+      const body = val.replace(/[ \n]+$/, '');
+      if (body.length >= targetPageText.length || (canAdvanceBySpace(targetPageText, body) && val.length - 1 >= body.length && targetPageText[body.length] !== '\n')) {
+        if (!composingRef.current) handlePageFinished(body);
+        else {
+          pendingFinishRef.current = true; // 한글 조합이 끝나면 넘김
+          setInputVal(body);
         }
-      } else if (i < targetPageText.length) {
-        if (val[i] !== targetPageText[i]) {
-          currentErrors++;
-        } else {
-          correctCharsCount++;
-        }
-      } else {
-        currentErrors++;
+        return;
       }
     }
 
-    const totalChars = val.length;
-    const accuracy = totalChars > 0 
-      ? Math.max(0, Math.round(((correctCharsCount) / Math.max(totalChars, 1)) * 100)) 
-      : 100;
+    // Start timer on first input
+    if (!isTimerRunning && val.length > 0) {
+      startTimeRef.current = startTimeRef.current || Date.now();
+      setIsTimerRunning(true);
+    }
 
-    const elapsedSec = Math.max(1, Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000));
-    const totalStrokes = countKeystrokes(val);
-    const cpm = Math.round((totalStrokes / elapsedSec) * 60);
+    // 채점: 넘긴 쪽 합계 + 지금 치는 쪽 (마지막 글자는 한글 조합 중일 수 있음)
+    const lg = gradeLive(targetPageText, val, isHangulPrefix);
+    const c = committedRef.current;
+    const all = addGrade(c, lg);
+    const accuracy = accuracyOf(all);
+    const currentErrors = lg.errors;
     const combo = currentErrors === 0 ? val.length : 0;
 
     setStats((prev) => ({
       ...prev,
-      errorCount: currentErrors,
-      totalKeystrokes: totalStrokes,
-      correctCount: correctCharsCount,
+      errorCount: all.errors,
+      totalKeystrokes: all.strokes,
+      correctStrokes: all.strokes,
+      correctCount: all.correct,
       accuracy,
-      cpm,
+      cpm: netCpm(all.strokes, prev.elapsedSeconds),
       combo,
       maxCombo: Math.max(prev.maxCombo, combo),
     }));
@@ -499,8 +487,8 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     if (!pendingFinishRef.current) return;
     pendingFinishRef.current = false;
     setTimeout(() => {
-      const v = inputRef.current?.value ?? '';
-      if (v === targetPageText || v === targetPageText + ' ' || v === targetPageText + '\n') handlePageFinished();
+      const v = (inputRef.current?.value ?? '').replace(/[ \n]+$/, '');
+      if (canAdvanceBySpace(targetPageText, v)) handlePageFinished(v);
     }, 0);
   };
 
@@ -510,15 +498,24 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     if (!isCompletedModalOpen) completedRef.current = false;
   }, [isCompletedModalOpen]);
 
-  const handlePageFinished = () => {
+  const handlePageFinished = (typedArg?: string) => {
     if (completedRef.current) return;
-    // Check for 0 errors and minimum 90% accuracy before awarding points
-    if (stats.errorCount === 0 && stats.accuracy >= 90) {
-      soundManager.playPageTurn();
-      // 쪽마다 주지 않고, 글 한 편을 끝낼 때 한 번에 지급
-    } else {
-      soundManager.playPageTurn();
-    }
+    const typed = (typedArg ?? inputRef.current?.value ?? inputVal).replace(/[ \n]+$/, '');
+    // 이 쪽 채점을 합계에 더함 (틀린·빠뜨린 글자는 오타)
+    const g = gradeText(targetPageText, typed);
+    committedRef.current = addGrade(committedRef.current, g);
+    const c = committedRef.current;
+    const acc = accuracyOf(c);
+    setStats((prev) => ({
+      ...prev,
+      errorCount: c.errors,
+      correctCount: c.correct,
+      correctStrokes: c.strokes,
+      totalKeystrokes: c.strokes,
+      accuracy: acc,
+      cpm: netCpm(c.strokes, prev.elapsedSeconds),
+    }));
+    soundManager.playPageTurn();
 
     // Flush buffered keystrokes at page completion
     if (bufferedCharsRef.current > 0) {
@@ -535,7 +532,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       accuracy: stats.accuracy,
     }, currentUser?.id, true);
 
-    const log: PageLog = { ...pageLog, [pageIndex]: { typed: targetPageText, done: true } };
+    const log: PageLog = { ...pageLog, [pageIndex]: { typed, done: true } };
     writePageLog(log);
 
     // 안 친 쪽 고치는 중이면: 다음 '안 친 쪽'으로 바로 이동
@@ -577,10 +574,13 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     markQuestUnitDone(currentUser?.id, 'long-practice', currentText.id, language);
     clearPageLog();
     
-    // Only award 120 completion points if accuracy >= 90%
-    if (stats.accuracy >= 90 && stats.errorCount === 0) {
+    // 완독 포인트: 정확도 90% 이상일 때 (오타 수·정확도·타수는 이 글 전체 합계로)
+    const cg = committedRef.current;
+    const bookAcc = accuracyOf(cg);
+    const bookCpm = netCpm(cg.strokes, stats.elapsedSeconds);
+    if (bookAcc >= 90) {
       addTypingPracticePoints(PRACTICE_SET_POINTS, `긴 글 완독: ${currentText.title}`);
-      checkMychewRenewal(stats.cpm, stats.accuracy);
+      checkMychewRenewal(bookCpm, bookAcc);
     }
     
     // Flush buffered keystrokes if any remaining
@@ -605,11 +605,11 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       language,
       stageTitle: `${currentText.author} - ${currentText.title}`,
       sampleText: currentText.paragraphs[0]?.slice(0, 50) + '...',
-      cpm: stats.cpm,
-      accuracy: stats.accuracy,
-      errorCount: stats.errorCount,
-      correctCount: stats.correctCount,
-      totalKeystrokes: stats.totalKeystrokes,
+      cpm: bookCpm,
+      accuracy: bookAcc,
+      errorCount: cg.errors,
+      correctCount: cg.correct,
+      totalKeystrokes: cg.strokes,
       elapsedSeconds: stats.elapsedSeconds,
     });
 
@@ -622,8 +622,9 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       return;
     }
     if (e.key === 'Enter') {
-      // Only advance on Enter if text strictly matches target text with 0 errors
-      if (inputVal === targetPageText && stats.errorCount === 0) {
+      // 쪽 끝에서 Enter: (거의) 다 쳤으면 오타가 있어도 넘어감 — 오타는 오타로 셈
+      const nextChar0 = targetPageText[inputVal.length];
+      if (nextChar0 !== '\n' && canAdvanceBySpace(targetPageText, inputVal.replace(/[ \n]+$/, ''))) {
         e.preventDefault();
         if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
           pendingFinishRef.current = true; // 조합이 끝나면 넘김
@@ -658,7 +659,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
   const handleNextPageManual = () => {
     if (pageIndex + 1 < totalPages) {
       turnPageTo(pageIndex + 1, 'next');
-    } else if (inputVal === targetPageText && stats.errorCount === 0) {
+    } else if (canAdvanceBySpace(targetPageText, inputVal.replace(/[ \n]+$/, ''))) {
       handlePageFinished();
     } else {
       // 마지막 쪽에서 '다음'을 누르면 아직 안 친 쪽을 보여줌
@@ -880,7 +881,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 onScroll={handleReadingScroll}
                 className="h-[250px] min-h-[250px] max-h-[250px] overflow-y-scroll scrollbar-thin my-1 p-3.5 sm:p-4 rounded-xl bg-[#FAF7EE] border-2 border-[#DDD3C2] shadow-2xs select-none"
               >
-                <div className="text-sm sm:text-base font-serif leading-[2.1] text-[#2A231F] break-keep whitespace-pre-wrap tracking-normal">
+                <div className="text-sm sm:text-base font-serif leading-[2.1] text-[#2A231F] break-keep whitespace-pre-wrap tracking-normal" data-page-text={targetPageText}>
                   {targetPageText.split('').map((char, charIdx) => {
                     const isTyped = charIdx < inputVal.length;
                     const isCurrent = charIdx === inputVal.length;

@@ -98,6 +98,8 @@ if (typeof window !== 'undefined') {
 
 /** 열려 있는 연습 창 (모드별로 하나) */
 const openPracticeWindows = new Map<string, Window>();
+/** 타자를 치는 화면: 흐림(유리) 효과를 꺼서 느린 컴퓨터에서도 빠르게 칠 때 화면이 버벅이거나 멈추지 않게 */
+const TYPING_SCREENS = new Set<string>(['key-practice', 'word-practice', 'sentence-practice', 'long-practice', 'capital-journey', 'joseon-journey', 'lyrics-challenge', 'transcription-challenge', 'python-coding']);
 
 export default function App() {
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
@@ -388,7 +390,7 @@ export default function App() {
   const pendingStudentsCount = usersDb.filter((u) => !u.isApproved && u.role !== 'master').length;
 
   return (
-    <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg ${isPopupMode ? '' : 'retro-cursor'}`}>
+    <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg ${isPopupMode ? '' : 'retro-cursor'} ${isPopupMode || TYPING_SCREENS.has(currentMode) ? 'tp-typing-screen' : ''}`}>
       {!isPopupMode && <GutterBots />}
       {/* Navigation Header with Creator Credit - Hidden in standalone popup window */}
       {!isPopupMode && (

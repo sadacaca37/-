@@ -107,7 +107,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         <div className="grid grid-cols-3 gap-2 bg-white p-3.5 rounded-2xl border-2 border-amber-200 shadow-xs">
           {/* 타자수 */}
           <div className="bg-amber-50/80 rounded-xl p-2.5 border border-amber-100">
-            <div className="text-sm font-bold text-stone-500">타자수 (속도)</div>
+            <div className="text-sm font-bold text-stone-500">타수 (맞게 친 것)</div>
             <div className="text-4xl font-black text-amber-700 font-mono mt-0.5">
               {cpm} <span className="text-xs font-bold text-stone-400">타</span>
             </div>
@@ -138,10 +138,10 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-200 space-y-2 text-left">
             <div className="flex items-center justify-between">
               <span className="text-base font-black text-amber-900 flex items-center gap-1">
-                <span>별 적립 현황 (10세트 완주 시 다음 단계 & 마이쮸)</span>
+                <span>별 적립 현황 ({practiceKind === 'key' ? '별 10개' : '10세트 완주'} 시 다음 단계 & 마이쮸)</span>
               </span>
               <span className="text-base font-black text-amber-700 font-mono">
-                {currentStars} / 10 세트
+                {currentStars} / 10 {practiceKind === 'key' ? '개' : '세트'}
               </span>
             </div>
 
