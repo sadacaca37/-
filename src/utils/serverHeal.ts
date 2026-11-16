@@ -94,6 +94,9 @@ export async function refreshMemberPass(userId: string) {
 /* ------------------------------------------------------------- 명예의 전당 */
 const kstMonth = (ts = Date.now()) => new Date(ts + 9 * 3600 * 1000).toISOString().slice(0, 7);
 const VALID_ID = /^lead_[A-Za-z0-9_]{6,48}$/;
+/** 서버와 같은 기준: 이보다 빠른 타수는 오류로 생긴 기록이라 버림 */
+const MAX_CPM = 1200;
+const plausible = (e: any) => !!e && VALID_ID.test(String(e.id || '')) && Number(e.cpm) > 0 && Number(e.cpm) <= MAX_CPM;
 
 /** 새 기록 만들기: 서버와 학생 컴퓨터가 같은 기록을 알아볼 수 있게 고유 번호·시각을 붙임 */
 export function makeLeaderboardEntry(base: Omit<LeaderboardEntry, 'id' | 'date'>, extra: Partial<LeaderboardEntry>): LeaderboardEntry & { ts: number } {
@@ -107,18 +110,19 @@ export function rememberMyRecord(userId: string, entry: LeaderboardEntry & { ts?
   if (!userId) return;
   const now = kstMonth();
   const prevMonth = kstMonth(Date.now() - 32 * 86400000);
-  const list = readJson<any[]>(MY_LB_PREFIX + userId, []).filter((e) => {
+  if (!plausible(entry)) return;
+  const list = readJson<any[]>(MY_LB_PREFIX + userId, []).filter(plausible).filter((e) => {
     const m = e?.ts ? kstMonth(e.ts) : '';
     return m === now || m === prevMonth;
   });
   if (!list.some((e) => e.id === entry.id)) list.push(entry);
   list.sort((a, b) => (b.cpm || 0) - (a.cpm || 0));
-  writeJson(MY_LB_PREFIX + userId, list.slice(0, 30));
+  writeJson(MY_LB_PREFIX + userId, list.slice(0, 5)); // 좋은 기록 몇 개만 (서버에도 학생마다 3개까지만 남음)
 }
 
 export function readCachedBoard(): LeaderboardEntry[] {
   const v = readJson<LeaderboardEntry[]>(BOARD_KEY, []);
-  return Array.isArray(v) ? v.filter((e) => e && VALID_ID.test(String(e.id || ''))) : [];
+  return Array.isArray(v) ? v.filter(plausible) : [];
 }
 export function saveCachedBoard(list: LeaderboardEntry[]) {
   writeJson(BOARD_KEY, Array.isArray(list) ? list.slice(0, 300) : []);
@@ -128,7 +132,7 @@ export function saveCachedBoard(list: LeaderboardEntry[]) {
 export async function syncLeaderboard(): Promise<LeaderboardEntry[] | null> {
   const mine: any[] = [];
   for (const k of keysWithPrefix(MY_LB_PREFIX)) mine.push(...readJson<any[]>(k, []));
-  const entries = [...mine, ...readCachedBoard()].filter((e) => e && VALID_ID.test(String(e.id || ''))).slice(0, 400);
+  const entries = [...mine, ...readCachedBoard()].filter(plausible).slice(0, 400);
   if (!entries.length) {
     try {
       const r = await fetch('/api/leaderboard', { cache: 'no-store' });

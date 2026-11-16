@@ -130,7 +130,15 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
     };
   }, [isFinished]);
 
+  /** 세트가 끝난 뒤 키를 더 눌러도 다시 끝나거나 별·기록이 또 쌓이지 않게 */
+  const finishedRef = useRef(false);
+  useEffect(() => {
+    if (!isFinished) finishedRef.current = false;
+  }, [isFinished]);
+
   const finishPractice = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
     setIsFinished(true);
     soundManager.playVictory();
     addTypingPracticePoints(PRACTICE_SET_POINTS, `${language === 'ko' ? '한글' : '영어'} 자리 (${stage.title}) 완주`);
@@ -221,6 +229,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (finishedRef.current) return;
     let val = e.target.value;
 
     if (!startTimeRef.current) {
@@ -309,7 +318,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (inputVal.length === 0) return;
+      if (e.repeat || finishedRef.current || inputVal.length === 0) return;
 
       if (inputVal === currentSample) {
         soundManager.playSuccess();
@@ -552,7 +561,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
               className="bg-gradient-to-b from-white to-slate-100 rounded-2xl p-4 sm:p-6 border-3 border-slate-300 shadow-[0_6px_16px_rgba(0,0,0,0.15)] min-w-[280px] sm:min-w-[360px] text-center cursor-text relative"
             >
               {/* Target Text */}
-              <div className="text-6xl sm:text-7xl font-black text-slate-900 tracking-wider select-none mb-1 font-mono">
+              <div className="text-6xl sm:text-7xl font-black text-slate-900 tracking-wider select-none mb-1 font-mono" data-sample={currentSample}>
                 {currentSample.split('').map((char, index) => {
                   const isTyped = index < inputVal.length;
                   const isMatch = isTyped && inputVal[index] === char;
@@ -779,6 +788,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
       {/* Practice Set Result Modal: Displays CPM, error count, and star accumulation */}
       <PracticeSetResultModal
         isOpen={showSetResultModal}
+        practiceKind="key"
         onClose={() => setShowSetResultModal(false)}
         title={`자리연습 (${stage.title})`}
         cpm={stats.cpm}

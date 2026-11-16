@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Send, X } from 'lucide-react';
 import { UserSession } from '../types';
 import { buildTodaySummary, fetchMyReports, MyReport, sendTodayReport } from '../utils/dailyReport';
-import { lastNDayKeys } from '../utils/activityLog';
+import { KEY_ROUNDS_PER_SET, lastNDayKeys, modeSetLabel } from '../utils/activityLog';
 
 interface Props {
   isOpen: boolean;
@@ -56,28 +56,29 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-lg p-5 sm:p-6 shadow-2xl border-4 border-sky-200 relative" onClick={(e) => e.stopPropagation()} data-testid="send-report-modal">
-        <button type="button" onClick={onClose} className="absolute right-4 top-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer" aria-label="닫기">
-          <X className="w-4 h-4 text-slate-600" />
+      <div className="bg-white rounded-[2rem] w-full max-w-2xl p-6 sm:p-9 shadow-2xl border-4 border-sky-300 relative max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="send-report-modal">
+        <button type="button" onClick={onClose} className="absolute right-5 top-5 w-11 h-11 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer" aria-label="닫기">
+          <X className="w-6 h-6 text-slate-600" />
         </button>
-        <h2 className="text-lg font-black text-slate-900">📮 오늘 연습, 선생님께 보내기</h2>
-        <p className="text-xs font-bold text-slate-500 mt-0.5">오늘 연습을 다 했으면 보내 주세요. 선생님이 모아서 확인해요.</p>
+        <h2 className="text-2xl sm:text-3xl font-black text-slate-900 pr-12">📮 오늘 연습, 선생님께 보내기</h2>
+        <p className="text-base font-bold text-slate-500 mt-1">오늘 연습을 다 했으면 보내 주세요. 선생님이 모아서 확인해요.</p>
+        <p className="text-sm font-bold text-sky-700 mt-1">⌨️ 자리 연습은 {KEY_ROUNDS_PER_SET}번 = 1세트 · 다른 연습은 1번 끝내면 1세트</p>
 
-        <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+        <div className="grid grid-cols-3 gap-3 mt-5 text-center">
           <Cell label="끝낸 세트" value={`${s.sets}세트`} />
           <Cell label="친 글자 수" value={`${s.keys.toLocaleString()}타`} />
           <Cell label="연습 시간" value={`${s.minutes}분`} />
-          <Cell label="평균 타수" value={s.sets ? `${s.avgCpm}타` : '-'} />
-          <Cell label="정확도" value={s.sets ? `${s.avgAcc}%` : '-'} />
+          <Cell label="평균 타수" value={s.rounds || s.sets ? `${s.avgCpm}타` : '-'} />
+          <Cell label="정확도" value={s.rounds || s.sets ? `${s.avgAcc}%` : '-'} />
           <Cell label="전체 진도" value={`${s.questPercent}%`} />
         </div>
 
-        <div className="flex flex-wrap gap-1.5 mt-2 min-h-[22px]">
+        <div className="flex flex-wrap gap-2 mt-3 min-h-[28px]">
           {Object.entries(s.byMode)
             .filter(([, c]) => c > 0)
             .map(([m, c]) => (
-              <span key={m} className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-[11px] font-black">
-                {MODE_NAME[m] || m} {c}세트
+              <span key={m} className="px-3 py-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-sm font-black">
+                {MODE_NAME[m] || m} {modeSetLabel(m, c)}
               </span>
             ))}
         </div>
@@ -87,48 +88,48 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
           onChange={(e) => setNote(e.target.value.slice(0, 120))}
           placeholder="선생님께 한마디 (안 써도 돼요)"
           rows={2}
-          className="mt-3 w-full px-3 py-2 rounded-2xl border-2 border-slate-200 focus:border-sky-400 text-sm font-bold text-slate-800 outline-hidden resize-none"
+          className="mt-4 w-full px-4 py-3 rounded-2xl border-2 border-slate-200 focus:border-sky-400 text-base font-bold text-slate-800 outline-hidden resize-none"
         />
 
         {!today.active ? (
-          <div className="mt-3 px-3 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold text-center">오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요!</div>
+          <div className="mt-4 px-4 py-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-800 text-base font-bold text-center">오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요!</div>
         ) : (
           <button
             type="button"
             onClick={handleSend}
             disabled={busy || (!!sent && !changedSinceSent && !note.trim())}
             data-testid="send-report-btn"
-            className="mt-3 w-full py-3 rounded-2xl bg-sky-500 hover:bg-sky-400 disabled:bg-slate-300 text-white font-black text-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-default"
+            className="mt-4 w-full py-5 rounded-3xl bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 disabled:from-slate-300 disabled:to-slate-300 text-white font-black text-2xl shadow-lg flex items-center justify-center gap-3 cursor-pointer disabled:cursor-default"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-7 h-7" />
             {busy ? '보내는 중…' : !sent ? '선생님께 보내기' : changedSinceSent || note.trim() ? '더 연습한 것 다시 보내기' : `오늘 보냈어요 (${hm(sent.sentAt)})`}
           </button>
         )}
 
-        {msg && <div className="mt-2 text-center text-sm font-black text-slate-800">{msg}</div>}
+        {msg && <div className="mt-3 text-center text-lg font-black text-slate-800">{msg}</div>}
         {sent && !msg && (
-          <div className="mt-2 text-center text-xs font-bold text-slate-500">
+          <div className="mt-3 text-center text-base font-bold text-slate-500">
             {sent.checkedAt ? '💮 선생님이 확인했어요!' : '선생님이 아직 확인하지 않았어요.'}
           </div>
         )}
 
-        <div className="mt-4 pt-3 border-t border-slate-100">
-          <div className="text-[11px] font-black text-slate-500 mb-1.5">최근 7일</div>
-          <div className="grid grid-cols-7 gap-1 text-center">
+        <div className="mt-5 pt-4 border-t border-slate-100">
+          <div className="text-sm font-black text-slate-500 mb-2">최근 7일</div>
+          <div className="grid grid-cols-7 gap-2 text-center">
             {week.map((k) => {
               const r = mine.find((x) => x.day === k);
               const d = new Date(Number(k.slice(0, 4)), Number(k.slice(5, 7)) - 1, Number(k.slice(8, 10)));
               return (
-                <div key={k} className={`rounded-xl border py-1 ${r ? (r.checkedAt ? 'bg-emerald-100 border-emerald-300' : 'bg-sky-100 border-sky-300') : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="text-[10px] font-bold text-slate-500">
+                <div key={k} className={`rounded-2xl border-2 py-2 ${r ? (r.checkedAt ? 'bg-emerald-100 border-emerald-300' : 'bg-sky-100 border-sky-300') : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="text-xs font-bold text-slate-500">
                     {d.getDate()}({WEEK[d.getDay()]})
                   </div>
-                  <div className="text-sm leading-tight">{r ? (r.checkedAt ? '💮' : '📮') : '·'}</div>
+                  <div className="text-xl leading-tight">{r ? (r.checkedAt ? '💮' : '📮') : '·'}</div>
                 </div>
               );
             })}
           </div>
-          <div className="mt-1 text-[10px] font-bold text-slate-400">📮 보냄 · 💮 선생님 확인</div>
+          <div className="mt-2 text-xs font-bold text-slate-400">📮 보냄 · 💮 선생님 확인</div>
         </div>
       </div>
     </div>
@@ -136,8 +137,8 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
 };
 
 const Cell: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-2xl border-2 border-slate-200 bg-slate-50 py-2">
-    <div className="text-[10px] font-bold text-slate-500">{label}</div>
-    <div className="text-sm font-black text-slate-900 tabular-nums">{value}</div>
+  <div className="rounded-2xl border-2 border-slate-200 bg-slate-50 py-3">
+    <div className="text-sm font-bold text-slate-500">{label}</div>
+    <div className="text-2xl font-black text-slate-900 tabular-nums">{value}</div>
   </div>
 );

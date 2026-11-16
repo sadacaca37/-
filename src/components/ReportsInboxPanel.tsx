@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { UserSession } from '../types';
 import { checkReports, DailyReport, fetchReports } from '../utils/dailyReport';
-import { dayKey } from '../utils/activityLog';
+import { dayKey, modeSetLabel } from '../utils/activityLog';
 
 interface Props {
   /** 학생 명단 (마스터 제외) */
@@ -204,7 +204,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
                                 </span>
                               </td>
                               <td className="py-1.5 pr-2 whitespace-nowrap">
-                                {s.sets ? (
+                                {s.sets || s.rounds ? (
                                   <>
                                     <span className="text-sky-700 font-black">평균 {s.avgCpm}</span>
                                     <span className="text-slate-500">
@@ -219,7 +219,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
                               <td className="py-1.5 pr-2">
                                 {Object.entries(s.byMode || {})
                                   .filter(([, c]) => c > 0)
-                                  .map(([m, c]) => `${MODE_NAME[m] || m} ${c}`)
+                                  .map(([m, c]) => `${MODE_NAME[m] || m} ${modeSetLabel(m, c)}`)
                                   .join(' · ') || <span className="text-slate-300">–</span>}
                               </td>
                               <td className="py-1.5 pr-2 whitespace-nowrap tabular-nums">{s.questPercent}%</td>

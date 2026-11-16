@@ -1,5 +1,6 @@
 import React from 'react';
 import { BodyPortal } from './GameFitStage';
+import { SendReportCTA } from './SendReportCTA';
 import { 
   X, 
   RotateCcw, 
@@ -31,6 +32,8 @@ export interface PracticeSetResultModalProps {
   onClaimMychew?: () => void;
   /** 세트가 끝난 뒤 아직 안 친 곳 목록 등 추가 내용 */
   review?: React.ReactNode;
+  /** 자리 연습이면 'key' (3번 = 1세트) */
+  practiceKind?: 'key' | 'other';
 }
 
 export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
@@ -50,6 +53,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
   isRecordBeat = false,
   onClaimMychew,
   review,
+  practiceKind = 'other',
 }) => {
   if (!isOpen) return null;
 
@@ -125,6 +129,9 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* 다 쳤으면 선생님께 보내기 (크게) */}
+        <SendReportCTA kind={practiceKind} />
 
         {/* Rules & Rewards Evaluation Box */}
         {modeType === 'key_word' ? (

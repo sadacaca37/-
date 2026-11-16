@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
 import { makeLeaderboardEntry, readCachedBoard, rememberMyRecord, saveCachedBoard, serverHeal, syncLeaderboard } from './utils/serverHeal';
 import { progressSync } from './utils/progressSync';
@@ -158,10 +158,29 @@ export default function App() {
   const [isSendReportOpen, setIsSendReportOpen] = useState<boolean>(false);
   const [sendReportState, setSendReportState] = useState<'none' | 'ready' | 'sent' | 'checked'>('none');
   const [newReportsCount, setNewReportsCount] = useState<number>(0);
+  // 세트를 끝내면 화면 아래에 크게 뜨는 [선생님께 보내기]
+  const [setDonePrompt, setSetDonePrompt] = useState<number>(0);
+  useEffect(() => {
+    const open = () => {
+      setSetDonePrompt(0);
+      setIsSendReportOpen(true);
+    };
+    const done = (e: Event) => setSetDonePrompt(Number((e as CustomEvent).detail?.sets) || 1);
+    const sent = () => setSetDonePrompt(0);
+    window.addEventListener('typang-open-send-report', open);
+    window.addEventListener('typang-set-finished', done);
+    window.addEventListener('daily-report-updated', sent);
+    return () => {
+      window.removeEventListener('typang-open-send-report', open);
+      window.removeEventListener('typang-set-finished', done);
+      window.removeEventListener('daily-report-updated', sent);
+    };
+  }, []);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [reportTargetUser, setReportTargetUser] = useState<UserSession | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(soundManager.getMuted());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const lastRecordRef = useRef<{ sig: string; at: number }>({ sig: '', at: 0 });
   const [usersDb, setUsersDb] = useState<UserSession[]>([]);
 
   const handleOpenProfile = (tab: 'avatar' | 'account' = 'account') => {
@@ -278,6 +297,12 @@ export default function App() {
 
     // Only sentence practice goes to Hall of Fame
     if (entry.mode !== 'sentence') return;
+    // 오류로 생긴 기록(말이 안 되는 타수)·같은 기록이 잇달아 들어오는 것은 받지 않음
+    if (!(entry.cpm > 0) || entry.cpm > 1200) return;
+    const sig = `${entry.cpm}|${entry.accuracy}|${entry.modeTitle}`;
+    const last = lastRecordRef.current;
+    if (last.sig === sig && Date.now() - last.at < 10000) return;
+    lastRecordRef.current = { sig, at: Date.now() };
 
     const newRecord = makeLeaderboardEntry(entry, {
       userId: currentUser.id,
@@ -677,6 +702,32 @@ export default function App() {
         currentUser={currentUser}
         targetUser={reportTargetUser}
       />}
+
+      {/* 세트를 끝냈을 때 화면 아래에 크게: 선생님께 보내기 */}
+      {setDonePrompt > 0 && !isSendReportOpen && currentUser && currentUser.role !== 'master' && (
+        <div className="fixed inset-x-0 bottom-4 z-[65] flex justify-center px-4 pointer-events-none" data-testid="set-done-prompt">
+          <div className="pointer-events-auto w-full max-w-xl rounded-3xl bg-white border-4 border-sky-300 shadow-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-3 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="text-center sm:text-left flex-1">
+              <div className="text-xl sm:text-2xl font-black text-slate-900">🎉 오늘 {setDonePrompt}세트 끝!</div>
+              <div className="text-sm font-bold text-slate-500">연습을 다 했으면 선생님께 보내 주세요.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSetDonePrompt(0);
+                setIsSendReportOpen(true);
+              }}
+              className="px-6 py-4 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white text-xl sm:text-2xl font-black shadow-lg cursor-pointer whitespace-nowrap"
+              data-testid="set-done-send"
+            >
+              📮 선생님께 보내기
+            </button>
+            <button type="button" onClick={() => setSetDonePrompt(0)} className="text-sm font-bold text-slate-400 hover:text-slate-600 cursor-pointer whitespace-nowrap">
+              나중에
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 학생: 오늘 연습을 선생님께 보내는 창 */}
       {isSendReportOpen && currentUser && currentUser.role !== 'master' && (

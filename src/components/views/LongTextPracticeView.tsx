@@ -1,3 +1,4 @@
+import { SendReportCTA } from '../SendReportCTA';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
@@ -503,7 +504,14 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
     }, 0);
   };
 
+  /** 다 친 뒤 Enter 를 더 눌러도 완독 기록이 또 쌓이지 않게 */
+  const completedRef = useRef(false);
+  useEffect(() => {
+    if (!isCompletedModalOpen) completedRef.current = false;
+  }, [isCompletedModalOpen]);
+
   const handlePageFinished = () => {
+    if (completedRef.current) return;
     // Check for 0 errors and minimum 90% accuracy before awarding points
     if (stats.errorCount === 0 && stats.accuracy >= 90) {
       soundManager.playPageTurn();
@@ -563,6 +571,8 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       soundManager.playPageTurn();
       return;
     }
+    if (completedRef.current) return;
+    completedRef.current = true;
     soundManager.playVictory();
     markQuestUnitDone(currentUser?.id, 'long-practice', currentText.id, language);
     clearPageLog();
@@ -603,23 +613,14 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       elapsedSeconds: stats.elapsedSeconds,
     });
 
-    // Record on leaderboard if logged in
-    if (currentUser && onRecordScore && stats.cpm > 30) {
-      onRecordScore({
-        userName: currentUser.name,
-        userAvatar: currentUser.avatar || '📜',
-        mode: 'sentence',
-        modeTitle: `긴 글: ${currentText.title}`,
-        score: stats.cpm * 15 + stats.accuracy * 8 + currentText.paragraphs.length * 150,
-        cpm: stats.cpm,
-        accuracy: stats.accuracy,
-        details: `${currentText.title} (${currentText.paragraphs.length}문단 완독)`,
-        completedSentences: currentText.paragraphs.length,
-      });
-    }
+    // 명예의 전당은 '짧은 글' 기록만 올림 (긴 글은 연습 기록·성적표에 남음)
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.repeat || completedRef.current)) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter') {
       // Only advance on Enter if text strictly matches target text with 0 errors
       if (inputVal === targetPageText && stats.errorCount === 0) {
@@ -1269,6 +1270,9 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 칭호: {stats.cpm >= 400 ? '🏆 신속정확 타자 마스터' : stats.cpm >= 300 ? '🎖️ 유려한 문학 명필가' : stats.cpm >= 200 ? '⭐ 숙련된 필사 작가' : stats.cpm >= 100 ? '✍️ 차분한 감성 필사가' : '🌱 따뜻한 첫걸음 필사가'}
               </div>
             </div>
+
+            {/* 다 쳤으면 선생님께 보내기 (크게) */}
+            <SendReportCTA />
 
             {/* Reward Notification & Mychew Status */}
             <div className="space-y-2">

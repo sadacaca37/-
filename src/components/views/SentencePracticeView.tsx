@@ -87,6 +87,10 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   // 손을 멈춘 동안(10초 이상)은 시간이 흐르지 않게 해서 타수가 엉뚱하게 낮아지지 않도록 함
   const lastKeyAtRef = useRef<number>(Date.now());
+  /** 세트 결과 창이 뜬 뒤에는 Enter·스페이스를 더 눌러도 다시 넘어가거나 기록되지 않게 */
+  const setFinishedRef = useRef(false);
+  const sessionDoneRef = useRef(false);
+  const [shortHint, setShortHint] = useState('');
 
   // Statistics
   const [stats, setStats] = useState<TypingStats>({
@@ -212,6 +216,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       }
       setSentenceIndex(0);
       setInputVal('');
+      setFinishedRef.current = false;
     }
   }, [selectedCategoryIndex, isRandomOrder, currentCategory]);
 
@@ -285,55 +290,62 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     setReviewItems([]);
   };
 
-  // Handle sentence completion (advances regardless of typos, accurately penalizes accuracy)
+  /**
+   * 이 세트에서 '넘긴 문장'들의 합계 (화면의 타수·오타·정확도는 이것 + 지금 치는 문장)
+   *  - 타수는 맞게 친 글자만 셈 → 틀리게 치거나 스페이스만 눌러서는 타수가 올라가지 않음
+   *  - 틀린 글자·빠뜨린 글자·더 친 글자는 모두 오타
+   */
+  const committedRef = useRef({ errors: 0, correct: 0, total: 0, strokes: 0 });
+  const zeroCommitted = () => {
+    committedRef.current = { errors: 0, correct: 0, total: 0, strokes: 0 };
+  };
+  /** 한 문장 채점: 자리마다 비교해서 맞은 글자·오타·맞은 타수 */
+  const gradeSentence = (target: string, typed: string) => {
+    let correct = 0;
+    let errors = 0;
+    let strokes = 0;
+    for (let i = 0; i < target.length; i++) {
+      if (i < typed.length && typed[i] === target[i]) {
+        correct += 1;
+        strokes += countKeystrokes(target[i]);
+      } else errors += 1; // 틀린 글자 또는 빠뜨린 글자
+    }
+    if (typed.length > target.length) errors += typed.length - target.length; // 더 친 글자
+    return { correct, errors, strokes, total: Math.max(typed.length, target.length) };
+  };
+
+  // 문장 넘기기: 오타가 있어도 넘어가지만, 오타는 오타로 세고 타수에는 맞게 친 글자만 들어감
   const handleSentenceSubmit = (typedVal: string) => {
-    if (!typedVal) return;
-
-    // Calculate mistakes in the current sentence
-    const targetLen = currentSentence.length;
-    let sentenceErrors = 0;
-    let sentenceCorrect = 0;
-
-    for (let i = 0; i < targetLen; i++) {
-      if (i < typedVal.length) {
-        if (typedVal[i] === currentSentence[i]) {
-          sentenceCorrect += 1;
-        } else {
-          sentenceErrors += 1;
-        }
-      } else {
-        // Missing characters count as errors
-        sentenceErrors += 1;
-      }
+    if (!typedVal || setFinishedRef.current) return;
+    const target = currentSentence.trimEnd();
+    const typed = typedVal.replace(/\s+$/, '');
+    // 절반도 안 치고 넘기는 것은 막음 (Enter 만 눌러 건너뛰기 방지)
+    if (typed.replace(/\s/g, '').length < Math.ceil(target.replace(/\s/g, '').length / 2)) {
+      setShortHint('문장을 끝까지 치고 넘어가요!');
+      soundManager.playError();
+      window.setTimeout(() => setShortHint(''), 1800);
+      return;
     }
+    const g = gradeSentence(target, typed);
+    const c = committedRef.current;
+    c.errors += g.errors;
+    c.correct += g.correct;
+    c.total += g.total;
+    c.strokes += g.strokes;
+    const acc = c.total > 0 ? Math.max(0, Math.round(((c.total - c.errors) / c.total) * 100)) : 100;
 
-    if (typedVal.length > targetLen) {
-      sentenceErrors += (typedVal.length - targetLen);
-    }
+    setStats((prev) => ({
+      ...prev,
+      correctStrokes: c.strokes,
+      errorCount: c.errors,
+      correctCount: c.correct,
+      totalKeystrokes: c.strokes,
+      accuracy: acc,
+      cpm: prev.elapsedSeconds > 0 ? Math.round((c.strokes * 60) / prev.elapsedSeconds) : prev.cpm,
+    }));
 
-    // Update cumulative stats with actual errors & lowered accuracy
-    setStats((prev) => {
-      const newErrors = prev.errorCount + sentenceErrors;
-      const newCorrect = prev.correctCount + sentenceCorrect;
-      const newTotal = prev.totalKeystrokes + Math.max(typedVal.length, targetLen);
-      const acc = newTotal > 0 ? Math.max(0, Math.round(((newTotal - newErrors) / newTotal) * 100)) : 100;
-      // 한글은 자음·모음을 하나씩 세는 것이 실제 타수(한컴 기준)에 가까움
-      const newStrokes = (prev.correctStrokes || 0) + countKeystrokes(typedVal.slice(0, targetLen));
-      const cpm = prev.elapsedSeconds > 0 ? Math.round((newStrokes * 60) / prev.elapsedSeconds) : prev.cpm;
-
-      return {
-        ...prev,
-        correctStrokes: newStrokes,
-        errorCount: newErrors,
-        correctCount: newCorrect,
-        totalKeystrokes: newTotal,
-        accuracy: acc,
-        cpm,
-      };
-    });
-
-    saveTypedLog({ ...loadTypedLog(), [currentSentence]: typedVal });
-    handleNextSentence(sentenceErrors);
+    saveTypedLog({ ...loadTypedLog(), [currentSentence]: typed });
+    handleNextSentence(g.errors);
   };
 
   // 한글 조합 중에 Enter 를 누르면, 글자가 완성된 뒤에 넘김 (마지막 글자가 다음 문장으로 딸려 가지 않게)
@@ -353,6 +365,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (setFinishedRef.current) return;
     const val = e.target.value;
     lastKeyAtRef.current = Date.now();
 
@@ -361,7 +374,12 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       handleSentenceSubmit(val.trimEnd());
       return;
     }
-    
+    // 맨 앞에서 스페이스만 누른 것은 무시
+    if (/^\s+$/.test(val)) {
+      setInputVal('');
+      return;
+    }
+
     // Start timer on first keystroke
     if (!isTimerRunning && val.length > 0) {
       setIsTimerRunning(true);
@@ -373,33 +391,45 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     const isValidPrefix = isHangulPrefix(currentSentence, val);
     setIsCorrectLastKey(isValidPrefix);
 
-    // Count actual typos across the typed input
+    // 지금 치는 문장: 오타 수와 맞게 친 타수 (마지막 글자는 한글 조합 중일 수 있어 앞부분이 맞으면 맞음으로)
     let currentErrors = 0;
+    let currentCorrect = 0;
+    let currentStrokes = 0;
     for (let i = 0; i < val.length; i++) {
-      if (i === val.length - 1 && i < currentSentence.length) {
-        const targetSub = currentSentence.slice(0, val.length);
-        if (!isHangulPrefix(targetSub, val)) {
-          currentErrors++;
-        }
-      } else if (i < currentSentence.length) {
-        if (val[i] !== currentSentence[i]) {
-          currentErrors++;
-        }
+      if (i >= currentSentence.length) {
+        currentErrors++;
+      } else if (i === val.length - 1) {
+        if (val[i] === currentSentence[i]) {
+          currentCorrect++;
+          currentStrokes += countKeystrokes(val[i]);
+        } else if (isHangulPrefix(currentSentence.slice(0, val.length), val)) {
+          currentStrokes += countKeystrokes(val[i]); // 조합 중인 글자
+        } else currentErrors++;
+      } else if (val[i] === currentSentence[i]) {
+        currentCorrect++;
+        currentStrokes += countKeystrokes(val[i]);
       } else {
         currentErrors++;
       }
     }
 
-    const totalChars = val.length;
-    const totalStrokes = countKeystrokes(val);
-    const acc = totalChars > 0 ? Math.max(0, Math.round(((totalChars - currentErrors) / totalChars) * 100)) : 100;
+    const c = committedRef.current;
+    const totalChars = c.total + val.length;
+    const allErrors = c.errors + currentErrors;
+    const acc = totalChars > 0 ? Math.max(0, Math.round(((totalChars - allErrors) / totalChars) * 100)) : 100;
+    const live = {
+      errorCount: allErrors,
+      correctCount: c.correct + currentCorrect,
+      correctStrokes: c.strokes + currentStrokes,
+      totalKeystrokes: c.strokes + currentStrokes,
+      accuracy: acc,
+    };
 
     // User backspaced
     if (val.length < prevVal.length) {
       setStats((prev) => ({
         ...prev,
-        errorCount: currentErrors,
-        accuracy: acc,
+        ...live,
         combo: currentErrors === 0 ? prev.combo : 0,
       }));
       setInputVal(val);
@@ -424,22 +454,17 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         const newCombo = currentErrors === 0 ? prev.combo + 1 : 0;
         return {
           ...prev,
-          correctCount: Math.max(0, totalChars - currentErrors),
-          errorCount: currentErrors,
-          totalKeystrokes: totalStrokes,
+          ...live,
           combo: newCombo,
           maxCombo: Math.max(prev.maxCombo, newCombo),
-          accuracy: acc,
         };
       });
     } else {
       soundManager.playError();
       setStats((prev) => ({
         ...prev,
-        errorCount: currentErrors,
-        totalKeystrokes: totalStrokes,
+        ...live,
         combo: 0,
-        accuracy: acc,
       }));
     }
 
@@ -452,7 +477,11 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputVal.length > 0) {
+    if (e.key === 'Enter' && (e.repeat || setFinishedRef.current)) {
+      e.preventDefault(); // Enter 를 꾹 누르고 있어도 한 번만
+      return;
+    }
+    if (e.key === 'Enter' && inputVal.trim().length > 0) {
       e.preventDefault();
       if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
         pendingSubmitRef.current = true; // 조합이 끝나면 넘김
@@ -532,12 +561,18 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   // 한 세트(주제)를 끝까지 왔을 때: 결과 + 아직 안 친 문장 목록
   const finishSet = (recentSentenceErrors: number) => {
       // Reached the end of current category set:
+      if (setFinishedRef.current) return; // 이미 끝난 세트를 또 기록하지 않음
+      setFinishedRef.current = true;
       setIsTimerRunning(false);
+      setInputVal('');
       soundManager.playVictory();
+      void recentSentenceErrors;
 
-      const finalCpm = stats.cpm;
-      const finalErrors = stats.errorCount + recentSentenceErrors;
-      const finalAccuracy = stats.accuracy;
+      // 맞게 친 타수 ÷ 시간 (넘긴 문장들의 합계로 바로 계산)
+      const c = committedRef.current;
+      const finalCpm = stats.elapsedSeconds > 0 ? Math.round((c.strokes * 60) / stats.elapsedSeconds) : stats.cpm;
+      const finalErrors = c.errors;
+      const finalAccuracy = c.total > 0 ? Math.max(0, Math.round(((c.total - c.errors) / c.total) * 100)) : 100;
       const isFirst = bestCpm === 0;
       const isBeat = !isFirst && finalCpm > bestCpm && finalAccuracy >= 95;
 
@@ -571,6 +606,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             typed: log[t],
             onGo: () => {
               reviewModeRef.current = true;
+              setFinishedRef.current = false;
               setShowSetResultModal(false);
               setSentenceIndex(i);
               setInputVal('');
@@ -597,8 +633,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
           cpm: finalCpm,
           accuracy: finalAccuracy,
           errorCount: finalErrors,
-          correctCount: stats.correctCount,
-          totalKeystrokes: stats.totalKeystrokes,
+          correctCount: c.correct,
+          totalKeystrokes: c.strokes,
           elapsedSeconds: stats.elapsedSeconds,
         });
         if (currentUser && finalCpm > 30) {
@@ -620,6 +656,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleNextSetFromModal = () => {
+    setFinishedRef.current = false;
     setShowSetResultModal(false);
     clearTypedLog();
     if (is5MinMode) {
@@ -640,6 +677,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleRetrySetFromModal = () => {
+    setFinishedRef.current = false;
     setShowSetResultModal(false);
     clearTypedLog();
     setSentenceIndex(0);
@@ -648,6 +686,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const resetSessionStats = () => {
+    zeroCommitted();
+    sessionDoneRef.current = false;
     setStats({
       cpm: 0,
       accuracy: 100,
@@ -666,6 +706,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleSessionComplete = () => {
+    if (sessionDoneRef.current) return; // 5분이 끝나는 순간과 세트 끝이 겹쳐도 한 번만
+    sessionDoneRef.current = true;
     setIsTimerRunning(false);
     setShowSummaryModal(true);
     soundManager.playVictory();
@@ -694,6 +736,9 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   const handleResetSession = () => {
+    setFinishedRef.current = false;
+    sessionDoneRef.current = false;
+    zeroCommitted();
     // 다시 시작할 때마다 문장 순서를 자동으로 새로 섞음
     if (currentCategory?.sentences) setShuffledSentences(shuffleSentenceList(currentCategory.sentences));
     setInputVal('');
@@ -970,6 +1015,12 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             spellCheck="false"
           />
 
+          {shortHint && (
+            <span className="absolute left-1/2 -translate-x-1/2 -top-4 px-3 py-1 rounded-full bg-rose-500 text-white text-sm font-black pointer-events-none shadow" data-testid="short-hint">
+              {shortHint}
+            </span>
+          )}
+
           {inputVal.length >= currentSentence.length && (
             <span className="absolute right-3 top-2 px-2 py-0.5 rounded-full bg-pink-500 text-white text-[11px] font-black pointer-events-none animate-pulse">
               Enter ↵ 또는 스페이스
@@ -1045,6 +1096,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               <button
                 onClick={() => {
                   setShowSummaryModal(false);
+                  sessionDoneRef.current = false;
                   handleNextSentence();
                 }}
                 className="flex-1 py-3 rounded-2xl arcade-btn-pink text-white font-black text-sm shadow-md flex items-center justify-center gap-1.5 cursor-pointer"

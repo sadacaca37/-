@@ -93,10 +93,40 @@ function entryMonth(e: any): string {
 }
 
 const LB_ID = /^lead_[A-Za-z0-9_]{6,48}$/;
+/** 초등학생 짧은 글에서 나올 수 없는 타수 (오류로 생긴 기록 거르기) */
+const LB_MAX_CPM = 1200;
+/** 명예의 전당에 한 학생이 남길 수 있는 기록 수 (같은 학생이 순위를 다 차지하지 않게) */
+const LB_PER_STUDENT = 3;
+const lbWho = (e: any) => String(e?.userId || e?.userName || '');
+/**
+ * 순위표 정리: 말이 안 되는 타수 빼기 → 똑같은 기록(같은 학생·타수·정확도·시간·글) 하나로 → 학생마다 좋은 기록 3개까지
+ *  (예전에 Enter 를 꾹 누르면 같은 기록이 수백 개 생기고 타수가 2000까지 올라가던 문제의 흔적도 지움)
+ */
+function tidyLeaderboard(list: any[]): any[] {
+  const seen = new Set<string>();
+  const perStudent = new Map<string, number>();
+  const out: any[] = [];
+  const sorted = [...(Array.isArray(list) ? list : [])]
+    .filter((e) => e && e.userName && Number(e.cpm) > 0 && Number(e.cpm) <= LB_MAX_CPM)
+    .sort((a, b) => (b.cpm || 0) - (a.cpm || 0) || (b.accuracy || 0) - (a.accuracy || 0) || (b.score || 0) - (a.score || 0));
+  for (const e of sorted) {
+    const sig = [lbWho(e), e.cpm, e.accuracy, e.elapsedSeconds || 0, e.completedSentences || 0, e.modeTitle || ''].join('|');
+    if (seen.has(sig) || seen.has(`id:${e.id}`)) continue;
+    seen.add(sig);
+    seen.add(`id:${e.id}`);
+    const n = perStudent.get(lbWho(e)) || 0;
+    if (n >= LB_PER_STUDENT) continue;
+    perStudent.set(lbWho(e), n + 1);
+    out.push(e);
+  }
+  return out;
+}
 const lbNum = (v: any, max: number) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
 /** 받은 기록을 깨끗하게 다듬음 (모르는 값·너무 긴 글 제거) */
 function cleanLeaderboardEntry(raw: any): any | null {
   if (!raw || !raw.userName) return null;
+  const rawCpm = Number(raw.cpm);
+  if (!(rawCpm > 0) || rawCpm > LB_MAX_CPM) return null;
   const now = Date.now();
   // 보낸 시각(ts)이 있으면 그것으로, 없으면 날짜 글자(예전 기록)로, 둘 다 없으면 지금으로
   const hasTs = Number(raw.ts) > 1600000000000 && Number(raw.ts) < now + 86400000;
@@ -126,7 +156,7 @@ function cleanLeaderboardEntry(raw: any): any | null {
 }
 
 function sortLeaderboard() {
-  leaderboardCache.sort((a, b) => (b.cpm || 0) - (a.cpm || 0) || (b.score || 0) - (a.score || 0));
+  leaderboardCache = tidyLeaderboard(leaderboardCache);
   if (leaderboardCache.length > 300) leaderboardCache.length = 300;
 }
 
@@ -135,8 +165,7 @@ function archiveMonth(month: string, list: any[]) {
   if (!month || !list.length) return;
   const seen = new Set((leaderboardArchive[month] || []).map((e: any) => e.id));
   const merged = [...(leaderboardArchive[month] || []), ...list.filter((e) => e && !seen.has(e.id))];
-  merged.sort((a, b) => (b.cpm || 0) - (a.cpm || 0));
-  leaderboardArchive[month] = merged.slice(0, 300);
+  leaderboardArchive[month] = tidyLeaderboard(merged).slice(0, 300);
   const months = Object.keys(leaderboardArchive).sort();
   for (const m of months.slice(0, Math.max(0, months.length - 12))) delete leaderboardArchive[m];
 }
@@ -197,6 +226,17 @@ function mergeLeaderboardEntries(list: any[]): number {
     persistLeaderboard();
   }
   return added;
+}
+
+// 켤 때 한 번: 저장돼 있던 순위표·보관함도 정리 (오류로 생긴 기록·같은 기록 반복 지우기)
+{
+  const before = leaderboardCache.length;
+  sortLeaderboard();
+  for (const m of Object.keys(leaderboardArchive)) leaderboardArchive[m] = tidyLeaderboard(leaderboardArchive[m] || []);
+  if (leaderboardCache.length !== before) {
+    console.log(`[leaderboard] 정리: ${before} → ${leaderboardCache.length}개`);
+    persistLeaderboard();
+  }
 }
 
 // =========================================================================
@@ -459,6 +499,7 @@ function restoreFromSeed() {
     }
     if (Array.isArray(backup?.leaderboard) && leaderboardCache.length === 0 && backup.leaderboard.length) {
       leaderboardCache = backup.leaderboard.slice(0, 300);
+      sortLeaderboard();
       sweepOldMonths();
       persistLeaderboard(true);
     }

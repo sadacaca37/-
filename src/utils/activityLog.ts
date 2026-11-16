@@ -139,9 +139,15 @@ export function logPracticeRecord(r: PracticeHistoryRecord) {
   const log = readActivityLog(r.userId);
   const k = dayKey(r.timestamp || Date.now());
   const day = (log.days[k] = log.days[k] || emptyDay());
+  const before = daySets(day);
   addRecordToDay(day, r);
   log.lastAt = r.timestamp || Date.now();
   writeActivityLog(r.userId, log);
+  // 세트를 하나 끝냈으면 화면에 크게 [선생님께 보내기]를 띄우도록 알림 (자리 연습은 3번째에)
+  try {
+    const after = daySets(day);
+    if (after > before) window.dispatchEvent(new CustomEvent('typang-set-finished', { detail: { mode: r.mode, sets: after } }));
+  } catch {}
 }
 
 /* ------------------------------------------------------------------------
@@ -238,7 +244,22 @@ export interface PeriodSummary {
   bestCpm: number;
   avgAcc: number;
   byMode: Record<string, number>;
+  /** 끝낸 횟수 (자리 연습은 1번씩 셈) */
+  rounds: number;
 }
+
+/** 자리 연습은 3번 쳐야 1세트, 나머지 연습은 1번 끝내면 1세트 */
+export const KEY_ROUNDS_PER_SET = 3;
+export const modeSets = (mode: string, count: number) => (mode === 'key' ? Math.floor((count || 0) / KEY_ROUNDS_PER_SET) : count || 0);
+/** 그날 끝낸 세트 수 (자리 연습 3번 = 1세트) */
+export const daySets = (d: DayStat | undefined) => {
+  if (!d) return 0;
+  const key = d.m?.key || 0;
+  return Math.max(0, (d.n || 0) - key) + Math.floor(key / KEY_ROUNDS_PER_SET);
+};
+/** 종류별 표시: 자리 → '2세트 (7회)', 나머지 → '3세트' */
+export const modeSetLabel = (mode: string, count: number) =>
+  mode === 'key' ? `${Math.floor((count || 0) / KEY_ROUNDS_PER_SET)}세트 (${count || 0}회)` : `${count || 0}세트`;
 
 export const dayKeys = (d: DayStat | undefined) => (d ? Math.max(d.keys || 0, d.k || 0) : 0);
 export const daySeconds = (d: DayStat | undefined) => (d ? Math.max(d.sec || 0, d.t || 0) : 0);
@@ -248,6 +269,7 @@ export const dayActive = (d: DayStat | undefined) => !!d && (d.n > 0 || (d.k || 
 export function summarizeDays(days: Record<string, DayStat>, filter: (key: string) => boolean): PeriodSummary {
   let activeDays = 0,
     sets = 0,
+    rounds = 0,
     keys = 0,
     sec = 0,
     cpmSum = 0,
@@ -257,7 +279,8 @@ export function summarizeDays(days: Record<string, DayStat>, filter: (key: strin
   for (const [k, d] of Object.entries(days)) {
     if (!filter(k) || !d) continue;
     if (dayActive(d)) activeDays += 1;
-    sets += d.n || 0;
+    sets += daySets(d);
+    rounds += d.n || 0;
     keys += dayKeys(d);
     sec += daySeconds(d);
     cpmSum += d.cpmSum || 0;
@@ -270,9 +293,10 @@ export function summarizeDays(days: Record<string, DayStat>, filter: (key: strin
     sets,
     keys,
     minutes: Math.round(sec / 60),
-    avgCpm: sets ? Math.round(cpmSum / sets) : 0,
+    avgCpm: rounds ? Math.round(cpmSum / rounds) : 0,
     bestCpm: best,
-    avgAcc: sets ? Math.round((accSum / sets) * 10) / 10 : 0,
+    avgAcc: rounds ? Math.round((accSum / rounds) * 10) / 10 : 0,
+    rounds,
     byMode,
   };
 }

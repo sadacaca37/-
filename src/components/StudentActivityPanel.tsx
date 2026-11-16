@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, FileText, RefreshCw, Search } from 'lucide-react';
 import { UserSession } from '../types';
 import { fetchAllActivity, StudentActivity } from '../utils/studentActivity';
-import { dayActive, dayKey, dayKeys, daySeconds, DayStat, lastNDayKeys, monthKey, PeriodSummary, summarizeMonth } from '../utils/activityLog';
+import { dayActive, dayKey, dayKeys, daySeconds, daySets, DayStat, modeSetLabel, lastNDayKeys, monthKey, PeriodSummary, summarizeMonth } from '../utils/activityLog';
 
 interface Props {
   /** 학생 명단 (마스터 제외) */
@@ -36,7 +36,7 @@ function agoText(ts: number, now: number) {
 /** 하루 칸 색: 연습량이 많을수록 진하게 */
 function heat(d: DayStat | undefined) {
   if (!dayActive(d)) return 'bg-slate-100 text-slate-400 border-slate-200';
-  const n = d!.n || 0;
+  const n = daySets(d) || (d!.n ? 1 : 0);
   if (n >= 6) return 'bg-emerald-600 text-white border-emerald-700';
   if (n >= 3) return 'bg-emerald-400 text-white border-emerald-500';
   if (n >= 1) return 'bg-emerald-200 text-emerald-900 border-emerald-300';
@@ -115,7 +115,7 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
     list = [...list].sort((x, y) => {
       switch (sort) {
         case 'today':
-          return dayKeys(y.today) - dayKeys(x.today) || (y.today?.n || 0) - (x.today?.n || 0) || byName(x, y);
+          return dayKeys(y.today) - dayKeys(x.today) || daySets(y.today) - daySets(x.today) || byName(x, y);
         case 'month':
           return y.month.activeDays - x.month.activeDays || y.month.sets - x.month.sets || byName(x, y);
         case 'cpm':
@@ -149,7 +149,7 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
       return [
         r.s.name,
         r.s.grade || '',
-        r.today?.n || 0,
+        daySets(r.today),
         dayKeys(r.today),
         Math.round(daySeconds(r.today) / 60),
         r.month.activeDays,
@@ -220,9 +220,9 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
             <Stat label="끝낸 세트" value={`${num(month.sets)}세트`} />
             <Stat label="친 글자 수" value={`${num(month.keys)}타`} />
             <Stat label="연습 시간" value={`${num(month.minutes)}분`} />
-            <Stat label="평균 타수" value={month.sets ? `${month.avgCpm}타` : '-'} tone="sky" />
-            <Stat label="최고 타수" value={month.sets ? `${month.bestCpm}타` : '-'} tone="purple" />
-            <Stat label="정확도" value={month.sets ? `${month.avgAcc}%` : '-'} />
+            <Stat label="평균 타수" value={month.rounds ? `${month.avgCpm}타` : '-'} tone="sky" />
+            <Stat label="최고 타수" value={month.rounds ? `${month.bestCpm}타` : '-'} tone="purple" />
+            <Stat label="정확도" value={month.rounds ? `${month.avgAcc}%` : '-'} />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-3">
@@ -244,11 +244,11 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
                   return (
                     <div
                       key={k}
-                      title={dayActive(st) ? `${ym.m}월 ${d}일 · ${st!.n}세트 · ${num(dayKeys(st))}타 · ${Math.round(daySeconds(st) / 60)}분${st!.n ? ` · 평균 ${Math.round(st!.cpmSum / st!.n)}타` : ''}` : `${ym.m}월 ${d}일 · 연습 안 함`}
+                      title={dayActive(st) ? `${ym.m}월 ${d}일 · ${daySets(st)}세트 · ${num(dayKeys(st))}타 · ${Math.round(daySeconds(st) / 60)}분${st!.n ? ` · 평균 ${Math.round(st!.cpmSum / st!.n)}타` : ''}` : `${ym.m}월 ${d}일 · 연습 안 함`}
                       className={`rounded-lg border py-1 ${future ? 'bg-white text-slate-300 border-slate-100' : heat(st)} ${k === todayKey ? 'ring-2 ring-pink-400' : ''}`}
                     >
                       <div className="text-[10px] font-bold leading-none">{d}</div>
-                      <div className="text-[11px] font-black leading-tight">{dayActive(st) ? st!.n || '·' : future ? '' : '–'}</div>
+                      <div className="text-[11px] font-black leading-tight">{dayActive(st) ? daySets(st) || '·' : future ? '' : '–'}</div>
                     </div>
                   );
                 })}
@@ -293,13 +293,13 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
               <div>
                 <div className="text-xs font-black text-slate-700 mb-1.5">🧩 {ym.m}월에 연습한 종류</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {month.sets === 0 && <span className="text-[11px] font-bold text-slate-400">끝낸 세트가 없어요.</span>}
+                  {month.rounds === 0 && <span className="text-[11px] font-bold text-slate-400">끝낸 세트가 없어요.</span>}
                   {Object.entries(month.byMode)
                     .filter(([, c]) => c > 0)
                     .sort((x, y) => y[1] - x[1])
                     .map(([m, c]) => (
                       <span key={m} className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-[11px] font-black">
-                        {MODE_NAME[m] || m} {c}세트
+                        {MODE_NAME[m] || m} {modeSetLabel(m, c)}
                       </span>
                     ))}
                 </div>
@@ -451,8 +451,8 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
                   </td>
                   <td className="py-2 pr-2 whitespace-nowrap">
                     {r.activeToday ? (
-                      <span className={`px-2 py-0.5 rounded-full border ${r.today!.n ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
-                        {r.today!.n ? `✅ ${r.today!.n}세트` : '✏️ 연습 중'} · {num(dayKeys(r.today))}타 · {Math.max(1, Math.round(daySeconds(r.today) / 60))}분
+                      <span className={`px-2 py-0.5 rounded-full border ${daySets(r.today) ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
+                        {daySets(r.today) ? `✅ ${daySets(r.today)}세트` : '✏️ 연습 중'} · {num(dayKeys(r.today))}타 · {Math.max(1, Math.round(daySeconds(r.today) / 60))}분
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">안 함</span>
@@ -465,10 +465,10 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
                         return (
                           <span
                             key={k}
-                            title={`${Number(k.slice(5, 7))}월 ${Number(k.slice(8))}일 · ${dayActive(d) ? `${d!.n}세트 · ${num(dayKeys(d))}타` : '안 함'}`}
+                            title={`${Number(k.slice(5, 7))}월 ${Number(k.slice(8))}일 · ${dayActive(d) ? `${daySets(d)}세트 · ${num(dayKeys(d))}타` : '안 함'}`}
                             className={`w-4 h-4 rounded-[5px] border text-[9px] leading-[14px] text-center font-black ${heat(d)}`}
                           >
-                            {dayActive(d) ? d!.n || '·' : ''}
+                            {dayActive(d) ? daySets(d) || '·' : ''}
                           </span>
                         );
                       })}
@@ -488,7 +488,7 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
                     )}
                   </td>
                   <td className="py-2 pr-2 whitespace-nowrap">
-                    {r.month.sets ? (
+                    {r.month.rounds ? (
                       <>
                         <span className="text-sky-700 font-black">평균 {r.month.avgCpm}</span>
                         <span className="text-slate-500">

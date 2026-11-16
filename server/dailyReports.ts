@@ -21,6 +21,7 @@ export interface DailyReport {
   note: string;
   summary: {
     sets: number;
+    rounds?: number;
     keys: number;
     minutes: number;
     avgCpm: number;
@@ -65,6 +66,7 @@ function clean(raw: any): DailyReport['summary'] {
   for (const [k, v] of Object.entries<any>(s.quest || {}).slice(0, 6)) quest[String(k).slice(0, 24)] = [int(v?.[0], 999), int(v?.[1], 999)];
   return {
     sets: int(s.sets, 9999),
+    rounds: int(s.rounds ?? s.sets, 9999),
     keys: int(s.keys, 9999999),
     minutes: int(s.minutes, 1440),
     avgCpm: int(s.avgCpm, 2000),

@@ -157,7 +157,15 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   const statsRef = useRef(stats);
   statsRef.current = stats;
 
+  /** 세트가 끝난 뒤 Enter·스페이스를 더 눌러도 다시 끝나거나 기록되지 않게 */
+  const finishedRef = useRef(false);
+  useEffect(() => {
+    if (!isFinished) finishedRef.current = false;
+  }, [isFinished]);
+
   const finishPractice = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
     const stats = statsRef.current; // 마지막 낱말 채점까지 반영된 최신 값
     setIsFinished(true);
     soundManager.playVictory();
@@ -279,6 +287,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
   /** 엔터·스페이스로 낱말을 넘김 (다 치기 전에는 절대 자동으로 넘어가지 않음) */
   const submitWord = (typedRaw?: string) => {
+    if (finishedRef.current) return;
     const typed = (typedRaw ?? inputRef.current?.value ?? inputVal).trim();
     if (!typed) {
       setInputVal('');
@@ -302,6 +311,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (finishedRef.current) return;
     let val = e.target.value;
 
     // 스페이스 = 이 낱말 다 쳤어요(낱말 안에 띄어쓰기가 있으면 그 자리까지는 글자로 받음)
@@ -392,6 +402,7 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     }
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (e.repeat) return; // 꾹 누르고 있어도 한 번만
       // 한글 조합 중에 엔터 → 조합이 끝난 뒤 넘김(마지막 글자가 다음 낱말로 새지 않게)
       if (composingRef.current || (e.nativeEvent as any).isComposing || e.keyCode === 229) {
         pendingCommitRef.current = true;
