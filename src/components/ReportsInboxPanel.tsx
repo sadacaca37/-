@@ -219,7 +219,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
                               <td className="py-1.5 pr-2">
                                 {Object.entries(s.byMode || {})
                                   .filter(([, c]) => c > 0)
-                                  .map(([m, c]) => `${MODE_NAME[m] || m} ${modeSetLabel(m, c)}`)
+                                  .map(([m, c]) => `${MODE_NAME[m] || m} ${modeSetLabel(m, c, s.keySets)}`)
                                   .join(' · ') || <span className="text-slate-300">–</span>}
                               </td>
                               <td className="py-1.5 pr-2 whitespace-nowrap tabular-nums">{s.questPercent}%</td>

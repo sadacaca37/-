@@ -299,7 +299,7 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
                     .sort((x, y) => y[1] - x[1])
                     .map(([m, c]) => (
                       <span key={m} className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-[11px] font-black">
-                        {MODE_NAME[m] || m} {modeSetLabel(m, c)}
+                        {MODE_NAME[m] || m} {modeSetLabel(m, c, month.keySets)}
                       </span>
                     ))}
                 </div>

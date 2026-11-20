@@ -22,6 +22,7 @@ export interface DailyReport {
   summary: {
     sets: number;
     rounds?: number;
+    keySets?: number;
     keys: number;
     minutes: number;
     avgCpm: number;
@@ -67,6 +68,7 @@ function clean(raw: any): DailyReport['summary'] {
   return {
     sets: int(s.sets, 9999),
     rounds: int(s.rounds ?? s.sets, 9999),
+    keySets: s.keySets == null ? undefined : int(s.keySets, 9999),
     keys: int(s.keys, 9999999),
     minutes: int(s.minutes, 1440),
     avgCpm: int(s.avgCpm, 2000),

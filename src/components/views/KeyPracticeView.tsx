@@ -1,4 +1,5 @@
 import { netCpm } from '../../utils/typingScore';
+import { keyStageId } from '../../utils/activityLog';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
@@ -806,6 +807,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
       <PracticeSetResultModal
         isOpen={showSetResultModal}
         practiceKind="key"
+        keyStage={keyStageId(language, stage.id)}
+        keyStageLabel={stage.title.split(':')[0]}
         onClose={() => setShowSetResultModal(false)}
         title={`자리연습 (${stage.title})`}
         cpm={stats.cpm}

@@ -62,7 +62,7 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
         </button>
         <h2 className="text-2xl sm:text-3xl font-black text-slate-900 pr-12">📮 오늘 연습, 선생님께 보내기</h2>
         <p className="text-base font-bold text-slate-500 mt-1">오늘 연습을 다 했으면 보내 주세요. 선생님이 모아서 확인해요.</p>
-        <p className="text-sm font-bold text-sky-700 mt-1">⌨️ 자리 연습은 {KEY_ROUNDS_PER_SET}번 = 1세트 · 다른 연습은 1번 끝내면 1세트</p>
+        <p className="text-sm font-bold text-sky-700 mt-1">⌨️ 자리 연습은 같은 자리를 {KEY_ROUNDS_PER_SET}번 = 1세트 · 다른 연습은 1번 끝내면 1세트</p>
 
         <div className="grid grid-cols-3 gap-3 mt-5 text-center">
           <Cell label="끝낸 세트" value={`${s.sets}세트`} />
@@ -78,7 +78,7 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
             .filter(([, c]) => c > 0)
             .map(([m, c]) => (
               <span key={m} className="px-3 py-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-sm font-black">
-                {MODE_NAME[m] || m} {modeSetLabel(m, c)}
+                {MODE_NAME[m] || m} {modeSetLabel(m, c, s.keySets)}
               </span>
             ))}
         </div>

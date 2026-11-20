@@ -32,8 +32,11 @@ export interface PracticeSetResultModalProps {
   onClaimMychew?: () => void;
   /** 세트가 끝난 뒤 아직 안 친 곳 목록 등 추가 내용 */
   review?: React.ReactNode;
-  /** 자리 연습이면 'key' (3번 = 1세트) */
+  /** 자리 연습이면 'key' (같은 자리 3번 = 1세트) */
   practiceKind?: 'key' | 'other';
+  /** 자리 연습 단계 구분값과 이름 (같은 자리를 몇 번 쳤는지 세기) */
+  keyStage?: string;
+  keyStageLabel?: string;
 }
 
 export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
@@ -54,6 +57,8 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
   onClaimMychew,
   review,
   practiceKind = 'other',
+  keyStage,
+  keyStageLabel,
 }) => {
   if (!isOpen) return null;
 
@@ -131,7 +136,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
         </div>
 
         {/* 다 쳤으면 선생님께 보내기 (크게) */}
-        <SendReportCTA kind={practiceKind} />
+        <SendReportCTA kind={practiceKind} keyStage={keyStage} stageLabel={keyStageLabel} />
 
         {/* Rules & Rewards Evaluation Box */}
         {modeType === 'key_word' ? (

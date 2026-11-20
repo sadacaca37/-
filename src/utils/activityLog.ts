@@ -28,6 +28,8 @@ export interface DayStat {
   t?: number;
   /** 종류별 세트 수: key(자리) word(낱말) sent(짧은 글) long(긴 글) etc(지식·명곡 등) */
   m?: Record<string, number>;
+  /** 자리 연습: 단계별로 끝낸 횟수 ('ko:1' → 2) — 같은 자리를 3번 쳐야 1세트 */
+  ks?: Record<string, number>;
 }
 
 export interface ActivityLog {
@@ -57,7 +59,13 @@ export function modeCategory(mode?: string): 'key' | 'word' | 'sent' | 'long' | 
 
 const emptyDay = (): DayStat => ({ n: 0, keys: 0, sec: 0, cpmSum: 0, best: 0, accSum: 0 });
 
-function addRecordToDay(day: DayStat, r: Pick<PracticeHistoryRecord, 'mode' | 'cpm' | 'accuracy' | 'totalKeystrokes' | 'elapsedSeconds'>) {
+/** 자리 연습 단계 구분값 (한글/영어 + 단계) */
+export const keyStageId = (language: string | undefined, stage: string | number | undefined) => `${language || 'ko'}:${stage ?? ''}`;
+
+function addRecordToDay(
+  day: DayStat,
+  r: Pick<PracticeHistoryRecord, 'mode' | 'cpm' | 'accuracy' | 'totalKeystrokes' | 'elapsedSeconds'> & { language?: string; stageId?: string | number; stageTitle?: string },
+) {
   day.n += 1;
   day.keys += Math.max(0, Math.round(Number(r.totalKeystrokes) || 0));
   day.sec += Math.max(0, Math.round(Number(r.elapsedSeconds) || 0));
@@ -67,6 +75,11 @@ function addRecordToDay(day: DayStat, r: Pick<PracticeHistoryRecord, 'mode' | 'c
   const c = modeCategory(r.mode);
   day.m = day.m || {};
   day.m[c] = (day.m[c] || 0) + 1;
+  if (c === 'key') {
+    const id = keyStageId(r.language, r.stageId ?? r.stageTitle);
+    day.ks = day.ks || {};
+    day.ks[id] = (day.ks[id] || 0) + 1;
+  }
 }
 
 /** 기록의 날짜(학생 컴퓨터 기준). dateStr("2026.10.02 14:05")이 있으면 그것을 씀 → 서버·선생님 컴퓨터 시간대와 무관 */
@@ -246,20 +259,28 @@ export interface PeriodSummary {
   byMode: Record<string, number>;
   /** 끝낸 횟수 (자리 연습은 1번씩 셈) */
   rounds: number;
+  /** 자리 연습 세트 수 (같은 자리 3번 = 1세트) */
+  keySets: number;
 }
 
 /** 자리 연습은 3번 쳐야 1세트, 나머지 연습은 1번 끝내면 1세트 */
 export const KEY_ROUNDS_PER_SET = 3;
 export const modeSets = (mode: string, count: number) => (mode === 'key' ? Math.floor((count || 0) / KEY_ROUNDS_PER_SET) : count || 0);
 /** 그날 끝낸 세트 수 (자리 연습 3번 = 1세트) */
+/** 그날 자리 연습 세트 수: 같은 자리(단계)를 3번 칠 때마다 1세트 */
+export const dayKeySets = (d: DayStat | undefined) => {
+  if (!d) return 0;
+  if (d.ks) return Object.values(d.ks).reduce((a, c) => a + Math.floor((c || 0) / KEY_ROUNDS_PER_SET), 0);
+  return Math.floor((d.m?.key || 0) / KEY_ROUNDS_PER_SET); // 단계 기록이 없던 예전 기록
+};
 export const daySets = (d: DayStat | undefined) => {
   if (!d) return 0;
   const key = d.m?.key || 0;
-  return Math.max(0, (d.n || 0) - key) + Math.floor(key / KEY_ROUNDS_PER_SET);
+  return Math.max(0, (d.n || 0) - key) + dayKeySets(d);
 };
 /** 종류별 표시: 자리 → '2세트 (7회)', 나머지 → '3세트' */
-export const modeSetLabel = (mode: string, count: number) =>
-  mode === 'key' ? `${Math.floor((count || 0) / KEY_ROUNDS_PER_SET)}세트 (${count || 0}회)` : `${count || 0}세트`;
+export const modeSetLabel = (mode: string, count: number, keySets?: number) =>
+  mode === 'key' ? `${keySets ?? Math.floor((count || 0) / KEY_ROUNDS_PER_SET)}세트 (${count || 0}회)` : `${count || 0}세트`;
 
 export const dayKeys = (d: DayStat | undefined) => (d ? Math.max(d.keys || 0, d.k || 0) : 0);
 export const daySeconds = (d: DayStat | undefined) => (d ? Math.max(d.sec || 0, d.t || 0) : 0);
@@ -269,6 +290,7 @@ export const dayActive = (d: DayStat | undefined) => !!d && (d.n > 0 || (d.k || 
 export function summarizeDays(days: Record<string, DayStat>, filter: (key: string) => boolean): PeriodSummary {
   let activeDays = 0,
     sets = 0,
+    keySets = 0,
     rounds = 0,
     keys = 0,
     sec = 0,
@@ -280,6 +302,7 @@ export function summarizeDays(days: Record<string, DayStat>, filter: (key: strin
     if (!filter(k) || !d) continue;
     if (dayActive(d)) activeDays += 1;
     sets += daySets(d);
+    keySets += dayKeySets(d);
     rounds += d.n || 0;
     keys += dayKeys(d);
     sec += daySeconds(d);
@@ -297,6 +320,7 @@ export function summarizeDays(days: Record<string, DayStat>, filter: (key: strin
     bestCpm: best,
     avgAcc: rounds ? Math.round((accSum / rounds) * 10) / 10 : 0,
     rounds,
+    keySets,
     byMode,
   };
 }

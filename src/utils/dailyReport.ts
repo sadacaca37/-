@@ -6,7 +6,7 @@
  */
 import type { UserSession } from '../types';
 import { typangApi } from './apiClient';
-import { activityTracker, dayActive, dayKey, dayKeys, daySeconds, daySets } from './activityLog';
+import { activityTracker, dayActive, dayKey, dayKeys, dayKeySets, daySeconds, daySets } from './activityLog';
 import { readLocalActivity } from './studentActivity';
 import { markMyReportsChecked, rejoinMembers, rememberMyReport } from './serverHeal';
 
@@ -15,6 +15,8 @@ export interface ReportSummary {
   sets: number;
   /** 끝낸 횟수 (자리 연습은 1번씩) */
   rounds?: number;
+  /** 자리 연습 세트 (같은 자리 3번 = 1세트) */
+  keySets?: number;
   keys: number;
   minutes: number;
   avgCpm: number;
@@ -78,6 +80,7 @@ export function buildTodaySummary(userId: string): { day: string; active: boolea
     summary: {
       sets: daySets(d),
       rounds: d?.n || 0,
+      keySets: dayKeySets(d),
       keys: dayKeys(d),
       minutes: Math.round(daySeconds(d) / 60),
       avgCpm: d && d.n ? Math.round(d.cpmSum / d.n) : 0,
