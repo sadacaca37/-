@@ -1,6 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
 import { ArcadeShell, overlay, rr, useBest } from './games/ArcadeShell';
+import { getPixelImg, isImgReady, preloadPixelImgs } from './pixelAssets';
+
+const JR_ASSETS = {
+  bg: './assets/playground/jelly-runner/bg.webp',
+  heroRun: './assets/playground/jelly-runner/hero-run.webp',
+  heroSlide: './assets/playground/jelly-runner/hero-slide.webp',
+  spike: './assets/playground/jelly-runner/spike.webp',
+  bar: './assets/playground/jelly-runner/bar.webp',
+  potion: './assets/playground/jelly-runner/potion.webp',
+  jelly: './assets/playground/jelly-runner/jelly.webp',
+  jellyBig: './assets/playground/jelly-runner/jelly-big.webp',
+} as const;
 
 /* Side-scrolling endless runner: jump (double jump) over forks, slide under bars,
    collect jelly beans; energy drains over time and potions refill it. */
@@ -55,6 +67,7 @@ export const JellyRunnerGame: React.FC<{ onBack?: () => void }> = ({ onBack }) =
   }, [jump, slide, start]);
 
   useEffect(() => {
+    preloadPixelImgs(Object.values(JR_ASSETS));
     const c = cv.current!; const ctx = c.getContext('2d')!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
@@ -81,11 +94,20 @@ export const JellyRunnerGame: React.FC<{ onBack?: () => void }> = ({ onBack }) =
     };
 
     const drawHero = (x: number, y: number, sliding: boolean, t: number, hurt: number) => {
-      // round gummy jelly bear-like blob (original)
       if (hurt > 0 && Math.floor(t / 80) % 2) return;
       ctx.save(); ctx.translate(x, y);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0, 0, 22, 5, 0, 0, Math.PI * 2); ctx.fill();
+      const sprite = getPixelImg(sliding ? JR_ASSETS.heroSlide : JR_ASSETS.heroRun);
+      if (isImgReady(sprite)) {
+        ctx.imageSmoothingEnabled = false;
+        const bob = !sliding && y >= GROUND ? Math.abs(Math.sin(t / 65)) * 4 : 0;
+        const dw = sliding ? 58 : 48;
+        const dh = sliding ? 32 : 52;
+        ctx.drawImage(sprite, -dw / 2, -dh - bob + 2, dw, dh);
+        ctx.restore();
+        return;
+      }
       const run = Math.sin(t / 60);
-      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(0, 0, 22, 5, 0, 0, Math.PI * 2); ctx.fill();
       const bw = sliding ? 50 : 38, bh = sliding ? 26 : 44;
       ctx.fillStyle = '#ff7eb6'; rr(ctx, -bw / 2, -bh, bw, bh, sliding ? 12 : 16); ctx.fill();
       ctx.strokeStyle = '#7a1e4a'; ctx.lineWidth = 3; ctx.stroke();
@@ -101,6 +123,16 @@ export const JellyRunnerGame: React.FC<{ onBack?: () => void }> = ({ onBack }) =
       ctx.restore();
     };
     const jellyBean = (x: number, y: number, big?: boolean) => {
+      const sprite = getPixelImg(big ? JR_ASSETS.jellyBig : JR_ASSETS.jelly);
+      if (isImgReady(sprite)) {
+        const dw = big ? 30 : 20;
+        const dh = big ? 36 : 24;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sprite, x - dw / 2, y - dh / 2, dw, dh);
+        ctx.restore();
+        return;
+      }
       const r = big ? 13 : 8;
       ctx.fillStyle = big ? '#ffd700' : '#6ff6ff';
       ctx.beginPath(); ctx.ellipse(x, y, r, r * 1.2, 0.3, 0, Math.PI * 2); ctx.fill();
@@ -142,41 +174,85 @@ export const JellyRunnerGame: React.FC<{ onBack?: () => void }> = ({ onBack }) =
         if (Math.floor(ts / 200) !== Math.floor((ts - 16) / 200)) setScore(s.score + Math.floor(s.dist / 10));
       }
 
-      // sky & parallax
-      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#7fd0ff'); sky.addColorStop(1, '#fff0c9');
-      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-      const par = (f: number, col: string, hgt: number, wid: number) => {
-        ctx.fillStyle = col; const off = (s.dist * f) % wid;
-        for (let x = -off - wid; x < W + wid; x += wid) { ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.quadraticCurveTo(x + wid / 2, GROUND - hgt, x + wid, GROUND); ctx.fill(); }
-      };
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      for (let i = 0; i < 5; i++) { const x = (i * 190 - (s.dist * 0.1)) % (W + 200); const xx = x < -120 ? x + W + 200 : x; rr(ctx, xx, 40 + (i % 3) * 30, 90, 22, 11); ctx.fill(); rr(ctx, xx + 20, 28 + (i % 3) * 30, 44, 22, 11); ctx.fill(); }
-      par(0.2, '#b6e39a', 150, 320); par(0.45, '#8bd36c', 90, 220);
-      // candy trees
-      for (let i = 0; i < 6; i++) { const x = ((i * 170 - s.dist * 0.6) % (W + 170) + W + 170) % (W + 170) - 60; ctx.fillStyle = '#b8783b'; ctx.fillRect(x + 18, GROUND - 60, 8, 60); ctx.fillStyle = i % 2 ? '#ff9ac2' : '#ffd36b'; ctx.beginPath(); ctx.arc(x + 22, GROUND - 70, 24, 0, Math.PI * 2); ctx.fill(); }
-      // ground tiles
-      const off = s.dist % 40;
-      ctx.fillStyle = '#5fc649'; ctx.fillRect(0, GROUND, W, 14);
-      ctx.fillStyle = '#c98a4b'; ctx.fillRect(0, GROUND + 14, W, H - GROUND - 14);
-      ctx.fillStyle = '#a86b33'; for (let x = -off; x < W; x += 40) ctx.fillRect(x, GROUND + 26, 20, 8);
-      ctx.fillStyle = '#3fa535'; for (let x = -off; x < W; x += 20) ctx.fillRect(x, GROUND + 10, 10, 4);
+      // 16-bit pixel RPG side-scrolling meadow & dirt path landscape
+      const bgImg = getPixelImg(JR_ASSETS.bg);
+      if (isImgReady(bgImg)) {
+        ctx.imageSmoothingEnabled = false;
+        const tileW = W;
+        const scroll = (s.dist * 0.48) % (tileW * 2);
+        for (let k = -1; k <= 2; k++) {
+          const x = k * tileW - scroll;
+          if (x > W + 4 || x + tileW < -4) continue;
+          ctx.save();
+          if (Math.abs(k) % 2 === 1) {
+            ctx.translate(x + tileW, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(bgImg, 0, 0, tileW, H);
+          } else {
+            ctx.drawImage(bgImg, x, 0, tileW, H);
+          }
+          ctx.restore();
+        }
+        // Fast foreground speed ticks along the dirt road so running speed feels crisp
+        const off = s.dist % 40;
+        ctx.fillStyle = 'rgba(92, 49, 18, 0.25)';
+        for (let x = -off; x < W; x += 40) ctx.fillRect(x, GROUND + 18, 16, 4);
+      } else {
+        const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#7fd0ff'); sky.addColorStop(1, '#fff0c9');
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+        const par = (f: number, col: string, hgt: number, wid: number) => {
+          ctx.fillStyle = col; const off = (s.dist * f) % wid;
+          for (let x = -off - wid; x < W + wid; x += wid) { ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.quadraticCurveTo(x + wid / 2, GROUND - hgt, x + wid, GROUND); ctx.fill(); }
+        };
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        for (let i = 0; i < 5; i++) { const x = (i * 190 - (s.dist * 0.1)) % (W + 200); const xx = x < -120 ? x + W + 200 : x; rr(ctx, xx, 40 + (i % 3) * 30, 90, 22, 11); ctx.fill(); rr(ctx, xx + 20, 28 + (i % 3) * 30, 44, 22, 11); ctx.fill(); }
+        par(0.2, '#b6e39a', 150, 320); par(0.45, '#8bd36c', 90, 220);
+        for (let i = 0; i < 6; i++) { const x = ((i * 170 - s.dist * 0.6) % (W + 170) + W + 170) % (W + 170) - 60; ctx.fillStyle = '#b8783b'; ctx.fillRect(x + 18, GROUND - 60, 8, 60); ctx.fillStyle = i % 2 ? '#ff9ac2' : '#ffd36b'; ctx.beginPath(); ctx.arc(x + 22, GROUND - 70, 24, 0, Math.PI * 2); ctx.fill(); }
+        const off = s.dist % 40;
+        ctx.fillStyle = '#5fc649'; ctx.fillRect(0, GROUND, W, 14);
+        ctx.fillStyle = '#c98a4b'; ctx.fillRect(0, GROUND + 14, W, H - GROUND - 14);
+        ctx.fillStyle = '#a86b33'; for (let x = -off; x < W; x += 40) ctx.fillRect(x, GROUND + 26, 20, 8);
+        ctx.fillStyle = '#3fa535'; for (let x = -off; x < W; x += 20) ctx.fillRect(x, GROUND + 10, 10, 4);
+      }
       // obstacles
+      const spikeImg = getPixelImg(JR_ASSETS.spike);
+      const barImg = getPixelImg(JR_ASSETS.bar);
+      const potionImg = getPixelImg(JR_ASSETS.potion);
       s.obs.forEach((o) => {
         if (o.kind === 'spike' || o.kind === 'spike2') {
           const n = o.kind === 'spike' ? 1 : 2, hh = o.kind === 'spike' ? 40 : 64;
-          for (let i = 0; i < n; i++) {
-            const x = o.x - (n * 18) + i * 36;
-            ctx.fillStyle = '#9aa7b8'; ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x + 18, GROUND - hh); ctx.lineTo(x + 36, GROUND); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = '#dfe6ef'; ctx.beginPath(); ctx.moveTo(x + 18, GROUND - hh); ctx.lineTo(x + 24, GROUND - hh / 2); ctx.lineTo(x + 18, GROUND - hh / 2); ctx.fill();
+          if (isImgReady(spikeImg)) {
+            ctx.imageSmoothingEnabled = false;
+            const sw = o.kind === 'spike' ? 48 : 84;
+            const sh = hh + 6;
+            ctx.drawImage(spikeImg, o.x - sw / 2, GROUND - sh + 4, sw, sh);
+          } else {
+            for (let i = 0; i < n; i++) {
+              const x = o.x - (n * 18) + i * 36;
+              ctx.fillStyle = '#9aa7b8'; ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x + 18, GROUND - hh); ctx.lineTo(x + 36, GROUND); ctx.closePath(); ctx.fill();
+              ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+              ctx.fillStyle = '#dfe6ef'; ctx.beginPath(); ctx.moveTo(x + 18, GROUND - hh); ctx.lineTo(x + 24, GROUND - hh / 2); ctx.lineTo(x + 18, GROUND - hh / 2); ctx.fill();
+            }
           }
         } else if (o.kind === 'bar') {
-          ctx.fillStyle = '#8a5a2e'; ctx.fillRect(o.x - 34, GROUND - 150, 8, 150 - 36); ctx.fillRect(o.x + 26, GROUND - 150, 8, 150 - 36);
-          ctx.fillStyle = '#ff4f5e'; rr(ctx, o.x - 44, GROUND - 76, 88, 36, 8); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
-          ctx.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) ctx.fillRect(o.x - 38 + i * 22, GROUND - 70, 10, 24);
+          ctx.fillStyle = '#5a3417'; ctx.fillRect(o.x - 36, GROUND - 150, 8, 150 - 38); ctx.fillRect(o.x + 28, GROUND - 150, 8, 150 - 38);
+          ctx.fillStyle = '#8a5a2e'; ctx.fillRect(o.x - 34, GROUND - 150, 4, 150 - 38); ctx.fillRect(o.x + 30, GROUND - 150, 4, 150 - 38);
+          if (isImgReady(barImg)) {
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(barImg, o.x - 48, GROUND - 80, 96, 40);
+          } else {
+            ctx.fillStyle = '#ff4f5e'; rr(ctx, o.x - 44, GROUND - 76, 88, 36, 8); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) ctx.fillRect(o.x - 38 + i * 22, GROUND - 70, 10, 24);
+          }
         } else if (!o.used) {
-          ctx.fillStyle = '#ff4f5e'; rr(ctx, o.x - 12, GROUND - 76, 24, 30, 8); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(o.x - 3, GROUND - 70, 6, 18); ctx.fillRect(o.x - 9, GROUND - 64, 18, 6);
+          if (isImgReady(potionImg)) {
+            ctx.imageSmoothingEnabled = false;
+            const bob = Math.sin(ts / 180) * 3;
+            ctx.drawImage(potionImg, o.x - 16, GROUND - 80 + bob, 32, 36);
+          } else {
+            ctx.fillStyle = '#ff4f5e'; rr(ctx, o.x - 12, GROUND - 76, 24, 30, 8); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(o.x - 3, GROUND - 70, 6, 18); ctx.fillRect(o.x - 9, GROUND - 64, 18, 6);
+          }
         }
       });
       s.jel.forEach((j) => !j.got && jellyBean(j.x, j.y, j.big));

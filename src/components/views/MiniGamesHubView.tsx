@@ -1,12 +1,5 @@
 import React from 'react';
-import { 
-  CloudRain, 
-  Sparkles, 
-  Zap, 
-  ArrowLeft,
-  Hammer,
-  Heart
-} from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { AppMode, UserSession } from '../../types';
 import { soundManager } from '../../utils/sound';
 
@@ -20,103 +13,113 @@ export const MiniGamesHubView: React.FC<MiniGamesHubViewProps> = ({ onSelectMode
     {
       id: 'mole-game' as AppMode,
       title: '두더지 타자 잡기',
-      emoji: '🔨',
-      icon: Hammer,
-      bgColor: 'from-amber-500 to-orange-600',
-      shadowColor: 'shadow-orange-200',
-      borderTone: 'border-orange-300',
+      subtitle: '풀밭 언덕 두더지 퇴치',
+      thumb: './assets/minigames/thumb-mole.webp',
+      fallbackBg: '#4c9e36',
     },
     {
       id: 'word-crush' as AppMode,
       title: '워드 크러쉬',
-      emoji: '🍬',
-      icon: Sparkles,
-      bgColor: 'from-pink-500 to-rose-600',
-      shadowColor: 'shadow-pink-200',
-      borderTone: 'border-pink-300',
+      subtitle: '반짝이는 보석 동굴 퍼즐',
+      thumb: './assets/minigames/thumb-crush.webp',
+      fallbackBg: '#272452',
     },
     {
       id: 'rain-game' as AppMode,
       title: '산성비 (단어 소나기)',
-      emoji: '🌧️',
-      icon: CloudRain,
-      bgColor: 'from-sky-500 to-blue-600',
-      shadowColor: 'shadow-blue-200',
-      borderTone: 'border-sky-300',
+      subtitle: '비구름 아래 마을 수비',
+      thumb: './assets/minigames/thumb-rain.webp',
+      fallbackBg: '#1c3e68',
     },
     {
       id: 'shortcut-quiz' as AppMode,
       title: '단축키 디펜스',
-      emoji: '⚡',
-      icon: Zap,
-      bgColor: 'from-purple-500 to-indigo-600',
-      shadowColor: 'shadow-purple-200',
-      borderTone: 'border-purple-300',
+      subtitle: '성벽과 숲 단축키 방어',
+      thumb: './assets/minigames/thumb-defense.webp',
+      fallbackBg: '#2e3e6e',
     },
     {
       id: 'tamagotchi' as AppMode,
       title: '다마고치 키우기',
-      emoji: '🐣',
-      icon: Heart,
-      bgColor: 'from-emerald-500 to-teal-600',
-      shadowColor: 'shadow-teal-200',
-      borderTone: 'border-teal-300',
+      subtitle: '아늑한 나무집 펫 육성',
+      thumb: './assets/minigames/thumb-pet.webp',
+      fallbackBg: '#7b4c24',
     },
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-6 animate-in fade-in duration-200">
-      {/* Clean Top Navigation Bar */}
-      <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-        <button
-          onClick={() => {
-            soundManager.play('click');
-            onSelectMode('home');
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>홈으로 돌아가기</span>
-        </button>
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 animate-in fade-in duration-200">
+      <section className="mg-hub qm-frame" aria-label="미니타자게임 센터">
+        <span className="qm-cap qm-cap--tl" aria-hidden="true" />
+        <span className="qm-cap qm-cap--tr" aria-hidden="true" />
+        <span className="qm-cap qm-cap--bl" aria-hidden="true" />
+        <span className="qm-cap qm-cap--br" aria-hidden="true" />
 
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🎮</span>
-          <h1 className="text-base sm:text-lg font-black font-arcade text-slate-900">
-            미니타자게임 센터
-          </h1>
-        </div>
+        <div className="mg-hub-inner">
+          <img
+            src="./assets/wood-frame.webp"
+            alt=""
+            aria-hidden="true"
+            className="mg-hub-bg"
+            referrerPolicy="no-referrer"
+            draggable={false}
+          />
 
-        <div className="w-20" />
-      </div>
-
-      {/* Grid of Mini-Games: 5개 아이콘 클릭형 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 sm:gap-5">
-        {games.map((game) => {
-          return (
-            <button
-              key={game.id}
-              onClick={() => {
-                soundManager.play('pop');
-                onSelectMode(game.id);
-              }}
-              className="group flex flex-col items-center justify-center p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 hover:border-pink-500 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 active:scale-95 cursor-pointer text-center"
-              title={`${game.title} 시작하기`}
-            >
-              {/* 3D Tactile Arcade Icon Button */}
-              <div
-                className={`w-20 h-20 sm:w-22 sm:h-22 rounded-3xl bg-gradient-to-br ${game.bgColor} text-white shadow-lg ${game.shadowColor} flex flex-col items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 relative border-b-4 border-black/20`}
+          <div className="relative z-10 space-y-5 sm:space-y-6">
+            {/* Top Guild Navigation Bar */}
+            <div className="mg-hub-topbar">
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.play('click');
+                  onSelectMode('home');
+                }}
+                className="tp-rpg-btn tp-rpg-btn--wood inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold cursor-pointer"
               >
-                <span className="text-3xl sm:text-4xl drop-shadow-md">{game.emoji}</span>
-              </div>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>홈으로 돌아가기</span>
+              </button>
 
-              {/* Game Title */}
-              <h3 className="mt-3 font-black text-xs sm:text-sm text-slate-800 font-arcade group-hover:text-pink-600 transition-colors leading-tight">
-                {game.title}
-              </h3>
-            </button>
-          );
-        })}
-      </div>
+              <h1 className="mg-hub-title">미니타자게임 센터</h1>
+
+              <div className="hidden sm:block w-28" aria-hidden="true" />
+            </div>
+
+            {/* 5 Mini-Game Cards with 16-bit Pixel RPG Illustrations */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+              {games.map((game) => (
+                <button
+                  key={game.id}
+                  type="button"
+                  onClick={() => {
+                    soundManager.play('pop');
+                    onSelectMode(game.id);
+                  }}
+                  className="mg-hub-card group text-center cursor-pointer"
+                  title={`${game.title} 시작하기`}
+                >
+                  <div
+                    className="mg-hub-thumb-wrap"
+                    style={{ backgroundColor: game.fallbackBg }}
+                  >
+                    <img
+                      src={game.thumb}
+                      alt={game.title}
+                      className="mg-hub-thumb"
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                    />
+                  </div>
+                  <div className="mg-hub-meta">
+                    <h3 className="mg-hub-card-title">{game.title}</h3>
+                    <p className="mg-hub-card-sub">{game.subtitle}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

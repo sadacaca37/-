@@ -20,6 +20,7 @@ export interface PlaygroundGameDef {
   title: string;
   category: '기본' | '펀펀' | '템플릿';
   icon: string; // emoji
+  thumb?: string; // 16-bit pixel art thumbnail path
   badgeLetter?: string;
   badgeBg?: string;
   author?: string;
@@ -40,6 +41,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '수박게임',
     category: '기본',
     icon: '🍉',
+    thumb: './assets/playground/thumb-suika.webp',
     component: SuikaGame,
   },
   {
@@ -47,6 +49,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '탕후루 마스터',
     category: '기본',
     icon: '🍡',
+    thumb: './assets/playground/thumb-tanghulu.webp',
     component: TanghuluGame,
   },
   {
@@ -54,6 +57,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '젤리 점프 러너',
     category: '기본',
     icon: '🏃',
+    thumb: './assets/playground/thumb-jelly-runner.webp',
     component: JellyRunnerGame,
   },
   {
@@ -61,6 +65,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '테트리스',
     category: '기본',
     icon: '🧱',
+    thumb: './assets/playground/thumb-tetris.webp',
     component: TetrisGame,
   },
   {
@@ -68,6 +73,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '무한의 계단',
     category: '기본',
     icon: '🪜',
+    thumb: './assets/playground/thumb-infinite-stairs.webp',
     component: InfiniteStairsGame,
   },
   {
@@ -75,6 +81,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '2048 퍼즐',
     category: '기본',
     icon: '🔢',
+    thumb: './assets/playground/thumb-2048.webp',
     component: Game2048,
   },
 
@@ -84,6 +91,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '다리 돌파 작전',
     category: '펀펀',
     icon: '⚔️',
+    thumb: './assets/playground/thumb-lastwar.webp',
     description: '3D 다리 돌파 액션 · 문을 지나며 부대를 늘리는 전략 아케이드 · 👥 2인 대결',
     component: LastWarGameWrapper,
   },
@@ -92,6 +100,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '숲속 사다리 모험',
     category: '펀펀',
     icon: '🦝',
+    thumb: './assets/playground/thumb-ponpoko.webp',
     description: '사다리를 오르내리며 과일을 모으는 옛날 오락실 느낌 게임 · 👥 2인 대결',
     component: PonpokoGameWrapper,
   },
@@ -100,6 +109,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '방울 용 대작전',
     category: '펀펀',
     icon: '🫧',
+    thumb: './assets/playground/thumb-bubble.webp',
     description: '방울을 쏴서 몬스터를 가두고 터뜨리는 아케이드 게임 · 👥 2인 대결',
     component: BubbleBobbleGameWrapper,
   },
@@ -108,6 +118,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '버섯 숲 점프 모험',
     category: '펀펀',
     icon: '🍄',
+    thumb: './assets/playground/thumb-mario.webp',
     description: '달리고 점프해서 길을 건너는 옆으로 가는 액션 게임 · 👥 2인 대결',
     component: SuperMarioGameWrapper,
   },
@@ -116,6 +127,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '하늘 비행 대작전',
     category: '펀펀',
     icon: '✈️',
+    thumb: './assets/playground/thumb-airplane.webp',
     description: '전투기 7종 · 스테이지 10개 · 보스전이 있는 비행 슈팅 · 👥 2인 대결',
     component: AirplaneShootingGame,
   },
@@ -124,6 +136,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '팡팡 카트 레이싱',
     category: '펀펀',
     icon: '🏎️',
+    thumb: './assets/playground/thumb-kart.webp',
     description: '캐릭터·카트·트랙(사막·네온 시티·숲·좀비마을)을 골라 달리는 3D 드리프트 레이싱 · 별·부스터·점프·비행 · 👥 2인 대결',
     component: PocketKartOriginal,
   },
@@ -132,6 +145,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '과자 왕국 런',
     category: '펀펀',
     icon: '🍪',
+    thumb: './assets/playground/thumb-cookie.webp',
     description: '쿠키가 달리는 러너 게임 · 쿠키 4종 · 스테이지 4개 · 점프·2단 점프·슬라이드로 젤리와 코인 모으기 · 👥 2인 대결',
     component: CookieKingdomRun,
   },
@@ -140,6 +154,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '블록 쌓기 월드',
     category: '펀펀',
     icon: '⛏️',
+    thumb: './assets/playground/thumb-blockcraft.webp',
     description: '블록을 캐고 쌓는 3D 샌드박스 · 조합대 · 동물·몬스터',
     component: BlockCraftGame,
   },

@@ -744,75 +744,75 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-300">
+    <div className="tp-typing-screen space-y-3.5">
       {/* MyChew High Score Reward Mission Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-pink-50 via-purple-50 to-rose-50 p-3.5 sm:p-4 rounded-2xl border-2 border-pink-200 shadow-sm">
+      <div className="pr-toolbar px-3.5 py-2.5 sm:px-4 sm:py-3 flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5">
-          <span className="text-2xl animate-bounce">🍬</span>
+          <span className="text-2xl leading-none">🍬</span>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-pink-700">마이쮸 신기록 보상 미션</span>
-              <span className="text-[11px] font-black text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-black text-[#4d1d0c] font-arcade">마이쮸 신기록 보상 미션</span>
+              <span className="text-[11px] font-black text-[#5c2c0e] bg-[#fde6a8] px-2 py-0.5 rounded-md border border-[#b88635]">
                 타수 갱신 + 정확도 95% 이상 시 지급!
               </span>
             </div>
-            <p className="text-[11px] text-stone-600 font-medium mt-0.5">
+            <p className="text-[11px] text-[#5c3d22] font-bold mt-0.5">
               이전 최고 타수를 뛰어넘고 오타 없이(정확도 95% 이상) 치면 선생님 확인 후 마이쮸를 받아요!
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-white/90 px-3.5 py-1.5 rounded-xl border border-pink-200 shadow-2xs">
-          <span className="text-xs font-bold text-stone-500">목표 기준 타수:</span>
-          <span className="font-mono font-black text-sm text-pink-600">{bestCpm > 0 ? `${bestCpm} CPM` : '첫 완주 후 등록'}</span>
+        <div className="pr-stat-plaque flex items-center gap-2 px-3 py-1.5">
+          <span className="text-xs font-bold text-[#6e4622]">목표 기준 타수:</span>
+          <span className="font-mono font-black text-sm text-[#a63016] tabular-nums">
+            {bestCpm > 0 ? `${bestCpm} CPM` : '첫 완주 후 등록'}
+          </span>
         </div>
       </div>
 
       {/* Top Banner: Mode, Language Switcher & 5-Min Switcher */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border-4 border-pink-200 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 arcade-card-glow">
+      <div className="pr-toolbar p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-black border border-pink-300 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-pink-500" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="px-2.5 py-0.5 rounded-md bg-[#7c3518] text-[#fff6dc] text-[11px] font-black border border-[#3d220d] flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-[#fde047]" />
               <span>명예의 전당 등록 전용 모드</span>
             </span>
 
             {/* Language Selector Indicator */}
-            <span className="px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-black border border-sky-300 flex items-center gap-1">
-              <Globe className="w-3.5 h-3.5 text-sky-600" />
+            <span className="px-2.5 py-0.5 rounded-md bg-[#234d7a] text-[#fff8e2] text-[11px] font-black border border-[#14304d] flex items-center gap-1">
+              <Globe className="w-3 h-3 text-[#93c5fd]" />
               <span>{language === 'ko' ? '🇰🇷 한글 모드' : '🇺🇸 영어 (English) 모드'}</span>
             </span>
 
             {!currentUser && (
-              <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
+              <span className="text-[11px] font-bold text-[#6e3a0e] bg-[#fef0c7] px-2 py-0.5 rounded-md border border-[#c69148] flex items-center gap-1">
                 <Lock className="w-3 h-3" />
                 <span>비로그인 (자유 연습 모드 - 랭킹은 로그인 회원만 등록)</span>
               </span>
             )}
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1 font-arcade">
+          <h1 className="text-lg sm:text-xl font-black text-[#2c1507] tracking-tight mt-1 font-arcade">
             짧은 글 타자 연습
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            한글 또는 영어 문장을 자유롭게 선택하여 5분 이상 충분히 연습하고 <strong className="text-pink-600">명예의 전당</strong>에 도전하세요!
+          <p className="text-xs text-[#5c3d22] font-bold">
+            한글 또는 영어 문장을 자유롭게 선택하여 5분 이상 충분히 연습하고 <strong className="text-[#9e2a12]">명예의 전당</strong>에 도전하세요!
           </p>
         </div>
 
         {/* Language Toggle & 5-Min Marathon Switcher */}
         <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
-          {/* Language Toggle Pills */}
-          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200">
+          {/* Language Toggle Wooden Switcher */}
+          <div className="pr-wood-group flex items-center gap-1">
             <button
               onClick={() => {
                 setLanguage('ko');
                 setSelectedCategoryIndex(0);
                 handleResetSession();
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
-                language === 'ko'
-                  ? 'bg-pink-500 text-white shadow-xs scale-105'
-                  : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-3 py-1.5 text-xs cursor-pointer ${
+                language === 'ko' ? 'pr-wood-tab--active' : ''
               }`}
             >
               🇰🇷 한글
@@ -823,10 +823,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                 setSelectedCategoryIndex(0);
                 handleResetSession();
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
-                language === 'en'
-                  ? 'bg-sky-500 text-white shadow-xs scale-105'
-                  : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-3 py-1.5 text-xs cursor-pointer ${
+                language === 'en' ? 'pr-wood-tab--blue' : ''
               }`}
             >
               🇺🇸 영어 짧은 글
@@ -839,30 +837,28 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               setIs5MinMode((prev) => !prev);
               handleResetSession();
             }}
-            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all shadow-sm ${
-              is5MinMode
-                ? 'arcade-btn-yellow text-amber-950 ring-4 ring-amber-200 scale-105'
-                : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-2 border-amber-200'
+            className={`px-3.5 py-2 text-xs font-black flex items-center gap-1.5 cursor-pointer ${
+              is5MinMode ? 'tp-rpg-btn tp-rpg-btn--gold' : 'pr-stone-btn'
             }`}
           >
-            <Timer className="w-4 h-4 text-amber-600" />
-            <span>
+            <Timer className="w-4 h-4" />
+            <span className="tabular-nums">
               {is5MinMode ? `🔥 5분 마라톤 (${formatRemainingTime(remainingTime5Min)})` : '⏱️ 5분 마라톤 모드'}
             </span>
           </button>
 
           <button
             onClick={handleResetSession}
-            className="px-3.5 py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black border border-amber-300 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
+            className="tp-rpg-btn tp-rpg-btn--wood px-3.5 py-2 text-xs font-black flex items-center gap-1.5 cursor-pointer"
             title="현재 테마를 처음부터 다시 칩니다"
           >
-            <RotateCcw className="w-4 h-4 text-amber-600" />
+            <RotateCcw className="w-3.5 h-3.5" />
             <span>이 단계 다시 치기</span>
           </button>
         </div>
       </div>
 
-      {/* Category Selection Tabs */}
+      {/* Category Selection Stone Buttons */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         {activeDataset.map((cat, idx) => (
           <button
@@ -872,16 +868,18 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               setSentenceIndex(0);
               setInputVal('');
             }}
-            className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-2 border-2 ${
+            className={`px-3.5 py-2 text-xs font-black whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               selectedCategoryIndex === idx
-                ? 'bg-pink-500 text-white border-pink-600 shadow-md scale-105 ring-2 ring-pink-200'
-                : 'bg-white text-slate-700 border-pink-100 hover:border-pink-300 hover:bg-pink-50/50'
+                ? 'pr-stone-btn--active rounded-lg'
+                : 'pr-stone-btn'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
             <span>{cat.category}</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-              selectedCategoryIndex === idx ? 'bg-white/30 text-white' : 'bg-pink-100 text-pink-700'
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
+              selectedCategoryIndex === idx
+                ? 'bg-[#3d220d]/15 text-[#2a1204]'
+                : 'bg-[#2c1507]/12 text-[#3d220d]'
             }`}>
               {cat.sentences.length}문장
             </span>
@@ -892,164 +890,171 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       {/* Real-time Stats Bar */}
       <StatsBar stats={stats} />
 
-      {/* Main Sentence Display Box */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border-4 border-pink-200 shadow-xl space-y-6 relative overflow-hidden arcade-card-glow">
-        {/* Header inside display: Sentence Progress & Category Description */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black text-pink-600 bg-pink-50 px-3 py-1 rounded-xl border border-pink-200">
-              {currentCategory.category}
+      {/* Main Sentence Display Box on Forest & Parchment Stage */}
+      <div className="pr-shell p-3 sm:p-4 space-y-3">
+        {/* Wooden Signboard Status Row */}
+        <div className="pr-status-bar px-3.5 sm:px-5 py-2.5 flex items-center justify-between flex-wrap gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="pr-status-chip text-sm sm:text-base font-black px-3 py-1">
+              📜 {currentCategory.category}
             </span>
-            {/* 진행도 */}
+            {/* 진행도 픽셀 게이지 */}
             <span className="flex items-center gap-2">
-              <span className="text-sm font-black text-slate-600">진행도</span>
-              <span className="w-28 sm:w-40 bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300 p-0.5 inline-block">
+              <span className="text-sm sm:text-base font-black text-[#ffe9a8]">진행도</span>
+              <span className="pr-gauge-track w-28 sm:w-40 h-4.5 inline-block align-middle">
                 <span
-                  className="bg-gradient-to-r from-pink-400 to-rose-500 h-full rounded-full block transition-all duration-300"
+                  className="pr-gauge-fill pr-gauge-fill--gold block"
                   style={{ width: `${Math.round((sentenceIndex / Math.max(1, currentCategory.sentences.length)) * 100)}%` }}
                 />
               </span>
-              <span className="text-sm font-black text-slate-700">
+              <span className="min-w-[44px] text-right text-sm sm:text-base font-black text-white tabular-nums">
                 {Math.round((sentenceIndex / Math.max(1, currentCategory.sentences.length)) * 100)}%
               </span>
-              <span className="text-sm font-bold text-slate-500">
+              <span className="min-w-[100px] text-sm font-bold text-[#fde6a8] tabular-nums">
                 ({sentenceIndex + 1} / {currentCategory.sentences.length} 문장)
               </span>
             </span>
             {hasResumed && (
-              <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-teal-600" />
+              <span className="pr-status-chip text-xs font-black px-2.5 py-0.5 flex items-center gap-1 text-[#bbf7d0]">
+                <Sparkles className="w-3.5 h-3.5 text-[#4ade80]" />
                 <span>이전 위치 이어서 연습 중</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-extrabold">
-            <span className="text-teal-600 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200">
+          <div className="flex items-center gap-2 text-sm sm:text-base font-extrabold">
+            <span className="pr-status-chip px-3 py-1 text-[#fde68a] tabular-nums">
               누적 완주: {completedInSession} 문장
             </span>
             {is5MinMode && (
-              <span className="text-amber-700 bg-amber-100 px-3 py-1 rounded-xl border border-amber-300 font-mono font-black animate-pulse">
-                남은 시간: {formatRemainingTime(remainingTime5Min)}
+              <span className="pr-status-chip px-3 py-1 text-[#fca5a5] font-mono font-black tabular-nums">
+                ⏱ 남은 시간: {formatRemainingTime(remainingTime5Min)}
               </span>
             )}
           </div>
         </div>
 
-        {/* Target Sentence with Character-by-Character Highlighting */}
-        <div className="min-h-24 sm:min-h-28 flex flex-col justify-center items-center text-center p-4 bg-sky-50/50 rounded-2xl border-2 border-sky-100">
-          <div
-            data-testid="target-sentence"
-            data-sentence={currentSentence}
-            className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-wide leading-relaxed font-arcade select-none"
-          >
-            {currentSentence.split('').map((char, index) => {
-              let charStyle = 'text-slate-400';
-
-              if (index < inputVal.length - 1) {
-                if (inputVal[index] === char) {
-                  charStyle = 'text-sky-600 font-black';
-                } else {
-                  charStyle = 'text-rose-500 font-black bg-rose-100 underline decoration-rose-500';
-                }
-              } else if (index === inputVal.length - 1) {
-                if (inputVal[index] === char) {
-                  charStyle = 'text-sky-600 font-black';
-                } else if (isHangulPrefix(char, inputVal[index])) {
-                  charStyle = 'text-sky-600 font-black bg-sky-100/60 ring-2 ring-sky-300 rounded-sm';
-                } else {
-                  charStyle = 'text-rose-500 font-black bg-rose-100 underline decoration-rose-500';
-                }
-              } else if (index === inputVal.length) {
-                charStyle = 'text-slate-900 font-black bg-pink-200 ring-2 ring-pink-400 rounded-sm animate-pulse';
-              }
-
-              return (
-                <span key={index} className={`transition-colors px-0.5 ${charStyle}`}>
-                  {char === ' ' ? '\u00A0' : char}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* User Typing Input Field */}
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputVal}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onCompositionStart={handleCompositionStart}
-            onCompositionEnd={handleCompositionEnd}
-            placeholder={language === 'ko' ? "문장을 다 치고 Enter 또는 스페이스를 누르면 다음 문장으로 넘어가요" : "Type the sentence, then press Enter or Space to go on"}
-            className="block w-full text-center text-xl sm:text-2xl md:text-3xl font-black px-6 py-4 rounded-2xl border-4 border-pink-300 focus:border-pink-500 focus:ring-4 focus:ring-pink-200 outline-hidden bg-pink-50/30 text-slate-800 tracking-wide font-arcade placeholder:text-base sm:placeholder:text-lg placeholder:text-slate-400"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck="false"
-          />
-
-          {shortHint && (
-            <span className="absolute left-1/2 -translate-x-1/2 -top-4 px-3 py-1 rounded-full bg-rose-500 text-white text-sm font-black pointer-events-none shadow" data-testid="short-hint">
-              {shortHint}
-            </span>
-          )}
-
-          {inputVal.length >= currentSentence.length && (
-            <span className="absolute right-3 top-2 px-2 py-0.5 rounded-full bg-pink-500 text-white text-[11px] font-black pointer-events-none animate-pulse">
-              Enter ↵ 또는 스페이스
-            </span>
-          )}
-
-          {/* Quick Progress Bar for Current Sentence */}
-          <div className="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden border border-slate-200">
+        {/* Forest Meadow Backdrop with Parchment Scroll Target & Input */}
+        <div className="pr-meadow-stage pr-meadow-stage--sentence p-4 sm:p-6 space-y-4">
+          {/* Target Sentence Parchment Scroll Card (fixed box height; only font size scales for long sentences) */}
+          <div className="pr-parchment-card pr-parchment-card--sentence h-[144px] sm:h-[164px] overflow-hidden flex flex-col justify-center items-center text-center">
             <div
-              className="bg-gradient-to-r from-pink-400 via-rose-400 to-sky-400 h-full transition-all duration-150 rounded-full"
-              style={{
-                width: `${Math.min(100, Math.round((inputVal.length / currentSentence.length) * 100))}%`,
-              }}
-            ></div>
+              data-testid="target-sentence"
+              data-sentence={currentSentence}
+              className={`${
+                currentSentence.length > 36
+                  ? 'text-xl sm:text-2xl md:text-3xl leading-snug'
+                  : 'text-2xl sm:text-3xl md:text-4xl leading-relaxed'
+              } font-extrabold tracking-wide font-arcade select-none`}
+            >
+              {currentSentence.split('').map((char, index) => {
+                let charStyle = 'text-[#7d6242]';
+
+                if (index < inputVal.length - 1) {
+                  if (inputVal[index] === char) {
+                    charStyle = 'text-[#0369a1] font-black';
+                  } else {
+                    charStyle = 'text-[#be123c] font-black bg-[#ffe4e6] underline decoration-[#e11d48]';
+                  }
+                } else if (index === inputVal.length - 1) {
+                  if (inputVal[index] === char) {
+                    charStyle = 'text-[#0369a1] font-black';
+                  } else if (isHangulPrefix(char, inputVal[index])) {
+                    charStyle = 'text-[#0369a1] font-black bg-[#e0f2fe] ring-2 ring-[#38bdf8] rounded-sm';
+                  } else {
+                    charStyle = 'text-[#be123c] font-black bg-[#ffe4e6] underline decoration-[#e11d48]';
+                  }
+                } else if (index === inputVal.length) {
+                  charStyle = 'text-[#241106] font-black bg-[#fde047] ring-2 ring-[#b45309] rounded-sm animate-pulse';
+                }
+
+                return (
+                  <span key={index} className={`px-0.5 ${charStyle}`}>
+                    {char === ' ' ? '\u00A0' : char}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* User Typing Input Field */}
+          <div className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputVal}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
+              placeholder={language === 'ko' ? "문장을 다 치고 Enter 또는 스페이스를 누르면 다음 문장으로 넘어가요" : "Type the sentence, then press Enter or Space to go on"}
+              className="block w-full text-center text-xl sm:text-2xl md:text-3xl font-black px-5 py-3.5 rounded-xl border-4 border-[#3d220d] focus:border-[#b45309] focus:ring-4 focus:ring-[#fde047]/70 outline-hidden bg-[#fffaf0] text-[#241106] tracking-wide font-arcade placeholder:text-base sm:placeholder:text-lg placeholder:text-[#8c6b48] shadow-[0_4px_0_#2c1507]"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+            />
+
+            {shortHint && (
+              <span className="absolute left-1/2 -translate-x-1/2 -top-4 px-3 py-1 rounded-lg bg-[#be123c] border-2 border-[#4c0519] text-white text-sm font-black pointer-events-none shadow" data-testid="short-hint">
+                {shortHint}
+              </span>
+            )}
+
+            {inputVal.length >= currentSentence.length && (
+              <span className="absolute right-3 top-2 px-2.5 py-0.5 rounded-md bg-[#15803d] border border-[#052e16] text-white text-[11px] font-black pointer-events-none">
+                Enter ↵ 또는 스페이스
+              </span>
+            )}
+
+            {/* Pixel Progress Bar for Current Sentence */}
+            <div className="pr-gauge-track w-full h-3.5 mt-3">
+              <div
+                className="pr-gauge-fill pr-gauge-fill--green"
+                style={{
+                  width: `${Math.min(100, Math.round((inputVal.length / currentSentence.length) * 100))}%`,
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Completion / Session Summary Modal */}
       {showSummaryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 text-center shadow-2xl border-4 border-pink-300 space-y-5 arcade-card-glow">
-            <div className="w-16 h-16 rounded-3xl bg-pink-100 text-pink-600 mx-auto flex items-center justify-center border-2 border-pink-300 shadow-md">
-              <Trophy className="w-9 h-9 text-amber-500 animate-bounce" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65">
+          <div className="pr-parchment-card max-w-md w-full p-6 sm:p-7 text-center space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-[#fde68a] text-[#78350f] mx-auto flex items-center justify-center border-3 border-[#3d220d] shadow-[0_4px_0_#2c1507]">
+              <Trophy className="w-9 h-9 text-[#b45309]" />
             </div>
 
             <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight font-arcade">
+              <h3 className="text-2xl font-black text-[#2c1507] tracking-tight font-arcade">
                 🎉 짧은 글 연습 완료!
               </h3>
-              <p className="text-xs text-slate-500 mt-1 font-bold">
+              <p className="text-xs text-[#5c3d22] mt-1 font-bold">
                 {currentUser ? (
-                  <>기록이 <strong className="text-pink-600">명예의 전당</strong>에 성공적으로 반영되었습니다.</>
+                  <>기록이 <strong className="text-[#9e2a12]">명예의 전당</strong>에 성공적으로 반영되었습니다.</>
                 ) : (
                   <>비로그인 상태입니다. 랭킹 등록을 원하시면 상단에서 로그인해 보세요!</>
                 )}
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5 bg-pink-50/70 p-4 rounded-2xl border-2 border-pink-200">
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 block">최고 타수</span>
-                <span className="text-2xl font-black text-pink-600 font-mono">{stats.cpm}</span>
-                <span className="text-[10px] text-slate-400 block">CPM</span>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="pr-stat-plaque p-3">
+                <span className="text-[10px] font-extrabold text-[#6e4622] block">최고 타수</span>
+                <span className="text-2xl font-black text-[#9e2a12] font-mono tabular-nums">{stats.cpm}</span>
+                <span className="text-[10px] text-[#7c532c] block">CPM</span>
               </div>
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 block">정확도</span>
-                <span className="text-2xl font-black text-teal-600 font-mono">{stats.accuracy}%</span>
+              <div className="pr-stat-plaque p-3">
+                <span className="text-[10px] font-extrabold text-[#6e4622] block">정확도</span>
+                <span className="text-2xl font-black text-[#15803d] font-mono tabular-nums">{stats.accuracy}%</span>
               </div>
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 block">완주 문장</span>
-                <span className="text-2xl font-black text-sky-600 font-mono">{completedInSession || 1}</span>
-                <span className="text-[10px] text-slate-400 block">문장</span>
+              <div className="pr-stat-plaque p-3">
+                <span className="text-[10px] font-extrabold text-[#6e4622] block">완주 문장</span>
+                <span className="text-2xl font-black text-[#0369a1] font-mono tabular-nums">{completedInSession || 1}</span>
+                <span className="text-[10px] text-[#7c532c] block">문장</span>
               </div>
             </div>
 
@@ -1064,10 +1069,10 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             <div className="flex flex-col sm:flex-row gap-2.5">
               <button
                 onClick={handleResetSession}
-                className="flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm shadow-md flex items-center justify-center gap-1.5 cursor-pointer border-2 border-amber-300 active:scale-95"
+                className="tp-rpg-btn tp-rpg-btn--wood flex-1 py-3 font-black text-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>🎯 직전 단계 다시 치기 (재도전)</span>
+                <span>🎯 직전 단계 다시 치기</span>
               </button>
               <button
                 onClick={() => {
@@ -1075,7 +1080,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                   sessionDoneRef.current = false;
                   handleNextSentence();
                 }}
-                className="flex-1 py-3 rounded-2xl arcade-btn-pink text-white font-black text-sm shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                className="tp-rpg-btn tp-rpg-btn--gold flex-1 py-3 font-black text-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>다음 문장 계속하기 ▶</span>
               </button>

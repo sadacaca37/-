@@ -1,14 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
 import { ArcadeShell, useBest } from './games/ArcadeShell';
+import { preloadPixelImgs } from './pixelAssets';
 
 /* The classic 4x4 sliding-number puzzle with animated sliding tiles, merge pops, swipe & undo. */
 type Tile = { id: number; v: number; r: number; c: number; merged?: boolean; isNew?: boolean; pop?: number };
 const N = 4;
+const TILE_TIERS = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048] as const;
+const TILE_ASSETS = [
+  './assets/playground/game2048/cell.webp',
+  ...TILE_TIERS.map((v) => `./assets/playground/game2048/tile-${v}.webp`),
+];
+const tileArtFor = (v: number) => `./assets/playground/game2048/tile-${Math.min(2048, v)}.webp`;
 const COLORS: Record<number, [string, string]> = {
-  2: ['#eee4da', '#776e65'], 4: ['#ede0c8', '#776e65'], 8: ['#f2b179', '#f9f6f2'], 16: ['#f59563', '#f9f6f2'],
-  32: ['#f67c5f', '#f9f6f2'], 64: ['#f65e3b', '#f9f6f2'], 128: ['#edcf72', '#f9f6f2'], 256: ['#edcc61', '#f9f6f2'],
-  512: ['#edc850', '#f9f6f2'], 1024: ['#edc53f', '#f9f6f2'], 2048: ['#edc22e', '#f9f6f2'],
+  2: ['#e8dcc2', '#2c1507'], 4: ['#d8b989', '#2c1507'], 8: ['#f2b179', '#ffffff'], 16: ['#f59563', '#ffffff'],
+  32: ['#f67c5f', '#ffffff'], 64: ['#f65e3b', '#ffffff'], 128: ['#edcf72', '#ffffff'], 256: ['#22c55e', '#ffffff'],
+  512: ['#06b6d4', '#ffffff'], 1024: ['#2563eb', '#ffffff'], 2048: ['#9333ea', '#fffdf0'],
 };
 let uid = 1;
 
@@ -48,7 +55,10 @@ export const Game2048: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setTiles(addRandom(addRandom([])));
     setScore(0); setOver(false); setWon(false); setKeepGoing(false); hist.current = null;
   }, []);
-  useEffect(() => { start(); }, [start]);
+  useEffect(() => {
+    preloadPixelImgs(TILE_ASSETS);
+    start();
+  }, [start]);
 
   const move = useCallback((dir: 'L' | 'R' | 'U' | 'D') => {
     if (over || (won && !keepGoing)) return;
@@ -147,8 +157,9 @@ export const Game2048: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           <div key={i} className="g48-cell" style={{ left: `calc(${(i % N) * 25}% + 6px)`, top: `calc(${Math.floor(i / N) * 25}% + 6px)` }} />
         ))}
         {tiles.map((t) => {
-          const [bg, fg] = COLORS[t.v] || ['#3c3a32', '#f9f6f2'];
+          const [bg, fg] = COLORS[t.v] || ['#581c87', '#fffdf0'];
           const fs = t.v < 100 ? 44 : t.v < 1000 ? 36 : 28;
+          const isLightTile = t.v <= 4;
           return (
             <div
               key={t.id}
@@ -156,11 +167,15 @@ export const Game2048: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               style={{
                 left: `calc(${t.c * 25}% + 6px)`,
                 top: `calc(${t.r * 25}% + 6px)`,
-                background: bg,
+                backgroundColor: bg,
+                backgroundImage: `url('${tileArtFor(t.v)}')`,
                 color: fg,
+                textShadow: isLightTile
+                  ? '0 2px 0 rgba(255,250,235,0.85), 0 -1px 0 rgba(255,250,235,0.6)'
+                  : undefined,
                 fontSize: `clamp(18px, ${fs / 4.4}vw, ${fs}px)`,
                 zIndex: t.merged ? 1 : 2,
-                boxShadow: t.v >= 128 ? `0 0 ${Math.min(30, Math.log2(t.v) * 3)}px rgba(243,215,116,0.6)` : undefined,
+                boxShadow: t.v >= 128 ? `0 0 ${Math.min(26, Math.log2(t.v) * 2.5)}px rgba(243,215,116,0.58)` : undefined,
               }}
             >
               {t.v}

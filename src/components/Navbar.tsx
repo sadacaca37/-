@@ -24,7 +24,6 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { AppMode, UserSession } from '../types';
-import { CharacterAvatar, DEFAULT_AVATAR_CONFIG } from './CharacterAvatar';
 import { pointsManager } from '../utils/pointsManager';
 import { soundManager } from '../utils/sound';
 
@@ -183,6 +182,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Tools: Master Portal, Sound, Profile/Login */}
           <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {/* 모아팡 첫 화면으로 바로가기 (타자팡은 모아팡 안 taja/ 에 있음) */}
+            <a
+              href="../"
+              data-testid="nav-go-moapang"
+              className="tp-nbtn tp-nbtn--wood px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 no-underline"
+              title="모아팡 첫 화면으로 가기"
+            >
+              <span aria-hidden="true">🏠</span>
+              <span className="hidden sm:inline">모아팡</span>
+            </a>
+
             {/* Typing History Modal Button */}
             {onOpenHistory && (
               <button
@@ -253,9 +263,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Total Points Wallet Indicator (상단 마스터 관리실 옆 전체 보유 포인트) */}
             <button
-              onClick={() => onOpenProfile('avatar')}
+              onClick={() => onOpenProfile('account')}
               className="tp-nbtn tp-nbtn--coin px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-100 hover:from-yellow-100 hover:to-amber-200 text-amber-950 border-2 border-yellow-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 group"
-              title="전체 보유 포인트 (클릭하여 아바타 꾸미기 및 상점 이동)"
+              title="전체 보유 포인트 (클릭하여 내 프로필 확인)"
             >
               <div className="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-500 flex items-center justify-center text-xs shadow-2xs group-hover:rotate-12 transition-transform">
                 🪙
@@ -306,13 +316,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="tp-nbtn tp-nbtn--wood flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-200 transition-all text-xs font-bold cursor-pointer"
                   title="내 계정 정보(이름/전화번호) & 4자리 비밀번호 확인/수정"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-white border border-sky-200 shadow-2xs flex items-center justify-center overflow-hidden">
-                    <CharacterAvatar
-                      config={currentUser.avatarConfig || DEFAULT_AVATAR_CONFIG}
-                      size="sm"
-                      mood="happy"
-                      animate={false}
-                    />
+                  <div className="w-8 h-8 rounded-xl bg-white border border-sky-200 shadow-2xs flex items-center justify-center text-lg leading-none">
+                    {currentUser.avatar || (currentUser.role === 'master' ? '👑' : '🙂')}
                   </div>
                   <div className="text-left hidden sm:block">
                     <span className="font-extrabold text-slate-800 block leading-tight">

@@ -21,62 +21,62 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
   return (
     <div 
       id="typing-stats-bar"
-      className="bg-white rounded-3xl p-3 sm:p-4 border-2 border-pink-200 shadow-md grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3"
+      className="pr-stats-bar p-2.5 sm:p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5"
     >
       {/* 1. 타수 (CPM) */}
-      <div className="bg-sky-50 rounded-2xl p-2.5 sm:p-3 text-center border-2 border-sky-200">
-        <p className="text-[10px] sm:text-[11px] text-sky-700 font-extrabold uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
-          <Gauge className="w-3.5 h-3.5 text-sky-500 inline" />
+      <div className="pr-stat-plaque p-2.5 sm:p-3 text-center">
+        <p className="text-xs sm:text-sm text-[#5c3214] font-black tracking-wide mb-0.5 flex items-center justify-center gap-1">
+          <Gauge className="w-4 h-4 text-[#0369a1] inline" />
           <span>타수 (CPM)</span>
         </p>
-        <p className="text-2xl sm:text-3xl font-black text-sky-600 font-mono tracking-tight font-arcade">
+        <p className="text-2xl sm:text-3xl font-black text-[#0369a1] font-mono tabular-nums tracking-tight font-arcade">
           {stats.cpm}
         </p>
       </div>
 
       {/* 2. 정확도 (%) */}
-      <div className="bg-teal-50 rounded-2xl p-2.5 sm:p-3 text-center border-2 border-teal-200">
-        <p className="text-[10px] sm:text-[11px] text-teal-700 font-extrabold uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
-          <CheckCircle className="w-3.5 h-3.5 text-teal-500 inline" />
+      <div className="pr-stat-plaque p-2.5 sm:p-3 text-center">
+        <p className="text-xs sm:text-sm text-[#5c3214] font-black tracking-wide mb-0.5 flex items-center justify-center gap-1">
+          <CheckCircle className="w-4 h-4 text-[#0f766e] inline" />
           <span>정확도 (%)</span>
         </p>
-        <p className="text-2xl sm:text-3xl font-black text-teal-600 font-mono tracking-tight font-arcade">
+        <p className="text-2xl sm:text-3xl font-black text-[#0f766e] font-mono tabular-nums tracking-tight font-arcade">
           {stats.accuracy}%
         </p>
       </div>
 
       {/* 3. 오타수 */}
-      <div className="bg-rose-50 rounded-2xl p-2.5 sm:p-3 text-center border-2 border-rose-200">
-        <p className="text-[10px] sm:text-[11px] text-rose-700 font-extrabold uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
-          <AlertTriangle className="w-3.5 h-3.5 text-rose-500 inline" />
+      <div className="pr-stat-plaque p-2.5 sm:p-3 text-center">
+        <p className="text-xs sm:text-sm text-[#5c3214] font-black tracking-wide mb-0.5 flex items-center justify-center gap-1">
+          <AlertTriangle className="w-4 h-4 text-[#be123c] inline" />
           <span>오타수</span>
         </p>
-        <p className="text-2xl sm:text-3xl font-black text-rose-500 font-mono tracking-tight font-arcade">
+        <p className="text-2xl sm:text-3xl font-black text-[#be123c] font-mono tabular-nums tracking-tight font-arcade">
           {stats.errorCount}
-          <span className="text-[11px] text-rose-400 font-normal ml-1">({errorRate}%)</span>
+          <span className="text-xs sm:text-sm text-[#9f1239] font-bold ml-1">({errorRate}%)</span>
         </p>
       </div>
 
       {/* 4. 진행시간 */}
-      <div className="bg-purple-50 rounded-2xl p-2.5 sm:p-3 text-center border-2 border-purple-200">
-        <p className="text-[10px] sm:text-[11px] text-purple-700 font-extrabold uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
-          <Clock className="w-3.5 h-3.5 text-purple-500 inline" />
+      <div className="pr-stat-plaque p-2.5 sm:p-3 text-center">
+        <p className="text-xs sm:text-sm text-[#5c3214] font-black tracking-wide mb-0.5 flex items-center justify-center gap-1">
+          <Clock className="w-4 h-4 text-[#6d28d9] inline" />
           <span>진행시간</span>
         </p>
-        <p className="text-2xl sm:text-3xl font-black text-purple-700 font-mono tracking-tight font-arcade">
+        <p className="text-2xl sm:text-3xl font-black text-[#5b21b6] font-mono tabular-nums tracking-tight font-arcade">
           {formatTime(stats.elapsedSeconds)}
         </p>
       </div>
 
       {/* 5. 연속 콤보 */}
-      <div className="col-span-2 sm:col-span-1 bg-amber-50 rounded-2xl p-2.5 sm:p-3 text-center border-2 border-amber-200">
-        <p className="text-[10px] sm:text-[11px] text-amber-700 font-extrabold uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
-          <Flame className="w-3.5 h-3.5 text-amber-500 inline" />
+      <div className="col-span-2 sm:col-span-1 pr-stat-plaque p-2.5 sm:p-3 text-center">
+        <p className="text-xs sm:text-sm text-[#5c3214] font-black tracking-wide mb-0.5 flex items-center justify-center gap-1">
+          <Flame className="w-4 h-4 text-[#b45309] inline" />
           <span>연속 콤보</span>
         </p>
-        <p className="text-2xl sm:text-3xl font-black text-amber-600 font-mono tracking-tight font-arcade">
+        <p className="text-2xl sm:text-3xl font-black text-[#b45309] font-mono tabular-nums tracking-tight font-arcade">
           {stats.combo}
-          <span className="text-[10px] text-amber-700 font-black uppercase tracking-wider ml-1">Combo</span>
+          <span className="text-xs text-[#78350f] font-black ml-1">Combo</span>
         </p>
       </div>
     </div>

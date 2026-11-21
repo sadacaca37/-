@@ -448,10 +448,11 @@ export class MemberStore {
     let added = 0;
     const removedChanged = this.applyRemoved(file.removed);
     for (const raw of file.members) {
-      if (!raw || !raw.id || !raw.name) continue;
-      if (this.byId.has(raw.id)) continue;
-      if (this.removed[raw.id] && this.removed[raw.id] >= (raw.createdAt || 0)) continue;
-      const m = { ...raw } as Member;
+      if (!raw || !raw.name) continue;
+      const m = normalize(raw);
+      if (!m) continue;
+      if (this.byId.has(m.id)) continue;
+      if (this.removed[m.id] && this.removed[m.id] >= (m.createdAt || 0)) continue;
       this.members.push(m);
       this.byId.set(m.id, m);
       added++;
@@ -470,9 +471,11 @@ export class MemberStore {
     let count = 0;
     this.applyRemoved(file.removed);
     for (const raw of file.members) {
-      if (!raw || !raw.id || !raw.name) continue;
-      const exist = this.byId.get(raw.id);
-      const merged = { ...(exist || {}), ...raw } as Member;
+      if (!raw || !raw.name) continue;
+      const m = normalize(raw);
+      if (!m) continue;
+      const exist = this.byId.get(m.id);
+      const merged = { ...(exist || {}), ...m } as Member;
       if (exist) {
         const idx = this.members.indexOf(exist);
         this.members[idx] = merged;

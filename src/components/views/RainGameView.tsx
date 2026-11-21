@@ -267,40 +267,41 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
     <div
       className={
         isFullscreen
-          ? 'fixed inset-0 z-50 w-screen h-screen bg-slate-950 p-2 sm:p-4 overflow-y-auto flex flex-col space-y-3 animate-in fade-in'
+          ? 'fixed inset-0 z-50 w-screen h-screen bg-[#0c182c] p-2 sm:p-4 overflow-y-auto flex flex-col space-y-3 animate-in fade-in'
           : 'space-y-4 animate-in fade-in duration-300 max-w-4xl mx-auto'
       }
     >
       {/* Top Navigation & Controls Bar */}
-      <div className="flex items-center justify-between gap-3 p-3 bg-white rounded-2xl border-2 border-sky-300 shadow-sm">
+      <div className="mg-topbar flex items-center justify-between gap-3 p-3">
         <div className="flex items-center gap-2">
           {onBack && (
             <button
+              type="button"
               onClick={() => {
                 soundManager.play('click');
                 if (isFullscreen) setIsFullscreen(false);
                 onBack();
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-sky-600" />
+              <ArrowLeft className="w-3.5 h-3.5 text-[#ffe066]" />
               <span>미니게임 목록</span>
             </button>
           )}
 
-          <span className="font-arcade font-black text-sm text-slate-800 flex items-center gap-1.5">
-            <span>🌧️</span>
-            <span>타자비 방어</span>
+          <span className="font-arcade font-black text-sm text-[#2c1507]">
+            산성비 (단어 소나기)
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => {
               soundManager.play('pop');
               setIsFullscreen(!isFullscreen);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95"
+            className="tp-rpg-btn tp-rpg-btn--gold flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             <span>{isFullscreen ? '창 복원' : '전체보기 전환'}</span>
@@ -309,42 +310,41 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
       </div>
 
       {/* Top Banner */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border-4 border-sky-200 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 arcade-card-glow">
+      <div className="mg-banner p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-black border border-sky-300 flex items-center gap-1.5">
-              <CloudRain className="w-3.5 h-3.5 text-sky-600" />
-              <span>신규 아케이드 타자 게임</span>
-            </span>
+          <div className="flex items-center gap-2 text-xs font-bold text-[#6e3d18]">
+            <span>비구름 아래 마을 수비 타자</span>
             {!currentUser && (
-              <span className="text-[11px] font-bold text-slate-400">
-                (비로그인 자유 플레이)
-              </span>
+              <>
+                <span aria-hidden="true">·</span>
+                <span>비로그인 자유 플레이</span>
+              </>
             )}
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1 font-arcade">
-            🌧️ 타자비 (Word Rain Defense)
+          <h1 className="text-xl sm:text-2xl font-black text-[#2c1507] tracking-tight mt-0.5 font-arcade">
+            산성비 (단어 소나기)
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            하늘에서 쏟아지는 빗방울 단어를 바닥에 닿기 전에 신속하게 방어하세요!
+          <p className="text-xs sm:text-sm text-[#5c3314] font-medium">
+            비구름에서 떨어지는 빗방울 단어가 마을에 닿기 전에 빠르게 입력해 막아 내세요!
           </p>
         </div>
 
         {/* Level Switcher & Controls */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-          <div className="flex items-center p-1 bg-sky-50 rounded-2xl border border-sky-200">
+        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end flex-wrap">
+          <div className="flex items-center p-1 bg-[#e8cfa0] rounded-xl border-2 border-[#5c3314]">
             {[1, 2, 3].map((lvl) => (
               <button
                 key={lvl}
+                type="button"
                 onClick={() => {
                   setLevel(lvl as 1 | 2 | 3);
                   if (isPlaying) startGame();
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-black transition-colors cursor-pointer ${
                   level === lvl
-                    ? 'bg-sky-500 text-white shadow-xs scale-105'
-                    : 'text-sky-800 hover:bg-sky-100'
+                    ? 'bg-[#1d4ed8] text-white shadow-xs'
+                    : 'text-[#3b1e08] hover:bg-[#f6e5c3]'
                 }`}
               >
                 {lvl === 1 ? '1단계 (온화한 비)' : lvl === 2 ? '2단계 (소나기)' : '3단계 (폭풍우)'}
@@ -353,28 +353,39 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={startGame}
-            className="px-5 py-2.5 rounded-2xl arcade-btn-sky text-sky-950 font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+            className="tp-rpg-btn tp-rpg-btn--gold px-5 py-2.5 font-black text-xs flex items-center gap-1.5 cursor-pointer"
           >
-            {isPlaying ? <RotateCcw className="w-4 h-4" /> : <Play className="w-4 h-4 fill-sky-900" />}
+            {isPlaying ? <RotateCcw className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
             <span>{isPlaying ? '다시하기' : '게임 시작'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Game Stage Arena */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-slate-900 via-indigo-950 to-sky-950 p-4 sm:p-6 border-4 border-sky-300 shadow-2xl min-h-[460px] flex flex-col justify-between select-none">
+      {/* Main Game Stage Arena (16-bit Pixel Rainy Village) */}
+      <div className="mg-stage relative rounded-2xl overflow-hidden border-4 border-[#2c1507] shadow-2xl p-3.5 sm:p-5 bg-[#122646] min-h-[460px] flex flex-col justify-between select-none">
+        <img
+          src="./assets/minigames/bg-rain.webp"
+          alt=""
+          aria-hidden="true"
+          className="mg-stage-bg"
+          referrerPolicy="no-referrer"
+          draggable={false}
+        />
+        <div className="mg-stage-scrim mg-stage-scrim--rain" aria-hidden="true" />
+
         {/* HUD Info Bar */}
-        <div className="flex items-center justify-between bg-white/15 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-md z-20">
+        <div className="relative z-20 mg-hud-bar flex items-center justify-between flex-wrap gap-2 p-3 sm:px-4">
           {/* Lives */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-extrabold text-sky-200 mr-1">도시 방어력:</span>
+            <span className="text-xs font-extrabold text-[#fff4d4] mr-1">마을 방어력:</span>
             {Array.from({ length: 5 }).map((_, i) => (
               <Heart
                 key={i}
                 className={`w-5 h-5 transition-transform ${
                   i < lives
-                    ? 'text-rose-400 fill-rose-400 scale-100'
+                    ? 'text-rose-400 fill-rose-500 scale-100'
                     : 'text-slate-600 fill-slate-700 scale-90'
                 }`}
               />
@@ -382,25 +393,25 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
           </div>
 
           {/* Score & Combo */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-yellow-300 font-black text-xs sm:text-sm">
-              <Flame className="w-4 h-4 fill-yellow-300 animate-bounce" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-1 text-[#ffe066] font-black text-xs sm:text-sm tabular-nums">
+              <Flame className="w-4 h-4 fill-[#ff9f1c] text-[#ffe066]" />
               <span>{combo} COMBO</span>
             </div>
-            <div className="bg-sky-500 text-white font-mono text-sm sm:text-base font-black px-4 py-1 rounded-xl shadow-inner border border-sky-300">
+            <div className="bg-[#fdf5dd] text-[#2c1507] font-mono tabular-nums text-sm sm:text-base font-black px-3.5 py-1 rounded-lg border-2 border-[#2c1507]">
               {score.toLocaleString()} 점
             </div>
           </div>
         </div>
 
         {/* Rain Falling Stage Canvas Area */}
-        <div className="relative flex-1 min-h-[300px] overflow-hidden my-2">
+        <div className="relative z-10 flex-1 min-h-[300px] overflow-hidden my-2">
           {drops.map((drop) => {
             if (drop.isHit) {
               return (
                 <div
                   key={drop.id}
-                  className="absolute text-xl sm:text-2xl font-black text-yellow-300 animate-ping pointer-events-none"
+                  className="absolute text-lg sm:text-xl font-black text-[#ffe066] drop-shadow-[0_2px_0_#1a1008] pointer-events-none"
                   style={{ left: `${drop.x}%`, top: `${drop.y}%` }}
                 >
                   ⚡ ZAP!
@@ -408,18 +419,28 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
               );
             }
 
+            const isPrefixMatch = Boolean(inputVal.trim() && drop.word.startsWith(inputVal.trim()));
+
             return (
               <div
                 key={drop.id}
-                className="absolute transition-transform pointer-events-none"
+                className="absolute pointer-events-none"
                 style={{
                   left: `${drop.x}%`,
                   top: `${drop.y}%`,
                 }}
               >
-                <div className={`px-3 py-1.5 rounded-2xl bg-gradient-to-b ${drop.color} border-2 shadow-lg flex items-center gap-1 font-black text-xs sm:text-sm tracking-wide animate-pulse`}>
-                  <span>💧</span>
-                  <span>{drop.word}</span>
+                <div
+                  className={`px-3 py-1 rounded-lg border-2 flex items-center gap-1 font-black text-xs sm:text-sm tracking-wide shadow-[0_3px_0_rgba(12,18,36,0.85)] ${
+                    isPrefixMatch
+                      ? 'bg-[#ffe066] text-[#261106] border-[#261106] scale-105'
+                      : `bg-gradient-to-b ${drop.color} border-[#101c33]`
+                  }`}
+                >
+                  <span aria-hidden="true">💧</span>
+                  <span className={isPrefixMatch ? '' : 'drop-shadow-[0_1.5px_0_rgba(0,0,0,0.85)]'}>
+                    {drop.word}
+                  </span>
                 </div>
               </div>
             );
@@ -427,42 +448,43 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
         </div>
 
         {/* Ground Defense Base Barrier */}
-        <div className="relative z-10 bg-gradient-to-r from-sky-500 via-teal-400 to-indigo-500 p-2.5 rounded-2xl border-2 border-white/40 shadow-inner flex items-center justify-between text-white text-xs font-black">
+        <div className="relative z-20 bg-[#1b2944]/88 px-3 py-2 rounded-xl border-2 border-[#7ea8d8] flex items-center justify-between text-[#f0f7ff] text-xs font-black">
           <div className="flex items-center gap-1.5">
-            <ShieldAlert className="w-4 h-4 text-yellow-200" />
-            <span>하단 방어선 (빗방울이 닿으면 피해를 입습니다)</span>
+            <ShieldAlert className="w-4 h-4 text-[#ffe066] shrink-0" />
+            <span>마을 방어선 (빗방울이 닿으면 방어력이 줄어들어요)</span>
           </div>
-          <span className="bg-white/20 px-2 py-0.5 rounded-lg">
+          <span className="bg-[#2c1507]/85 text-[#ffe066] px-2.5 py-0.5 rounded border border-[#c68646] tabular-nums whitespace-nowrap ml-2">
             격추: {destroyedCount}개
           </span>
         </div>
 
         {/* Game Over / Start Prompt Overlay */}
         {(!isPlaying || isGameOver) && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white z-30 animate-in fade-in">
-            <div className="w-16 h-16 rounded-3xl bg-sky-400 text-sky-950 flex items-center justify-center text-3xl mb-3 shadow-lg animate-bounce">
-              {isGameOver ? '🌧️' : '🎮'}
-            </div>
-            <h3 className="text-2xl sm:text-3xl font-black text-sky-300 font-arcade">
-              {isGameOver ? '방어선 침몰!' : '타자비 게임 (Word Rain Defense)'}
-            </h3>
-            <p className="text-xs text-slate-200 mt-1 max-w-sm">
-              {isGameOver
-                ? `빗방울이 바닥에 닿아 방어력이 소진되었습니다! 최종 점수: ${score.toLocaleString()}점`
-                : '하늘에서 떨어지는 빗방울 단어를 빠르게 타이핑하여 레이저 빔으로 격추하세요!'}
-            </p>
+          <div className="absolute inset-0 bg-[#0d172a]/78 flex flex-col items-center justify-center p-5 text-center z-30 animate-in fade-in">
+            <div className="mg-overlay-card max-w-sm w-full">
+              <div className="text-3xl mb-1">{isGameOver ? '🌧️' : '🛡️'}</div>
+              <h3 className="text-2xl font-black text-[#2c1507] font-arcade">
+                {isGameOver ? '마을 방어 종료!' : '산성비 (단어 소나기)'}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#4a2810] font-bold mt-1.5 leading-relaxed">
+                {isGameOver
+                  ? `빗방울이 마을에 닿아 방어력이 모두 소진되었습니다! 최종 점수: ${score.toLocaleString()}점`
+                  : '비구름에서 떨어지는 빗방울 단어를 빠르게 타이핑해 마을을 지켜 내세요!'}
+              </p>
 
-            <button
-              onClick={startGame}
-              className="mt-5 px-8 py-3.5 rounded-2xl arcade-btn-sky text-sky-950 font-black text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
-            >
-              {isGameOver ? '다시 도전하기' : '게임 시작하기'}
-            </button>
+              <button
+                type="button"
+                onClick={startGame}
+                className="mt-4 tp-rpg-btn tp-rpg-btn--gold px-7 py-3 font-black text-sm cursor-pointer"
+              >
+                {isGameOver ? '다시 도전하기' : '게임 시작하기'}
+              </button>
+            </div>
           </div>
         )}
 
         {/* Typing Input Box */}
-        <div className="mt-3 bg-white/95 backdrop-blur-xs p-3 rounded-2xl border-2 border-sky-300 shadow-lg flex flex-col sm:flex-row items-center gap-3 z-20">
+        <div className="relative z-20 mt-3 mg-input-bar p-3 flex flex-col sm:flex-row items-center gap-2.5">
           <input
             ref={inputRef}
             type="text"
@@ -471,7 +493,7 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
             onKeyDown={handleKeyDown}
             disabled={!isPlaying || isGameOver}
             placeholder={isPlaying ? '떨어지는 빗방울 단어를 입력하세요!' : '게임 시작 버튼을 누르세요'}
-            className="w-full text-center sm:text-left pl-4 pr-4 py-2.5 text-lg font-black rounded-xl border-2 border-sky-300 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 outline-hidden bg-sky-50/50 text-slate-800 placeholder-slate-400 shadow-inner font-arcade"
+            className="w-full text-center sm:text-left px-4 py-2.5 text-lg font-black rounded-lg border-3 border-[#4a2810] focus:border-[#1d4ed8] outline-hidden bg-[#fffdf7] text-[#261106] placeholder-[#947252] shadow-inner font-arcade"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -479,11 +501,12 @@ export const RainGameView: React.FC<RainGameViewProps> = ({
           />
 
           <button
+            type="button"
             onClick={() => {
               setInputVal('');
               inputRef.current?.focus();
             }}
-            className="px-6 py-2.5 rounded-xl arcade-btn-sky text-sky-950 font-black text-sm shadow-md whitespace-nowrap"
+            className="tp-rpg-btn tp-rpg-btn--wood px-5 py-2.5 font-black text-sm whitespace-nowrap cursor-pointer"
           >
             초기화
           </button>

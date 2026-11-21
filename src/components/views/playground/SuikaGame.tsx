@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, RotateCcw, ArrowLeft, Trophy, Sparkles, ArrowDown } from 'lucide-react';
+import { Play, RotateCcw, ArrowLeft, Trophy, ArrowDown } from 'lucide-react';
 import { soundManager } from '../../../utils/sound';
+import { getPixelImg, isImgReady, preloadPixelImgs } from './pixelAssets';
+
+const SUIKA_BG_SRC = './assets/playground/suika/bg.webp';
+const SUIKA_FRUIT_SRCS = Array.from({ length: 11 }, (_, i) => `./assets/playground/suika/fruit-${i}.webp`);
+const SUIKA_ALL_ASSETS = [SUIKA_BG_SRC, ...SUIKA_FRUIT_SRCS];
 
 interface SuikaGameProps {
   onBack?: () => void;
@@ -67,6 +72,10 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
   const nextIdRef = useRef<number>(1);
   const dangerTimerRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    preloadPixelImgs(SUIKA_ALL_ASSETS);
+  }, []);
 
   const getRandomSpawnTier = () => {
     // Spawns tiers 0 to 3 (체리, 딸기, 포도, 귤)
@@ -290,13 +299,21 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Background: warm paper inside a wooden crate (classic merge-fruit look)
+      // Background: 16-bit pixel orchard wooden fruit crate
       ctx.clearRect(0, 0, BOX_WIDTH, BOX_HEIGHT);
-      const bgG = ctx.createLinearGradient(0, 0, 0, BOX_HEIGHT);
-      bgG.addColorStop(0, '#fff6dc'); bgG.addColorStop(1, '#ffe6b3');
-      ctx.fillStyle = bgG; ctx.fillRect(0, 0, BOX_WIDTH, BOX_HEIGHT);
-      ctx.fillStyle = 'rgba(232,170,90,0.14)';
-      for (let yy = 0; yy < BOX_HEIGHT; yy += 24) for (let xx = (yy / 24) % 2 ? 12 : 0; xx < BOX_WIDTH; xx += 24) ctx.fillRect(xx, yy, 12, 12);
+      const bgImg = getPixelImg(SUIKA_BG_SRC);
+      if (isImgReady(bgImg)) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(bgImg, 0, 0, BOX_WIDTH, BOX_HEIGHT);
+        ctx.fillStyle = 'rgba(255, 246, 220, 0.14)';
+        ctx.fillRect(0, 0, BOX_WIDTH, BOX_HEIGHT);
+      } else {
+        const bgG = ctx.createLinearGradient(0, 0, 0, BOX_HEIGHT);
+        bgG.addColorStop(0, '#fff6dc'); bgG.addColorStop(1, '#ffe6b3');
+        ctx.fillStyle = bgG; ctx.fillRect(0, 0, BOX_WIDTH, BOX_HEIGHT);
+        ctx.fillStyle = 'rgba(232,170,90,0.14)';
+        for (let yy = 0; yy < BOX_HEIGHT; yy += 24) for (let xx = (yy / 24) % 2 ? 12 : 0; xx < BOX_WIDTH; xx += 24) ctx.fillRect(xx, yy, 12, 12);
+      }
 
       // Dead Line
       ctx.save();
@@ -349,7 +366,7 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
     };
   }, [gameState, canDrop, currentTier, dropX, highScore]);
 
-  // Render cute Kawaii fruit with face and details (Matches Capture 2!)
+  // Render 16-bit pixel art fruit sprite aligned to exact physics radius (with canvas fallback while loading)
   const renderFruitGraphic = (
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -363,9 +380,26 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y + 3, r, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+    ctx.fillStyle = 'rgba(38, 18, 6, 0.22)';
     ctx.fill();
     ctx.restore();
+
+    const sprite = getPixelImg(SUIKA_FRUIT_SRCS[tier]);
+    if (isImgReady(sprite)) {
+      const nw = sprite.naturalWidth;
+      const nh = sprite.naturalHeight;
+      const base = Math.min(nw, nh);
+      const scale = (r * 2.08) / base;
+      const dw = nw * scale;
+      const dh = nh * scale;
+      // If fruit has a stem/leaf crown on top (dh > dw), align the round fruit body centered at (x, y)
+      const dy = dh > dw ? (dh - r * 2) * 0.36 : 0;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sprite, x - dw / 2, y - dh / 2 - dy, dw, dh);
+      ctx.restore();
+      return;
+    }
 
     // 2. Main Fruit Circle
     ctx.save();
@@ -574,8 +608,14 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
             <div className="text-[11px] font-black text-amber-800 font-arcade mb-1">
               NEXT
             </div>
-            <div className="w-16 h-16 mx-auto bg-amber-50/70 rounded-2xl border-2 border-amber-200 flex flex-col items-center justify-center shadow-inner">
-              <span className="text-3xl drop-shadow-sm">{FRUIT_TIERS[nextTier]?.emoji}</span>
+            <div className="w-16 h-16 mx-auto bg-amber-50/70 rounded-2xl border-2 border-amber-200 flex flex-col items-center justify-center shadow-inner p-1.5">
+              <img
+                src={SUIKA_FRUIT_SRCS[nextTier]}
+                alt={FRUIT_TIERS[nextTier]?.name}
+                referrerPolicy="no-referrer"
+                className="w-12 h-12 object-contain drop-shadow-sm"
+                style={{ imageRendering: 'pixelated' }}
+              />
             </div>
             <div className="text-xs font-black text-amber-900 mt-1">
               {FRUIT_TIERS[nextTier]?.name}
@@ -609,7 +649,13 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
             {/* Start Screen */}
             {gameState === 'idle' && (
               <div className="absolute inset-0 bg-amber-950/70 backdrop-blur-xs rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                <div className="text-6xl mb-2 animate-bounce">🍉</div>
+                <img
+                  src={SUIKA_FRUIT_SRCS[10]}
+                  alt="수박"
+                  referrerPolicy="no-referrer"
+                  className="w-20 h-20 object-contain mb-2 animate-bounce"
+                  style={{ imageRendering: 'pixelated' }}
+                />
                 <h2 className="text-2xl font-black text-white font-arcade mb-1">수박게임</h2>
                 <p className="text-xs text-amber-100 mb-4 max-w-xs leading-relaxed font-medium">
                   과일을 떨어뜨려 같은 과일끼리 합쳐보세요! 최종 목표는 둥글고 거대한 수박 만들기! 🍉
@@ -660,7 +706,13 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({ onBack }) => {
                 className="flex items-center gap-1 bg-amber-50/80 px-1.5 py-1 rounded-xl border border-amber-200/80"
                 title={`${f.name} (+${f.score}P)`}
               >
-                <span className="text-sm">{f.emoji}</span>
+                <img
+                  src={SUIKA_FRUIT_SRCS[i]}
+                  alt={f.name}
+                  referrerPolicy="no-referrer"
+                  className="w-5 h-5 object-contain shrink-0"
+                  style={{ imageRendering: 'pixelated' }}
+                />
                 <span className="truncate text-[10px] font-bold">{f.name}</span>
               </div>
             ))}

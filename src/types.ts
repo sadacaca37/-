@@ -203,9 +203,41 @@ export interface RoomDecorState {
   lighting: 'warm_pendant' | 'disco_ball' | 'fairy_lights' | 'star_lamp' | 'aurora_projector' | 'none';
 }
 
+export type TamagotchiPetId =
+  | 'tori'
+  | 'dino'
+  | 'cloud'
+  | 'star'
+  | 'fox'
+  | 'turtle'
+  | 'bee'
+  | 'penguin'
+  | 'mushroom'
+  | 'dragon';
+
+export interface TamagotchiPetRecord {
+  petId: TamagotchiPetId;
+  name: string;
+  level: number;
+  exp: number;
+  maxExp: number;
+  happiness: number;
+  hunger: number;
+  stress: number;
+  cleanliness: number;
+  totalMissionsSuccess: number;
+  totalMissionsFailed: number;
+  mood: PetMood;
+  lastFed: number;
+  lastPlayed: number;
+}
+
 export interface TamagotchiState {
   name: string;
   petType: AnimalPetType;
+  selectedPetId?: TamagotchiPetId;
+  hasChosenPet?: boolean;
+  pets?: Partial<Record<TamagotchiPetId, TamagotchiPetRecord>>;
   level: number;
   exp: number;
   maxExp: number;

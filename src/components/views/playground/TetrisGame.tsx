@@ -1,6 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
 import { ArcadeShell, overlay, useBest } from './games/ArcadeShell';
+import { getPixelImg, isImgReady, preloadPixelImgs } from './pixelAssets';
+
+const TETRIS_BG = './assets/playground/tetris/bg.webp';
+const TETRIS_CELL = './assets/playground/tetris/cell.webp';
+const TETRIS_BLOCK_SRC: Record<'I' | 'O' | 'T' | 'S' | 'Z' | 'J' | 'L', string> = {
+  I: './assets/playground/tetris/block-I.webp',
+  O: './assets/playground/tetris/block-O.webp',
+  T: './assets/playground/tetris/block-T.webp',
+  S: './assets/playground/tetris/block-S.webp',
+  Z: './assets/playground/tetris/block-Z.webp',
+  J: './assets/playground/tetris/block-J.webp',
+  L: './assets/playground/tetris/block-L.webp',
+};
+const TETRIS_ALL = [TETRIS_BG, TETRIS_CELL, ...Object.values(TETRIS_BLOCK_SRC)];
 
 /* Classic falling-block puzzle: 7-bag, ghost piece, hold, 3 next pieces, wall kicks */
 const COLS = 10;
@@ -153,13 +167,23 @@ export const TetrisGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   /* loop + render */
   useEffect(() => {
+    preloadPixelImgs(TETRIS_ALL);
     const c = cv.current!; const ctx = c.getContext('2d')!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
     let raf = 0;
 
-    const block = (x: number, y: number, col: string, size = CELL, alpha = 1) => {
+    const block = (x: number, y: number, col: string, size = CELL, alpha = 1, piece?: P) => {
       ctx.globalAlpha = alpha;
+      if (piece && col !== '#ffffff') {
+        const sprite = getPixelImg(TETRIS_BLOCK_SRC[piece]);
+        if (isImgReady(sprite)) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(sprite, x, y, size, size);
+          ctx.globalAlpha = 1;
+          return;
+        }
+      }
       ctx.fillStyle = col; ctx.fillRect(x, y, size, size);
       ctx.fillStyle = shade(col, 0.45); ctx.fillRect(x, y, size, size * 0.16); ctx.fillRect(x, y, size * 0.16, size);
       ctx.fillStyle = shade(col, -0.35); ctx.fillRect(x, y + size * 0.84, size, size * 0.16); ctx.fillRect(x + size * 0.84, y, size * 0.16, size);
@@ -175,12 +199,12 @@ export const TetrisGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const minX = Math.min(...cells.map((p) => p[0])), maxX = Math.max(...cells.map((p) => p[0]));
       const minY = Math.min(...cells.map((p) => p[1])), maxY = Math.max(...cells.map((p) => p[1]));
       const ox = cx - ((maxX - minX + 1) * sz) / 2, oy = cy - ((maxY - minY + 1) * sz) / 2;
-      cells.forEach(([x, y]) => block(ox + (x - minX) * sz, oy + (y - minY) * sz, COLOR[t], sz));
+      cells.forEach(([x, y]) => block(ox + (x - minX) * sz, oy + (y - minY) * sz, COLOR[t], sz, 1, t));
     };
     const panel = (x: number, y: number, w: number, h: number, label: string) => {
-      ctx.fillStyle = '#131a4a'; ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = '#6ff6ff'; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
-      ctx.fillStyle = '#6ff6ff'; ctx.font = "13px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(13, 18, 42, 0.84)'; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#d4a656'; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+      ctx.fillStyle = '#ffe28a'; ctx.font = "13px 'Galmuri11', monospace"; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
       ctx.fillText(label, x + w / 2, y + 8);
     };
 
@@ -200,18 +224,37 @@ export const TetrisGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           if (s.dropAcc > speed) { s.dropAcc = 0; if (!collide(s.cur.m, s.cur.x, s.cur.y + 1)) s.cur.y++; else lock(); }
         }
       }
-      // background
-      ctx.fillStyle = '#0b0e2a'; ctx.fillRect(0, 0, W, H);
+      // 16-bit pixel RPG ancient jewel cavern backdrop
+      const bgImg = getPixelImg(TETRIS_BG);
+      if (isImgReady(bgImg)) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(bgImg, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = '#0b0e2a'; ctx.fillRect(0, 0, W, H);
+      }
       const bx = SIDE;
-      ctx.fillStyle = '#10163d'; ctx.fillRect(bx, 0, COLS * CELL, H);
-      ctx.strokeStyle = 'rgba(111,246,255,0.08)'; ctx.lineWidth = 1;
-      for (let i = 1; i < COLS; i++) { ctx.beginPath(); ctx.moveTo(bx + i * CELL + 0.5, 0); ctx.lineTo(bx + i * CELL + 0.5, H); ctx.stroke(); }
-      for (let j = 1; j < ROWS; j++) { ctx.beginPath(); ctx.moveTo(bx, j * CELL + 0.5); ctx.lineTo(bx + COLS * CELL, j * CELL + 0.5); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(10, 14, 34, 0.78)'; ctx.fillRect(bx, 0, COLS * CELL, H);
+      const cellImg = getPixelImg(TETRIS_CELL);
+      if (isImgReady(cellImg)) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = 0.28;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c2 = 0; c2 < COLS; c2++) {
+            ctx.drawImage(cellImg, bx + c2 * CELL, r * CELL, CELL, CELL);
+          }
+        }
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = 'rgba(111,246,255,0.08)'; ctx.lineWidth = 1;
+        for (let i = 1; i < COLS; i++) { ctx.beginPath(); ctx.moveTo(bx + i * CELL + 0.5, 0); ctx.lineTo(bx + i * CELL + 0.5, H); ctx.stroke(); }
+        for (let j = 1; j < ROWS; j++) { ctx.beginPath(); ctx.moveTo(bx, j * CELL + 0.5); ctx.lineTo(bx + COLS * CELL, j * CELL + 0.5); ctx.stroke(); }
+      }
       // board
       if (s.board.length) s.board.forEach((row, r) => row.forEach((v, c2) => {
         if (!v) return;
         const fl = s.flash.includes(r);
-        block(bx + c2 * CELL, r * CELL, fl ? '#ffffff' : COLOR[v as P]);
+        block(bx + c2 * CELL, r * CELL, fl ? '#ffffff' : COLOR[v as P], CELL, 1, fl ? undefined : (v as P));
       }));
       // ghost + current
       if (s.cur && s.state !== 'title') {
@@ -219,11 +262,11 @@ export const TetrisGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         s.cur.m.forEach((row, r) => row.forEach((v, c2) => {
           if (!v) return;
           if (gy + r >= 0) { ctx.strokeStyle = COLOR[s.cur!.t]; ctx.lineWidth = 2; ctx.globalAlpha = 0.6; ctx.strokeRect(bx + (s.cur!.x + c2) * CELL + 3, (gy + r) * CELL + 3, CELL - 6, CELL - 6); ctx.globalAlpha = 1; }
-          if (s.cur!.y + r >= 0) block(bx + (s.cur!.x + c2) * CELL, (s.cur!.y + r) * CELL, COLOR[s.cur!.t]);
+          if (s.cur!.y + r >= 0) block(bx + (s.cur!.x + c2) * CELL, (s.cur!.y + r) * CELL, COLOR[s.cur!.t], CELL, 1, s.cur!.t);
         }));
       }
       // frame lines
-      ctx.strokeStyle = '#6ff6ff'; ctx.lineWidth = 3; ctx.strokeRect(bx - 1.5, -2, COLS * CELL + 3, H + 4);
+      ctx.strokeStyle = '#d4a656'; ctx.lineWidth = 3; ctx.strokeRect(bx - 1.5, -2, COLS * CELL + 3, H + 4);
       // side panels
       panel(12, 12, SIDE - 24, 100, 'HOLD');
       mini(s.hold, SIDE / 2, 70, 20);

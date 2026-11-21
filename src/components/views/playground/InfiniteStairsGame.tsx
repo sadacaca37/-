@@ -1,6 +1,28 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
 import { ArcadeShell, overlay, rr, useBest } from './games/ArcadeShell';
+import { getPixelImg, isImgReady, preloadPixelImgs } from './pixelAssets';
+
+const STAIRS_ASSETS = {
+  hero1: './assets/playground/infinite-stairs/hero-1.webp',
+  hero2: './assets/playground/infinite-stairs/hero-2.webp',
+  coin: './assets/playground/infinite-stairs/coin.webp',
+  horizon: './assets/playground/jelly-runner/bg.webp',
+  steps: [
+    './assets/playground/infinite-stairs/step-0.webp',
+    './assets/playground/infinite-stairs/step-1.webp',
+    './assets/playground/infinite-stairs/step-2.webp',
+    './assets/playground/infinite-stairs/step-3.webp',
+    './assets/playground/infinite-stairs/step-4.webp',
+  ],
+} as const;
+const STAIRS_ALL = [
+  STAIRS_ASSETS.hero1,
+  STAIRS_ASSETS.hero2,
+  STAIRS_ASSETS.coin,
+  STAIRS_ASSETS.horizon,
+  ...STAIRS_ASSETS.steps,
+];
 
 /* Endless stair climber: stairs zig-zag left/right. CLIMB keeps direction, TURN flips it.
    A timer bar drains constantly and refills a little on every correct step.
@@ -124,6 +146,7 @@ export const InfiniteStairsGame: React.FC<{ onBack?: () => void }> = ({ onBack }
   }, [step, start]);
 
   useEffect(() => {
+    preloadPixelImgs(STAIRS_ALL);
     const c = cv.current!; const ctx = c.getContext('2d')!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
@@ -139,31 +162,47 @@ export const InfiniteStairsGame: React.FC<{ onBack?: () => void }> = ({ onBack }
 
     const drawBlock = (x: number, y: number, i: number, coin: boolean, ts: number) => {
       const zi = Math.min(ZONES.length - 1, Math.floor(i / ZONE_LEN));
-      const [top, front, side] = ZONES[zi].block;
-      const line = ZONES[zi].line;
-      // side (depth) face
-      ctx.fillStyle = side;
-      ctx.beginPath(); ctx.moveTo(x + STEP_W, y); ctx.lineTo(x + STEP_W + DEPTH, y - DEPTH * 0.6); ctx.lineTo(x + STEP_W + DEPTH, y + STEP_H - DEPTH * 0.6); ctx.lineTo(x + STEP_W, y + STEP_H); ctx.closePath(); ctx.fill();
-      // top face
-      ctx.fillStyle = top;
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + DEPTH, y - DEPTH * 0.6); ctx.lineTo(x + STEP_W + DEPTH, y - DEPTH * 0.6); ctx.lineTo(x + STEP_W, y); ctx.closePath(); ctx.fill();
-      // front face
-      ctx.fillStyle = front; ctx.fillRect(x, y, STEP_W, STEP_H);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x, y, STEP_W, 4);
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      if (zi === 0) { ctx.fillRect(x + STEP_W / 2 - 1, y + 4, 2, 12); ctx.fillRect(x, y + 15, STEP_W, 2); ctx.fillRect(x + 15, y + 17, 2, 13); ctx.fillRect(x + 44, y + 17, 2, 13); }
-      else if (zi === 1) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(x + 12, y + STEP_H, 10, Math.PI, 0); ctx.arc(x + 32, y + STEP_H, 12, Math.PI, 0); ctx.arc(x + 50, y + STEP_H, 9, Math.PI, 0); ctx.fill(); }
-      else if (zi === 2) { ctx.fillRect(x + 8, y + 10, STEP_W - 16, 3); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(x + 6, y + 6, 6, 3); }
-      else { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(x + 6, y + 7, 4, 4); ctx.fillRect(x + STEP_W - 14, y + 16, 3, 3); ctx.fillStyle = zi === 4 ? 'rgba(255,120,240,0.5)' : 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y + STEP_H - 5, STEP_W, 2); }
-      ctx.strokeStyle = line; ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, STEP_W - 2, STEP_H - 2);
+      const stepImg = getPixelImg(STAIRS_ASSETS.steps[zi]);
+      if (isImgReady(stepImg)) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(stepImg, x - 6, y - 12, STEP_W + DEPTH + 10, STEP_H + DEPTH + 14);
+        ctx.restore();
+      } else {
+        const [top, front, side] = ZONES[zi].block;
+        const line = ZONES[zi].line;
+        ctx.fillStyle = side;
+        ctx.beginPath(); ctx.moveTo(x + STEP_W, y); ctx.lineTo(x + STEP_W + DEPTH, y - DEPTH * 0.6); ctx.lineTo(x + STEP_W + DEPTH, y + STEP_H - DEPTH * 0.6); ctx.lineTo(x + STEP_W, y + STEP_H); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = top;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + DEPTH, y - DEPTH * 0.6); ctx.lineTo(x + STEP_W + DEPTH, y - DEPTH * 0.6); ctx.lineTo(x + STEP_W, y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = front; ctx.fillRect(x, y, STEP_W, STEP_H);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x, y, STEP_W, 4);
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        if (zi === 0) { ctx.fillRect(x + STEP_W / 2 - 1, y + 4, 2, 12); ctx.fillRect(x, y + 15, STEP_W, 2); ctx.fillRect(x + 15, y + 17, 2, 13); ctx.fillRect(x + 44, y + 17, 2, 13); }
+        else if (zi === 1) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(x + 12, y + STEP_H, 10, Math.PI, 0); ctx.arc(x + 32, y + STEP_H, 12, Math.PI, 0); ctx.arc(x + 50, y + STEP_H, 9, Math.PI, 0); ctx.fill(); }
+        else if (zi === 2) { ctx.fillRect(x + 8, y + 10, STEP_W - 16, 3); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(x + 6, y + 6, 6, 3); }
+        else { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(x + 6, y + 7, 4, 4); ctx.fillRect(x + STEP_W - 14, y + 16, 3, 3); ctx.fillStyle = zi === 4 ? 'rgba(255,120,240,0.5)' : 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y + STEP_H - 5, STEP_W, 2); }
+        ctx.strokeStyle = line; ctx.lineWidth = 2;
+        ctx.strokeRect(x + 1, y + 1, STEP_W - 2, STEP_H - 2);
+      }
       if (coin) {
         const cy = y - 24 + Math.sin(ts / 180 + i) * 4;
         const sq = Math.abs(Math.cos(ts / 260 + i));
-        ctx.fillStyle = 'rgba(255,215,0,0.3)'; ctx.beginPath(); ctx.arc(x + STEP_W / 2, cy, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffc400'; ctx.beginPath(); ctx.ellipse(x + STEP_W / 2, cy, 10 * sq + 2, 11, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#8a5a00'; ctx.lineWidth = 2; ctx.stroke();
-        if (sq > 0.4) { ctx.fillStyle = '#fff59d'; ctx.fillRect(x + STEP_W / 2 - 2, cy - 6, 3, 10); }
+        const coinImg = getPixelImg(STAIRS_ASSETS.coin);
+        if (isImgReady(coinImg)) {
+          ctx.save();
+          ctx.translate(x + STEP_W / 2, cy);
+          ctx.fillStyle = 'rgba(255,215,0,0.28)'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+          ctx.scale(Math.max(0.25, sq), 1);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(coinImg, -13, -13, 26, 26);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = 'rgba(255,215,0,0.3)'; ctx.beginPath(); ctx.arc(x + STEP_W / 2, cy, 15, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffc400'; ctx.beginPath(); ctx.ellipse(x + STEP_W / 2, cy, 10 * sq + 2, 11, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#8a5a00'; ctx.lineWidth = 2; ctx.stroke();
+          if (sq > 0.4) { ctx.fillStyle = '#fff59d'; ctx.fillRect(x + STEP_W / 2 - 2, cy - 6, 3, 10); }
+        }
       }
     };
 
@@ -172,7 +211,14 @@ export const InfiniteStairsGame: React.FC<{ onBack?: () => void }> = ({ onBack }
       if (spin) ctx.rotate(spin);
       if (dir < 0) ctx.scale(-1, 1);
       const bob = Math.sin(ts / 110) * 1.2;
-      if (fever) { ctx.fillStyle = 'rgba(255,79,163,0.25)'; ctx.beginPath(); ctx.arc(0, -34, 34 + Math.sin(ts / 60) * 3, 0, Math.PI * 2); ctx.fill(); }
+      if (fever) { ctx.fillStyle = 'rgba(255,79,163,0.28)'; ctx.beginPath(); ctx.arc(0, -34, 34 + Math.sin(ts / 60) * 3, 0, Math.PI * 2); ctx.fill(); }
+      const heroImg = getPixelImg(legs ? STAIRS_ASSETS.hero2 : STAIRS_ASSETS.hero1);
+      if (isImgReady(heroImg)) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(heroImg, -26, -64 + bob, 52, 66);
+        ctx.restore();
+        return;
+      }
       ctx.lineWidth = 2.5; ctx.strokeStyle = '#1b2340';
       // cape
       ctx.fillStyle = fever ? '#ff4fa3' : '#ff4757';
@@ -271,13 +317,23 @@ export const InfiniteStairsGame: React.FC<{ onBack?: () => void }> = ({ onBack }
         }
         ctx.globalAlpha = 1;
       }
-      // city skyline (only near ground, scrolls away)
+      // pixel RPG meadow kingdom ground horizon (scrolls away as you climb)
       const groundY = H - 120 + s.camY * 0.9;
       if (groundY - 260 < H) {
-        skyline(H - 150 + s.camY * 0.35, 'rgba(120,150,200,0.45)', 7, 0.6);
-        skyline(groundY - 20, '#3d4f7a', 3, 1);
-        ctx.fillStyle = '#6cc04a'; ctx.fillRect(0, groundY, W, 400);
-        ctx.fillStyle = '#4e9a32'; ctx.fillRect(0, groundY, W, 6);
+        const horImg = getPixelImg(STAIRS_ASSETS.horizon);
+        if (isImgReady(horImg)) {
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(horImg, -40, groundY - 240, W + 80, 320);
+          ctx.fillStyle = '#5c3416';
+          ctx.fillRect(0, groundY + 75, W, 360);
+          ctx.restore();
+        } else {
+          skyline(H - 150 + s.camY * 0.35, 'rgba(120,150,200,0.45)', 7, 0.6);
+          skyline(groundY - 20, '#3d4f7a', 3, 1);
+          ctx.fillStyle = '#6cc04a'; ctx.fillRect(0, groundY, W, 400);
+          ctx.fillStyle = '#4e9a32'; ctx.fillRect(0, groundY, W, 6);
+        }
       }
       // clouds (parallax)
       if (alt < 3) {

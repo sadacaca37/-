@@ -278,40 +278,41 @@ export const MoleGameView: React.FC<MoleGameViewProps> = ({
     <div
       className={
         isFullscreen
-          ? 'fixed inset-0 z-50 w-screen h-screen bg-slate-950 p-2 sm:p-4 overflow-y-auto flex flex-col space-y-3 animate-in fade-in'
+          ? 'fixed inset-0 z-50 w-screen h-screen bg-[#1f1309] p-2 sm:p-4 overflow-y-auto flex flex-col space-y-3 animate-in fade-in'
           : 'space-y-4 animate-in fade-in duration-300 max-w-4xl mx-auto'
       }
     >
       {/* Top Navigation & Controls Bar */}
-      <div className="flex items-center justify-between gap-3 p-3 bg-white rounded-2xl border-2 border-emerald-300 shadow-sm">
+      <div className="mg-topbar flex items-center justify-between gap-3 p-3">
         <div className="flex items-center gap-2">
           {onBack && (
             <button
+              type="button"
               onClick={() => {
                 soundManager.play('click');
                 if (isFullscreen) setIsFullscreen(false);
                 onBack();
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-emerald-600" />
+              <ArrowLeft className="w-3.5 h-3.5 text-[#ffe066]" />
               <span>미니게임 목록</span>
             </button>
           )}
 
-          <span className="font-arcade font-black text-sm text-slate-800 flex items-center gap-1.5">
-            <span>🐹</span>
-            <span>두더지 타자</span>
+          <span className="font-arcade font-black text-sm text-[#2c1507] flex items-center gap-1.5">
+            <span>두더지 타자 잡기</span>
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => {
               soundManager.play('pop');
               setIsFullscreen(!isFullscreen);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95"
+            className="tp-rpg-btn tp-rpg-btn--gold flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             <span>{isFullscreen ? '창 복원' : '전체보기 전환'}</span>
@@ -320,42 +321,41 @@ export const MoleGameView: React.FC<MoleGameViewProps> = ({
       </div>
 
       {/* Top Banner */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border-4 border-emerald-200 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 arcade-card-glow">
+      <div className="mg-banner p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black border border-emerald-300 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>신규 아케이드 타자 게임</span>
-            </span>
+          <div className="flex items-center gap-2 text-xs font-bold text-[#6e3d18]">
+            <span>풀밭 언덕 타자 게임</span>
             {!currentUser && (
-              <span className="text-[11px] font-bold text-slate-400">
-                (비로그인 자유 플레이)
-              </span>
+              <>
+                <span aria-hidden="true">·</span>
+                <span>비로그인 자유 플레이</span>
+              </>
             )}
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1 font-arcade">
-            🐹 두더지 타자 게임 (Whack-a-Mole)
+          <h1 className="text-xl sm:text-2xl font-black text-[#2c1507] tracking-tight mt-0.5 font-arcade">
+            두더지 타자 잡기
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            땅속에서 쏙쏙 튀어나오는 두더지의 단어를 재빠르게 입력하여 망치로 뿅!
+          <p className="text-xs sm:text-sm text-[#5c3314] font-medium">
+            풀밭 구멍에서 쏙쏙 튀어나오는 두더지의 단어를 빠르게 입력해 잡아 보세요!
           </p>
         </div>
 
         {/* Level Switcher & Controls */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-          <div className="flex items-center p-1 bg-emerald-50 rounded-2xl border border-emerald-200">
+        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end flex-wrap">
+          <div className="flex items-center p-1 bg-[#e8cfa0] rounded-xl border-2 border-[#5c3314]">
             {[1, 2, 3].map((lvl) => (
               <button
                 key={lvl}
+                type="button"
                 onClick={() => {
                   setLevel(lvl as 1 | 2 | 3);
                   if (isPlaying) startGame();
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-colors cursor-pointer ${
                   level === lvl
-                    ? 'bg-emerald-500 text-white shadow-xs scale-105'
-                    : 'text-emerald-800 hover:bg-emerald-100'
+                    ? 'bg-[#2e7d32] text-white shadow-xs'
+                    : 'text-[#3b1e08] hover:bg-[#f6e5c3]'
                 }`}
               >
                 {lvl === 1 ? '초급' : lvl === 2 ? '중급' : '고급'}
@@ -364,178 +364,188 @@ export const MoleGameView: React.FC<MoleGameViewProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={startGame}
-            className="px-5 py-2.5 rounded-2xl arcade-btn-mint text-emerald-950 font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+            className="tp-rpg-btn tp-rpg-btn--gold px-5 py-2.5 font-black text-xs flex items-center gap-1.5 cursor-pointer"
           >
-            {isPlaying ? <RotateCcw className="w-4 h-4" /> : <Play className="w-4 h-4 fill-emerald-900" />}
+            {isPlaying ? <RotateCcw className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
             <span>{isPlaying ? '다시하기' : '게임 시작'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Game Stage Arena */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-sky-200 via-emerald-100 to-amber-100 p-4 sm:p-8 border-4 border-emerald-300 shadow-2xl">
-        {/* HUD Info Bar */}
-        <div className="flex items-center justify-between bg-white/90 backdrop-blur-xs p-3 sm:p-4 rounded-2xl border-2 border-emerald-200 shadow-md mb-6">
-          {/* Lives */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-extrabold text-slate-500 mr-1">생명:</span>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Heart
-                key={i}
-                className={`w-5 h-5 transition-transform ${
-                  i < lives
-                    ? 'text-rose-500 fill-rose-500 scale-100'
-                    : 'text-slate-300 fill-slate-200 scale-90'
-                }`}
-              />
-            ))}
+      {/* Main Game Stage Arena (16-bit Pixel Meadow Hill) */}
+      <div className="mg-stage relative rounded-2xl overflow-hidden border-4 border-[#2c1507] shadow-2xl p-3.5 sm:p-6 bg-[#4b9a34]">
+        <img
+          src="./assets/minigames/bg-mole.webp"
+          alt=""
+          aria-hidden="true"
+          className="mg-stage-bg"
+          referrerPolicy="no-referrer"
+          draggable={false}
+        />
+        <div className="mg-stage-scrim mg-stage-scrim--meadow" aria-hidden="true" />
+
+        <div className="relative z-10">
+          {/* HUD Info Bar */}
+          <div className="mg-hud-bar flex items-center justify-between flex-wrap gap-2 p-3 sm:px-4 mb-5">
+            {/* Lives */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-extrabold text-[#fff4d4] mr-1">생명:</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Heart
+                  key={i}
+                  className={`w-5 h-5 transition-transform ${
+                    i < lives
+                      ? 'text-rose-400 fill-rose-500 scale-100'
+                      : 'text-amber-950/60 fill-amber-950/40 scale-90'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Score & Combo */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-1 text-[#ffe066] font-black text-xs sm:text-sm tabular-nums">
+                <Flame className="w-4 h-4 fill-[#ff9f1c] text-[#ffe066]" />
+                <span>{combo} COMBO</span>
+              </div>
+              <div className="bg-[#fdf5dd] text-[#2c1507] font-mono tabular-nums text-sm sm:text-base font-black px-3.5 py-1 rounded-lg border-2 border-[#2c1507]">
+                {score.toLocaleString()} 점
+              </div>
+            </div>
           </div>
 
-          {/* Score & Combo */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-orange-500 font-black text-xs sm:text-sm">
-              <Flame className="w-4 h-4 fill-orange-500 animate-bounce" />
-              <span>{combo} COMBO</span>
-            </div>
-            <div className="bg-emerald-500 text-white font-mono text-sm sm:text-base font-black px-4 py-1 rounded-xl shadow-inner border border-emerald-400">
-              {score.toLocaleString()} 점
-            </div>
-          </div>
-        </div>
+          {/* 3x3 Mole Meadow Burrows */}
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-5 max-w-lg mx-auto py-1">
+            {holes.map((hole) => {
+              const isPrefixMatch = Boolean(
+                inputVal.trim() && hole.isActive && !hole.isHit && hole.word.startsWith(inputVal.trim())
+              );
 
-        {/* 3x3 Mole Garden Holes */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-6 max-w-lg mx-auto py-2">
-          {holes.map((hole) => {
-            const isPrefixMatch = Boolean(
-              inputVal.trim() && hole.isActive && !hole.isHit && hole.word.startsWith(inputVal.trim())
-            );
+              return (
+                <div
+                  key={hole.id}
+                  className="mg-mole-hole relative aspect-square flex flex-col items-center justify-end overflow-visible pb-2"
+                >
+                  {/* Earthy Pixel Burrow Pit */}
+                  <div className="mg-mole-pit" aria-hidden="true" />
 
-            return (
-              <div
-                key={hole.id}
-                className="relative aspect-square rounded-3xl bg-gradient-to-b from-amber-800 via-amber-900 to-amber-950 border-4 border-amber-600 shadow-[inset_0_8px_16px_rgba(0,0,0,0.7)] flex items-end justify-center overflow-hidden pb-1"
-              >
-                {/* Hole Grass Trim */}
-                <div className="absolute top-0 inset-x-0 h-4 bg-emerald-500/90 rounded-b-xl border-b-2 border-emerald-600 z-0" />
-
-                {/* Mole Character */}
-                {hole.isActive && (
-                  <div
-                    className={`flex flex-col items-center justify-center transition-all duration-150 z-10 select-none ${
-                      hole.isHit
-                        ? 'scale-90 rotate-12 brightness-110'
-                        : 'animate-in slide-in-from-bottom-10 duration-200'
-                    }`}
-                  >
-                    {/* Whack Hammer & Stars Animation */}
-                    {hole.isHit && (
-                      <div className="absolute -top-10 flex flex-col items-center z-30 animate-bounce">
-                        <span className="text-4xl sm:text-5xl filter drop-shadow-lg">
-                          🔨💥
-                        </span>
-                        <span className="text-xs font-black text-yellow-300 bg-slate-900/80 px-2 py-0.5 rounded-full mt-1 border border-yellow-400">
-                          +100 HIT!
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Word Tag Badge on Mole with Dynamic Prefix Glow */}
+                  {/* Mole Character Sprite */}
+                  {hole.isActive && (
                     <div
-                      className={`px-3 py-1 rounded-xl font-black text-xs sm:text-sm shadow-lg border-2 whitespace-nowrap mb-1.5 transition-all ${
+                      className={`relative flex flex-col items-center justify-end z-10 select-none transition-transform duration-150 ${
                         hole.isHit
-                          ? 'bg-rose-500 text-white border-rose-300 scale-110'
-                          : isPrefixMatch
-                          ? 'bg-yellow-300 text-slate-950 border-yellow-500 ring-4 ring-yellow-200 scale-110 animate-pulse font-extrabold'
-                          : 'bg-amber-100 text-amber-950 border-amber-300 ring-2 ring-white'
+                          ? 'scale-90 translate-y-2'
+                          : 'animate-in slide-in-from-bottom-6 duration-150'
                       }`}
                     >
-                      {hole.word}
-                    </div>
-
-                    {/* Cute Mole Head with Animated Expressions */}
-                    <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-t-full bg-gradient-to-b from-amber-500 to-amber-800 border-2 border-amber-900 flex flex-col items-center justify-start pt-1.5 shadow-md relative">
-                      {hole.isHit ? (
-                        // Dizzy Stunned Face
-                        <div className="flex flex-col items-center">
-                          <div className="flex gap-2 text-sm font-black text-slate-900 mt-1">
-                            <span>😵</span>
-                          </div>
-                          <span className="text-[10px] text-amber-200 font-bold">💫 뿅!</span>
+                      {/* Hit Effect Badge */}
+                      {hole.isHit && (
+                        <div className="absolute -top-9 flex flex-col items-center z-30 pointer-events-none">
+                          <span className="text-2xl sm:text-3xl drop-shadow-md">💥</span>
+                          <span className="text-[11px] font-black text-[#ffe066] bg-[#2c1507]/95 px-2 py-0.5 rounded border border-[#ffe066] whitespace-nowrap">
+                            +{hole.points} HIT!
+                          </span>
                         </div>
-                      ) : (
-                        // Happy Cute Mole Face
-                        <>
-                          <div className="flex gap-2.5 mt-1">
-                            <span className="w-2 h-2 rounded-full bg-slate-900 ring-1 ring-white"></span>
-                            <span className="w-2 h-2 rounded-full bg-slate-900 ring-1 ring-white"></span>
-                          </div>
-                          <div className="w-3.5 h-2 rounded-full bg-rose-400 mt-1 shadow-xs"></div>
-                          <div className="flex gap-1 mt-0.5">
-                            <span className="w-1.5 h-1.5 bg-amber-100 rounded-xs"></span>
-                            <span className="w-1.5 h-1.5 bg-amber-100 rounded-xs"></span>
-                          </div>
-                        </>
                       )}
+
+                      {/* High-Contrast Word Sign */}
+                      <div
+                        className={`mg-word-pill mb-1 whitespace-nowrap ${
+                          hole.isHit
+                            ? 'bg-rose-600 text-white border-[#2c1507]'
+                            : isPrefixMatch
+                            ? 'bg-[#ffe066] text-[#261106] border-[#2c1507] scale-105'
+                            : 'bg-[#fffaf0] text-[#261106] border-[#2c1507]'
+                        }`}
+                      >
+                        {hole.word}
+                      </div>
+
+                      {/* Original 16-bit Pixel Mole Sprite */}
+                      <img
+                        src="./assets/minigames/sprite-mole.webp"
+                        alt="두더지"
+                        className={`w-16 h-16 sm:w-22 sm:h-22 object-contain pointer-events-none select-none drop-shadow-[0_3px_0_rgba(36,17,6,0.55)] ${
+                          hole.isHit ? 'brightness-125 -rotate-12' : ''
+                        }`}
+                        style={{ imageRendering: 'pixelated' }}
+                        referrerPolicy="no-referrer"
+                        draggable={false}
+                      />
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
+
+                  {/* Front Dirt Mound Rim */}
+                  <div className="mg-mole-rim" aria-hidden="true" />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Typing Input Box */}
+          <div className="mt-5 mg-input-bar p-3 sm:p-3.5 flex flex-col sm:flex-row items-center gap-2.5">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputVal}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              disabled={!isPlaying || isGameOver}
+              placeholder={isPlaying ? '두더지의 단어를 타이핑하세요!' : '게임 시작 버튼을 누르세요'}
+              className="w-full text-center sm:text-left px-4 py-2.5 text-lg font-black rounded-lg border-3 border-[#4a2810] focus:border-[#2e7d32] outline-hidden bg-[#fffdf7] text-[#261106] placeholder-[#947252] shadow-inner font-arcade"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                setInputVal('');
+                inputRef.current?.focus();
+              }}
+              className="tp-rpg-btn tp-rpg-btn--wood px-5 py-2.5 font-black text-sm whitespace-nowrap cursor-pointer"
+            >
+              초기화
+            </button>
+          </div>
         </div>
 
         {/* Game Over / Start Prompt Overlay */}
         {(!isPlaying || isGameOver) && (
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white z-30 animate-in fade-in">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-400 text-emerald-950 flex items-center justify-center text-3xl mb-3 shadow-lg animate-bounce">
-              {isGameOver ? '🐹' : '🎮'}
-            </div>
-            <h3 className="text-2xl sm:text-3xl font-black text-emerald-300 font-arcade">
-              {isGameOver ? 'GAME OVER!' : '두더지 타자 게임'}
-            </h3>
-            <p className="text-xs text-slate-200 mt-1 max-w-sm">
-              {isGameOver
-                ? `두더지를 놓쳐 생명이 모두 소진되었습니다! 최종 점수: ${score.toLocaleString()}점`
-                : '두더지가 땅 위로 올라왔을 때 단어를 타이핑하여 망치로 뿅 잡으세요!'}
-            </p>
+          <div className="absolute inset-0 bg-[#1a1008]/75 flex flex-col items-center justify-center p-5 text-center z-30 animate-in fade-in">
+            <div className="mg-overlay-card max-w-sm w-full">
+              <img
+                src="./assets/minigames/sprite-mole.webp"
+                alt=""
+                aria-hidden="true"
+                className="w-20 h-20 mx-auto mb-2 object-contain"
+                style={{ imageRendering: 'pixelated' }}
+                referrerPolicy="no-referrer"
+                draggable={false}
+              />
+              <h3 className="text-2xl font-black text-[#2c1507] font-arcade">
+                {isGameOver ? 'GAME OVER!' : '두더지 타자 잡기'}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#4a2810] font-bold mt-1.5 leading-relaxed">
+                {isGameOver
+                  ? `두더지를 놓쳐 생명이 모두 소진되었습니다! 최종 점수: ${score.toLocaleString()}점`
+                  : '풀밭 구멍에서 올라오는 두더지의 단어를 빠르게 타이핑해 잡아 보세요!'}
+              </p>
 
-            <button
-              onClick={startGame}
-              className="mt-5 px-8 py-3.5 rounded-2xl arcade-btn-mint text-emerald-950 font-black text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
-            >
-              {isGameOver ? '다시 도전하기' : '게임 시작하기'}
-            </button>
+              <button
+                type="button"
+                onClick={startGame}
+                className="mt-4 tp-rpg-btn tp-rpg-btn--gold px-7 py-3 font-black text-sm cursor-pointer"
+              >
+                {isGameOver ? '다시 도전하기' : '게임 시작하기'}
+              </button>
+            </div>
           </div>
         )}
-
-        {/* Typing Input Box */}
-        <div className="mt-6 bg-white/95 backdrop-blur-xs p-3 sm:p-4 rounded-2xl border-4 border-emerald-300 shadow-lg flex flex-col sm:flex-row items-center gap-3">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputVal}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            disabled={!isPlaying || isGameOver}
-            placeholder={isPlaying ? '두더지의 단어를 타이핑하세요!' : '게임 시작 버튼을 누르세요'}
-            className="w-full text-center sm:text-left pl-4 pr-4 py-3 text-lg font-black rounded-xl border-2 border-emerald-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-hidden bg-emerald-50/50 text-slate-800 placeholder-slate-400 shadow-inner font-arcade"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck="false"
-          />
-
-          <button
-            onClick={() => {
-              setInputVal('');
-              inputRef.current?.focus();
-            }}
-            className="px-6 py-3 rounded-xl arcade-btn-mint text-emerald-950 font-black text-sm shadow-md whitespace-nowrap"
-          >
-            초기화
-          </button>
-        </div>
       </div>
     </div>
   );
