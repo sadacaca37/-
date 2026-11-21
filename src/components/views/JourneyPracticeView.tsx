@@ -1933,7 +1933,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-6 flex items-center justify-center gap-2 text-amber-800 font-black text-sm">
-              <span>🪙 특별 팡팡 포인트</span>
+              <span>🪙 특별 타자팡 포인트</span>
               <span className="text-amber-600 text-base">+{realPts(earnedPoints)} P 적립!</span>
             </div>
 

@@ -324,8 +324,8 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
             <span className="tp-logo-a" data-text="타자">
               타자
             </span>
-            <span className="tp-logo-b" data-text="팡팡">
-              팡팡
+            <span className="tp-logo-b" data-text="팡">
+              팡
             </span>
           </span>
           <span className="tp-practice-stage">STAGE {stepNumber}</span>

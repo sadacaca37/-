@@ -133,7 +133,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-pocket-kart',
-    title: '팡팡 카트 레이싱',
+    title: '타자팡 카트 레이싱',
     category: '펀펀',
     icon: '🏎️',
     thumb: './assets/playground/thumb-kart.webp',

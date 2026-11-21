@@ -148,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="tp-nav-strip bg-gradient-to-r from-[#4DD0E1] via-[#29B6F6] to-[#AB47BC] text-white text-[11px] sm:text-xs font-black py-1 px-3 text-center flex items-center justify-center gap-2 shadow-xs">
         <span className="animate-bounce">✨</span>
         <span className="tp-nav-strip-chip bg-white/20 px-2.5 py-0.5 rounded-full border border-white/40 font-black">
-          🐾 팡팡 타자랜드
+          🐾 타자팡 랜드
         </span>
         <span className="tp-nav-strip-text hidden sm:inline text-pink-100 font-bold">
           • 귀여운 동물 친구들과 함께하는 신나는 타자 모험! 💖
@@ -169,7 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="tp-nav-title font-arcade text-lg sm:text-2xl font-black text-slate-800 tracking-tight group-hover:text-pink-600 transition-colors">
-                  <span className="tp-nav-title-a">타자</span><span className="tp-nav-title-b text-pink-500">팡팡</span>
+                  <span className="tp-nav-title-a">타자</span><span className="tp-nav-title-b text-pink-500">팡</span>
                 </span>
                 <span className="tp-nav-badge hidden md:inline-block px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[10px] font-black border border-pink-300">
                   PASTEL ARCADE

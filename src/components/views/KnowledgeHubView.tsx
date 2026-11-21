@@ -93,7 +93,7 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
       iconColor: 'text-emerald-600',
       bgIcon: 'bg-emerald-100',
       description: '아시아, 유럽, 아메리카, 아프리카, 오세아니아 71개국의 선명한 실물 국기와 수도를 맞히며 타자 실력과 세계 지식을 동시에 쌓는 글로벌 챌린지!',
-      features: ['실물 국기 그래픽 & 초성 힌트', '확대된 5대륙 71개국 정복 맵', '문제당 팡팡 포인트 적립'],
+      features: ['실물 국기 그래픽 & 초성 힌트', '확대된 5대륙 71개국 정복 맵', '문제당 타자팡 포인트 적립'],
       progressText: `${capitalsConquered} / 71개국 정복`,
       progressPercent: Math.round((capitalsConquered / 71) * 100),
       pointReward: '+5P / 문제당 (+100P 완주)',
@@ -154,7 +154,7 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
         <div className="kw-sign">
           <span className="kw-sign-cap kw-sign-cap--l" />
           <span className="kw-sign-cap kw-sign-cap--r" />
-          팡팡 지식 월드
+          타자팡 지식 월드
         </div>
         <div className="kw-sub">★ 월드를 골라 모험을 시작하세요 ★</div>
         <div className="kw-bot">

@@ -36,7 +36,7 @@ export const Pixel: React.FC<{
 };
 
 /* ---------- sprites ---------- */
-/* 파팡 (Typong) – retro CRT-TV robot */
+/* 타팡 (Tapang) – retro CRT-TV robot */
 const TV_BOT = [
   '....Y..........Y......',
   '.....K........K.......',
@@ -146,7 +146,7 @@ export const PixelIcon: React.FC<{ name: keyof typeof PIXEL_ICONS | string; size
   return ic ? <Pixel grid={ic.grid} pal={ic.pal} size={size} className={className} /> : null;
 };
 
-/* 파팡 robot with optional name plate + speech bubble */
+/* 타팡 robot with optional name plate + speech bubble */
 export const TvBot: React.FC<{ size?: number; bubble?: string; bubbleSide?: 'left' | 'right' | 'top'; className?: string }> = ({
   size = 150,
   bubble,
@@ -158,7 +158,7 @@ export const TvBot: React.FC<{ size?: number; bubble?: string; bubbleSide?: 'lef
     <div className="relative">
       <Pixel grid={TV_BOT} pal={TV_PAL} size={size} />
       <span className="tp-bot-plate" style={{ fontSize: Math.max(8, size * 0.075) }}>
-        파팡
+        타팡
       </span>
     </div>
   </div>
@@ -233,7 +233,7 @@ const MAP_STOPS: MapStop[] = [
   {
     mode: 'knowledge-hub',
     label: 'SPECIAL',
-    name: '팡팡 지식 타자',
+    name: '타자팡 지식 타자',
     goal: 3,
     flagNum: '★',
     kind: 'special',
@@ -919,7 +919,7 @@ export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
       <div className="flex flex-col items-center sm:items-start gap-2.5">
         <div className="tp-footer-logo">
           <span className="tp-footer-logo-a">타자</span>
-          <span className="tp-footer-logo-b">팡팡</span>
+          <span className="tp-footer-logo-b">팡</span>
         </div>
         <div className="tp-footer-credit">
           <span>김은경</span>
@@ -941,7 +941,7 @@ export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
 );
 
 /* ================================================================== */
-/*  파팡 robots + clouds that fill the empty side gutters               */
+/*  타팡 robots + clouds that fill the empty side gutters               */
 /* ================================================================== */
 export const GutterBots: React.FC = () => (
   <div className="gb" aria-hidden="true">
@@ -949,7 +949,7 @@ export const GutterBots: React.FC = () => (
     <Pixel grid={CLOUD} pal={CLOUD_PAL} size={100} className="gb-cloud gb-cloud--2" />
     <Pixel grid={CLOUD} pal={CLOUD_PAL} size={120} className="gb-cloud gb-cloud--3" />
     <div className="gb-bot gb-bot--l1"><TvBot size={60} bubble="화이팅!" bubbleSide="top" /></div>
-    <div className="gb-bot gb-bot--r1"><TvBot size={56} bubble="팡팡!" bubbleSide="top" /></div>
+    <div className="gb-bot gb-bot--r1"><TvBot size={56} bubble="타팡!" bubbleSide="top" /></div>
     <div className="gb-bot gb-bot--l2"><TvBot size={48} /></div>
     <div className="gb-bot gb-bot--r2"><TvBot size={52} bubble="탁탁!" bubbleSide="top" /></div>
   </div>
