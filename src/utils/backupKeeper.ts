@@ -91,8 +91,24 @@ class BackupKeeper {
       if (!st?.success) return;
 
       let restored: number | undefined;
-      if (st.needsRestore) {
-        const saved = await idbGet<any>('latest');
+      const shouldRestore = st.needsRestore || Number(st.members) === 0;
+      if (shouldRestore) {
+        let saved = await idbGet<any>('latest');
+        if (!saved || !countOf(saved).members) {
+          saved = await idbGet<any>('previous');
+        }
+        if (!saved || !countOf(saved).members) {
+          try {
+            const raw = localStorage.getItem('typang_users_db');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                saved = { members: { members: parsed } };
+              }
+            }
+          } catch {}
+        }
+
         if (saved && (countOf(saved).members || countOf(saved).progress)) {
           const r = await fetch('/api/backup/restore', {
             method: 'POST',
@@ -113,17 +129,64 @@ class BackupKeeper {
 
       const b = await fetch('/api/backup', { headers: headers() }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (b?.success && b.backup) {
-        const prev = await idbGet<any>('latest');
-        if (prev) await idbSet('previous', prev);
-        await idbSet('latest', b.backup);
-        try {
-          localStorage.setItem(LAST_AUTO_BACKUP_KEY, String(Date.now()));
-        } catch {}
+        const curLatest = await idbGet<any>('latest');
+        const curCount = countOf(curLatest);
+        const serverCount = countOf(b.backup);
+
+        // 서버 명단이 0명인데 로컬 백업에 학생이 이미 있다면, 빈 서버 내용으로 백업을 지우지 않음!
+        if (serverCount.members === 0 && curCount.members > 0) {
+          console.warn('[백업] 서버 학생 명단이 비어 있어 브라우저의 기존 백업을 보존합니다.');
+        } else {
+          if (curLatest && curCount.members > 0) await idbSet('previous', curLatest);
+          await idbSet('latest', b.backup);
+          try {
+            localStorage.setItem(LAST_AUTO_BACKUP_KEY, String(Date.now()));
+          } catch {}
+        }
       }
       return { restored };
     } finally {
       this.busy = false;
     }
+  }
+
+  /** 수동 복원 트리거: latest, previous, localStorage 중 학생이 있는 백업을 찾아 서버에 복원 */
+  public async restoreFromAnyAvailable(): Promise<{ success: boolean; message: string; restored?: number }> {
+    if (!typangApi.getMasterKey()) return { success: false, message: '마스터 비밀번호로 관리실에 먼저 로그인해 주세요.' };
+    let saved = await idbGet<any>('latest');
+    if (!saved || !countOf(saved).members) {
+      saved = await idbGet<any>('previous');
+    }
+    if (!saved || !countOf(saved).members) {
+      try {
+        const raw = localStorage.getItem('typang_users_db');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            saved = { members: { members: parsed } };
+          }
+        }
+      } catch {}
+    }
+    if (!saved || (!countOf(saved).members && !countOf(saved).progress)) {
+      return {
+        success: false,
+        message: '이 브라우저에 저장된 이전 학생 백업이 없습니다. [♻️ 백업 되돌리기]를 눌러 다운로드해 두셨던 백업 파일(.json)을 직접 선택해 주세요.',
+      };
+    }
+    const r = await fetch('/api/backup/restore', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ backup: saved, mode: 'merge' }),
+    })
+      .then((x) => x.json())
+      .catch(() => null);
+
+    if (r?.success) {
+      window.dispatchEvent(new CustomEvent('typang-backup-restored', { detail: r }));
+      return { success: true, message: r.message || '복원되었습니다.', restored: Number(r.restoredMembers) || 0 };
+    }
+    return { success: false, message: r?.message || '복원에 실패했습니다.' };
   }
 
   /** 이 컴퓨터에 보관된 최신 자동 백업 (마스터 관리실에서 파일로 받을 때 사용) */

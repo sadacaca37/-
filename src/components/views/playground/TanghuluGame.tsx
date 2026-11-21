@@ -1,6 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../../utils/sound';
 import { ArcadeShell, overlay, rr, useBest } from './games/ArcadeShell';
+import { getPixelImg, isImgReady, preloadPixelImgs } from './pixelAssets';
+
+const TANGHULU_BG = '/assets/minigames/bg-pet.webp';
+const TANGHULU_SPARKLE = '/assets/playground/tanghulu/sparkle.webp';
+const TANGHULU_SPRITES: Record<'straw' | 'grape' | 'orange' | 'blue' | 'tomato', string> = {
+  straw: '/assets/playground/tanghulu/straw.webp',
+  grape: '/assets/playground/tanghulu/grape.webp',
+  orange: '/assets/playground/tanghulu/orange.webp',
+  blue: '/assets/playground/tanghulu/blue.webp',
+  tomato: '/assets/playground/tanghulu/tomato.webp',
+};
+const TANGHULU_ALL = [TANGHULU_BG, TANGHULU_SPARKLE, ...Object.values(TANGHULU_SPRITES)];
 
 /* Street-stall cooking game: fruits roll along the belt; press SPACE when the fruit the
    order needs is under the skewer. Five fruits → mash SPACE to coat in sugar → serve! */
@@ -73,6 +85,7 @@ export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [action]);
 
   useEffect(() => {
+    preloadPixelImgs(TANGHULU_ALL);
     const c = cv.current!; const ctx = c.getContext('2d')!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
@@ -80,6 +93,28 @@ export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
     const fruit = (x: number, y: number, k: Kind, glazeA = 0) => {
       const f = FRUIT[k];
+      const sprite = getPixelImg(TANGHULU_SPRITES[k]);
+      if (isImgReady(sprite)) {
+        const nw = sprite.naturalWidth;
+        const nh = sprite.naturalHeight;
+        const scale = (f.r * 2.25) / Math.min(nw, nh);
+        const dw = nw * scale;
+        const dh = nh * scale;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sprite, x - dw / 2, y - dh / 2, dw, dh);
+        if (glazeA > 0) {
+          ctx.fillStyle = `rgba(255,236,170,${0.48 * glazeA})`;
+          ctx.beginPath(); ctx.arc(x, y, f.r + 3, 0, Math.PI * 2); ctx.fill();
+          const sp = getPixelImg(TANGHULU_SPARKLE);
+          if (isImgReady(sp)) {
+            ctx.globalAlpha = Math.min(1, 0.35 + glazeA * 0.65);
+            ctx.drawImage(sp, x + f.r * 0.1, y - f.r * 1.05, 16, 16);
+          }
+        }
+        ctx.restore();
+        return;
+      }
       ctx.fillStyle = f.col; ctx.strokeStyle = f.dark; ctx.lineWidth = 3;
       if (k === 'straw') {
         ctx.beginPath(); ctx.moveTo(x - f.r, y - f.r * 0.5); ctx.quadraticCurveTo(x, y - f.r * 1.1, x + f.r, y - f.r * 0.5); ctx.quadraticCurveTo(x + f.r * 0.6, y + f.r, x, y + f.r * 1.1); ctx.quadraticCurveTo(x - f.r * 0.6, y + f.r, x - f.r, y - f.r * 0.5); ctx.fill(); ctx.stroke();
@@ -124,12 +159,20 @@ export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       ctx.save();
       if (s.shake) ctx.translate((Math.random() - 0.5) * s.shake, 0);
-      // stall wall
-      ctx.fillStyle = '#fff3d6'; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#ffe2b0'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, 60, 20, BELT_Y - 90);
+      // stall wall (16-bit pixel RPG cozy wooden shop backdrop)
+      const bgImg = getPixelImg(TANGHULU_BG);
+      if (isImgReady(bgImg)) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(bgImg, 0, 0, W, BELT_Y + 8);
+        ctx.fillStyle = 'rgba(255, 243, 214, 0.28)';
+        ctx.fillRect(0, 0, W, BELT_Y);
+      } else {
+        ctx.fillStyle = '#fff3d6'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffe2b0'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, 60, 20, BELT_Y - 90);
+      }
       // awning stripes
-      for (let i = 0; i < W / 40 + 1; i++) { ctx.fillStyle = i % 2 ? '#ffffff' : '#ff5fae'; ctx.beginPath(); ctx.moveTo(i * 40, 0); ctx.lineTo(i * 40 + 40, 0); ctx.lineTo(i * 40 + 40, 38); ctx.arc(i * 40 + 20, 38, 20, 0, Math.PI); ctx.fill(); }
-      ctx.strokeStyle = '#7a1e4a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 38); ctx.lineTo(W, 38); ctx.stroke();
+      for (let i = 0; i < W / 40 + 1; i++) { ctx.fillStyle = i % 2 ? '#fff6e6' : '#f45d9b'; ctx.beginPath(); ctx.moveTo(i * 40, 0); ctx.lineTo(i * 40 + 40, 0); ctx.lineTo(i * 40 + 40, 38); ctx.arc(i * 40 + 20, 38, 20, 0, Math.PI); ctx.fill(); }
+      ctx.strokeStyle = '#4a1b2c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 38); ctx.lineTo(W, 38); ctx.stroke();
       // order ticket
       ctx.fillStyle = '#ffffff'; rr(ctx, 20, 76, 250, 92, 10); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
       ctx.fillStyle = '#1b2340'; ctx.font = "14px 'Galmuri11', monospace"; ctx.textAlign = 'left'; ctx.textBaseline = 'top';

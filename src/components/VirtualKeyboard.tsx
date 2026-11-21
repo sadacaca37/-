@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { KEYBOARD_LAYOUT, FINGER_COLORS } from '../data/practiceData';
 import { FingerType } from '../types';
 
@@ -20,317 +20,239 @@ interface Point {
   y: number;
 }
 
-// 900x300 SVG canvas coordinate mapping matching the centered 15-unit keyboard layout
-const KEY_COORDINATES: Record<string, { x: number; y: number; finger: string }> = {
-  // Row 0 (Number row) - Y ≈ 30
-  Backquote: { x: 107, y: 30, finger: 'left-pinky' },
-  Digit1: { x: 157, y: 30, finger: 'left-pinky' },
-  Digit2: { x: 207, y: 30, finger: 'left-ring' },
-  Digit3: { x: 257, y: 30, finger: 'left-middle' },
-  Digit4: { x: 307, y: 30, finger: 'left-index' },
-  Digit5: { x: 357, y: 30, finger: 'left-index' },
-  Digit6: { x: 407, y: 30, finger: 'right-index' },
-  Digit7: { x: 457, y: 30, finger: 'right-index' },
-  Digit8: { x: 507, y: 30, finger: 'right-middle' },
-  Digit9: { x: 557, y: 30, finger: 'right-ring' },
-  Digit0: { x: 607, y: 30, finger: 'right-pinky' },
-  Minus: { x: 657, y: 30, finger: 'right-pinky' },
-  Equal: { x: 707, y: 30, finger: 'right-pinky' },
-  Backspace: { x: 771, y: 30, finger: 'right-pinky' },
+interface HandLayoutBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  rotateDeg: number;
+  tips: Record<string, Point>;
+}
 
-  // Row 1 (Top row / QWERTY) - Y ≈ 84
-  Tab: { x: 125, y: 84, finger: 'left-pinky' },
-  KeyQ: { x: 185, y: 84, finger: 'left-pinky' },
-  KeyW: { x: 235, y: 84, finger: 'left-ring' },
-  KeyE: { x: 285, y: 84, finger: 'left-middle' },
-  KeyR: { x: 335, y: 84, finger: 'left-index' },
-  KeyT: { x: 385, y: 84, finger: 'left-index' },
-  KeyY: { x: 435, y: 84, finger: 'right-index' },
-  KeyU: { x: 485, y: 84, finger: 'right-index' },
-  KeyI: { x: 535, y: 84, finger: 'right-middle' },
-  KeyO: { x: 585, y: 84, finger: 'right-ring' },
-  KeyP: { x: 635, y: 84, finger: 'right-pinky' },
-  BracketLeft: { x: 685, y: 84, finger: 'right-pinky' },
-  BracketRight: { x: 735, y: 84, finger: 'right-pinky' },
-  Backslash: { x: 785, y: 84, finger: 'right-pinky' },
+interface OverlayMetrics {
+  width: number;
+  height: number;
+  keyCenters: Record<string, Point>;
+  leftHand: HandLayoutBox;
+  rightHand: HandLayoutBox;
+}
 
-  // Row 2 (Home row / ASDF) - Y ≈ 138
-  CapsLock: { x: 132, y: 138, finger: 'left-pinky' },
-  KeyA: { x: 200, y: 138, finger: 'left-pinky' },
-  KeyS: { x: 250, y: 138, finger: 'left-ring' },
-  KeyD: { x: 300, y: 138, finger: 'left-middle' },
-  KeyF: { x: 350, y: 138, finger: 'left-index' },
-  KeyG: { x: 400, y: 138, finger: 'left-index' },
-  KeyH: { x: 450, y: 138, finger: 'right-index' },
-  KeyJ: { x: 500, y: 138, finger: 'right-index' },
-  KeyK: { x: 550, y: 138, finger: 'right-middle' },
-  KeyL: { x: 600, y: 138, finger: 'right-ring' },
-  Semicolon: { x: 650, y: 138, finger: 'right-pinky' },
-  Quote: { x: 700, y: 138, finger: 'right-pinky' },
-  Enter: { x: 768, y: 138, finger: 'right-pinky' },
+// Fallback finger assignment for every keycode when targetFinger isn't explicitly passed
+const KEY_FINGER_MAP: Record<string, string> = {
+  Backquote: 'left-pinky',
+  Digit1: 'left-pinky',
+  Digit2: 'left-ring',
+  Digit3: 'left-middle',
+  Digit4: 'left-index',
+  Digit5: 'left-index',
+  Digit6: 'right-index',
+  Digit7: 'right-index',
+  Digit8: 'right-middle',
+  Digit9: 'right-ring',
+  Digit0: 'right-pinky',
+  Minus: 'right-pinky',
+  Equal: 'right-pinky',
+  Backspace: 'right-pinky',
 
-  // Row 3 (Bottom row / ZXCV) - Y ≈ 192
-  ShiftLeft: { x: 149, y: 192, finger: 'left-pinky' },
-  KeyZ: { x: 225, y: 192, finger: 'left-pinky' },
-  KeyX: { x: 275, y: 192, finger: 'left-ring' },
-  KeyC: { x: 325, y: 192, finger: 'left-middle' },
-  KeyV: { x: 375, y: 192, finger: 'left-index' },
-  KeyB: { x: 425, y: 192, finger: 'left-index' },
-  KeyN: { x: 475, y: 192, finger: 'right-index' },
-  KeyM: { x: 525, y: 192, finger: 'right-index' },
-  Comma: { x: 575, y: 192, finger: 'right-middle' },
-  Period: { x: 625, y: 192, finger: 'right-ring' },
-  Slash: { x: 675, y: 192, finger: 'right-pinky' },
-  ShiftRight: { x: 751, y: 192, finger: 'right-pinky' },
+  Tab: 'left-pinky',
+  KeyQ: 'left-pinky',
+  KeyW: 'left-ring',
+  KeyE: 'left-middle',
+  KeyR: 'left-index',
+  KeyT: 'left-index',
+  KeyY: 'right-index',
+  KeyU: 'right-index',
+  KeyI: 'right-middle',
+  KeyO: 'right-ring',
+  KeyP: 'right-pinky',
+  BracketLeft: 'right-pinky',
+  BracketRight: 'right-pinky',
+  Backslash: 'right-pinky',
 
-  // Row 4 (Space row) - Y ≈ 246
-  Space: { x: 450, y: 246, finger: 'right-thumb' },
+  CapsLock: 'left-pinky',
+  KeyA: 'left-pinky',
+  KeyS: 'left-ring',
+  KeyD: 'left-middle',
+  KeyF: 'left-index',
+  KeyG: 'left-index',
+  KeyH: 'right-index',
+  KeyJ: 'right-index',
+  KeyK: 'right-middle',
+  KeyL: 'right-ring',
+  Semicolon: 'right-pinky',
+  Quote: 'right-pinky',
+  Enter: 'right-pinky',
+
+  ShiftLeft: 'left-pinky',
+  KeyZ: 'left-pinky',
+  KeyX: 'left-ring',
+  KeyC: 'left-middle',
+  KeyV: 'left-index',
+  KeyB: 'left-index',
+  KeyN: 'right-index',
+  KeyM: 'right-index',
+  Comma: 'right-middle',
+  Period: 'right-ring',
+  Slash: 'right-pinky',
+  ShiftRight: 'right-pinky',
+
+  Space: 'right-thumb',
 };
 
-// Home row resting positions for all 10 fingers
-const REST_POSITIONS: Record<string, Point> = {
-  'left-pinky': { x: 200, y: 138 },
-  'left-ring': { x: 250, y: 138 },
-  'left-middle': { x: 300, y: 138 },
-  'left-index': { x: 350, y: 138 },
-  'left-thumb': { x: 405, y: 246 },
+// Keys where the hands rest cleanly on their home position (no translation needed)
+const HOME_AND_SPACE_KEYS = new Set<string>([
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'KeyF',
+  'KeyJ',
+  'KeyK',
+  'KeyL',
+  'Semicolon',
+  'Space',
+]);
 
-  'right-thumb': { x: 495, y: 246 },
-  'right-index': { x: 500, y: 138 },
-  'right-middle': { x: 550, y: 138 },
-  'right-ring': { x: 600, y: 138 },
-  'right-pinky': { x: 650, y: 138 },
+type HandFeedbackState = {
+  kind: 'idle' | 'tap' | 'shake';
+  seq: number;
 };
 
-// Builds a smooth, organic finger contour with natural anatomical taper, soft curves, and delicate fingernails
-function buildFingerContour(
-  bL: Point,
-  bR: Point,
-  tip: Point,
-  radius: number = 12
-) {
-  const mx = (bL.x + bR.x) / 2;
-  const my = (bL.y + bR.y) / 2;
-  const dx = tip.x - mx;
-  const dy = tip.y - my;
-  const len = Math.max(10, Math.hypot(dx, dy));
-  const ux = dx / len;
-  const uy = dy / len;
-  const nx = -uy;
-  const ny = ux;
+// Finger accent hex colors matching the 5-color legend (새끼·약지·중지·검지·엄지)
+const FINGER_ACCENT_HEX: Record<string, string> = {
+  'left-pinky': '#a855f7',
+  'right-pinky': '#a855f7',
+  'left-ring': '#0ea5e9',
+  'right-ring': '#0ea5e9',
+  'left-middle': '#14b8a6',
+  'right-middle': '#14b8a6',
+  'left-index': '#10b981',
+  'right-index': '#10b981',
+  'left-thumb': '#f59e0b',
+  'right-thumb': '#f59e0b',
+};
 
-  // Natural anatomical finger proportions:
-  // Taper gently from base to middle phalanx (PIP) and distal phalanx (DIP)
-  const rTip = radius * 0.90;
+// Intrinsic pixel dimensions of public/assets/practice/hand-left.webp & hand-right.webp
+const HAND_IMG_W = 320;
+const HAND_IMG_H = 512;
 
-  // Fingertip points with soft curvature
-  const tL = { x: tip.x - nx * rTip, y: tip.y - ny * rTip };
-  const tApex = { x: tip.x + ux * (rTip * 0.72), y: tip.y + uy * (rTip * 0.72) };
-  const tR = { x: tip.x + nx * rTip, y: tip.y + ny * rTip };
+// Measured fingertip pad centers inside the 320x512 hand-right.webp asset
+const RIGHT_RAW_TIPS: Record<string, Point> = {
+  'right-thumb': { x: 18, y: 212 },
+  'right-index': { x: 81, y: 54 },
+  'right-middle': { x: 155, y: 22 },
+  'right-ring': { x: 218, y: 46 },
+  'right-pinky': { x: 294, y: 104 },
+};
 
-  // Left side: smooth natural anatomical curve from base knuckle to fingertip
-  const c1L = { x: bL.x + ux * (len * 0.38) - nx * (radius * 0.08), y: bL.y + uy * (len * 0.38) - ny * (radius * 0.08) };
-  const c2L = { x: tL.x - ux * (len * 0.24) - nx * (radius * 0.03), y: tL.y - uy * (len * 0.24) - ny * (radius * 0.03) };
-  const upSide = `C ${c1L.x.toFixed(1)} ${c1L.y.toFixed(1)}, ${c2L.x.toFixed(1)} ${c2L.y.toFixed(1)}, ${tL.x.toFixed(1)} ${tL.y.toFixed(1)}`;
+// Exact horizontal mirror for hand-left.webp
+const LEFT_RAW_TIPS: Record<string, Point> = {
+  'left-pinky': { x: HAND_IMG_W - 294, y: 104 },
+  'left-ring': { x: HAND_IMG_W - 218, y: 46 },
+  'left-middle': { x: HAND_IMG_W - 155, y: 22 },
+  'left-index': { x: HAND_IMG_W - 81, y: 54 },
+  'left-thumb': { x: HAND_IMG_W - 18, y: 212 },
+};
 
-  // Fingertip dome: gentle, soft rounded organic dome without sharp corners
-  const cDome1 = { x: tL.x + ux * (rTip * 0.44), y: tL.y + uy * (rTip * 0.44) };
-  const cDome2 = { x: tApex.x - nx * (rTip * 0.44), y: tApex.y - ny * (rTip * 0.44) };
-  const cDome3 = { x: tApex.x + nx * (rTip * 0.44), y: tApex.y + ny * (rTip * 0.44) };
-  const cDome4 = { x: tR.x + ux * (rTip * 0.44), y: tR.y + uy * (rTip * 0.44) };
-  const dome = `C ${cDome1.x.toFixed(1)} ${cDome1.y.toFixed(1)}, ${cDome2.x.toFixed(1)} ${cDome2.y.toFixed(1)}, ${tApex.x.toFixed(1)} ${tApex.y.toFixed(1)} C ${cDome3.x.toFixed(1)} ${cDome3.y.toFixed(1)}, ${cDome4.x.toFixed(1)} ${cDome4.y.toFixed(1)}, ${tR.x.toFixed(1)} ${tR.y.toFixed(1)}`;
+// Gentle natural typing angle: levels the 4 home fingers while angling thumbs over Spacebar
+const LEFT_HAND_ROTATE_DEG = 7;
+const RIGHT_HAND_ROTATE_DEG = -7;
 
-  // Right side: smooth natural anatomical curve from fingertip to base knuckle
-  const c1R = { x: tR.x - ux * (len * 0.24) + nx * (radius * 0.03), y: tR.y - uy * (len * 0.24) + ny * (radius * 0.03) };
-  const c2R = { x: bR.x + ux * (len * 0.38) + nx * (radius * 0.08), y: bR.y + uy * (len * 0.38) + ny * (radius * 0.08) };
-  const downSide = `C ${c1R.x.toFixed(1)} ${c1R.y.toFixed(1)}, ${c2R.x.toFixed(1)} ${c2R.y.toFixed(1)}, ${bR.x.toFixed(1)} ${bR.y.toFixed(1)}`;
-
-  // Fingernail center and orientation (natural, delicate placement with subtle gap from tip)
-  const nailDist = len - rTip * 0.38;
-  const nailCenter = { x: mx + ux * nailDist, y: my + uy * nailDist };
-  const nailAngleDeg = (Math.atan2(uy, ux) * 180) / Math.PI;
-
-  // PIP crease arc (gentle soft curve at 48% of finger length)
-  const pipDist = len * 0.48;
-  const pMidX = mx + ux * pipDist;
-  const pMidY = my + uy * pipDist;
-  const pW = radius * 0.42;
-  const pL = { x: pMidX - nx * pW, y: pMidY - ny * pW };
-  const pC = { x: pMidX + ux * 0.7, y: pMidY + uy * 0.7 };
-  const pR = { x: pMidX + nx * pW, y: pMidY + ny * pW };
-  const pipCrease = `M ${pL.x.toFixed(1)} ${pL.y.toFixed(1)} Q ${pC.x.toFixed(1)} ${pC.y.toFixed(1)} ${pR.x.toFixed(1)} ${pR.y.toFixed(1)}`;
-
-  // DIP crease arc (gentle soft curve at 74% of finger length)
-  const dipDist = len * 0.74;
-  const dMidX = mx + ux * dipDist;
-  const dMidY = my + uy * dipDist;
-  const dW = radius * 0.36;
-  const dL = { x: dMidX - nx * dW, y: dMidY - ny * dW };
-  const dC = { x: dMidX + ux * 0.6, y: dMidY + uy * 0.6 };
-  const dR = { x: dMidX + nx * dW, y: dMidY + ny * dW };
-  const dipCrease = `M ${dL.x.toFixed(1)} ${dL.y.toFixed(1)} Q ${dC.x.toFixed(1)} ${dC.y.toFixed(1)} ${dR.x.toFixed(1)} ${dR.y.toFixed(1)}`;
-
+/**
+ * Matches exact CSS rendering order: scale raw (320x512) image to (boxW x boxH),
+ * then rotate around box center (boxW/2, boxH/2) by rotateDeg.
+ */
+function projectRawTip(pt: Point, boxW: number, boxH: number, deg: number): Point {
+  const rad = (deg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const sx = (pt.x / HAND_IMG_W) * boxW;
+  const sy = (pt.y / HAND_IMG_H) * boxH;
+  const cx = boxW / 2;
+  const cy = boxH / 2;
+  const dx = sx - cx;
+  const dy = sy - cy;
   return {
-    upSide,
-    dome,
-    downSide,
-    pipCrease,
-    dipCrease,
-    tL,
-    tR,
-    tApex,
-    nail: {
-      cx: nailCenter.x,
-      cy: nailCenter.y,
-      rx: radius * 0.46,
-      ry: radius * 0.32,
-      angleDeg: nailAngleDeg,
-    },
+    x: dx * cos - dy * sin + cx,
+    y: dx * sin + dy * cos + cy,
   };
 }
 
-// Generates smooth, continuous Left Hand path and individual finger data
-function buildLeftHand(tips: Record<string, Point>) {
-  const pBaseL = { x: 172, y: 242 };
-  const pBaseR = { x: 216, y: 232 };
-  const vPR = { x: 224, y: 235 };
+/**
+ * Computes exact pixel box & rotated fingertip coordinates in unscaled stage CSS pixels
+ * so the 4 home-row fingertips sit directly over the measured DOM centers of
+ * KeyA/S/D/F (left) or KeyJ/K/L/; (right) and both thumbs rest directly over Spacebar.
+ */
+function computeHandBox(
+  side: 'left' | 'right',
+  homeKeyPts: Point[], // [A, S, D, F] for left, [J, K, L, ;] for right
+  spaceKeyPt: Point | undefined
+): HandLayoutBox {
+  const rotateDeg = side === 'left' ? LEFT_HAND_ROTATE_DEG : RIGHT_HAND_ROTATE_DEG;
+  const rawTips = side === 'left' ? LEFT_RAW_TIPS : RIGHT_RAW_TIPS;
+  const homeKeys =
+    side === 'left'
+      ? ['left-pinky', 'left-ring', 'left-middle', 'left-index']
+      : ['right-index', 'right-middle', 'right-ring', 'right-pinky'];
+  const thumbKey = side === 'left' ? 'left-thumb' : 'right-thumb';
 
-  const rBaseL = { x: 232, y: 230 };
-  const rBaseR = { x: 266, y: 226 };
-  const vRM = { x: 274, y: 230 };
+  // Step 1: initial rotation at 1:1 scale to solve least-squares horizontal fit across all 4 home keys
+  const unitRotated: Record<string, Point> = {};
+  for (const [k, pt] of Object.entries(rawTips)) {
+    unitRotated[k] = projectRawTip(pt, HAND_IMG_W, HAND_IMG_H, rotateDeg);
+  }
 
-  const mBaseL = { x: 282, y: 226 };
-  const mBaseR = { x: 316, y: 228 };
-  const vMI = { x: 324, y: 231 };
+  const rawXs = homeKeys.map((k) => unitRotated[k].x);
+  const targetXs = homeKeyPts.map((p) => p.x);
+  const meanRawX = rawXs.reduce((a, b) => a + b, 0) / rawXs.length;
+  const meanTargetX = targetXs.reduce((a, b) => a + b, 0) / targetXs.length;
 
-  const iBaseL = { x: 332, y: 228 };
-  const iBaseR = { x: 366, y: 236 };
-  const vIT = { x: 372, y: 248 };
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < 4; i++) {
+    num += (rawXs[i] - meanRawX) * (targetXs[i] - meanTargetX);
+    den += (rawXs[i] - meanRawX) * (rawXs[i] - meanRawX);
+  }
+  // Slight fullness boost (1.08x) so each fingertip visually fills ~1 keycap while staying centered on all 4 home keys
+  const baseScaleX = den > 1 ? num / den : 0.72;
+  const scaleX = Math.max(0.45, baseScaleX * 1.08);
 
-  const tBaseL = { x: 372, y: 248 };
-  const tBaseR = { x: 345, y: 275 };
+  // Step 2: compute vertical scale from real measured DOM distance (home row -> Spacebar)
+  const targetHomeY = homeKeyPts.reduce((a, p) => a + p.y, 0) / homeKeyPts.length - 4;
+  const unitHomeAvgY = homeKeys.reduce((a, k) => a + unitRotated[k].y, 0) / homeKeys.length;
+  const unitHomeToThumbY = Math.max(40, unitRotated[thumbKey].y - unitHomeAvgY);
 
-  const pinky = buildFingerContour(pBaseL, pBaseR, tips['left-pinky'] || REST_POSITIONS['left-pinky'], 11);
-  const ring = buildFingerContour(rBaseL, rBaseR, tips['left-ring'] || REST_POSITIONS['left-ring'], 12);
-  const middle = buildFingerContour(mBaseL, mBaseR, tips['left-middle'] || REST_POSITIONS['left-middle'], 12.5);
-  const index = buildFingerContour(iBaseL, iBaseR, tips['left-index'] || REST_POSITIONS['left-index'], 12.5);
-  const thumb = buildFingerContour(tBaseL, tBaseR, tips['left-thumb'] || REST_POSITIONS['left-thumb'], 13.5);
+  let scaleY = scaleX * 0.88;
+  if (spaceKeyPt && spaceKeyPt.y > targetHomeY + 30) {
+    const desiredHomeToThumbY = spaceKeyPt.y - targetHomeY;
+    const fittedScaleY = desiredHomeToThumbY / unitHomeToThumbY;
+    // Clamp to keep hand anatomy completely natural while landing thumbs squarely on Spacebar
+    scaleY = Math.max(scaleX * 0.8, Math.min(scaleX * 1.02, fittedScaleY));
+  }
 
-  const handPath = [
-    `M 145 300`,
-    `C 148 275, 158 255, ${pBaseL.x} ${pBaseL.y}`,
-    pinky.upSide,
-    pinky.dome,
-    pinky.downSide,
-    `Q ${vPR.x} ${vPR.y}, ${rBaseL.x} ${rBaseL.y}`,
-    ring.upSide,
-    ring.dome,
-    ring.downSide,
-    `Q ${vRM.x} ${vRM.y}, ${mBaseL.x} ${mBaseL.y}`,
-    middle.upSide,
-    middle.dome,
-    middle.downSide,
-    `Q ${vMI.x} ${vMI.y}, ${iBaseL.x} ${iBaseL.y}`,
-    index.upSide,
-    index.dome,
-    index.downSide,
-    `Q ${vIT.x} ${vIT.y}, ${tBaseL.x} ${tBaseL.y}`,
-    thumb.upSide,
-    thumb.dome,
-    thumb.downSide,
-    `C 338 285, 326 295, 315 300`,
-    `C 260 306, 185 306, 145 300 Z`,
-  ].join(' ');
+  const width = HAND_IMG_W * scaleX;
+  const height = HAND_IMG_H * scaleY;
 
-  const palmCreases = [
-    `M 368 252 Q 330 268 312 295`,
-    `M 356 248 Q 280 255 200 252`,
-    `M 320 236 Q 260 242 185 250`,
-  ];
+  // Step 3: project all 5 fingertips using the exact final CSS box dimensions + rotation
+  const projected: Record<string, Point> = {};
+  for (const [k, pt] of Object.entries(rawTips)) {
+    projected[k] = projectRawTip(pt, width, height, rotateDeg);
+  }
 
-  return {
-    handPath,
-    palmCreases,
-    fingers: {
-      'left-pinky': { contour: pinky, bL: pBaseL, bR: pBaseR, tip: tips['left-pinky'] || REST_POSITIONS['left-pinky'] },
-      'left-ring': { contour: ring, bL: rBaseL, bR: rBaseR, tip: tips['left-ring'] || REST_POSITIONS['left-ring'] },
-      'left-middle': { contour: middle, bL: mBaseL, bR: mBaseR, tip: tips['left-middle'] || REST_POSITIONS['left-middle'] },
-      'left-index': { contour: index, bL: iBaseL, bR: iBaseR, tip: tips['left-index'] || REST_POSITIONS['left-index'] },
-      'left-thumb': { contour: thumb, bL: tBaseL, bR: tBaseR, tip: tips['left-thumb'] || REST_POSITIONS['left-thumb'] },
-    },
-  };
-}
+  const projHomeMeanX = homeKeys.reduce((a, k) => a + projected[k].x, 0) / homeKeys.length;
+  const projHomeMeanY = homeKeys.reduce((a, k) => a + projected[k].y, 0) / homeKeys.length;
 
-// Generates smooth, continuous Right Hand path and individual finger data
-function buildRightHand(tips: Record<string, Point>) {
-  const tBaseL = { x: 555, y: 275 };
-  const tBaseR = { x: 528, y: 248 };
-  const vIT = { x: 528, y: 248 };
+  const left = meanTargetX - projHomeMeanX;
+  const top = targetHomeY - projHomeMeanY;
 
-  const iBaseL = { x: 534, y: 236 };
-  const iBaseR = { x: 568, y: 228 };
-  const vMI = { x: 576, y: 231 };
+  const tips: Record<string, Point> = {};
+  for (const [k, pt] of Object.entries(projected)) {
+    tips[k] = {
+      x: left + pt.x,
+      y: top + pt.y,
+    };
+  }
 
-  const mBaseL = { x: 584, y: 228 };
-  const mBaseR = { x: 618, y: 226 };
-  const vRM = { x: 626, y: 230 };
-
-  const rBaseL = { x: 634, y: 226 };
-  const rBaseR = { x: 668, y: 230 };
-  const vPR = { x: 676, y: 235 };
-
-  const pBaseL = { x: 684, y: 232 };
-  const pBaseR = { x: 728, y: 242 };
-
-  const thumb = buildFingerContour(tBaseL, tBaseR, tips['right-thumb'] || REST_POSITIONS['right-thumb'], 13.5);
-  const index = buildFingerContour(iBaseL, iBaseR, tips['right-index'] || REST_POSITIONS['right-index'], 12.5);
-  const middle = buildFingerContour(mBaseL, mBaseR, tips['right-middle'] || REST_POSITIONS['right-middle'], 12.5);
-  const ring = buildFingerContour(rBaseL, rBaseR, tips['right-ring'] || REST_POSITIONS['right-ring'], 12);
-  const pinky = buildFingerContour(pBaseL, pBaseR, tips['right-pinky'] || REST_POSITIONS['right-pinky'], 11);
-
-  const handPath = [
-    `M 585 300`,
-    `C 574 295, 562 285, ${tBaseL.x} ${tBaseL.y}`,
-    thumb.upSide,
-    thumb.dome,
-    thumb.downSide,
-    `Q ${vIT.x} ${vIT.y}, ${iBaseL.x} ${iBaseL.y}`,
-    index.upSide,
-    index.dome,
-    index.downSide,
-    `Q ${vMI.x} ${vMI.y}, ${mBaseL.x} ${mBaseL.y}`,
-    middle.upSide,
-    middle.dome,
-    middle.downSide,
-    `Q ${vRM.x} ${vRM.y}, ${rBaseL.x} ${rBaseL.y}`,
-    ring.upSide,
-    ring.dome,
-    ring.downSide,
-    `Q ${vPR.x} ${vPR.y}, ${pBaseL.x} ${pBaseL.y}`,
-    pinky.upSide,
-    pinky.dome,
-    pinky.downSide,
-    `C 742 255, 752 275, 755 300`,
-    `C 715 306, 640 306, 585 300 Z`,
-  ].join(' ');
-
-  const palmCreases = [
-    `M 532 252 Q 570 268 588 295`,
-    `M 544 248 Q 620 255 700 252`,
-    `M 580 236 Q 640 242 715 250`,
-  ];
-
-  return {
-    handPath,
-    palmCreases,
-    fingers: {
-      'right-thumb': { contour: thumb, bL: tBaseL, bR: tBaseR, tip: tips['right-thumb'] || REST_POSITIONS['right-thumb'] },
-      'right-index': { contour: index, bL: iBaseL, bR: iBaseR, tip: tips['right-index'] || REST_POSITIONS['right-index'] },
-      'right-middle': { contour: middle, bL: mBaseL, bR: mBaseR, tip: tips['right-middle'] || REST_POSITIONS['right-middle'] },
-      'right-ring': { contour: ring, bL: rBaseL, bR: rBaseR, tip: tips['right-ring'] || REST_POSITIONS['right-ring'] },
-      'right-pinky': { contour: pinky, bL: pBaseL, bR: pBaseR, tip: tips['right-pinky'] || REST_POSITIONS['right-pinky'] },
-    },
-  };
+  return { left, top, width, height, rotateDeg, tips };
 }
 
 const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
@@ -340,11 +262,88 @@ const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
   targetKeyCode,
   targetFinger,
   needsShift,
-  lastFingerUsed,
   isCorrectLastKey,
   isCorrect,
   showHandsOverlay = true,
 }) => {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState<OverlayMetrics | null>(null);
+
+  // Measure actual DOM positions of all keycaps in stage's unscaled local CSS coordinate space
+  // (immune to PracticeWindowContainer's outer transform: scale())
+  const measureKeyboard = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const cssW = stage.offsetWidth;
+    const cssH = stage.offsetHeight;
+    const stageRect = stage.getBoundingClientRect();
+    if (cssW <= 0 || cssH <= 0 || stageRect.width <= 0 || stageRect.height <= 0) return;
+
+    const scaleX = stageRect.width / cssW;
+    const scaleY = stageRect.height / cssH;
+
+    const keyCenters: Record<string, Point> = {};
+    const keyEls = stage.querySelectorAll<HTMLElement>('[data-vk-code]');
+    keyEls.forEach((el) => {
+      const code = el.dataset.vkCode;
+      if (!code) return;
+      const r = el.getBoundingClientRect();
+      keyCenters[code] = {
+        x: (r.left - stageRect.left + r.width / 2) / scaleX,
+        y: (r.top - stageRect.top + r.height / 2) / scaleY,
+      };
+    });
+
+    const keyA = keyCenters.KeyA;
+    const keyS = keyCenters.KeyS;
+    const keyD = keyCenters.KeyD;
+    const keyF = keyCenters.KeyF;
+    const keyJ = keyCenters.KeyJ;
+    const keyK = keyCenters.KeyK;
+    const keyL = keyCenters.KeyL;
+    const keySemi = keyCenters.Semicolon;
+
+    if (!keyA || !keyS || !keyD || !keyF || !keyJ || !keyK || !keyL || !keySemi) return;
+
+    const leftHand = computeHandBox('left', [keyA, keyS, keyD, keyF], keyCenters.Space);
+    const rightHand = computeHandBox('right', [keyJ, keyK, keyL, keySemi], keyCenters.Space);
+
+    setMetrics({
+      width: cssW,
+      height: cssH,
+      keyCenters,
+      leftHand,
+      rightHand,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    measureKeyboard();
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    let rafId = 0;
+    const scheduleMeasure = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        measureKeyboard();
+      });
+    };
+
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleMeasure) : null;
+    ro?.observe(stage);
+    window.addEventListener('resize', scheduleMeasure);
+    window.addEventListener('typang-stage-layout', scheduleMeasure);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      ro?.disconnect();
+      window.removeEventListener('resize', scheduleMeasure);
+      window.removeEventListener('typang-stage-layout', scheduleMeasure);
+    };
+  }, [measureKeyboard]);
+
   // Normalize target key & correct status
   const effectiveTargetKey = targetKey || targetKeyCode || activeKey || null;
   const effectiveIsCorrect = isCorrectLastKey !== undefined ? isCorrectLastKey : isCorrect;
@@ -375,31 +374,23 @@ const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
       }
     }
 
-    if (!resolvedCode && effectiveTargetKey) {
-      if (KEY_COORDINATES[effectiveTargetKey]) {
-        resolvedCode = effectiveTargetKey;
-        if (!finger) {
-          finger = KEY_COORDINATES[effectiveTargetKey].finger as FingerType;
-        }
+    if (!resolvedCode && effectiveTargetKey && KEY_FINGER_MAP[effectiveTargetKey]) {
+      resolvedCode = effectiveTargetKey;
+      if (!finger) {
+        finger = KEY_FINGER_MAP[effectiveTargetKey] as FingerType;
       }
     }
 
     return { resolvedKeyCode: resolvedCode, effectiveFinger: finger };
   }, [effectiveTargetKey, targetFinger]);
 
-  // Determine which primary finger moves to which target coordinate
+  // Determine which primary finger is responsible
   const effectiveActiveFingerKey = useMemo(() => {
-    if (resolvedKeyCode === 'Space') {
-      return 'right-thumb';
-    }
-    if (effectiveFinger === 'thumb') {
-      return 'right-thumb';
-    }
-    if (effectiveFinger) {
-      return effectiveFinger;
-    }
-    if (resolvedKeyCode && KEY_COORDINATES[resolvedKeyCode]) {
-      return KEY_COORDINATES[resolvedKeyCode].finger;
+    if (resolvedKeyCode === 'Space') return 'right-thumb';
+    if (effectiveFinger === 'thumb') return 'right-thumb';
+    if (effectiveFinger) return effectiveFinger;
+    if (resolvedKeyCode && KEY_FINGER_MAP[resolvedKeyCode]) {
+      return KEY_FINGER_MAP[resolvedKeyCode];
     }
     return null;
   }, [resolvedKeyCode, effectiveFinger]);
@@ -409,29 +400,26 @@ const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
     if (needsShift !== undefined && needsShift !== null) return Boolean(needsShift);
     if (!effectiveTargetKey) return false;
 
-    // Korean shifted double consonants / complex vowels (ㅃ, ㅉ, ㄸ, ㄲ, ㅆ, ㅒ, ㅖ)
     const KOREAN_SHIFT_CHARS = ['ㅃ', 'ㅉ', 'ㄸ', 'ㄲ', 'ㅆ', 'ㅒ', 'ㅖ'];
     if (KOREAN_SHIFT_CHARS.includes(effectiveTargetKey)) return true;
 
-    // English uppercase letters (A-Z)
     if (typeof effectiveTargetKey === 'string') {
       if (effectiveTargetKey.length === 1 && /[A-Z]/.test(effectiveTargetKey)) {
         return true;
       }
-      // Hangul syllable check: decompose to see if initial consonant is a double consonant
       const code = effectiveTargetKey.charCodeAt(0);
       if (code >= 0xac00 && code <= 0xd7a3) {
         const chosungIdx = Math.floor((code - 0xac00) / (21 * 28));
-        const chosungChar = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'][chosungIdx];
+        const chosungChar = [
+          'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+        ][chosungIdx];
         if (KOREAN_SHIFT_CHARS.includes(chosungChar)) return true;
       }
     }
 
-    // Shifted symbols
     const SHIFT_SYMBOLS = ['~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '{', '}', '|', ':', '"', '<', '>', '?'];
     if (SHIFT_SYMBOLS.includes(effectiveTargetKey)) return true;
 
-    // Check against KEYBOARD_LAYOUT shifted characters
     for (const row of KEYBOARD_LAYOUT) {
       const matchShift = row.find(
         (k) =>
@@ -444,9 +432,7 @@ const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
     return false;
   }, [needsShift, effectiveTargetKey]);
 
-  // Standard touch typing Shift rule:
-  // If the target key is on the LEFT hand, the RIGHT PINKY presses ShiftRight.
-  // If the target key is on the RIGHT hand, the LEFT PINKY presses ShiftLeft.
+  // Opposite-hand pinky presses Shift
   const { activeShiftKeyCode, activeShiftFingerKey } = useMemo(() => {
     if (!isShiftRequired) {
       return { activeShiftKeyCode: null, activeShiftFingerKey: null };
@@ -454,535 +440,525 @@ const VirtualKeyboardComponent: React.FC<VirtualKeyboardProps> = ({
     const isLeftHand = effectiveActiveFingerKey?.startsWith('left');
     if (isLeftHand) {
       return { activeShiftKeyCode: 'ShiftRight', activeShiftFingerKey: 'right-pinky' };
-    } else {
-      return { activeShiftKeyCode: 'ShiftLeft', activeShiftFingerKey: 'left-pinky' };
     }
+    return { activeShiftKeyCode: 'ShiftLeft', activeShiftFingerKey: 'left-pinky' };
   }, [isShiftRequired, effectiveActiveFingerKey]);
 
-  // Compute target coordinates for all 10 fingers
-  // Active typing finger extends to target key, and pinky extends to Shift key if needed
-  const targetPositions = useMemo<Record<string, Point>>(() => {
-    const nextTargets: Record<string, Point> = { ...REST_POSITIONS };
+  // Compute per-hand translation delta so the responsible fingertip slides onto the target key.
+  // Home keys (ㅁㄴㅇㄹ / ㅓㅏㅣ;) & Space return cleanly to home position (0, 0).
+  // Unused other hand stays calmly on its home position (0, 0).
+  const { leftDelta, rightDelta } = useMemo<{ leftDelta: Point; rightDelta: Point }>(() => {
+    const zero: Point = { x: 0, y: 0 };
+    if (!metrics) return { leftDelta: zero, rightDelta: zero };
 
-    if (effectiveActiveFingerKey && resolvedKeyCode && KEY_COORDINATES[resolvedKeyCode]) {
-      const keyCoord = KEY_COORDINATES[resolvedKeyCode];
-      const isPressing = activeKeyCode === resolvedKeyCode;
-      nextTargets[effectiveActiveFingerKey] = {
-        x: keyCoord.x,
-        y: keyCoord.y + (isPressing ? 3 : 0),
+    let nextLeft: Point = zero;
+    let nextRight: Point = zero;
+
+    const deltaFor = (fingerKey: string | null, keyCode: string | null): Point => {
+      if (!fingerKey || !keyCode || HOME_AND_SPACE_KEYS.has(keyCode)) return zero;
+      const targetPt = metrics.keyCenters[keyCode];
+      const homeTip =
+        fingerKey.startsWith('left')
+          ? metrics.leftHand.tips[fingerKey]
+          : metrics.rightHand.tips[fingerKey];
+      if (!targetPt || !homeTip) return zero;
+      return {
+        x: targetPt.x - homeTip.x,
+        y: targetPt.y - homeTip.y,
       };
-    }
-
-    if (activeShiftFingerKey && activeShiftKeyCode && KEY_COORDINATES[activeShiftKeyCode]) {
-      const shiftCoord = KEY_COORDINATES[activeShiftKeyCode];
-      const isShiftPressing = activeKeyCode === 'ShiftLeft' || activeKeyCode === 'ShiftRight' || activeKeyCode === activeShiftKeyCode;
-      nextTargets[activeShiftFingerKey] = {
-        x: shiftCoord.x,
-        y: shiftCoord.y + (isShiftPressing ? 3 : 0),
-      };
-    }
-
-    return nextTargets;
-  }, [effectiveActiveFingerKey, resolvedKeyCode, activeKeyCode, activeShiftFingerKey, activeShiftKeyCode]);
-
-  // 60fps smooth spring/lerp animated state for all fingers
-  const [animatedTips, setAnimatedTips] = useState<Record<string, Point>>(REST_POSITIONS);
-  const animatedTipsRef = useRef<Record<string, Point>>(REST_POSITIONS);
-  animatedTipsRef.current = animatedTips;
-
-  useEffect(() => {
-    let animId: number;
-
-    const animate = () => {
-      let needsUpdate = false;
-      const currentMap = animatedTipsRef.current;
-      const updatedMap: Record<string, Point> = {};
-
-      for (const [fKey, pos] of Object.entries(targetPositions)) {
-        const target = pos as Point;
-        const current = (currentMap[fKey] || target) as Point;
-        const dx = target.x - current.x;
-        const dy = target.y - current.y;
-
-        // Smooth natural easing towards target (glide motion)
-        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-          needsUpdate = true;
-          updatedMap[fKey] = {
-            x: current.x + dx * 0.22,
-            y: current.y + dy * 0.22,
-          };
-        } else {
-          updatedMap[fKey] = { x: target.x, y: target.y };
-        }
-      }
-
-      if (needsUpdate) {
-        setAnimatedTips(updatedMap);
-        animId = requestAnimationFrame(animate);
-      }
     };
 
-    animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
-  }, [targetPositions]);
-
-  // Generate smooth hand paths based on current animated tip positions
-  const leftHandData = useMemo(() => buildLeftHand(animatedTips), [animatedTips]);
-  const rightHandData = useMemo(() => buildRightHand(animatedTips), [animatedTips]);
-
-  // Target dot coordinates follow the active fingertip smoothly
-  const activeTargetDot = useMemo(() => {
-    if (!effectiveActiveFingerKey || !resolvedKeyCode) return null;
-    return animatedTips[effectiveActiveFingerKey] || targetPositions[effectiveActiveFingerKey] || null;
-  }, [effectiveActiveFingerKey, resolvedKeyCode, animatedTips, targetPositions]);
-
-  // Shift target dot for pinky finger
-  const activeShiftTargetDot = useMemo(() => {
-    if (!activeShiftFingerKey || !activeShiftKeyCode) return null;
-    return animatedTips[activeShiftFingerKey] || targetPositions[activeShiftFingerKey] || null;
-  }, [activeShiftFingerKey, activeShiftKeyCode, animatedTips, targetPositions]);
-
-  const isLeftAnyActive = effectiveActiveFingerKey?.startsWith('left') || activeShiftFingerKey === 'left-pinky';
-  const isRightAnyActive = effectiveActiveFingerKey?.startsWith('right') || activeShiftFingerKey === 'right-pinky';
-
-  // Active finger data for enhanced highlight
-  const activeFingerData = useMemo(() => {
-    if (!effectiveActiveFingerKey) return null;
-    if (effectiveActiveFingerKey.startsWith('left')) {
-      return (leftHandData.fingers as any)[effectiveActiveFingerKey] || null;
+    if (effectiveActiveFingerKey && resolvedKeyCode) {
+      if (effectiveActiveFingerKey.startsWith('left')) {
+        nextLeft = deltaFor(effectiveActiveFingerKey, resolvedKeyCode);
+      } else if (effectiveActiveFingerKey.startsWith('right')) {
+        nextRight = deltaFor(effectiveActiveFingerKey, resolvedKeyCode);
+      }
     }
-    return (rightHandData.fingers as any)[effectiveActiveFingerKey] || null;
-  }, [effectiveActiveFingerKey, leftHandData, rightHandData]);
 
-  // Active Shift finger data (pinky) for dual finger reaching highlight
-  const activeShiftFingerData = useMemo(() => {
-    if (!activeShiftFingerKey) return null;
-    if (activeShiftFingerKey === 'left-pinky') {
-      return (leftHandData.fingers as any)['left-pinky'] || null;
+    if (activeShiftFingerKey && activeShiftKeyCode) {
+      if (activeShiftFingerKey.startsWith('left')) {
+        nextLeft = deltaFor(activeShiftFingerKey, activeShiftKeyCode);
+      } else if (activeShiftFingerKey.startsWith('right')) {
+        nextRight = deltaFor(activeShiftFingerKey, activeShiftKeyCode);
+      }
     }
-    return (rightHandData.fingers as any)['right-pinky'] || null;
-  }, [activeShiftFingerKey, leftHandData, rightHandData]);
+
+    return { leftDelta: nextLeft, rightDelta: nextRight };
+  }, [metrics, effectiveActiveFingerKey, resolvedKeyCode, activeShiftFingerKey, activeShiftKeyCode]);
+
+  // Tactile keypress feedback per hand: brief 80ms downward tap (2-3px), or horizontal shake on wrong key
+  const [leftFeedback, setLeftFeedback] = useState<HandFeedbackState>({ kind: 'idle', seq: 0 });
+  const [rightFeedback, setRightFeedback] = useState<HandFeedbackState>({ kind: 'idle', seq: 0 });
+  const activeHandRef = useRef<'left' | 'right'>('right');
+
+  const triggerHandFeedback = useCallback((side: 'left' | 'right', kind: 'tap' | 'shake') => {
+    const updater = (prev: HandFeedbackState): HandFeedbackState => ({
+      kind,
+      seq: prev.seq + 1,
+    });
+    if (side === 'left') {
+      setLeftFeedback(updater);
+    } else {
+      setRightFeedback(updater);
+    }
+  }, []);
+
+  // Track which hand is currently responsible (fallback when a pressed key isn't in KEY_FINGER_MAP)
+  useEffect(() => {
+    if (effectiveActiveFingerKey?.startsWith('left')) {
+      activeHandRef.current = 'left';
+    } else if (effectiveActiveFingerKey?.startsWith('right')) {
+      activeHandRef.current = 'right';
+    }
+  }, [effectiveActiveFingerKey]);
+
+  // React to activeKeyCode & correctness updates from practice views (tap on correct, shake on wrong)
+  useEffect(() => {
+    if (!activeKeyCode) return;
+    const mappedFinger = KEY_FINGER_MAP[activeKeyCode];
+    const side: 'left' | 'right' = mappedFinger
+      ? mappedFinger.startsWith('left')
+        ? 'left'
+        : 'right'
+      : activeHandRef.current;
+
+    if (effectiveIsCorrect === false) {
+      triggerHandFeedback(side, 'shake');
+    } else {
+      triggerHandFeedback(side, 'tap');
+    }
+  }, [activeKeyCode, effectiveIsCorrect, triggerHandFeedback]);
+
+  // Also react directly to physical keydowns so rapid repeated presses of the same key always tap crisply
+  useEffect(() => {
+    if (!showHandsOverlay) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const mappedFinger = KEY_FINGER_MAP[e.code];
+      if (!mappedFinger) return;
+      // Ignore bare Shift presses unless Shift is actively part of the target
+      if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !activeShiftKeyCode) return;
+      const side: 'left' | 'right' = mappedFinger.startsWith('left') ? 'left' : 'right';
+      triggerHandFeedback(side, 'tap');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showHandsOverlay, activeShiftKeyCode, triggerHandFeedback]);
+
+  const leftFeedbackClass =
+    leftFeedback.kind === 'shake'
+      ? leftFeedback.seq % 2 === 0
+        ? 'pr-hand-feedback--shake-a'
+        : 'pr-hand-feedback--shake-b'
+      : leftFeedback.kind === 'tap'
+      ? leftFeedback.seq % 2 === 0
+        ? 'pr-hand-feedback--tap-a'
+        : 'pr-hand-feedback--tap-b'
+      : '';
+
+  const rightFeedbackClass =
+    rightFeedback.kind === 'shake'
+      ? rightFeedback.seq % 2 === 0
+        ? 'pr-hand-feedback--shake-a'
+        : 'pr-hand-feedback--shake-b'
+      : rightFeedback.kind === 'tap'
+      ? rightFeedback.seq % 2 === 0
+        ? 'pr-hand-feedback--tap-a'
+        : 'pr-hand-feedback--tap-b'
+      : '';
+
+  // Moved fingertip coordinates stay locked to the gliding hand illustrations
+  const movedActiveFingerTip = useMemo<Point | null>(() => {
+    if (!metrics || !effectiveActiveFingerKey) return null;
+    const isLeft = effectiveActiveFingerKey.startsWith('left');
+    const baseTip = isLeft
+      ? metrics.leftHand.tips[effectiveActiveFingerKey]
+      : metrics.rightHand.tips[effectiveActiveFingerKey];
+    if (!baseTip) return null;
+    const delta = isLeft ? leftDelta : rightDelta;
+    return { x: baseTip.x + delta.x, y: baseTip.y + delta.y };
+  }, [metrics, effectiveActiveFingerKey, leftDelta, rightDelta]);
+
+  const movedShiftFingerTip = useMemo<Point | null>(() => {
+    if (!metrics || !activeShiftFingerKey) return null;
+    const isLeft = activeShiftFingerKey.startsWith('left');
+    const baseTip = isLeft
+      ? metrics.leftHand.tips[activeShiftFingerKey]
+      : metrics.rightHand.tips[activeShiftFingerKey];
+    if (!baseTip) return null;
+    const delta = isLeft ? leftDelta : rightDelta;
+    return { x: baseTip.x + delta.x, y: baseTip.y + delta.y };
+  }, [metrics, activeShiftFingerKey, leftDelta, rightDelta]);
+
+  // Target key centers for the orange dot markers
+  const targetDotGoal = useMemo<Point | null>(() => {
+    if (!metrics || !resolvedKeyCode) return null;
+    return metrics.keyCenters[resolvedKeyCode] || null;
+  }, [metrics, resolvedKeyCode]);
+
+  const shiftDotGoal = useMemo<Point | null>(() => {
+    if (!metrics || !activeShiftKeyCode) return null;
+    return metrics.keyCenters[activeShiftKeyCode] || null;
+  }, [metrics, activeShiftKeyCode]);
+
+  const activeFingerColor =
+    (effectiveActiveFingerKey && FINGER_ACCENT_HEX[effectiveActiveFingerKey]) || '#ea580c';
+  const shiftFingerColor =
+    (activeShiftFingerKey && FINGER_ACCENT_HEX[activeShiftFingerKey]) || '#f97316';
+
+  const isLeftAnyActive =
+    Boolean(effectiveActiveFingerKey?.startsWith('left')) || activeShiftFingerKey === 'left-pinky';
+  const isRightAnyActive =
+    Boolean(effectiveActiveFingerKey?.startsWith('right')) || activeShiftFingerKey === 'right-pinky';
 
   return (
-    <div 
-      id="virtual-keyboard-container" 
-      className="bg-white/95 backdrop-blur-md rounded-3xl p-3 sm:p-5 border-4 border-sky-200 shadow-xl select-none relative overflow-hidden arcade-card-glow"
+    <div
+      id="virtual-keyboard-container"
+      className="pr-kb-desk p-3 sm:p-4 select-none relative overflow-hidden"
     >
       {/* Keyboard Header / Finger Color Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5 border-b-2 border-sky-100 text-[10px] sm:text-xs font-bold text-slate-500">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shadow-xs animate-pulse"></span>
-          <span className="font-arcade text-slate-800 font-black">한컴 스타일 키보드 및 손가락 가이드</span>
+      <div className="pr-kb-header min-h-[34px] flex flex-wrap items-center justify-between gap-2 mb-3 text-[10px] sm:text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-arcade text-[#fff6dc] font-black tracking-wide drop-shadow-[1px_1px_0_#261106]">
+            키보드 및 손가락 가이드
+          </span>
           {effectiveFinger && (
-            <span className="ml-2 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 text-amber-900 border border-amber-300 font-black shadow-xs flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span className="min-w-[186px] justify-center whitespace-nowrap px-2.5 py-0.5 rounded-md bg-[#ffd859] text-[#2c1507] border-2 border-[#3d220d] font-black flex items-center gap-1">
               <span>목표 손가락: {FINGER_COLORS[effectiveFinger]?.name || effectiveFinger}</span>
             </span>
           )}
         </div>
 
-        {/* Finger Legend */}
+        {/* Finger Legend (새끼·약지·중지·검지·엄지) */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="flex items-center gap-1 bg-slate-50 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-            <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+          <span className="pr-kb-legend-chip flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-xs bg-purple-500 border border-[#2c1507]"></span>
             <span>새끼</span>
           </span>
-          <span className="flex items-center gap-1 bg-slate-50 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-            <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+          <span className="pr-kb-legend-chip flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-xs bg-sky-500 border border-[#2c1507]"></span>
             <span>약지</span>
           </span>
-          <span className="flex items-center gap-1 bg-slate-50 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-            <span className="w-2 h-2 rounded-full bg-teal-400"></span>
+          <span className="pr-kb-legend-chip flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-xs bg-teal-500 border border-[#2c1507]"></span>
             <span>중지</span>
           </span>
-          <span className="flex items-center gap-1 bg-slate-50 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span className="pr-kb-legend-chip flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 border border-[#2c1507]"></span>
             <span>검지</span>
           </span>
-          <span className="flex items-center gap-1 bg-slate-50 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span className="pr-kb-legend-chip flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 border border-[#2c1507]"></span>
             <span>엄지</span>
           </span>
         </div>
       </div>
 
-      {/* Keyboard Container with Integrated Real-time Human Hand Motion Overlay */}
+      {/* Keyboard Container with Illustrated Two-Hand Home-Row Overlay */}
       <div className="relative max-w-full overflow-x-auto no-scrollbar py-1">
-        {/* Keyboard Rows */}
-        <div className="space-y-1 sm:space-y-1.5 min-w-[620px] max-w-4xl mx-auto relative z-0">
-          {KEYBOARD_LAYOUT.map((row, rowIdx) => (
-            <div key={rowIdx} className="flex justify-center gap-1 sm:gap-1.5">
-              {row.map((key) => {
-                const isMainTarget = resolvedKeyCode === key.code || effectiveTargetKey === key.code;
-                const isShiftTarget = activeShiftKeyCode === key.code;
-                const isTarget = isMainTarget || isShiftTarget;
-                const isActive = activeKeyCode === key.code;
+        <div
+          ref={stageRef}
+          className="relative min-w-[620px] max-w-4xl mx-auto overflow-hidden rounded-xl pb-2.5"
+        >
+          {/* Keyboard Rows */}
+          <div className="space-y-1 sm:space-y-1.5 relative z-0">
+            {KEYBOARD_LAYOUT.map((row, rowIdx) => (
+              <div key={rowIdx} className="flex justify-center gap-1 sm:gap-1.5">
+                {row.map((key) => {
+                  const isMainTarget = resolvedKeyCode === key.code || effectiveTargetKey === key.code;
+                  const isShiftTarget = activeShiftKeyCode === key.code;
+                  const isTarget = isMainTarget || isShiftTarget;
+                  const isActive = activeKeyCode === key.code;
 
-                let keyStateStyles = 'bg-gradient-to-b from-white to-slate-100 border-slate-300/80 text-slate-800 shadow-[0_2px_0_rgba(0,0,0,0.08)] hover:border-sky-300';
+                  let keyStateStyles = key.display ? 'pr-key--fn' : 'pr-key';
 
-                if (isMainTarget) {
-                  // Vibrant Target Key with warm orange glow & raised highlight
-                  keyStateStyles = 'bg-gradient-to-b from-amber-50 to-amber-200 text-slate-950 border-amber-500 ring-4 ring-amber-300/80 shadow-[0_4px_12px_rgba(245,158,11,0.4)] font-black scale-105 z-20 animate-pulse';
-                } else if (isShiftTarget) {
-                  // Shift Target Key for Pinky finger guidance
-                  keyStateStyles = 'bg-gradient-to-b from-amber-100 to-orange-200 text-orange-950 border-orange-500 ring-4 ring-orange-400/90 shadow-[0_4px_12px_rgba(249,115,22,0.45)] font-black scale-105 z-20 animate-pulse';
-                } else if (isActive) {
-                  // Currently pressed key feedback
-                  if (effectiveIsCorrect === false) {
-                    keyStateStyles = 'bg-rose-500 text-white border-rose-600 ring-4 ring-rose-300 shadow-xs translate-y-0.5 font-black z-20';
-                  } else {
-                    keyStateStyles = 'bg-emerald-400 text-slate-950 border-emerald-500 ring-4 ring-emerald-300 shadow-xs translate-y-0.5 font-black z-20';
+                  if (isMainTarget) {
+                    keyStateStyles = 'pr-key--target';
+                  } else if (isShiftTarget) {
+                    keyStateStyles = 'pr-key--shift';
+                  } else if (isActive) {
+                    if (effectiveIsCorrect === false) {
+                      keyStateStyles = 'pr-key--err';
+                    } else {
+                      keyStateStyles = 'pr-key--ok';
+                    }
                   }
-                }
 
-                const widthClass = key.width || 'w-8 sm:w-11';
+                  const widthClass = key.width || 'w-8 sm:w-11';
 
-                return (
-                  <div
-                    key={key.code}
-                    id={`vk-key-${key.code}`}
-                    className={`h-10 sm:h-12 ${widthClass} rounded-xl sm:rounded-2xl border-2 flex flex-col justify-between p-1 transition-all duration-150 cursor-default select-none relative ${keyStateStyles}`}
-                  >
-                    {/* Keycap legends: main character centered, shift / English in the corners */}
-                    {key.display ? (
-                      <span className="absolute inset-0 flex items-center justify-center px-1 text-[9px] sm:text-xs font-black text-slate-700 text-center leading-none">
-                        {key.display}
-                      </span>
-                    ) : (
-                      <>
-                        {key.charKoShift && key.charKoShift !== key.charKo && (
-                          <span className={`absolute top-0.5 left-1 text-[8px] sm:text-[10px] font-black leading-none text-rose-500/90 ${isTarget ? 'text-amber-900' : ''}`}>
-                            {key.charKoShift}
-                          </span>
-                        )}
-                        <span className={`absolute inset-0 flex items-center justify-center text-sm sm:text-lg font-black leading-none ${isTarget ? 'text-slate-950' : 'text-slate-800'}`}>
-                          {key.charKo}
+                  return (
+                    <div
+                      key={key.code}
+                      id={`vk-key-${key.code}`}
+                      data-vk-code={key.code}
+                      className={`h-10 sm:h-12 ${widthClass} rounded-lg sm:rounded-xl flex flex-col justify-between p-1 cursor-default select-none relative ${keyStateStyles}`}
+                    >
+                      {/* Keycap legends: main character centered, shift / English in the corners */}
+                      {key.display ? (
+                        <span className="absolute inset-0 flex items-center justify-center px-1 text-[9px] sm:text-xs font-black text-[#26170d] text-center leading-none">
+                          {key.display}
                         </span>
-                        {key.charEn && key.charEn !== key.charKo && (
-                          <span className={`absolute bottom-0.5 right-1 text-[8px] sm:text-[10px] font-bold leading-none ${isTarget ? 'text-amber-900 font-black' : 'text-slate-400'}`}>
-                            {key.charEn.toUpperCase()}
+                      ) : (
+                        <>
+                          {key.charKoShift && key.charKoShift !== key.charKo && (
+                            <span
+                              className={`absolute top-0.5 left-1 text-[8px] sm:text-[10px] font-black leading-none ${
+                                isTarget ? 'text-[#7c2d12]' : 'text-[#b91c1c]'
+                              }`}
+                            >
+                              {key.charKoShift}
+                            </span>
+                          )}
+                          <span
+                            className={`absolute inset-0 flex items-center justify-center text-sm sm:text-lg font-black leading-none ${
+                              isActive && effectiveIsCorrect === false ? 'text-white' : 'text-[#241106]'
+                            }`}
+                          >
+                            {key.charKo}
                           </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* =========================================================================
-            SMOOTH HUMAN HANDS OVERLAY WITH DYNAMIC FINGER ELONGATION (한컴 타자 가이드)
-           ========================================================================= */}
-        {showHandsOverlay && (
-          <div className="absolute inset-0 pointer-events-none z-10 min-w-[620px] max-w-4xl mx-auto">
-            <svg
-              className="w-full h-full overflow-visible"
-              viewBox="0 0 900 300"
-              preserveAspectRatio="none"
-            >
-              <defs>
-                {/* Natural Translucent Skin Gradients for Left and Right Hands */}
-                <linearGradient id="handSkinGradLeft" x1="0%" y1="100%" x2="50%" y2="0%">
-                  <stop offset="0%" stopColor="#fed7aa" stopOpacity="0.45" />
-                  <stop offset="55%" stopColor="#fff7ed" stopOpacity="0.32" />
-                  <stop offset="100%" stopColor="#fdba74" stopOpacity="0.22" />
-                </linearGradient>
-
-                <linearGradient id="handSkinGradRight" x1="100%" y1="100%" x2="50%" y2="0%">
-                  <stop offset="0%" stopColor="#fed7aa" stopOpacity="0.45" />
-                  <stop offset="55%" stopColor="#fff7ed" stopOpacity="0.32" />
-                  <stop offset="100%" stopColor="#fdba74" stopOpacity="0.22" />
-                </linearGradient>
-
-                {/* Active Reaching Finger Luminous Gradient */}
-                <linearGradient id="activeFingerGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#fdba74" stopOpacity="0.60" />
-                  <stop offset="60%" stopColor="#fb923c" stopOpacity="0.48" />
-                  <stop offset="100%" stopColor="#ea580c" stopOpacity="0.35" />
-                </linearGradient>
-
-                {/* Active Shift Pinky Finger Luminous Gradient */}
-                <linearGradient id="activeShiftFingerGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#fed7aa" stopOpacity="0.60" />
-                  <stop offset="60%" stopColor="#f97316" stopOpacity="0.48" />
-                  <stop offset="100%" stopColor="#c2410c" stopOpacity="0.35" />
-                </linearGradient>
-
-                {/* Active Finger Radiant Glow */}
-                <filter id="handOutlineGlow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="rgba(234, 88, 12, 0.75)" />
-                </filter>
-                <filter id="activeTargetDotGlow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="rgba(234, 88, 12, 0.9)" />
-                  <feDropShadow dx="0" dy="0" stdDeviation="1.5" floodColor="#ffffff" />
-                </filter>
-              </defs>
-
-              {/* ======================= LEFT HAND (NATURAL ORGANIC OUTLINE & VOLUME) ======================= */}
-              <g id="left-hand-group">
-                {/* Left Hand Smooth Unified Outline with Soft Skin Fill */}
-                <path
-                  d={leftHandData.handPath}
-                  fill="url(#handSkinGradLeft)"
-                  stroke={isLeftAnyActive ? "#ea580c" : "#f97316"}
-                  strokeWidth={isLeftAnyActive ? "2.0" : "1.6"}
-                  strokeOpacity={isLeftAnyActive ? "0.85" : "0.60"}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-
-                {/* Left Hand Palm Creases */}
-                {leftHandData.palmCreases.map((d, i) => (
-                  <path
-                    key={i}
-                    d={d}
-                    fill="none"
-                    stroke="#ea580c"
-                    strokeWidth="0.9"
-                    strokeOpacity="0.25"
-                    strokeLinecap="round"
-                  />
-                ))}
-
-                {/* Left Hand Finger Joint Creases (부드러운 손가락 마디선) */}
-                {Object.entries(leftHandData.fingers).map(([fKey, fData]: [string, any]) => (
-                  <g key={fKey} opacity={effectiveActiveFingerKey === fKey ? 0.8 : 0.35}>
-                    <path d={fData.contour.pipCrease} fill="none" stroke="#ea580c" strokeWidth="0.9" strokeLinecap="round" />
-                    <path d={fData.contour.dipCrease} fill="none" stroke="#ea580c" strokeWidth="0.9" strokeLinecap="round" />
-                  </g>
-                ))}
-
-                {/* Left Hand Fingernails (자연스러운 투명 손톱 디테일) */}
-                {Object.entries(leftHandData.fingers).map(([fKey, fData]: [string, any]) => {
-                  const nail = fData.contour.nail;
-                  const isAct = effectiveActiveFingerKey === fKey;
-                  return (
-                    <ellipse
-                      key={`nail-${fKey}`}
-                      cx={nail.cx}
-                      cy={nail.cy}
-                      rx={nail.rx}
-                      ry={nail.ry}
-                      transform={`rotate(${nail.angleDeg}, ${nail.cx}, ${nail.cy})`}
-                      fill={isAct ? "#fff1f2" : "#ffffff"}
-                      fillOpacity={isAct ? "0.85" : "0.65"}
-                      stroke="#ea580c"
-                      strokeWidth={isAct ? "1.2" : "0.8"}
-                      strokeOpacity={isAct ? "0.8" : "0.4"}
-                    />
+                          {key.charEn && key.charEn !== key.charKo && (
+                            <span
+                              className={`absolute bottom-0.5 right-1 text-[8px] sm:text-[10px] font-bold leading-none ${
+                                isTarget ? 'text-[#78350f] font-black' : 'text-[#6e4a2b]'
+                              }`}
+                            >
+                              {key.charEn.toUpperCase()}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   );
                 })}
-              </g>
-
-              {/* ======================= RIGHT HAND (NATURAL ORGANIC OUTLINE & VOLUME) ======================= */}
-              <g id="right-hand-group">
-                {/* Right Hand Smooth Unified Outline with Soft Skin Fill */}
-                <path
-                  d={rightHandData.handPath}
-                  fill="url(#handSkinGradRight)"
-                  stroke={isRightAnyActive ? "#ea580c" : "#f97316"}
-                  strokeWidth={isRightAnyActive ? "2.0" : "1.6"}
-                  strokeOpacity={isRightAnyActive ? "0.85" : "0.60"}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-
-                {/* Right Hand Palm Creases */}
-                {rightHandData.palmCreases.map((d, i) => (
-                  <path
-                    key={i}
-                    d={d}
-                    fill="none"
-                    stroke="#ea580c"
-                    strokeWidth="0.9"
-                    strokeOpacity="0.25"
-                    strokeLinecap="round"
-                  />
-                ))}
-
-                {/* Right Hand Finger Joint Creases (부드러운 손가락 마디선) */}
-                {Object.entries(rightHandData.fingers).map(([fKey, fData]: [string, any]) => (
-                  <g key={fKey} opacity={effectiveActiveFingerKey === fKey ? 0.8 : 0.35}>
-                    <path d={fData.contour.pipCrease} fill="none" stroke="#ea580c" strokeWidth="0.9" strokeLinecap="round" />
-                    <path d={fData.contour.dipCrease} fill="none" stroke="#ea580c" strokeWidth="0.9" strokeLinecap="round" />
-                  </g>
-                ))}
-
-                {/* Right Hand Fingernails (자연스러운 투명 손톱 디테일) */}
-                {Object.entries(rightHandData.fingers).map(([fKey, fData]: [string, any]) => {
-                  const nail = fData.contour.nail;
-                  const isAct = effectiveActiveFingerKey === fKey;
-                  return (
-                    <ellipse
-                      key={`nail-${fKey}`}
-                      cx={nail.cx}
-                      cy={nail.cy}
-                      rx={nail.rx}
-                      ry={nail.ry}
-                      transform={`rotate(${nail.angleDeg}, ${nail.cx}, ${nail.cy})`}
-                      fill={isAct ? "#fff1f2" : "#ffffff"}
-                      fillOpacity={isAct ? "0.85" : "0.65"}
-                      stroke="#ea580c"
-                      strokeWidth={isAct ? "1.2" : "0.8"}
-                      strokeOpacity={isAct ? "0.8" : "0.4"}
-                    />
-                  );
-                })}
-              </g>
-
-              {/* ======================= 치고하는 손가락 강조 윤곽선 & 볼륨 (손가락이 길어져서 목표 키로 도달) ======================= */}
-              {activeFingerData && (
-                <g id="active-reaching-finger" filter="url(#handOutlineGlow)">
-                  <path
-                    d={`M ${activeFingerData.bL.x} ${activeFingerData.bL.y} ${activeFingerData.contour.upSide} ${activeFingerData.contour.dome} ${activeFingerData.contour.downSide} Z`}
-                    fill="url(#activeFingerGrad)"
-                    stroke="#ea580c"
-                    strokeWidth="2.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d={activeFingerData.contour.pipCrease}
-                    fill="none"
-                    stroke="#ea580c"
-                    strokeWidth="1.2"
-                    strokeOpacity="0.8"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d={activeFingerData.contour.dipCrease}
-                    fill="none"
-                    stroke="#ea580c"
-                    strokeWidth="1.2"
-                    strokeOpacity="0.8"
-                    strokeLinecap="round"
-                  />
-                  {/* Active Reaching Finger Nail Accent */}
-                  <ellipse
-                    cx={activeFingerData.contour.nail.cx}
-                    cy={activeFingerData.contour.nail.cy}
-                    rx={activeFingerData.contour.nail.rx}
-                    ry={activeFingerData.contour.nail.ry}
-                    transform={`rotate(${activeFingerData.contour.nail.angleDeg}, ${activeFingerData.contour.nail.cx}, ${activeFingerData.contour.nail.cy})`}
-                    fill="#fff1f2"
-                    fillOpacity="0.9"
-                    stroke="#ea580c"
-                    strokeWidth="1.4"
-                  />
-                </g>
-              )}
-
-              {/* ======================= Shift 키를 누르는 새끼손가락 강조 (대문자/쌍자음 동시 가이드) ======================= */}
-              {activeShiftFingerData && (
-                <g id="active-shift-finger" filter="url(#handOutlineGlow)">
-                  <path
-                    d={`M ${activeShiftFingerData.bL.x} ${activeShiftFingerData.bL.y} ${activeShiftFingerData.contour.upSide} ${activeShiftFingerData.contour.dome} ${activeShiftFingerData.contour.downSide} Z`}
-                    fill="url(#activeShiftFingerGrad)"
-                    stroke="#ea580c"
-                    strokeWidth="2.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d={activeShiftFingerData.contour.pipCrease}
-                    fill="none"
-                    stroke="#ea580c"
-                    strokeWidth="1.2"
-                    strokeOpacity="0.8"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d={activeShiftFingerData.contour.dipCrease}
-                    fill="none"
-                    stroke="#ea580c"
-                    strokeWidth="1.2"
-                    strokeOpacity="0.8"
-                    strokeLinecap="round"
-                  />
-                  <ellipse
-                    cx={activeShiftFingerData.contour.nail.cx}
-                    cy={activeShiftFingerData.contour.nail.cy}
-                    rx={activeShiftFingerData.contour.nail.rx}
-                    ry={activeShiftFingerData.contour.nail.ry}
-                    transform={`rotate(${activeShiftFingerData.contour.nail.angleDeg}, ${activeShiftFingerData.contour.nail.cx}, ${activeShiftFingerData.contour.nail.cy})`}
-                    fill="#fff1f2"
-                    fillOpacity="0.9"
-                    stroke="#ea580c"
-                    strokeWidth="1.4"
-                  />
-                </g>
-              )}
-
-              {/* ======================= 한컴 스타일 타겟 키 주황색 원형 점 표시 (손끝 위치 동기화 이동) ======================= */}
-              {activeTargetDot && (
-                <g filter="url(#activeTargetDotGlow)">
-                  {/* Outer pulsing radar ring */}
-                  <circle
-                    cx={activeTargetDot.x}
-                    cy={activeTargetDot.y}
-                    r="16"
-                    fill="#f97316"
-                    opacity="0.25"
-                    className="animate-ping origin-center"
-                  />
-                  {/* Hancom Solid Orange Target Marker */}
-                  <circle
-                    cx={activeTargetDot.x}
-                    cy={activeTargetDot.y}
-                    r="10.5"
-                    fill="#ea580c"
-                    stroke="#ffffff"
-                    strokeWidth="2.5"
-                  />
-                  {/* Center highlight specular dot */}
-                  <circle
-                    cx={activeTargetDot.x - 2.5}
-                    cy={activeTargetDot.y - 2.5}
-                    r="3"
-                    fill="#ffffff"
-                    opacity="0.9"
-                  />
-                </g>
-              )}
-
-              {/* ======================= Shift 키 타겟 원형 점 표시 (새끼손가락 위치) ======================= */}
-              {activeShiftTargetDot && (
-                <g filter="url(#activeTargetDotGlow)">
-                  <circle
-                    cx={activeShiftTargetDot.x}
-                    cy={activeShiftTargetDot.y}
-                    r="14"
-                    fill="#f97316"
-                    opacity="0.25"
-                    className="animate-ping origin-center"
-                  />
-                  <circle
-                    cx={activeShiftTargetDot.x}
-                    cy={activeShiftTargetDot.y}
-                    r="9.5"
-                    fill="#ea580c"
-                    stroke="#ffffff"
-                    strokeWidth="2.2"
-                  />
-                  <circle
-                    cx={activeShiftTargetDot.x - 2}
-                    cy={activeShiftTargetDot.y - 2}
-                    r="2.5"
-                    fill="#ffffff"
-                    opacity="0.9"
-                  />
-                </g>
-              )}
-            </svg>
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* =========================================================================
+              ILLUSTRATED TWO-HAND GUIDE OVERLAY (hand-left.webp / hand-right.webp)
+             ========================================================================= */}
+          {showHandsOverlay && metrics && (
+            <div data-no-fit-measure="true" className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+              <div className="absolute inset-0 pr-hands-layer">
+                {/* Left Hand Illustration (glides via translate3d to target key, returns home on home/space) */}
+                <div
+                  className="absolute pr-hand-mover"
+                  style={{
+                    left: `${metrics.leftHand.left}px`,
+                    top: `${metrics.leftHand.top}px`,
+                    width: `${metrics.leftHand.width}px`,
+                    height: `${metrics.leftHand.height}px`,
+                    transform: `translate3d(${leftDelta.x}px, ${leftDelta.y}px, 0)`,
+                  }}
+                >
+                  <div className={`w-full h-full pr-hand-feedback ${leftFeedbackClass}`}>
+                    <img
+                      src="/assets/practice/hand-left.webp"
+                      width={HAND_IMG_W}
+                      height={HAND_IMG_H}
+                      decoding="sync"
+                      onLoad={measureKeyboard}
+                      alt=""
+                      aria-hidden="true"
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                      className={`w-full h-full max-w-none select-none pointer-events-none pr-hand-img ${
+                        isLeftAnyActive ? 'pr-hand-img--active' : ''
+                      }`}
+                      style={{
+                        transform: `rotate(${metrics.leftHand.rotateDeg}deg)`,
+                        transformOrigin: 'center center',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Right Hand Illustration (glides via translate3d to target key, returns home on home/space) */}
+                <div
+                  className="absolute pr-hand-mover"
+                  style={{
+                    left: `${metrics.rightHand.left}px`,
+                    top: `${metrics.rightHand.top}px`,
+                    width: `${metrics.rightHand.width}px`,
+                    height: `${metrics.rightHand.height}px`,
+                    transform: `translate3d(${rightDelta.x}px, ${rightDelta.y}px, 0)`,
+                  }}
+                >
+                  <div className={`w-full h-full pr-hand-feedback ${rightFeedbackClass}`}>
+                    <img
+                      src="/assets/practice/hand-right.webp"
+                      width={HAND_IMG_W}
+                      height={HAND_IMG_H}
+                      decoding="sync"
+                      onLoad={measureKeyboard}
+                      alt=""
+                      aria-hidden="true"
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                      className={`w-full h-full max-w-none select-none pointer-events-none pr-hand-img ${
+                        isRightAnyActive ? 'pr-hand-img--active' : ''
+                      }`}
+                      style={{
+                        transform: `rotate(${metrics.rightHand.rotateDeg}deg)`,
+                        transformOrigin: 'center center',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Finger Highlight Ring & Orange Target Dot Overlay (glides in lockstep via CSS transform) */}
+              <svg
+                className="absolute inset-0 w-full h-full overflow-visible"
+                viewBox={`0 0 ${metrics.width} ${metrics.height}`}
+              >
+                <defs>
+                  <filter id="vkTargetDotGlow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="rgba(234, 88, 12, 0.9)" />
+                    <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#ffffff" />
+                  </filter>
+                  <filter id="vkFingerHalo" x="-40%" y="-40%" width="180%" height="180%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="rgba(234, 88, 12, 0.75)" />
+                  </filter>
+                </defs>
+
+                {/* Primary Finger Color-Coded Highlight Ring (moves together with the active fingertip) */}
+                {movedActiveFingerTip && (
+                  <g
+                    className="pr-vk-marker"
+                    style={{
+                      transform: `translate3d(${movedActiveFingerTip.x}px, ${movedActiveFingerTip.y}px, 0)`,
+                    }}
+                  >
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="16"
+                      fill={activeFingerColor}
+                      fillOpacity="0.32"
+                      stroke="#ea580c"
+                      strokeWidth="2.5"
+                      filter="url(#vkFingerHalo)"
+                    />
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="6"
+                      fill={activeFingerColor}
+                      stroke="#ffffff"
+                      strokeWidth="1.8"
+                    />
+                  </g>
+                )}
+
+                {/* Shift Pinky Color-Coded Highlight Ring (moves together with Shift pinky) */}
+                {movedShiftFingerTip && (
+                  <g
+                    className="pr-vk-marker"
+                    style={{
+                      transform: `translate3d(${movedShiftFingerTip.x}px, ${movedShiftFingerTip.y}px, 0)`,
+                    }}
+                  >
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="14"
+                      fill={shiftFingerColor}
+                      fillOpacity="0.32"
+                      stroke="#f97316"
+                      strokeWidth="2.2"
+                      filter="url(#vkFingerHalo)"
+                    />
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="5"
+                      fill={shiftFingerColor}
+                      stroke="#ffffff"
+                      strokeWidth="1.6"
+                    />
+                  </g>
+                )}
+
+                {/* Primary Target Key Orange Dot Marker */}
+                {targetDotGoal && (
+                  <g
+                    className="pr-vk-marker"
+                    filter="url(#vkTargetDotGlow)"
+                    style={{
+                      transform: `translate3d(${targetDotGoal.x}px, ${targetDotGoal.y}px, 0)`,
+                    }}
+                  >
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="16"
+                      fill="#f97316"
+                      opacity="0.26"
+                      className="animate-ping"
+                      style={{ transformOrigin: '0px 0px' }}
+                    />
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="9.5"
+                      fill="#ea580c"
+                      stroke="#ffffff"
+                      strokeWidth="2.4"
+                    />
+                    <circle
+                      cx={-2.3}
+                      cy={-2.3}
+                      r="2.6"
+                      fill="#ffffff"
+                      opacity="0.92"
+                    />
+                  </g>
+                )}
+
+                {/* Shift Target Key Orange Dot Marker */}
+                {shiftDotGoal && (
+                  <g
+                    className="pr-vk-marker"
+                    filter="url(#vkTargetDotGlow)"
+                    style={{
+                      transform: `translate3d(${shiftDotGoal.x}px, ${shiftDotGoal.y}px, 0)`,
+                    }}
+                  >
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="14"
+                      fill="#f97316"
+                      opacity="0.25"
+                      className="animate-ping"
+                      style={{ transformOrigin: '0px 0px' }}
+                    />
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r="8.5"
+                      fill="#ea580c"
+                      stroke="#ffffff"
+                      strokeWidth="2.2"
+                    />
+                    <circle
+                      cx={-2}
+                      cy={-2}
+                      r="2.3"
+                      fill="#ffffff"
+                      opacity="0.92"
+                    />
+                  </g>
+                )}
+              </svg>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 export const VirtualKeyboard = React.memo(VirtualKeyboardComponent);
-
-

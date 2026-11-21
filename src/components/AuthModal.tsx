@@ -472,7 +472,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {activeTab === 'register' && (
                 <div>
                   <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                    나만의 아바타 캐릭터 선택
+                    프로필 아이콘 선택
                   </label>
                   <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto p-2 bg-pink-50/50 rounded-2xl border-2 border-pink-100">
                     {PREDEFINED_AVATARS.map((avatar) => (

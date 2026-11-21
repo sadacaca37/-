@@ -670,21 +670,21 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
   };
 
   return (
-    <div className="space-y-2 animate-in fade-in duration-200">
+    <div className="tp-typing-screen space-y-2.5">
       {/* ========================================================================= */}
-      {/* 1. ULTRA-COMPACT TOOLBAR: Book Selector + Piano + MyChew all in one */}
+      {/* 1. ULTRA-COMPACT RPG WOODEN TOOLBAR: Book Selector + Piano + MyChew */}
       {/* ========================================================================= */}
-      <div className="bg-white/95 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-stone-200 shadow-xs flex flex-wrap items-center justify-between gap-2 select-none">
+      <div className="pr-toolbar p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2 select-none">
         {/* Left: Book Meta & Selection */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center border border-amber-200 shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-[#7c3f18] text-[#fde68a] flex items-center justify-center border-2 border-[#2c1507] shrink-0">
             <BookOpen className="w-4 h-4" />
           </div>
           <div className="flex items-baseline gap-2 truncate">
-            <span className="text-xs sm:text-sm font-black text-stone-900 font-serif truncate max-w-[200px] sm:max-w-xs">
+            <span className="text-xs sm:text-sm font-black text-[#2c1507] font-serif truncate max-w-[200px] sm:max-w-xs">
               {currentText.title}
             </span>
-            <span className="text-[11px] font-bold text-stone-500 font-serif hidden md:inline">
+            <span className="text-[11px] font-bold text-[#6e4622] font-serif hidden md:inline">
               {currentText.author} ({currentText.categoryLabel})
             </span>
           </div>
@@ -699,7 +699,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 setInputVal('');
                 resetSessionStats();
               }}
-              className="text-[11px] font-serif font-bold text-stone-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-300 rounded-lg px-2 py-1 pr-6 shadow-2xs focus:ring-1 focus:ring-amber-500 focus:outline-none cursor-pointer appearance-none max-w-[140px] sm:max-w-[180px] truncate"
+              className="text-[11px] font-serif font-bold text-[#2c1507] bg-[#fffaf0] hover:bg-[#fdeec9] border-2 border-[#3d220d] rounded-lg px-2 py-1 pr-6 focus:outline-none cursor-pointer appearance-none max-w-[140px] sm:max-w-[180px] truncate"
             >
               {availableTexts.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -707,7 +707,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 </option>
               ))}
             </select>
-            <ChevronRight className="w-3 h-3 text-stone-500 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none rotate-90" />
+            <ChevronRight className="w-3 h-3 text-[#5c3d22] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none rotate-90" />
           </div>
 
           {/* Random Story Picker */}
@@ -724,63 +724,63 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                 resetSessionStats();
               }
             }}
-            className="p-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold border border-purple-200 transition cursor-pointer"
+            className="pr-stone-btn p-1.5 text-xs font-bold cursor-pointer"
             title="무작위 작품 추천"
           >
-            <Shuffle className="w-3.5 h-3.5 text-purple-600" />
+            <Shuffle className="w-3.5 h-3.5 text-[#3d220d]" />
           </button>
         </div>
 
         {/* Right: Language, MyChew pill, and Piano Player */}
         <div className="flex items-center gap-2">
           {/* Language Toggle */}
-          <div className="flex items-center gap-0.5 bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-[11px] font-bold">
+          <div className="pr-wood-group flex items-center gap-0.5 text-[11px] font-bold">
             <button
               onClick={() => setLanguage('ko')}
-              className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
-                language === 'ko' ? 'bg-amber-800 text-white shadow-2xs' : 'text-stone-600 hover:text-stone-900'
+              className={`pr-wood-tab px-2.5 py-0.5 cursor-pointer ${
+                language === 'ko' ? 'pr-wood-tab--active' : ''
               }`}
             >
               한글
             </button>
             <button
               onClick={() => setLanguage('en')}
-              className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
-                language === 'en' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-stone-600 hover:text-stone-900'
+              className={`pr-wood-tab px-2.5 py-0.5 cursor-pointer ${
+                language === 'en' ? 'pr-wood-tab--blue' : ''
               }`}
             >
               EN
             </button>
           </div>
 
-          {/* MyChew Mission Pill */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-pink-50 border border-pink-200 text-[11px] font-bold text-pink-700">
+          {/* MyChew Mission Plaque */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#fde6a8] border-2 border-[#78350f] text-[11px] font-black text-[#4d1d0c]">
             <span>🍬 마이쮸:</span>
-            <span className="font-mono text-purple-700">{bestCpm > 0 ? `${bestCpm}타 갱신` : '정확도 95%'}</span>
+            <span className="font-mono text-[#9e2a12] tabular-nums">{bestCpm > 0 ? `${bestCpm}타 갱신` : '정확도 95%'}</span>
           </div>
 
           {/* Mini Classical Piano Player */}
-          <div className="flex items-center gap-1.5 bg-stone-900 px-2 py-1 rounded-lg border border-amber-800/40 text-stone-200 text-xs">
+          <div className="flex items-center gap-1.5 bg-[#3a1f0b] px-2 py-1 rounded-lg border-2 border-[#2c1507] text-[#fff6dc] text-xs shadow-[0_2px_0_#1f0e04]">
             <button
               type="button"
               onClick={handleToggleBgm}
-              className={`px-2 py-0.5 rounded-md font-bold text-[11px] flex items-center gap-1 transition cursor-pointer ${
-                isBgmPlaying ? 'bg-amber-400 text-amber-950 font-black animate-pulse' : 'bg-stone-700 hover:bg-stone-600 text-stone-200'
+              className={`px-2 py-0.5 rounded-md font-bold text-[11px] flex items-center gap-1 cursor-pointer ${
+                isBgmPlaying ? 'bg-[#fbbf24] text-[#2c1507] font-black' : 'bg-[#6b3b18] hover:bg-[#82481c] text-[#fff6dc]'
               }`}
               title={isBgmPlaying ? '피아노 일시정지' : '클래식 피아노 연주 듣기'}
             >
-              {isBgmPlaying ? <Pause className="w-3 h-3 fill-amber-950" /> : <Play className="w-3 h-3 fill-white" />}
+              {isBgmPlaying ? <Pause className="w-3 h-3 fill-[#2c1507]" /> : <Play className="w-3 h-3 fill-white" />}
               <span className="hidden sm:inline">{isBgmPlaying ? '피아노 🎶' : '피아노 켜기'}</span>
             </button>
 
             <select
               value={currentTrackId}
               onChange={(e) => handleTrackChange(e.target.value)}
-              className="text-[11px] font-medium text-amber-100 bg-stone-800 border border-amber-700/50 rounded-md px-1.5 py-0.5 shadow-2xs focus:outline-none cursor-pointer max-w-[90px] sm:max-w-[120px] truncate"
+              className="text-[11px] font-medium text-[#fff6dc] bg-[#522d15] border border-[#c69148] rounded-md px-1.5 py-0.5 focus:outline-none cursor-pointer max-w-[90px] sm:max-w-[120px] truncate"
               title="피아노 곡 선택"
             >
               {NEW_AGE_TRACKS.map((t) => (
-                <option key={t.id} value={t.id} className="bg-stone-900 text-stone-200">
+                <option key={t.id} value={t.id} className="bg-[#3a1f0b] text-[#fff6dc]">
                   {t.title}
                 </option>
               ))}
@@ -789,7 +789,7 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
             <button
               type="button"
               onClick={() => handleVolumeChange(bgmVolume > 0 ? 0 : 0.4)}
-              className="text-stone-300 hover:text-amber-200 transition cursor-pointer"
+              className="text-[#fde68a] hover:text-white cursor-pointer"
               title={bgmVolume === 0 ? '음소거 해제' : '음소거'}
             >
               {bgmVolume === 0 ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-amber-300" />}
@@ -799,8 +799,9 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. AUTHENTIC BOOK HARDCOVER CASING */}
+      {/* 2. AUTHENTIC BOOK HARDCOVER ON RPG WOODEN WORKBENCH DESK */}
       {/* ========================================================================= */}
+      <div className="pr-book-desk">
       <div className="book-leather-binding p-3 sm:p-5 lg:p-6 rounded-[2rem] relative select-none">
         {/* Antique Brass Corner Ornaments */}
         <div className="absolute top-2.5 left-2.5 w-6 h-6 border-t-2 border-l-2 border-amber-400/80 rounded-tl-lg pointer-events-none shadow-2xs" />
@@ -933,13 +934,13 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
             }`}>
               <div>
                 {/* Right Page Header: Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 mb-1.5 border-b border-[#E4DCCB]/80 h-[28px]">
+                <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 mb-1.5 border-b border-[#E4DCCB]/80 min-h-[30px]">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-4.5 h-4.5 rounded-md bg-amber-800 text-white font-mono font-bold text-[10px] flex items-center justify-center shadow-2xs">
+                    <span className="w-5 h-5 rounded-md bg-amber-800 text-white font-mono font-bold text-xs flex items-center justify-center shadow-2xs">
                       ✍️
                     </span>
-                    <span className="font-serif font-black text-xs text-stone-800">
-                      필사 노트 <span className="text-amber-800 font-mono text-[10px]">({pageIndex + 1}/{totalPages}쪽)</span>
+                    <span className="font-serif font-black text-sm text-stone-800">
+                      필사 노트 <span className="text-amber-800 font-mono text-xs">({pageIndex + 1}/{totalPages}쪽)</span>
                     </span>
                   </div>
 
@@ -948,48 +949,48 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                     <button
                       onClick={handlePrevPage}
                       disabled={pageIndex === 0}
-                      className={`px-2 py-0.2 rounded-md text-[11px] font-bold transition flex items-center gap-0.5 ${
+                      className={`px-2 py-0.5 text-xs font-bold flex items-center gap-0.5 ${
                         pageIndex === 0
-                          ? 'opacity-30 cursor-not-allowed text-stone-400'
-                          : 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 shadow-2xs cursor-pointer'
+                          ? 'opacity-35 cursor-not-allowed text-stone-400 border border-stone-300 rounded'
+                          : 'pr-stone-btn cursor-pointer'
                       }`}
                       title="이전 쪽으로 책장 넘기기"
                     >
-                      <ChevronLeft className="w-3 h-3" />
+                      <ChevronLeft className="w-3.5 h-3.5" />
                       <span>이전 쪽</span>
                     </button>
 
                     <button
                       onClick={handleResetPage}
-                      className="px-2 py-0.2 rounded-md bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 text-[11px] font-bold transition flex items-center gap-0.5 shadow-2xs cursor-pointer"
+                      className="pr-stone-btn px-2 py-0.5 text-xs font-bold flex items-center gap-0.5 cursor-pointer"
                       title="현재 쪽 다시 쓰기"
                     >
-                      <RotateCcw className="w-3 h-3 text-stone-500" />
+                      <RotateCcw className="w-3.5 h-3.5 text-[#4d2606]" />
                       <span>다시</span>
                     </button>
 
                     <button
                       onClick={handleNextPageManual}
-                      className="px-2 py-0.2 rounded-md bg-amber-800 hover:bg-amber-900 text-white text-[11px] font-bold transition flex items-center gap-0.5 shadow-2xs cursor-pointer"
+                      className="tp-rpg-btn tp-rpg-btn--wood px-2.5 py-0.5 text-xs font-bold flex items-center gap-0.5 cursor-pointer"
                       title="다음 쪽으로 책장 넘기기"
                     >
                       <span>다음 쪽</span>
-                      <ChevronRight className="w-3 h-3" />
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Progress Indicator */}
-                <div className="mb-1.5 h-[40px] flex flex-col justify-center">
-                  <div className="flex items-center justify-between text-[11px] font-serif text-stone-600 mb-0.5">
-                    <span className="font-bold text-amber-900">필사 진행도</span>
-                    <span className="font-mono text-stone-500 font-medium text-[10px]">
+                {/* Progress Indicator (Pixel Gauge) */}
+                <div className="mb-1.5 h-[42px] flex flex-col justify-center">
+                  <div className="flex items-center justify-between text-xs sm:text-sm font-serif text-[#4d2c12] mb-0.5">
+                    <span className="font-black text-[#78350f]">필사 진행도</span>
+                    <span className="font-mono text-[#5c3d22] font-black text-xs sm:text-sm tabular-nums">
                       {Math.min(inputVal.length, targetPageText.length)} / {targetPageText.length}자 ({Math.round((Math.min(inputVal.length, targetPageText.length) / Math.max(1, targetPageText.length)) * 100)}%)
                     </span>
                   </div>
-                  <div className="w-full bg-stone-200/80 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-gradient-to-r from-amber-700 to-rose-700 h-full rounded-full transition-all duration-300"
+                  <div className="pr-gauge-track w-full h-3.5">
+                    <div
+                      className="pr-gauge-fill pr-gauge-fill--gold"
                       style={{ width: `${Math.round(((pageIndex + (inputVal.length / Math.max(1, targetPageText.length))) / totalPages) * 100)}%` }}
                     />
                   </div>
@@ -1071,54 +1072,54 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
                     </div>
                   )}
 
-                  {inputVal === targetPageText && stats.errorCount === 0 && (
-                    <div className="mt-2 p-1.5 bg-amber-100/90 border border-amber-300 rounded-lg text-center">
-                      <span className="text-xs font-bold text-amber-950 font-serif">
-                        ✨ 이번 쪽 필사 완료! [Enter ↵] 또는 [스페이스]를 누르면 다음 쪽으로 넘어가요!
-                      </span>
-                    </div>
-                  )}
-
-                  {stats.errorCount > 0 && inputVal.length >= targetPageText.length && (
-                    <div className="mt-2 p-1.5 bg-rose-100/90 border border-rose-300 rounded-lg text-center">
-                      <span className="text-xs font-bold text-rose-800 font-serif">
-                        ⚠️ 오타가 {stats.errorCount}개 있습니다. 틀린 부분을 수정해야 완료할 수 있습니다!
-                      </span>
-                    </div>
-                  )}
+                  <div className="mt-1.5 h-[34px] flex items-center justify-center overflow-hidden">
+                    {inputVal === targetPageText && stats.errorCount === 0 ? (
+                      <div className="w-full py-1 px-2 bg-amber-100/90 border border-amber-300 rounded-lg text-center truncate">
+                        <span className="text-xs font-bold text-amber-950 font-serif">
+                          ✨ 이번 쪽 필사 완료! [Enter ↵] 또는 [스페이스]를 누르면 다음 쪽으로 넘어가요!
+                        </span>
+                      </div>
+                    ) : stats.errorCount > 0 && inputVal.length >= targetPageText.length ? (
+                      <div className="w-full py-1 px-2 bg-rose-100/90 border border-rose-300 rounded-lg text-center truncate">
+                        <span className="text-xs font-bold text-rose-800 font-serif">
+                          ⚠️ 오타가 {stats.errorCount}개 있습니다. 틀린 부분을 수정해야 완료할 수 있습니다!
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
               <div>
-                {/* LIVE STATS HUD STRIP */}
-                <div className="grid grid-cols-5 gap-1.5 pt-0.5">
-                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
-                    <div className="text-[9px] font-bold text-stone-500">현재 타수</div>
-                    <div className="text-sm sm:text-base font-black text-amber-800 font-mono">
-                      {stats.cpm} <span className="text-[9px] font-normal text-stone-400">타</span>
+                {/* LIVE STATS HUD STRIP (RPG Parchment Plaques) */}
+                <div className="grid grid-cols-5 gap-1.5 pt-1">
+                  <div className="pr-stat-plaque p-2 text-center">
+                    <div className="text-xs font-extrabold text-[#5c3214]">현재 타수</div>
+                    <div className="text-base sm:text-lg font-black text-[#8f2d14] font-mono tabular-nums">
+                      {stats.cpm} <span className="text-xs font-bold text-[#7c532c]">타</span>
                     </div>
                   </div>
-                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
-                    <div className="text-[9px] font-bold text-stone-500">정확도</div>
-                    <div className="text-sm sm:text-base font-black text-amber-800 font-mono">
+                  <div className="pr-stat-plaque p-2 text-center">
+                    <div className="text-xs font-extrabold text-[#5c3214]">정확도</div>
+                    <div className="text-base sm:text-lg font-black text-[#15803d] font-mono tabular-nums">
                       {stats.accuracy}%
                     </div>
                   </div>
-                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
-                    <div className="text-[9px] font-bold text-stone-500">오타수</div>
-                    <div className={`text-sm sm:text-base font-black font-mono ${stats.errorCount > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  <div className="pr-stat-plaque p-2 text-center">
+                    <div className="text-xs font-extrabold text-[#5c3214]">오타수</div>
+                    <div className={`text-base sm:text-lg font-black font-mono tabular-nums ${stats.errorCount > 0 ? 'text-[#be123c]' : 'text-[#15803d]'}`}>
                       {stats.errorCount}개
                     </div>
                   </div>
-                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
-                    <div className="text-[9px] font-bold text-stone-500">시간</div>
-                    <div className="text-xs sm:text-sm font-black text-stone-700 font-mono pt-0.5">
+                  <div className="pr-stat-plaque p-2 text-center">
+                    <div className="text-xs font-extrabold text-[#5c3214]">시간</div>
+                    <div className="text-sm sm:text-base font-black text-[#2c1507] font-mono pt-0.5 tabular-nums">
                       ⏱ {Math.floor(stats.elapsedSeconds / 60)}:{String(stats.elapsedSeconds % 60).padStart(2, '0')}
                     </div>
                   </div>
-                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-1.5 text-center">
-                    <div className="text-[10px] font-bold text-stone-500">콤보</div>
-                    <div className="text-base sm:text-lg font-black text-rose-600 font-mono">
+                  <div className="pr-stat-plaque p-2 text-center">
+                    <div className="text-xs font-extrabold text-[#5c3214]">콤보</div>
+                    <div className="text-base sm:text-lg font-black text-[#b45309] font-mono tabular-nums">
                       🔥 {stats.combo}
                     </div>
                   </div>
@@ -1136,13 +1137,14 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
           </div>
         </div>
       </div>
+      </div>
 
       {/* ========================================================================= */}
       {/* 3. BOOK COMPLETION MODAL */}
       {/* ========================================================================= */}
       {isCompletedModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-[#FAF7EE] border-4 border-[#8C532B] rounded-3xl max-w-lg w-full p-6 sm:p-8 text-center space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/65 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#FAF7EE] border-4 border-[#3d220d] rounded-2xl max-w-lg w-full p-6 sm:p-8 text-center space-y-5 shadow-[0_10px_0_#1f0e04] relative max-h-[92vh] overflow-y-auto">
             {/* Top-Right Close Button */}
             <button
               onClick={() => setIsCompletedModalOpen(false)}

@@ -5,49 +5,102 @@ import { soundManager } from '../../utils/sound';
 import { 
   UserSession, 
   TamagotchiState, 
-  AnimalPetType, 
   PetGrowthStage, 
   TamagotchiThemeType, 
   PetMood, 
-  RoomDecorState 
+  RoomDecorState,
+  TamagotchiPetId,
 } from '../../types';
-import { AnimalPet, PET_SPECIES_INFO } from '../AnimalPet';
 import { TamagotchiThemeBackground } from '../TamagotchiThemeBackground';
 import { ThemeShopModal } from '../modals/ThemeShopModal';
 import { RoomDecorModal } from '../modals/RoomDecorModal';
 import { pointsManager } from '../../utils/pointsManager';
+import {
+  TAMAGOTCHI_PETS,
+  getTamagotchiPetDef,
+  TamagotchiMoodSpriteKey,
+} from '../../data/tamagotchiPetsData';
+import {
+  INITIAL_TAMAGOTCHI_STATE,
+  getStoredTamagotchi,
+  saveStoredTamagotchi,
+  switchTamagotchiPet,
+  resetActiveTamagotchiPet,
+} from '../../utils/tamagotchiStorage';
 import { 
   Heart, 
   Sparkles, 
-  Flame, 
   RotateCcw, 
-  Award, 
   Utensils, 
-  Smile, 
-  Moon, 
-  BookOpen, 
   Zap, 
   Clock, 
-  CheckCircle2, 
-  AlertCircle,
-  HelpCircle,
-  Home,
-  Sun,
   Palette,
-  ChevronRight,
   TrendingUp,
-  Gift,
-  RefreshCw,
-  Trophy,
-  Volume2,
   Coins,
   Paintbrush,
   SmilePlus,
   ArrowLeft,
-  Keyboard
+  Keyboard,
+  PawPrint,
+  Check,
+  X,
 } from 'lucide-react';
-import { PlaygroundHeader } from './playground/PlaygroundHeader';
-import { askConfirm, showAlert } from '../../utils/dialog';
+import { askConfirm } from '../../utils/dialog';
+
+type PetExpressionKey = 'normal' | TamagotchiMoodSpriteKey;
+
+const EXPRESSION_META: Record<
+  PetExpressionKey,
+  {
+    label: string;
+    icon: string;
+    badge: string;
+    badgeClass: string;
+    moodValue: PetMood;
+    speech: string;
+  }
+> = {
+  normal: {
+    label: '기본',
+    icon: '🙂',
+    badge: '🌿 기분 평온해요!',
+    badgeClass: 'bg-emerald-200 text-emerald-950 border-emerald-400',
+    moodValue: 'happy',
+    speech: '반가워요! 오늘도 아늑한 나무집에서 함께 즐겁게 놀아요! 🌿',
+  },
+  happy: {
+    label: '행복',
+    icon: '🤩',
+    badge: '💖 행복 가득해요!',
+    badgeClass: 'bg-amber-300 text-amber-950 border-amber-500',
+    moodValue: 'ecstatic',
+    speech: '와아아! 너무 행복해서 반짝반짝 기운이 넘쳐요!! ✨💕',
+  },
+  hungry: {
+    label: '배고픔',
+    icon: '🤤',
+    badge: '🤤 꼬르륵 배가 고파요~',
+    badgeClass: 'bg-orange-200 text-orange-950 border-orange-400',
+    moodValue: 'hungry',
+    speech: '배에서 꼬르륵 소리가 나요~ 맛있는 간식 주세요! 🍎',
+  },
+  sleepy: {
+    label: '졸림',
+    icon: '😴',
+    badge: '😴 솔솔 졸음이 쏟아져요 zZ',
+    badgeClass: 'bg-sky-200 text-sky-950 border-sky-400',
+    moodValue: 'sleepy',
+    speech: '눈이 스르륵 감겨요... 포근한 낮잠 자고 싶어요 💤',
+  },
+  sad: {
+    label: '아픔/슬픔',
+    icon: '😢',
+    badge: '😢 아야야... 돌봐주세요!',
+    badgeClass: 'bg-rose-200 text-rose-950 border-rose-400',
+    moodValue: 'crying',
+    speech: '훌쩍... 기운이 없어요. 쓰다듬어 주거나 쉬게 해주세요 🥺',
+  },
+};
 
 interface TamagotchiViewProps {
   currentUser: UserSession | null;
@@ -223,80 +276,23 @@ const MISSIONS_DATABASE: MissionItem[] = [
   },
 ];
 
-const INITIAL_TAMAGOTCHI: TamagotchiState = {
-  name: '초롱이',
-  petType: 'shiba',
-  level: 1,
-  exp: 0,
-  maxExp: 100,
-  happiness: 80,
-  hunger: 70,
-  stress: 10,
-  cleanliness: 90,
-  totalMissionsSuccess: 0,
-  totalMissionsFailed: 0,
-  mood: 'happy',
-  lastFed: Date.now(),
-  lastPlayed: Date.now(),
-  homeTheme: 'warm_living',
-  unlockedThemes: ['warm_living'],
-  practicePoints: 200, // Initial bonus practice points for decoration & themes
-  unlockedDecors: [
-    'warm_cream',
-    'wood_oak',
-    'sunny_sky',
-    'circle_sun',
-    'cozy_sofa',
-    'family_photo',
-    'play_ball',
-    'warm_pendant',
-    'none',
-  ],
-  roomDecor: {
-    wallpaper: 'warm_cream',
-    flooring: 'wood_oak',
-    rug: 'circle_sun',
-    windowView: 'sunny_sky',
-    wallDecor: 'family_photo',
-    furniture: 'cozy_sofa',
-    floorToy: 'play_ball',
-    lighting: 'warm_pendant',
-  },
-};
-
 export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
   currentUser,
   onOpenProfile,
   isPlayground = false,
   onBack,
 }) => {
+  const userId = currentUser?.id ?? null;
+
   // Care mode: 'point' (타자 안 치고 포인트로 즉시 돌보기) or 'typing' (타자 미션 모드)
   const [careMode, setCareMode] = useState<'point' | 'typing'>('point');
 
-  // Load saved pet state
-  const [pet, setPet] = useState<TamagotchiState>(() => {
-    try {
-      const saved = localStorage.getItem('tamagotchi_animal_pet_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...INITIAL_TAMAGOTCHI,
-          ...parsed,
-          unlockedThemes: parsed.unlockedThemes || ['warm_living'],
-          unlockedDecors: parsed.unlockedDecors || INITIAL_TAMAGOTCHI.unlockedDecors,
-          practicePoints: parsed.practicePoints ?? 200,
-          roomDecor: {
-            ...INITIAL_TAMAGOTCHI.roomDecor!,
-            ...(parsed.roomDecor || {}),
-          },
-        };
-      }
-    } catch {}
-    return INITIAL_TAMAGOTCHI;
-  });
+  // Load saved pet state scoped per student
+  const [pet, setPet] = useState<TamagotchiState>(() => getStoredTamagotchi(userId));
+  const loadedUserIdRef = useRef<string | null>(userId);
 
-  // Modals state
-  const [showPetPicker, setShowPetPicker] = useState(false);
+  // Modals state (first-time students start directly on the 10-pet selector)
+  const [showPetPicker, setShowPetPicker] = useState<boolean>(() => !getStoredTamagotchi(userId).hasChosenPet);
   const [showThemeShop, setShowThemeShop] = useState(false);
   const [showRoomDecor, setShowRoomDecor] = useState(false);
   const [showEvolutionModal, setShowEvolutionModal] = useState(false);
@@ -314,12 +310,9 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [inputVal, setInputVal] = useState<string>('');
   const [speechBubble, setSpeechBubble] = useState<string>(
-    '반가워요 주인님! 타자 연습으로 맛있는 간식을 주고 멋진 청년 동물로 키워주세요! 💖'
+    () => getTamagotchiPetDef(getStoredTamagotchi(userId).selectedPetId).greeting
   );
   const [foodDropAnim, setFoodDropAnim] = useState(false);
-
-  // Quick training typing mode (free typing growth)
-  const [freeFeedCount, setFreeFeedCount] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<number | null>(null);
@@ -334,54 +327,62 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
     }, 1200);
   };
 
-  // Determine stage from level:
-  // 1 ~ 3: baby (아기)
-  // 4 ~ 6: child (유아기)
-  // 7 ~ 9: teen (청소년기)
-  // 10+: adult (청년기 / 성체)
+  // Growth stages: Lv.1 알 -> Lv.2~4 아기 -> Lv.5~8 어린이 -> Lv.9+ 어른
   const getPetStage = (lvl: number): PetGrowthStage => {
-    if (lvl >= 10) return 'adult';
-    if (lvl >= 7) return 'teen';
-    if (lvl >= 4) return 'child';
+    if (lvl >= 9) return 'adult';
+    if (lvl >= 5) return 'teen';
+    if (lvl >= 2) return 'child';
     return 'baby';
   };
 
+  const activePetDef = getTamagotchiPetDef(pet.selectedPetId);
   const currentStage = getPetStage(pet.level);
 
-  // Stage labels and descriptions
+  // Stage labels and descriptions (알 → 아기 → 어린이 → 어른)
   const STAGE_LABELS: Record<PetGrowthStage, { title: string; badge: string; desc: string; icon: string }> = {
     baby: {
-      title: '아기 (Baby)',
-      badge: 'Lv.1 ~ 3',
-      desc: '쪽쪽이를 문 사랑스러운 아기 시절! 보살핌이 많이 필요해요.',
-      icon: '🍼',
+      title: '알',
+      badge: 'Lv.1',
+      desc: activePetDef.stageDescs.baby,
+      icon: '🥚',
     },
     child: {
-      title: '유아기 (Child)',
-      badge: 'Lv.4 ~ 6',
-      desc: '노란 유치원 모자를 쓰고 호기심 가득 탐색하는 시기!',
-      icon: '🎒',
+      title: '아기',
+      badge: 'Lv.2 ~ 4',
+      desc: activePetDef.stageDescs.child,
+      icon: '🌱',
     },
     teen: {
-      title: '청소년기 (Teen)',
-      badge: 'Lv.7 ~ 9',
-      desc: '헤드폰과 반다나를 착용하고 활기 넘치는 청소년기!',
-      icon: '🎧',
+      title: '어린이',
+      badge: 'Lv.5 ~ 8',
+      desc: activePetDef.stageDescs.teen,
+      icon: '🧣',
     },
     adult: {
-      title: '청년기 / 성체 (Adult)',
-      badge: 'Lv.10+ 완벽 성장',
-      desc: '황금 왕관과 챔피언 메달을 수여받은 늠름하고 멋진 청년!',
+      title: '어른',
+      badge: 'Lv.9+ 완전 성장',
+      desc: activePetDef.stageDescs.adult,
       icon: '👑',
     },
   };
 
-  // Save pet to local storage whenever it changes
+  // Reload pet state cleanly when logged-in student changes
   useEffect(() => {
-    try {
-      localStorage.setItem('tamagotchi_animal_pet_v2', JSON.stringify(pet));
-    } catch {}
-  }, [pet]);
+    if (loadedUserIdRef.current === userId) return;
+    loadedUserIdRef.current = userId;
+    const loaded = getStoredTamagotchi(userId);
+    setPet(loaded);
+    setShowPetPicker(!loaded.hasChosenPet);
+    setPreviewStage(null);
+    setActiveMission(null);
+    setSpeechBubble(getTamagotchiPetDef(loaded.selectedPetId).greeting);
+  }, [userId]);
+
+  // Save pet to student-scoped storage whenever it changes
+  useEffect(() => {
+    if (loadedUserIdRef.current !== userId) return;
+    saveStoredTamagotchi(pet, userId, true);
+  }, [pet, userId]);
 
   // Sync when practice points or state changes elsewhere
   useEffect(() => {
@@ -391,7 +392,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
           ...prev,
           ...e.detail,
           unlockedThemes: e.detail.unlockedThemes || prev.unlockedThemes || ['warm_living'],
-          unlockedDecors: e.detail.unlockedDecors || prev.unlockedDecors || INITIAL_TAMAGOTCHI.unlockedDecors,
+          unlockedDecors: e.detail.unlockedDecors || prev.unlockedDecors || INITIAL_TAMAGOTCHI_STATE.unlockedDecors,
         }));
       }
     };
@@ -650,7 +651,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
       exp: prev.exp + 3,
       mood: 'wink',
     }));
-    setSpeechBubble('헤헤~ 쓰다듬어 주셔서 기분이 너무 좋아요! 🐾💕');
+    setSpeechBubble('헤헤~ 쓰다듬어 주셔서 기분이 너무 좋아요! 💕');
   };
 
 
@@ -687,7 +688,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
   const handleUnlockDecorItem = (itemId: string, cost: number) => {
     pointsManager.spendPoints(cost, `인테리어 소품 해금`);
     setPet((prev) => {
-      const existing = prev.unlockedDecors || INITIAL_TAMAGOTCHI.unlockedDecors || [];
+      const existing = prev.unlockedDecors || INITIAL_TAMAGOTCHI_STATE.unlockedDecors || [];
       const updatedDecors = existing.includes(itemId) ? existing : [...existing, itemId];
       return {
         ...prev,
@@ -707,28 +708,243 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
     setSpeechBubble('방 인테리어가 멋지게 바뀌었어요! 정말 마음에 들어요! ✨');
   };
 
-  const handleSelectAnimal = (animalType: AnimalPetType) => {
-    const info = PET_SPECIES_INFO[animalType];
-    setPet((prev) => ({
-      ...prev,
-      petType: animalType,
-      name: info.nameKo.split(' ')[1] || info.nameKo,
-    }));
+  // Select / switch pet (preserves every pet's independent growth record)
+  const handleSelectPet = (chosenId: TamagotchiPetId) => {
+    const chosenDef = getTamagotchiPetDef(chosenId);
+    const isFirstPick = !pet.hasChosenPet;
+    const savedTarget = pet.pets?.[chosenId];
+
+    if (pet.hasChosenPet && pet.selectedPetId === chosenId) {
+      soundManager.play('pop');
+      setShowPetPicker(false);
+      return;
+    }
+
+    const switched = switchTamagotchiPet(pet, chosenId);
+    setPet(switched);
+    setPreviewStage(null);
+    setActiveMission(null);
+    setInputVal('');
     setShowPetPicker(false);
-    setSpeechBubble(`새로운 가족 ${info.nameKo}가 우리 집에 왔어요! 환영해주세요! 🎉`);
-    soundManager.playVictory();
+
+    if (savedTarget && (savedTarget.level > 1 || savedTarget.exp > 0)) {
+      setSpeechBubble(
+        `다시 만나서 반가워요! Lv.${savedTarget.level} ${chosenDef.name}와 이어서 함께 키워봐요! ${chosenDef.emoji}`
+      );
+    } else {
+      setSpeechBubble(chosenDef.greeting);
+    }
+
+    if (isFirstPick) {
+      soundManager.playSuccess();
+      try {
+        confetti({ particleCount: 70, spread: 70, origin: { y: 0.55 } });
+      } catch {}
+    } else {
+      soundManager.play('achievement');
+    }
   };
 
   const handleResetPet = async () => {
-    if (await askConfirm('정말로 다마고치를 1레벨 아기 상태로 초기화하시겠습니까?')) {
-      setPet(INITIAL_TAMAGOTCHI);
-      setSpeechBubble('다마고치가 새롭게 태어났어요! 🐣');
+    if (
+      await askConfirm(
+        `정말로 [${displayName}]를 1레벨 알 상태로 초기화하시겠습니까?\n(다른 펫의 성장 기록과 방 꾸미기 아이템은 그대로 유지됩니다.)`
+      )
+    ) {
+      setPet((prev) => resetActiveTamagotchiPet(prev));
+      setPreviewStage(null);
+      setSpeechBubble(`${activePetDef.name}의 알이 새롭게 찾아왔어요! 따뜻하게 돌봐주세요 🥚✨`);
       setActiveMission(null);
     }
   };
 
-  const petInfo = PET_SPECIES_INFO[pet.petType] || PET_SPECIES_INFO.shiba;
+  const activeStage = previewStage || currentStage;
   const stageInfo = STAGE_LABELS[currentStage];
+  const displayName = pet.name || activePetDef.name;
+
+  // Resolve 5 core state expressions (기본·행복·배고픔·졸림·아픔/슬픔)
+  const activeExpression: PetExpressionKey = (() => {
+    if (previewStage) return 'normal';
+    if (pet.mood === 'crying' || pet.mood === 'stressed') return 'sad';
+    if (pet.mood === 'hungry') return 'hungry';
+    if (pet.mood === 'sleepy') return 'sleepy';
+    if (
+      pet.mood === 'ecstatic' ||
+      pet.mood === 'excited' ||
+      pet.mood === 'eating' ||
+      pet.mood === 'wink' ||
+      pet.mood === 'proud'
+    ) {
+      return 'happy';
+    }
+    // Stat-driven fallback when idle
+    if (pet.stress >= 55) return 'sad';
+    if (pet.hunger <= 30) return 'hungry';
+    if (pet.happiness <= 35) return 'sleepy';
+    if (pet.happiness >= 90 && pet.stress <= 15) return 'happy';
+    return 'normal';
+  })();
+
+  const expressionInfo = EXPRESSION_META[activeExpression];
+
+  // Show exact growth stage sprite on 'normal' (or while previewing stage), and expression sprite for live mood states
+  const currentSpriteSrc =
+    previewStage || activeExpression === 'normal'
+      ? activePetDef.stages[activeStage]
+      : activePetDef.moods[activeExpression];
+
+  const getStageLabelShort = (lvl: number) => {
+    const st = getPetStage(lvl);
+    if (st === 'adult') return { icon: '👑', label: '어른' };
+    if (st === 'teen') return { icon: '🧣', label: '어린이' };
+    if (st === 'child') return { icon: '🌱', label: '아기' };
+    return { icon: '🥚', label: '알' };
+  };
+
+  const raisedPetCount = TAMAGOTCHI_PETS.filter((p) => {
+    if (pet.hasChosenPet && pet.selectedPetId === p.id) return true;
+    return Boolean(pet.pets?.[p.id]);
+  }).length;
+
+  const renderPetCardsGrid = (isInitialScreen: boolean) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
+      {TAMAGOTCHI_PETS.map((petDef) => {
+        const isCurrent = pet.hasChosenPet && pet.selectedPetId === petDef.id;
+        const savedRecord = isCurrent
+          ? { level: pet.level, exp: pet.exp }
+          : pet.pets?.[petDef.id];
+        const hasRecord = Boolean(savedRecord);
+        const cardLevel = savedRecord?.level ?? 1;
+        const stageShort = getStageLabelShort(cardLevel);
+        // Show the charming child-stage look by default, or the student's evolved adult sprite if already reached adult!
+        const previewSpriteSrc =
+          hasRecord && cardLevel >= 9
+            ? petDef.stages.adult
+            : petDef.stages.teen;
+
+        return (
+          <button
+            key={petDef.id}
+            type="button"
+            onClick={() => handleSelectPet(petDef.id)}
+            className={`group relative text-left rounded-2xl p-3 border-3 transition-all cursor-pointer flex flex-col justify-between bg-gradient-to-b ${petDef.cardTint} ${
+              isCurrent
+                ? 'border-[#b45309] ring-3 ring-amber-400/70 shadow-lg -translate-y-0.5'
+                : 'border-[#c8a06b] hover:border-[#8f4c1a] hover:shadow-lg hover:-translate-y-0.5 shadow-sm'
+            }`}
+          >
+            {/* Top status corner */}
+            <div className="flex items-center justify-between gap-1 mb-1.5 min-h-[20px]">
+              <span className="text-[11px] font-black text-[#6b3e19] truncate">
+                {petDef.emoji} {petDef.species}
+              </span>
+              {isCurrent ? (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-600 text-white text-[10px] font-black shrink-0">
+                  <Check className="w-3 h-3" />
+                  선택됨
+                </span>
+              ) : hasRecord ? (
+                <span className="px-1.5 py-0.5 rounded-md bg-[#4a2810] text-amber-200 text-[10px] font-black shrink-0">
+                  Lv.{cardLevel} {stageShort.label}
+                </span>
+              ) : null}
+            </div>
+
+            {/* Pixel Sprite Showcase */}
+            <div className="w-full aspect-square max-h-[116px] mx-auto my-1 rounded-xl bg-white/80 border-2 border-[#dfc39a] flex items-center justify-center p-2 shadow-inner overflow-hidden">
+              <img
+                src={previewSpriteSrc}
+                alt={`${petDef.name} (${petDef.species})`}
+                className="w-full h-full object-contain tg-pixel transition-transform duration-200 group-hover:scale-110"
+                referrerPolicy="no-referrer"
+                draggable={false}
+              />
+            </div>
+
+            {/* Pet Name & Tagline */}
+            <div className="mt-2 space-y-0.5">
+              <div className="flex items-center justify-between gap-1">
+                <span className="font-black text-sm text-[#3a1f0a] tracking-tight">
+                  {petDef.name}
+                </span>
+                {isCurrent && (
+                  <span className="text-[10px] font-extrabold text-amber-800">
+                    Lv.{pet.level} {stageShort.icon}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] font-bold text-[#6e4b2a] leading-snug line-clamp-2 min-h-[30px]">
+                {petDef.tagline}
+              </p>
+            </div>
+
+            {/* Action Footer Bar */}
+            <div
+              className={`mt-2.5 py-1.5 px-2 rounded-xl text-center text-[11px] font-black transition-colors ${
+                isCurrent
+                  ? 'bg-amber-600 text-white'
+                  : hasRecord
+                  ? 'bg-[#6b3e19] group-hover:bg-[#4a2810] text-amber-100'
+                  : 'bg-amber-500 group-hover:bg-amber-600 text-white shadow-xs'
+              }`}
+            >
+              {isCurrent
+                ? '현재 키우는 중'
+                : hasRecord
+                ? '이어서 키우기'
+                : isInitialScreen
+                ? '이 펫으로 시작!'
+                : '이 펫 키우기'}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // ================= FIRST-TIME STUDENT: INITIAL 10-PET SELECTION SCREEN =================
+  if (!pet.hasChosenPet) {
+    return (
+      <div className="tg space-y-5 animate-in fade-in duration-300 max-w-5xl mx-auto pb-10">
+        {isPlayground && (
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>플레이그라운드 홈</span>
+            </button>
+            <span className="font-bold text-sm text-slate-800">🏡 타자 다마고치 케어 룸</span>
+            <div className="w-16" />
+          </div>
+        )}
+
+        <div className="rounded-3xl p-5 sm:p-7 border-4 border-[#6b3e19] bg-gradient-to-b from-[#fff7e2] via-[#fdf3d7] to-[#f7e5be] shadow-2xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[#dfc39a] pb-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#6b3e19] text-amber-100 text-xs font-black">
+                <PawPrint className="w-3.5 h-3.5 text-amber-300" />
+                <span>다마고치 펫 도감 · 총 10종</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-[#3a1f0a] tracking-tight">
+                🐾 함께 키울 나만의 픽셀 펫을 골라주세요!
+              </h1>
+              <p className="text-xs sm:text-sm font-bold text-[#6e4b2a]">
+                마음에 드는 펫을 선택하면 🥚 알부터 👑 어른까지 키울 수 있어요. 나중에 언제든 다른 펫으로 바꿔 키울 수도 있고, 각 펫의 기록은 따로 저장돼요!
+              </p>
+            </div>
+            <div className="bg-white/90 border-2 border-[#c8a06b] px-3.5 py-2 rounded-xl flex items-center gap-1.5 text-[#5a3210] font-black text-xs shrink-0 self-start sm:self-center">
+              <Coins className="w-4 h-4 text-amber-600" />
+              <span>보유 포인트 {(pet.practicePoints || 0).toLocaleString()} P</span>
+            </div>
+          </div>
+
+          {renderPetCardsGrid(true)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="tg space-y-5 animate-in fade-in duration-300 max-w-5xl mx-auto pb-10">
@@ -742,41 +958,57 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>플레이그라운드 홈</span>
           </button>
-          <span className="font-bold text-sm text-slate-800">🐣 타자 다마고치 케어 룸</span>
+          <span className="font-bold text-sm text-slate-800">🏡 타자 다마고치 케어 룸</span>
           <div className="w-16" />
         </div>
       )}
 
       {/* ================= TOP HEADER BANNER ================= */}
-      <div className="tg-head bg-gradient-to-r from-amber-100 via-orange-50 to-rose-100 rounded-3xl p-5 sm:p-6 border-4 border-amber-200 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="tg-head bg-gradient-to-r from-amber-100 via-orange-50 to-rose-100 rounded-3xl p-4 sm:p-6 border-4 border-amber-200 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shadow-xs flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>10종 동물 펫 육성 시스템</span>
+            <span className="px-3 py-1 rounded-xl bg-amber-600 text-white text-xs font-black shadow-xs flex items-center gap-1.5">
+              <span>{activePetDef.emoji}</span>
+              <span>{activePetDef.species} · {displayName}</span>
             </span>
-            <span className="text-xs font-bold text-amber-900/70 bg-amber-200/50 px-2.5 py-0.5 rounded-lg">
-              🍼 아기 → 🎒 유아기 → 🎧 청소년기 → 👑 청년기 진화!
+            <span className="text-xs font-bold text-amber-900/80 bg-amber-200/70 px-2.5 py-0.5 rounded-lg">
+              🥚 알 → 🌱 아기 → 🧣 어린이 → 👑 어른
             </span>
             {/* Practice Points Display */}
-            <div className="bg-amber-100/80 border-2 border-amber-400 px-3 py-0.5 rounded-xl flex items-center gap-1 text-amber-950 font-black text-xs">
+            <div className="bg-amber-100/90 border-2 border-amber-400 px-3 py-0.5 rounded-xl flex items-center gap-1 text-amber-950 font-black text-xs">
               <Coins className="w-3.5 h-3.5 text-amber-600" />
               <span>보유 포인트: <strong>{(pet.practicePoints || 0).toLocaleString()}</strong> P</span>
             </div>
           </div>
 
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <span>🏡 아늑한 우리 집 다마고치 (Pet Home Studio)</span>
+            <span>🏡 아늑한 나무집 다마고치</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 font-medium">
-            타자를 치며 10종의 동물들을 키우고, 연습 포인트로 우주/바다/구름 배경을 해금하고 방을 꾸며보세요!
+            먹이 주기·놀아 주기·씻기기·방 꾸미기로 {activePetDef.species} <strong>{displayName}</strong>를 알에서 어른까지 키워보세요!
           </p>
         </div>
 
-        {/* Action Buttons: Theme Shop, Room Decor, Pet Picker, Reset */}
+        {/* Action Buttons: Pet Picker, Theme Shop, Room Decor, Reset */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Pet Picker Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.play('pop');
+              setShowPetPicker(true);
+            }}
+            className="px-3.5 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-2 border-amber-400"
+          >
+            <span>🐾 펫 고르기</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-amber-800/70 text-[10px] font-black text-amber-100">
+              10종
+            </span>
+          </button>
+
           {/* Theme Shop Button */}
           <button
+            type="button"
             onClick={() => setShowThemeShop(true)}
             className="px-3.5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-2 border-indigo-400"
           >
@@ -786,6 +1018,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
 
           {/* Room Decor Button */}
           <button
+            type="button"
             onClick={() => setShowRoomDecor(true)}
             className="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-2 border-emerald-400"
           >
@@ -793,18 +1026,11 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
             <span>방 꾸미기</span>
           </button>
 
-          {/* Species Picker Button */}
-          <button
-            onClick={() => setShowPetPicker(true)}
-            className="px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-2 border-amber-400"
-          >
-            <span>동물 변경 (10종)</span>
-          </button>
-
           {/* Reset Button */}
           <button
+            type="button"
             onClick={handleResetPet}
-            title="다마고치 초기화"
+            title="현재 펫 초기화"
             className="p-2.5 rounded-2xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 border border-slate-200 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
@@ -817,25 +1043,43 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
         {/* Left: Cozy Home Living Room Stage (8 cols) */}
         <div className="lg:col-span-8 space-y-4">
           {/* Main Home Living Room Container */}
-          <div className="tg-screen relative rounded-3xl overflow-hidden border-4 border-amber-300/80 shadow-2xl bg-[#FFFBEB] flex flex-col justify-between min-h-[460px]">
+          <div className="tg-screen relative rounded-3xl overflow-hidden border-4 border-[#4a2810] shadow-2xl bg-[#6f4421] flex flex-col justify-between min-h-[460px]">
             
-            {/* ================= DYNAMIC SVG THEME & DECOR BACKGROUND ================= */}
-            <TamagotchiThemeBackground 
-              theme={pet.homeTheme || 'warm_living'} 
-              decor={pet.roomDecor} 
-            />
+            {/* ================= 16-BIT PIXEL WOODEN COTTAGE ROOM / CUSTOM THEME ================= */}
+            {(!pet.homeTheme || pet.homeTheme === 'warm_living') ? (
+              <img
+                src="/assets/minigames/bg-pet.webp"
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
+                style={{ imageRendering: 'pixelated' }}
+                referrerPolicy="no-referrer"
+                draggable={false}
+              />
+            ) : (
+              <TamagotchiThemeBackground 
+                theme={pet.homeTheme} 
+                decor={pet.roomDecor} 
+              />
+            )}
 
             {/* ================= TOP HUD (Pet Stats, Stage, Info) ================= */}
-            <div className="relative z-10 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 bg-white/80 backdrop-blur-md border-b border-amber-200/70 shadow-xs">
+            <div className="relative z-10 p-3.5 sm:p-5 flex flex-wrap items-center justify-between gap-3 bg-[#fdf5dd]/92 border-b-3 border-[#4a2810] shadow-xs">
               {/* Pet Identity & Stage */}
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-2xl shadow-inner">
-                  {petInfo.icon}
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 border-2 border-amber-400 flex items-center justify-center p-1 overflow-hidden shadow-inner shrink-0">
+                  <img
+                    src={activePetDef.stages[currentStage]}
+                    alt={`${displayName} ${stageInfo.title}`}
+                    className="w-full h-full object-contain tg-pixel"
+                    referrerPolicy="no-referrer"
+                    draggable={false}
+                  />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-base text-slate-800 tracking-tight">
-                      {pet.name}
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="font-black text-sm sm:text-base text-slate-800 tracking-tight">
+                      {displayName}
                     </span>
                     <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-black text-[11px] shadow-xs">
                       Lv.{pet.level}
@@ -845,18 +1089,18 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5 mt-0.5">
-                    <span>{petInfo.nameKo}</span>
+                    <span>청결도 {pet.cleanliness}%</span>
                     <span>•</span>
-                    <span className="text-amber-700">좋아하는 음식: {petInfo.favoriteFood}</span>
+                    <span className="text-amber-700">스트레스 {pet.stress}%</span>
                   </p>
                 </div>
               </div>
 
               {/* Real-time Status Bars */}
-              <div className="flex items-center gap-4 text-xs font-bold">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-bold">
                 {/* Happiness */}
                 <div className="flex flex-col">
-                  <div className="flex items-center justify-between text-[11px] font-extrabold text-rose-600 mb-0.5">
+                  <div className="flex items-center justify-between text-[11px] font-extrabold text-rose-600 mb-0.5 gap-2">
                     <span className="flex items-center gap-1">
                       <Heart className="w-3.5 h-3.5 fill-rose-500" />
                       <span>행복도</span>
@@ -870,7 +1114,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
 
                 {/* Hunger */}
                 <div className="flex flex-col">
-                  <div className="flex items-center justify-between text-[11px] font-extrabold text-amber-600 mb-0.5">
+                  <div className="flex items-center justify-between text-[11px] font-extrabold text-amber-600 mb-0.5 gap-2">
                     <span className="flex items-center gap-1">
                       <Utensils className="w-3.5 h-3.5" />
                       <span>포만감</span>
@@ -884,7 +1128,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
 
                 {/* EXP */}
                 <div className="flex flex-col">
-                  <div className="flex items-center justify-between text-[11px] font-extrabold text-indigo-600 mb-0.5">
+                  <div className="flex items-center justify-between text-[11px] font-extrabold text-indigo-600 mb-0.5 gap-2">
                     <span className="flex items-center gap-1">
                       <Zap className="w-3.5 h-3.5" />
                       <span>성장 EXP</span>
@@ -892,16 +1136,16 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                     <span>{pet.exp}/{pet.maxExp}</span>
                   </div>
                   <div className="w-20 bg-indigo-100 h-2 rounded-full overflow-hidden border border-indigo-200">
-                    <div className="bg-indigo-600 h-full transition-all" style={{ width: `${(pet.exp / pet.maxExp) * 100}%` }}></div>
+                    <div className="bg-indigo-600 h-full transition-all" style={{ width: `${Math.min(100, (pet.exp / pet.maxExp) * 100)}%` }}></div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ================= MIDDLE PET STAGE & SPEECH ================= */}
-            <div className="relative z-10 my-auto flex flex-col items-center justify-center p-4 py-8">
+            {/* ================= MIDDLE PIXEL PET STAGE & SPEECH ================= */}
+            <div className="relative z-10 my-auto flex flex-col items-center justify-center px-3 py-5 sm:p-4 sm:py-7">
               {/* Dynamic Speech Bubble */}
-              <div className="relative mb-4 bg-white/95 backdrop-blur-xs rounded-2xl px-5 py-2.5 border-2 border-amber-800/80 shadow-lg max-w-md text-center animate-in zoom-in-95 duration-200">
+              <div className="relative mb-3 bg-white/95 backdrop-blur-xs rounded-2xl px-4 py-2 sm:px-5 sm:py-2.5 border-2 border-amber-800/80 shadow-lg max-w-md text-center animate-in zoom-in-95 duration-200">
                 <p className="text-xs sm:text-sm font-extrabold text-slate-800 leading-snug">
                   {speechBubble}
                 </p>
@@ -909,11 +1153,11 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-amber-800/80 rotate-45"></div>
               </div>
 
-              {/* Animal Pet Character (Rendered with 10 species & 4 growth stages) */}
+              {/* 16-bit Original Pixel Pet Sprite */}
               <div className="relative flex flex-col items-center">
-                {/* Falling Snack Animation on typing success */}
+                {/* Falling Snack Animation on care/typing success */}
                 {foodDropAnim && (
-                  <div className="absolute -top-12 animate-bounce z-20 text-3xl">
+                  <div className="absolute -top-10 animate-bounce z-20 text-2xl sm:text-3xl pointer-events-none">
                     🍖 ✨ 🍓
                   </div>
                 )}
@@ -923,7 +1167,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                   {floatingBadges.map((badge) => (
                     <div
                       key={badge.id}
-                      className={`absolute top-0 -translate-x-1/2 animate-float-exp font-black text-sm drop-shadow-md whitespace-nowrap bg-white/90 px-3 py-1 rounded-full border-2 border-amber-400 shadow-md ${badge.color}`}
+                      className={`absolute top-0 -translate-x-1/2 animate-float-exp font-black text-xs sm:text-sm drop-shadow-md whitespace-nowrap bg-white/92 px-3 py-1 rounded-full border-2 border-amber-400 shadow-md ${badge.color}`}
                       style={{ left: `${badge.left}%` }}
                     >
                       {badge.text}
@@ -931,35 +1175,38 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                   ))}
                 </div>
 
-                <div 
+                <div
                   onClick={handlePetTouch}
-                  title="클릭하여 머리를 쓰다듬어주세요! 🐾 (하트 뿅뿅 & 기분 UP)"
-                  className="cursor-pointer transition-transform hover:scale-105 active:scale-95 group relative"
+                  title="클릭해서 쓰다듬어주세요! 💕 (행복도 & EXP UP)"
+                  className="cursor-pointer group relative flex flex-col items-center"
                 >
-                  <AnimalPet
-                    type={pet.petType}
-                    stage={previewStage || currentStage}
-                    mood={pet.mood}
-                    size="xl"
-                    animate={true}
-                    isGrowing={isGrowing}
-                    isLevelUp={isLevelUp}
-                    expProgress={(pet.exp / pet.maxExp) * 100}
-                    className="transition-transform duration-300"
-                  />
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-pink-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md whitespace-nowrap pointer-events-none">
-                    🐾 클릭해서 쓰담쓰담!
+                  <div
+                    className={`tg-pet-breathe ${
+                      isLevelUp ? 'tg-pet-pop' : isGrowing ? 'tg-pet-hop' : ''
+                    }`}
+                  >
+                    <img
+                      src={currentSpriteSrc}
+                      alt={`${displayName} (${STAGE_LABELS[activeStage].title} · ${expressionInfo.label})`}
+                      className="tg-pet-sprite tg-pixel select-none"
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                    />
+                  </div>
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-pink-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md whitespace-nowrap pointer-events-none">
+                    💖 클릭해서 쓰담쓰담!
                   </div>
                 </div>
 
-                {/* Floor Shadow */}
-                <div className="w-32 h-5 bg-amber-950/20 rounded-full mx-auto -mt-3 filter blur-[2px]"></div>
+                {/* Soft Floor Shadow */}
+                <div className="w-28 h-4 bg-amber-950/28 rounded-full mx-auto -mt-2 filter blur-[2px] pointer-events-none"></div>
 
-                {/* Mood Tag & Preview Mode Reset */}
+                {/* Mood Badge, Stage Preview Reset & Expression Toggle */}
                 <div className="mt-3 flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
                     {previewStage ? (
                       <button
+                        type="button"
                         onClick={() => setPreviewStage(null)}
                         className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-full border border-amber-600 shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
                       >
@@ -967,116 +1214,48 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                         <span>[{STAGE_LABELS[previewStage].title}] 미리보기 중 (현재로 복귀)</span>
                       </button>
                     ) : (
-                      <>
-                        {pet.mood === 'ecstatic' && (
-                          <span className="px-3.5 py-1 bg-amber-400 text-amber-950 font-black text-xs rounded-full border-2 border-amber-600 shadow-sm animate-bounce">
-                            ✨ 대행복 (Happy x 100!) ✨
-                          </span>
-                        )}
-                        {pet.mood === 'happy' && (
-                          <span className="px-3 py-1 bg-emerald-200 text-emerald-950 font-black text-xs rounded-full border border-emerald-400">
-                            💖 기분 최고예요!
-                          </span>
-                        )}
-                        {pet.mood === 'wink' && (
-                          <span className="px-3.5 py-1 bg-pink-300 text-pink-950 font-black text-xs rounded-full border border-pink-500">
-                            😉 깜찍한 윙크 발사!
-                          </span>
-                        )}
-                        {pet.mood === 'proud' && (
-                          <span className="px-3.5 py-1 bg-indigo-200 text-indigo-950 font-black text-xs rounded-full border border-indigo-400">
-                            😎 으쓱으쓱! 나 완전 잘하지?
-                          </span>
-                        )}
-                        {pet.mood === 'eating' && (
-                          <span className="px-3.5 py-1 bg-orange-200 text-orange-950 font-black text-xs rounded-full border border-orange-400">
-                            😋 냠냠 쩝쩝 꿀맛이에요!
-                          </span>
-                        )}
-                        {pet.mood === 'excited' && (
-                          <span className="px-3.5 py-1 bg-purple-200 text-purple-950 font-black text-xs rounded-full border border-purple-400 animate-bounce">
-                            🚀 신나서 어깨춤이 절로!
-                          </span>
-                        )}
-                        {pet.mood === 'sleepy' && (
-                          <span className="px-3.5 py-1 bg-slate-200 text-slate-800 font-black text-xs rounded-full border border-slate-400">
-                            😴 솔솔 졸음이 쏟아져요 zZ
-                          </span>
-                        )}
-                        {pet.mood === 'shy' && (
-                          <span className="px-3.5 py-1 bg-rose-200 text-rose-950 font-black text-xs rounded-full border border-rose-400">
-                            😳 볼이 빨개졌어요 헤헤
-                          </span>
-                        )}
-                        {pet.mood === 'surprised' && (
-                          <span className="px-3.5 py-1 bg-yellow-200 text-yellow-950 font-black text-xs rounded-full border border-yellow-400 animate-pulse">
-                            😲 깜짝이야! 대단해요!
-                          </span>
-                        )}
-                        {pet.mood === 'curious' && (
-                          <span className="px-3.5 py-1 bg-teal-200 text-teal-950 font-black text-xs rounded-full border border-teal-400">
-                            🤔 갸우뚱? 이건 뭐예요?
-                          </span>
-                        )}
-                        {pet.mood === 'hungry' && (
-                          <span className="px-3.5 py-1 bg-amber-200 text-amber-950 font-black text-xs rounded-full border border-amber-400">
-                            🤤 꼬르륵 배가 고파요~
-                          </span>
-                        )}
-                        {pet.mood === 'stressed' && (
-                          <span className="px-3 py-1 bg-rose-200 text-rose-950 font-black text-xs rounded-full border border-rose-400 animate-pulse">
-                            ⚡ 스트레스 받는 중 (타자로 케어해줘요!)
-                          </span>
-                        )}
-                        {pet.mood === 'crying' && (
-                          <span className="px-3 py-1 bg-red-400 text-white font-black text-xs rounded-full border border-red-600 animate-bounce">
-                            😭 엉엉~ 너무 힘들어요!
-                          </span>
-                        )}
-                      </>
+                      <span
+                        className={`px-3 py-1 font-black text-xs rounded-full border shadow-xs ${expressionInfo.badgeClass}`}
+                      >
+                        {expressionInfo.badge}
+                      </span>
                     )}
 
                     <button
+                      type="button"
                       onClick={() => setShowExpressionPanel((p) => !p)}
-                      className="px-2.5 py-1 bg-white/90 hover:bg-white text-indigo-700 font-bold text-xs rounded-full border border-indigo-200 shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                      className="px-2.5 py-1 bg-white/92 hover:bg-white text-indigo-700 font-bold text-xs rounded-full border border-indigo-200 shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
                     >
                       <SmilePlus className="w-3.5 h-3.5" />
-                      <span>{showExpressionPanel ? '표정 닫기' : '표정 반응 놀이 (13종)'}</span>
+                      <span>{showExpressionPanel ? '표정 닫기' : '표정 보기 (5종)'}</span>
                     </button>
                   </div>
 
-                  {/* 13 Expressions Interactive Dock */}
+                  {/* 5 State Expressions Dock (기본·행복·배고픔·졸림·아픔/슬픔) */}
                   {showExpressionPanel && (
-                    <div className="bg-white/95 backdrop-blur-md p-2.5 rounded-2xl border-2 border-indigo-200 shadow-lg flex flex-wrap items-center justify-center gap-1.5 max-w-lg animate-in zoom-in-95 duration-150">
-                      {[
-                        { mood: 'ecstatic' as PetMood, icon: '🤩', label: '대행복', speech: '와아아! 오늘 기분 완전 최고야!! 🌟' },
-                        { mood: 'happy' as PetMood, icon: '😄', label: '행복', speech: '주인님과 함께해서 너무 행복해요! 💖' },
-                        { mood: 'wink' as PetMood, icon: '😉', label: '윙크', speech: '찡긋! 저 깜찍하죠? 헤헤 💕' },
-                        { mood: 'proud' as PetMood, icon: '😎', label: '자신감', speech: '훗, 내 타자 실력이면 문제없지! 🏆' },
-                        { mood: 'eating' as PetMood, icon: '😋', label: '냠냠', speech: '맛있는 간식 꿀꺽! 더 주세요~ 🍖' },
-                        { mood: 'excited' as PetMood, icon: '🚀', label: '신남', speech: '타자 칠 때마다 레벨업 쑥쑥! 신나요! ✨' },
-                        { mood: 'sleepy' as PetMood, icon: '😴', label: '졸림', speech: '눈이 스르륵 감겨요... zZZ 💤' },
-                        { mood: 'shy' as PetMood, icon: '😳', label: '부끄', speech: '칭찬해주시니 부끄러워요 헤헤 //ㅁ//' },
-                        { mood: 'surprised' as PetMood, icon: '😲', label: '깜짝', speech: '우와아! 엄청난 타자 속도예요!! ⚡' },
-                        { mood: 'curious' as PetMood, icon: '🤔', label: '호기심', speech: '갸우뚱? 다음 문장은 무엇일까요? 🐾' },
-                        { mood: 'hungry' as PetMood, icon: '🤤', label: '배고픔', speech: '배에서 꼬르륵 소리가 나요 간식 줘요! 🍰' },
-                        { mood: 'stressed' as PetMood, icon: '⚡', label: '당황', speech: '오타가 났어요 으앙! 다시 집중해볼게요!' },
-                        { mood: 'crying' as PetMood, icon: '😭', label: '눈물', speech: '흑흑... 실수해도 토닥여주실거죠? 🥺' },
-                      ].map((item) => (
-                        <button
-                          key={item.mood}
-                          type="button"
-                          onClick={() => handleTriggerMood(item.mood, item.speech)}
-                          className={`px-2 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-90 ${
-                            pet.mood === item.mood
-                              ? 'bg-indigo-600 text-white shadow-xs scale-105'
-                              : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600'
-                          }`}
-                        >
-                          <span>{item.icon}</span>
-                          <span className="text-[10px]">{item.label}</span>
-                        </button>
-                      ))}
+                    <div className="bg-white/95 backdrop-blur-md p-2 rounded-2xl border-2 border-indigo-200 shadow-lg flex flex-wrap items-center justify-center gap-1.5 max-w-md animate-in zoom-in-95 duration-150">
+                      {(['normal', 'happy', 'hungry', 'sleepy', 'sad'] as PetExpressionKey[]).map((key) => {
+                        const item = EXPRESSION_META[key];
+                        const isSelected = !previewStage && activeExpression === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setPreviewStage(null);
+                              handleTriggerMood(item.moodValue, item.speech);
+                            }}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white shadow-xs scale-105'
+                                : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600'
+                            }`}
+                          >
+                            <span>{item.icon}</span>
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1427,37 +1606,37 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
           )}
         </div>
 
-        {/* Right Sidebar: Growth Tracker, 10 Pets Encyclopedia, Free Typing Dispenser (4 cols) */}
+        {/* Right Sidebar: Growth Stages & Expression Gallery (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
-          {/* 1. Growth Stage Progression Card */}
+          {/* 1. Growth Stage Progression Card (알 → 아기 → 어린이 → 어른) */}
           <div className="bg-white rounded-3xl p-5 border-3 border-amber-200 shadow-lg space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-black text-sm text-slate-800 flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-amber-500" />
-                <span>성장 진화 단계 (클릭하여 미리보기)</span>
+                <span>성장 단계 (클릭 미리보기)</span>
               </span>
               <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                현재 Lv.{pet.level} ({stageInfo.title.split(' ')[0]})
+                현재 Lv.{pet.level} ({stageInfo.title})
               </span>
             </div>
 
-            {/* Stage Steps */}
             <div className="space-y-2">
               {(['baby', 'child', 'teen', 'adult'] as PetGrowthStage[]).map((st) => {
                 const info = STAGE_LABELS[st];
                 const isCurrent = currentStage === st;
                 const isPreview = previewStage === st;
-                const story = petInfo.evolutionStory[st];
 
                 return (
                   <button
                     key={st}
+                    type="button"
                     onClick={() => {
+                      soundManager.play('pop');
                       if (previewStage === st) {
                         setPreviewStage(null);
                       } else {
                         setPreviewStage(st);
-                        setSpeechBubble(`[${info.title}] ${story}`);
+                        setSpeechBubble(`[${info.title}] ${info.desc}`);
                       }
                     }}
                     className={`w-full text-left p-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 cursor-pointer ${
@@ -1465,11 +1644,17 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                         ? 'bg-amber-100 border-amber-500 shadow-md ring-2 ring-amber-400'
                         : isCurrent
                         ? 'bg-amber-50/90 border-amber-400 shadow-xs'
-                        : 'bg-slate-50 hover:bg-amber-50/40 border-slate-200 opacity-80'
+                        : 'bg-slate-50 hover:bg-amber-50/40 border-slate-200 opacity-85'
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-white border border-amber-200 flex items-center justify-center shadow-inner shrink-0">
-                      <AnimalPet type={pet.petType} stage={st} size="sm" animate={false} />
+                    <div className="w-12 h-12 rounded-xl bg-white border border-amber-200 flex items-center justify-center p-1 shadow-inner shrink-0 overflow-hidden">
+                      <img
+                        src={activePetDef.stages[st]}
+                        alt={`${displayName} ${info.title}`}
+                        className="w-full h-full object-contain tg-pixel"
+                        referrerPolicy="no-referrer"
+                        draggable={false}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
@@ -1480,7 +1665,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
                         <span className="text-[10px] font-black text-slate-500">{info.badge}</span>
                       </div>
                       <p className="text-[10px] text-amber-900/80 font-medium leading-tight mt-0.5 line-clamp-1">
-                        {story}
+                        {info.desc}
                       </p>
                     </div>
                   </button>
@@ -1489,39 +1674,48 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
             </div>
           </div>
 
-          {/* 3. 10 Animals Quick Gallery Preview */}
+          {/* 2. Pet Mood Expressions Card (기본·행복·배고픔·졸림·아픔/슬픔) */}
           <div className="bg-white rounded-3xl p-5 border-3 border-amber-200 shadow-lg space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-black text-xs sm:text-sm text-slate-800 flex items-center gap-1.5">
+              <span className="font-black text-sm text-slate-800 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>10종 동물 도감</span>
+                <span>{displayName} 상태별 표정</span>
               </span>
-              <button
-                onClick={() => setShowPetPicker(true)}
-                className="text-[11px] font-black text-amber-600 hover:underline cursor-pointer flex items-center"
-              >
-                전체보기 <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <span className="text-[11px] font-bold text-slate-500">누르면 표정 변경</span>
             </div>
 
-            <div className="grid grid-cols-5 gap-2">
-              {(Object.keys(PET_SPECIES_INFO) as AnimalPetType[]).map((key) => {
-                const info = PET_SPECIES_INFO[key];
-                const isSelected = pet.petType === key;
+            <div className="grid grid-cols-5 gap-1.5">
+              {(['normal', 'happy', 'hungry', 'sleepy', 'sad'] as PetExpressionKey[]).map((key) => {
+                const item = EXPRESSION_META[key];
+                const thumbSrc =
+                  key === 'normal'
+                    ? activePetDef.stages[currentStage]
+                    : activePetDef.moods[key];
+                const isSelected = !previewStage && activeExpression === key;
                 return (
                   <button
                     key={key}
-                    onClick={() => handleSelectAnimal(key)}
-                    title={`${info.nameKo} 선택하기`}
-                    className={`p-2 rounded-2xl border-2 flex flex-col items-center gap-0.5 cursor-pointer transition-all ${
+                    type="button"
+                    onClick={() => {
+                      setPreviewStage(null);
+                      handleTriggerMood(item.moodValue, item.speech);
+                    }}
+                    title={`${item.label} 표정 보기`}
+                    className={`p-1.5 rounded-2xl border-2 flex flex-col items-center gap-1 cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-amber-400 border-amber-600 scale-105 shadow-sm'
-                        : 'bg-amber-50/50 hover:bg-amber-100 border-amber-200'
+                        ? 'bg-amber-300 border-amber-600 scale-105 shadow-sm'
+                        : 'bg-amber-50/60 hover:bg-amber-100 border-amber-200'
                     }`}
                   >
-                    <span className="text-xl">{info.icon}</span>
-                    <span className="text-[9px] font-black text-slate-700 truncate w-full text-center">
-                      {info.nameKo.split(' ')[0]}
+                    <img
+                      src={thumbSrc}
+                      alt={item.label}
+                      className="w-10 h-10 object-contain tg-pixel"
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                    />
+                    <span className="text-[9px] font-black text-slate-800 truncate w-full text-center">
+                      {item.label}
                     </span>
                   </button>
                 );
@@ -1531,68 +1725,45 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
         </div>
       </div>
 
-      {/* ================= 10 ANIMAL PET SELECTOR MODAL ================= */}
+      {/* ================= 10-PET PICKER MODAL ================= */}
       {showPetPicker && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 border-4 border-amber-300 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <span>🐾 10종 동물 친구 선택하기 (입양 센터)</span>
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
+          onClick={() => setShowPetPicker(false)}
+        >
+          <div
+            className="bg-gradient-to-b from-[#fff7e2] via-[#fdf3d7] to-[#f7e5be] rounded-3xl p-4 sm:p-6 border-4 border-[#6b3e19] shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto space-y-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b-2 border-[#dfc39a] pb-3.5">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#6b3e19] text-amber-100 text-[11px] font-black">
+                    <PawPrint className="w-3.5 h-3.5 text-amber-300" />
+                    <span>펫 도감 · 10종</span>
+                  </span>
+                  <span className="text-xs font-extrabold text-[#7a4b1f]">
+                    키워본 펫 {raisedPetCount} / {TAMAGOTCHI_PETS.length}
+                  </span>
+                </div>
+                <h2 className="text-lg sm:text-xl font-black text-[#3a1f0a]">
+                  🐾 함께 키울 펫 고르기
                 </h2>
-                <p className="text-xs font-bold text-slate-500">
-                  키우고 싶은 아기 동물을 골라보세요! 레벨과 경험치는 그대로 유지됩니다.
+                <p className="text-xs font-bold text-[#6e4b2a]">
+                  다른 펫으로 바꿔도 키우던 펫의 레벨과 성장 기록은 그대로 보관돼요!
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowPetPicker(false)}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 font-black cursor-pointer"
+                aria-label="닫기"
+                className="p-2 rounded-xl bg-white/85 hover:bg-white text-[#5a3210] border-2 border-[#c8a06b] transition-colors cursor-pointer shrink-0"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* 10 Pets Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(Object.keys(PET_SPECIES_INFO) as AnimalPetType[]).map((key) => {
-                const info = PET_SPECIES_INFO[key];
-                const isSelected = pet.petType === key;
-                return (
-                  <div
-                    key={key}
-                    onClick={() => handleSelectAnimal(key)}
-                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-3.5 ${
-                      isSelected
-                        ? 'bg-amber-100 border-amber-500 shadow-md ring-2 ring-amber-300'
-                        : 'bg-slate-50 hover:bg-amber-50/50 border-slate-200'
-                    }`}
-                  >
-                    <div className="w-14 h-14 rounded-2xl bg-white border-2 border-amber-200 flex items-center justify-center shadow-inner shrink-0">
-                      <AnimalPet type={key} stage={currentStage} size="sm" animate={false} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-1 truncate">
-                          <span>{info.icon}</span>
-                          <span>{info.nameKo}</span>
-                        </span>
-                        {isSelected && (
-                          <span className="px-2 py-0.5 bg-amber-500 text-white font-black text-[10px] rounded-full">
-                            선택 중
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
-                        {info.description}
-                      </p>
-                      <p className="text-[10px] font-bold text-amber-700 mt-1">
-                        🍗 {info.favoriteFood}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {renderPetCardsGrid(false)}
           </div>
         </div>
       )}
@@ -1603,15 +1774,21 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
           <div className="bg-gradient-to-b from-amber-100 via-white to-rose-100 rounded-3xl p-6 sm:p-8 border-4 border-amber-400 shadow-2xl max-w-md w-full text-center space-y-4 animate-in zoom-in-95">
             <div className="text-4xl animate-bounce">🎉 👑 🌟</div>
             <h2 className="text-xl font-black text-slate-900">
-              축하합니다! 진화했습니다!
+              축하합니다! 한 단계 성장했어요!
             </h2>
             <p className="text-xs sm:text-sm font-bold text-slate-600">
-              {pet.name}이가 타자 훈련을 통해 <span className="text-amber-700 font-black">[{STAGE_LABELS[evolvedStage].title}]</span> 단계로 진화했습니다!
+              {displayName}가 <span className="text-amber-700 font-black">[{STAGE_LABELS[evolvedStage].title}]</span> 단계로 성장했어요!
             </p>
 
-            <div className="py-4 flex justify-center">
-              <div className="p-4 rounded-full bg-amber-200/50 border-4 border-amber-300 shadow-inner">
-                <AnimalPet type={pet.petType} stage={evolvedStage} size="lg" mood="ecstatic" />
+            <div className="py-3 flex justify-center">
+              <div className="p-4 rounded-3xl bg-amber-200/50 border-4 border-amber-300 shadow-inner">
+                <img
+                  src={activePetDef.stages[evolvedStage]}
+                  alt={STAGE_LABELS[evolvedStage].title}
+                  className="w-36 h-36 object-contain tg-pixel"
+                  referrerPolicy="no-referrer"
+                  draggable={false}
+                />
               </div>
             </div>
 
@@ -1620,6 +1797,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
             </p>
 
             <button
+              type="button"
               onClick={() => setShowEvolutionModal(false)}
               className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-2xl shadow-md transition-all cursor-pointer"
             >
@@ -1646,13 +1824,13 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
       {showRoomDecor && (
         <RoomDecorModal
           isOpen={showRoomDecor}
-          decor={pet.roomDecor || INITIAL_TAMAGOTCHI.roomDecor!}
-          unlockedDecors={pet.unlockedDecors || INITIAL_TAMAGOTCHI.unlockedDecors}
+          decor={pet.roomDecor || INITIAL_TAMAGOTCHI_STATE.roomDecor!}
+          unlockedDecors={pet.unlockedDecors || INITIAL_TAMAGOTCHI_STATE.unlockedDecors}
           userPoints={pet.practicePoints || 0}
           onSaveDecor={handleSaveDecor}
           onUnlockItem={handleUnlockDecorItem}
           onClose={() => setShowRoomDecor(false)}
-          petName={pet.name}
+          petName={displayName}
         />
       )}
     </div>

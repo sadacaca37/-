@@ -22,10 +22,15 @@ const MasterModal = lazy(() => import('./components/MasterModal').then((m) => ({
 const MonthlyReportModal = lazy(() => import('./components/MonthlyReportModal').then((m) => ({ default: m.MonthlyReportModal })));
 const SendReportModal = lazy(() => import('./components/SendReportModal').then((m) => ({ default: m.SendReportModal })));
 const PracticeHistoryModal = lazy(() => import('./components/PracticeHistoryModal').then((m) => ({ default: m.PracticeHistoryModal })));
-const KeyPracticeView = lazy(() => import('./components/views/KeyPracticeView').then((m) => ({ default: m.KeyPracticeView })));
-const WordPracticeView = lazy(() => import('./components/views/WordPracticeView').then((m) => ({ default: m.WordPracticeView })));
-const SentencePracticeView = lazy(() => import('./components/views/SentencePracticeView').then((m) => ({ default: m.SentencePracticeView })));
-const LongTextPracticeView = lazy(() => import('./components/views/LongTextPracticeView').then((m) => ({ default: m.LongTextPracticeView })));
+const loadKeyPractice = () => import('./components/views/KeyPracticeView');
+const loadWordPractice = () => import('./components/views/WordPracticeView');
+const loadSentencePractice = () => import('./components/views/SentencePracticeView');
+const loadLongPractice = () => import('./components/views/LongTextPracticeView');
+
+const KeyPracticeView = lazy(() => loadKeyPractice().then((m) => ({ default: m.KeyPracticeView })));
+const WordPracticeView = lazy(() => loadWordPractice().then((m) => ({ default: m.WordPracticeView })));
+const SentencePracticeView = lazy(() => loadSentencePractice().then((m) => ({ default: m.SentencePracticeView })));
+const LongTextPracticeView = lazy(() => loadLongPractice().then((m) => ({ default: m.LongTextPracticeView })));
 const JourneyPracticeView = lazy(() => import('./components/views/JourneyPracticeView').then((m) => ({ default: m.JourneyPracticeView })));
 const KnowledgeHubView = lazy(() => import('./components/views/KnowledgeHubView').then((m) => ({ default: m.KnowledgeHubView })));
 const PythonPracticeView = lazy(() => import('./components/views/PythonPracticeView').then((m) => ({ default: m.PythonPracticeView })));
@@ -37,6 +42,14 @@ const LeaderboardView = lazy(() => import('./components/views/LeaderboardView').
 const TamagotchiView = lazy(() => import('./components/views/TamagotchiView').then((m) => ({ default: m.TamagotchiView })));
 const PlaygroundHome = lazy(() => import('./components/views/playground/PlaygroundHome').then((m) => ({ default: m.PlaygroundHome })));
 const MiniGamesHubView = lazy(() => import('./components/views/MiniGamesHubView').then((m) => ({ default: m.MiniGamesHubView })));
+
+const PRACTICE_PREFETCH: Record<string, () => Promise<unknown>> = {
+  'key-practice': loadKeyPractice,
+  'word-practice': loadWordPractice,
+  'sentence-practice': loadSentencePractice,
+  'long-practice': loadLongPractice,
+  'transcription-challenge': loadLongPractice,
+};
 
 
 
@@ -79,21 +92,56 @@ const getInitialMode = (): AppMode => {
   return 'home';
 };
 
-/** 첫 화면이 뜬 뒤 한가할 때 자주 여는 창들을 미리 받아 둠 → 처음 눌러도 바로 뜸 */
+const PRACTICE_WARM_IMAGES = [
+  '/assets/practice/wood-status-bar.webp',
+  '/assets/practice/wood-desk-bg.webp',
+  '/assets/practice/parchment-scroll.webp',
+  '/assets/practice/wood-signpost.webp',
+  '/assets/parchment-card.webp',
+  '/assets/practice/forest-meadow-bg.webp',
+  '/assets/practice/hand-left.webp',
+  '/assets/practice/hand-right.webp',
+  '/assets/footer-meadow.webp',
+  '/assets/minigames/bg-defense.webp',
+  '/assets/minigames/bg-pet.webp',
+];
+
+/** 팝업 연습 창은 해당 연습 청크를 즉시 병렬 로드, 홈 화면은 한가할 때 연습 4종·그림과 자주 여는 창을 미리 캐시 */
 if (typeof window !== 'undefined') {
-  const warm = () => {
-    [
-      () => import('./components/ProfileModal'),
-      () => import('./components/MasterModal'),
-      () => import('./components/PracticeHistoryModal'),
-      () => import('./components/views/playground/PlaygroundHome'),
-      () => import('./components/views/KnowledgeHubView'),
-      () => import('./components/views/MiniGamesHubView'),
-      () => import('./components/views/LeaderboardView'),
-    ].forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 400));
-  };
-  const idle = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 2500));
-  window.addEventListener('load', () => idle(warm, { timeout: 4000 }), { once: true });
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const isPopupInit = params.get('popup') === 'true';
+    const initMode = params.get('mode') || '';
+    if (isPopupInit && PRACTICE_PREFETCH[initMode]) {
+      PRACTICE_PREFETCH[initMode]().catch(() => {});
+    } else if (!isPopupInit) {
+      const warm = () => {
+        [
+          loadKeyPractice,
+          loadWordPractice,
+          loadSentencePractice,
+          loadLongPractice,
+          () => import('./components/ProfileModal'),
+          () => import('./components/MasterModal'),
+          () => import('./components/PracticeHistoryModal'),
+          () => import('./components/views/playground/PlaygroundHome'),
+          () => import('./components/views/KnowledgeHubView'),
+          () => import('./components/views/MiniGamesHubView'),
+          () => import('./components/views/LeaderboardView'),
+        ].forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 250));
+
+        // 연습 창 배경·손·키보드 그림도 한가할 때 브라우저 캐시에 미리 담아 두어 팝업이 즉시 뜨게 함
+        PRACTICE_WARM_IMAGES.forEach((src, i) => {
+          setTimeout(() => {
+            const img = new Image();
+            img.src = src;
+          }, 400 + i * 120);
+        });
+      };
+      const idle = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1500));
+      window.addEventListener('load', () => idle(warm, { timeout: 3000 }), { once: true });
+    }
+  } catch {}
 }
 
 /** 열려 있는 연습 창 (모드별로 하나) */
@@ -101,12 +149,24 @@ const openPracticeWindows = new Map<string, Window>();
 /** 타자를 치는 화면: 흐림(유리) 효과를 꺼서 느린 컴퓨터에서도 빠르게 칠 때 화면이 버벅이거나 멈추지 않게 */
 const TYPING_SCREENS = new Set<string>(['key-practice', 'word-practice', 'sentence-practice', 'long-practice', 'capital-journey', 'joseon-journey', 'lyrics-challenge', 'transcription-challenge', 'python-coding']);
 
+const readInitialUser = (): UserSession | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem('typang_current_user');
+    return saved ? (JSON.parse(saved) as UserSession) : null;
+  } catch {
+    return null;
+  }
+};
+
 export default function App() {
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
-  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(readInitialUser);
+  const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
 
-  // 오늘의 연습 보고 상태: 학생 = 보냈는지/선생님이 확인했는지, 선생님 = 새 보고 수 (1분마다 + 바뀔 때)
+  // 오늘의 연습 보고 상태: 학생 = 보냈는지/선생님이 확인했는지, 선생님 = 새 보고 수 (팝업 연습 창에서는 생략)
   useEffect(() => {
+    if (isPopupMode) return;
     const uid = currentUser?.id;
     if (!uid) {
       setSendReportState('none');
@@ -192,16 +252,19 @@ export default function App() {
 
   // Initialize DB and sessions
   useEffect(() => {
+    let deferTimer = 0;
     try {
-      // 1. 회원 명단: 서버(members.json 고정 명단)가 기준. 먼저 캐시로 그리고, 서버 명단으로 교체
+      // 1. 로컬 캐시 회원 명단 + 로그인 세션 확인
       setUsersDb(userPersistenceManager.getLocalUsers());
-      typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
+      const savedUser = localStorage.getItem('typang_current_user');
+      const parsedUser = savedUser ? (JSON.parse(savedUser) as UserSession) : null;
+      if (parsedUser) {
+        setCurrentUser(parsedUser);
+      }
 
-      // 1-1. 선생님(마스터) 컴퓨터: 전체 백업 자동 보관 + 업데이트로 서버가 비면 자동 복원
-      backupKeeper.start();
-      window.addEventListener('typang-backup-restored', () => {
-        typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
-      });
+      // 2. 명예의 전당 캐시 (즉시 읽기)
+      const nowMonth = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7).replace('-', '.');
+      setLeaderboard(readCachedBoard().filter((e) => String(e.date || '').startsWith(nowMonth)));
 
       // 펀펀 플레이 입장 시 서버 로그인 확인표가 없으면(예전 로그인) 다시 로그인 창 열기
       window.addEventListener('typang-require-login', () => {
@@ -213,39 +276,48 @@ export default function App() {
         setIsAuthOpen(true);
       });
 
-      // 2. Current User Session
-      const savedUser = localStorage.getItem('typang_current_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        setCurrentUser(parsed);
-        // 이 학생의 자료를 서버에서 받아 와 이어서 쓰게 함
-        void progressSync.start(parsed?.id).then((r) => {
-          if (r.restored) window.dispatchEvent(new Event('storage'));
+      const runBackgroundSync = () => {
+        if (parsedUser?.id) {
+          void progressSync.start(parsedUser.id).then((r) => {
+            if (r.restored) window.dispatchEvent(new Event('storage'));
+          });
+        }
+        if (isPopupMode) return;
+
+        typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
+
+        backupKeeper.start();
+        window.addEventListener('typang-backup-restored', () => {
+          typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
         });
+
+        serverHeal.start({
+          onBoard: (list) => setLeaderboard(list),
+          onServerRestart: () => progressSync.resync(),
+          currentUserId: () => {
+            try {
+              const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+              return u && u.role !== 'master' ? String(u.id || '') : '';
+            } catch {
+              return '';
+            }
+          },
+        });
+      };
+
+      // 팝업 연습 창은 화면을 먼저 그린 뒤 백그라운드 동기화를 가볍게 시작
+      if (isPopupMode) {
+        deferTimer = window.setTimeout(runBackgroundSync, 1000);
+      } else {
+        runBackgroundSync();
       }
-
-      // 3. 명예의 전당: 이 컴퓨터가 마지막으로 본 순위표를 먼저 보여 주고, 서버와 합친 순위표로 바꿈
-      //    (서버가 빈 상태로 다시 켜져도 학생 컴퓨터들이 기억하는 기록이 다시 올라감)
-      const nowMonth = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7).replace('-', '.');
-      setLeaderboard(readCachedBoard().filter((e) => String(e.date || '').startsWith(nowMonth)));
-
-      // 4. 서버 되살리기 + 접속 유지: 회원증·명예의 전당·보낸 보고·학습 자료를 서버가 새로 켜지면 다시 올림
-      serverHeal.start({
-        onBoard: (list) => setLeaderboard(list),
-        onServerRestart: () => progressSync.resync(),
-        currentUserId: () => {
-          try {
-            const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
-            return u && u.role !== 'master' ? String(u.id || '') : '';
-          } catch {
-            return '';
-          }
-        },
-      });
     } catch {
       // Fallback
     }
-  }, []);
+    return () => {
+      if (deferTimer) window.clearTimeout(deferTimer);
+    };
+  }, [isPopupMode]);
 
   const handleToggleSound = () => {
     const next = soundManager.toggleMute();
@@ -342,9 +414,6 @@ export default function App() {
     saveCachedBoard([]);
   };
 
-  // Detect standalone popup window mode (?popup=true)
-  const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
-
   const isPracticeMode = (mode: AppMode): mode is 'key-practice' | 'word-practice' | 'sentence-practice' | 'long-practice' => {
     return ['key-practice', 'word-practice', 'sentence-practice', 'long-practice'].includes(mode);
   };
@@ -362,10 +431,17 @@ export default function App() {
             return;
           }
           const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
+          const scr = window.screen as Screen & { availLeft?: number; availTop?: number };
+          const availW = scr?.availWidth || 1366;
+          const availH = scr?.availHeight || 860;
+          const popupW = Math.min(1320, Math.max(960, Math.round(availW * 0.94)));
+          const popupH = Math.min(860, Math.max(660, Math.round(availH * 0.92)));
+          const popupLeft = Math.max(0, Math.round((scr?.availLeft || 0) + (availW - popupW) / 2));
+          const popupTop = Math.max(0, Math.round((scr?.availTop || 0) + (availH - popupH) / 2));
           const popup = window.open(
             url,
             `typang_practice_${mode}`,
-            'width=1320,height=880,left=80,top=40,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
+            `width=${popupW},height=${popupH},left=${popupLeft},top=${popupTop},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no`
           );
           if (popup) {
             openPracticeWindows.set(mode, popup);
@@ -389,8 +465,17 @@ export default function App() {
   // Count pending students for Master badge
   const pendingStudentsCount = usersDb.filter((u) => !u.isApproved && u.role !== 'master').length;
 
+  const practiceFallback = (
+    <div className="pr-popup-loading" aria-live="polite">
+      <div className="pr-popup-loading-card">
+        <span className="pr-popup-loading-dot" />
+        <span>연습 책상 펼치는 중</span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className={`min-h-screen ${isPopupMode ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'} flex flex-col font-sans arcade-dot-bg ${isPopupMode ? '' : 'retro-cursor'} ${isPopupMode || TYPING_SCREENS.has(currentMode) ? 'tp-typing-screen' : ''}`}>
+    <div className={`min-h-screen ${isPopupMode ? 'tp-popup-root text-[#fff6dc]' : 'bg-transparent text-slate-800 arcade-dot-bg retro-cursor'} flex flex-col font-sans ${isPopupMode || TYPING_SCREENS.has(currentMode) ? 'tp-typing-screen' : ''}`}>
       {!isPopupMode && <GutterBots />}
       {/* Navigation Header with Creator Credit - Hidden in standalone popup window */}
       {!isPopupMode && (
@@ -428,7 +513,77 @@ export default function App() {
           ? 'max-w-7xl px-2 sm:px-4 py-1.5 sm:py-2.5 mx-auto'
           : 'max-w-7xl px-3 sm:px-6 lg:px-8 py-6 mx-auto'
       }`}>
-        <Suspense fallback={<div className="py-24 text-center text-sm font-black text-slate-500 animate-pulse">불러오는 중…</div>}>
+        {currentMode === 'key-practice' && (
+          <PracticeWindowContainer
+            mode="key-practice"
+            title="1단계: 자리 연습"
+            stepNumber="1"
+            icon="⌨️"
+            onClose={() => setCurrentMode('home')}
+            showKeyboardSimultaneousBadge={true}
+          >
+            <Suspense fallback={null}>
+              <KeyPracticeView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+              />
+            </Suspense>
+          </PracticeWindowContainer>
+        )}
+
+        {currentMode === 'word-practice' && (
+          <PracticeWindowContainer
+            mode="word-practice"
+            title="2단계: 낱말 연습"
+            stepNumber="2"
+            icon="📖"
+            onClose={() => setCurrentMode('home')}
+            showKeyboardSimultaneousBadge={true}
+          >
+            <Suspense fallback={null}>
+              <WordPracticeView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+              />
+            </Suspense>
+          </PracticeWindowContainer>
+        )}
+
+        {currentMode === 'sentence-practice' && (
+          <PracticeWindowContainer
+            mode="sentence-practice"
+            title="3단계: 짧은 글 연습 (5분 마라톤)"
+            stepNumber="3"
+            icon="📝"
+            onClose={() => setCurrentMode('home')}
+          >
+            <Suspense fallback={null}>
+              <SentencePracticeView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+              />
+            </Suspense>
+          </PracticeWindowContainer>
+        )}
+
+        {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && (
+          <PracticeWindowContainer
+            mode="long-practice"
+            title="4단계: 긴 글 연습 (명작 완독)"
+            stepNumber="4"
+            icon="📜"
+            onClose={() => setCurrentMode('home')}
+          >
+            <Suspense fallback={null}>
+              <LongTextPracticeView
+                currentUser={currentUser}
+                onRecordScore={handleRecordScore}
+              />
+            </Suspense>
+          </PracticeWindowContainer>
+        )}
+
+        <Suspense fallback={practiceFallback}>
         {currentMode === 'home' && (
           <HomeDashboard
             onSelectMode={handleSelectMode}
@@ -446,68 +601,6 @@ export default function App() {
             }}
             onOpenHistory={() => setIsHistoryOpen(true)}
           />
-        )}
-
-        {currentMode === 'key-practice' && (
-          <PracticeWindowContainer
-            mode="key-practice"
-            title="1단계: 자리 연습"
-            stepNumber="1"
-            icon="⌨️"
-            onClose={() => setCurrentMode('home')}
-            showKeyboardSimultaneousBadge={true}
-          >
-            <KeyPracticeView
-              currentUser={currentUser}
-              onRecordScore={handleRecordScore}
-            />
-          </PracticeWindowContainer>
-        )}
-
-        {currentMode === 'word-practice' && (
-          <PracticeWindowContainer
-            mode="word-practice"
-            title="2단계: 낱말 연습"
-            stepNumber="2"
-            icon="📖"
-            onClose={() => setCurrentMode('home')}
-            showKeyboardSimultaneousBadge={true}
-          >
-            <WordPracticeView
-              currentUser={currentUser}
-              onRecordScore={handleRecordScore}
-            />
-          </PracticeWindowContainer>
-        )}
-
-        {currentMode === 'sentence-practice' && (
-          <PracticeWindowContainer
-            mode="sentence-practice"
-            title="3단계: 짧은 글 연습 (5분 마라톤)"
-            stepNumber="3"
-            icon="📝"
-            onClose={() => setCurrentMode('home')}
-          >
-            <SentencePracticeView
-              currentUser={currentUser}
-              onRecordScore={handleRecordScore}
-            />
-          </PracticeWindowContainer>
-        )}
-
-        {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && (
-          <PracticeWindowContainer
-            mode="long-practice"
-            title="4단계: 긴 글 연습 (명작 완독)"
-            stepNumber="4"
-            icon="📜"
-            onClose={() => setCurrentMode('home')}
-          >
-            <LongTextPracticeView
-              currentUser={currentUser}
-              onRecordScore={handleRecordScore}
-            />
-          </PracticeWindowContainer>
         )}
 
         {currentMode === 'knowledge-hub' && (

@@ -1,0 +1,8 @@
+{
+  "name": "마크",
+  "description": "A multiplayer 3D voxel sandbox with SQLite persistence, 2x2/3x3 crafting table, monster combat, and custom item inventory.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

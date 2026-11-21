@@ -290,6 +290,10 @@ export const MasterModal: React.FC<MasterModalProps> = ({
       };
       localStorage.setItem('typang_current_user', JSON.stringify(masterUser));
       onMasterLogin(masterUser);
+      void backupKeeper.tick().then(async () => {
+        const list = await refreshFromServer();
+        onUpdateUsersList(list);
+      });
     } else {
       setAuthError(auth.message || '마스터 비밀번호가 올바르지 않습니다. 관리자 정보를 확인하세요.');
     }
@@ -707,8 +711,28 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   >
                     💾 전체 백업 받기
                   </button>
+                  <button
+                    type="button"
+                    data-testid="restore-any-backup"
+                    onClick={async () => {
+                      setRosterMsg('⏳ 브라우저 저장소 및 자동 백업에서 학생 명단을 찾는 중...');
+                      const res = await backupKeeper.restoreFromAnyAvailable();
+                      if (res.success) {
+                        setRosterMsg(`✅ ${res.message} (학생 ${res.restored || 0}명 복원 완료)`);
+                        const updated = await refreshFromServer();
+                        onUpdateUsersList(updated);
+                      } else {
+                        setRosterMsg(`❌ ${res.message}`);
+                      }
+                      setTimeout(() => setRosterMsg(''), 10000);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-black hover:bg-blue-500 cursor-pointer shadow-xs"
+                    title="이 브라우저에 저장되어 있던 학생 명단 또는 이전 자동 백업에서 복원합니다"
+                  >
+                    🔄 학생 명단 복원
+                  </button>
                   <label className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-black hover:bg-amber-500 cursor-pointer">
-                    ♻️ 백업 되돌리기
+                    ♻️ 백업 되돌리기 (파일 선택)
                     <input
                       type="file"
                       accept="application/json,.json"
@@ -1349,10 +1373,33 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                       </tbody>
                     </table>
                   ) : (
-                    <div className="p-12 text-center text-slate-400 space-y-2">
+                    <div className="p-8 sm:p-12 text-center text-slate-400 space-y-3">
                       <Users className="w-10 h-10 mx-auto opacity-40 text-pink-400" />
-                      <p className="font-bold text-sm text-slate-600">일치하는 학생이 없습니다</p>
-                      <p className="text-xs">학생이 가입하거나 '학생 직접 등록' 버튼을 눌러 학생을 추가하세요.</p>
+                      <p className="font-bold text-sm text-slate-700">등록된 학생이 없거나 일치하는 학생이 없습니다</p>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto">
+                        이전에 등록했던 학생 명단이 보이지 않는다면, 이 컴퓨터의 브라우저 저장소/자동 백업에서 되살리거나 백업 파일을 불러오실 수 있습니다.
+                      </p>
+                      <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setRosterMsg('⏳ 브라우저 저장소 및 자동 백업에서 학생 명단을 찾는 중...');
+                            const res = await backupKeeper.restoreFromAnyAvailable();
+                            if (res.success) {
+                              setRosterMsg(`✅ ${res.message} (학생 ${res.restored || 0}명 복원 완료)`);
+                              const updated = await refreshFromServer();
+                              onUpdateUsersList(updated);
+                            } else {
+                              setRosterMsg(`❌ ${res.message}`);
+                            }
+                            setTimeout(() => setRosterMsg(''), 10000);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-4 h-4 text-blue-200" />
+                          <span>🔄 내 브라우저에서 학생 명단 복원하기</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

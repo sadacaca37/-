@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Heart, RotateCcw, Zap, Flame, Trophy, Play, ArrowLeft, Keyboard } from 'lucide-react';
 import { GAME_POINTS } from '../../utils/pointRules';
@@ -350,7 +350,7 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({ currentUser,
   const mult = Math.min(5, 1 + Math.floor(combo / 3));
   const waveKills = killed % WAVE_SIZE;
 
-  const stars = useMemo(() => Array.from({ length: 40 }, (_, i) => ({ l: (i * 37) % 100, t: (i * 53) % 100, s: 1 + (i % 3) })), []);
+  const MONSTER_HUES = [0, 38, 110, 175, 220, 290, 325];
 
   return (
     <div
@@ -361,12 +361,16 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({ currentUser,
       className={`sd-root outline-none select-none ${shake ? 'sd-shake' : ''}`}
       data-testid="shortcut-defense"
     >
-      {/* 별 하늘 */}
-      <div className="sd-sky">
-        {stars.map((s, i) => (
-          <i key={i} style={{ left: `${s.l}%`, top: `${s.t}%`, width: s.s, height: s.s }} />
-        ))}
-      </div>
+      {/* 16-bit Pixel Castle Wall & Forest Stage Background */}
+      <img
+        src="/assets/minigames/bg-defense.webp"
+        alt=""
+        aria-hidden="true"
+        className="sd-bg-img"
+        referrerPolicy="no-referrer"
+        draggable={false}
+      />
+      <div className="sd-bg-scrim" aria-hidden="true" />
       {flash !== 'none' && <div className={`sd-flash sd-flash--${flash}`} />}
 
       {/* HUD */}
@@ -381,18 +385,18 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({ currentUser,
           <span className="sd-hud-sub">{Math.min(WAVE_SIZE, waveKills)}/{WAVE_SIZE}</span>
         </div>
         <div className="sd-hud-box sd-hud-box--combo">
-          <Flame className={`w-5 h-5 ${combo >= 3 ? 'text-orange-400 animate-pulse' : 'text-slate-400'}`} />
+          <Flame className={`w-5 h-5 ${combo >= 3 ? 'text-orange-400' : 'text-amber-200/60'}`} />
           <b className="sd-hud-num">{combo}</b>
           <span className="sd-hud-sub">x{mult}</span>
         </div>
         <div className="sd-hud-box">
           {Array.from({ length: MAX_LIVES }, (_, i) => (
-            <Heart key={i} className={`w-6 h-6 ${i < lives ? 'text-rose-500 fill-rose-500' : 'text-slate-600'}`} />
+            <Heart key={i} className={`w-5 h-5 sm:w-6 sm:h-6 ${i < lives ? 'text-rose-500 fill-rose-500' : 'text-amber-950/60'}`} />
           ))}
         </div>
         <div className="sd-hud-box">
           <span className="sd-hud-label">남은 몬스터</span>
-          <b className="sd-hud-num">{Math.max(0, total - deckPos - (phase === 'play' ? 0 : 0))}</b>
+          <b className="sd-hud-num">{Math.max(0, total - deckPos)}</b>
         </div>
       </div>
 
@@ -408,7 +412,22 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({ currentUser,
               <div className="sd-bubble-q">{monster.quiz.question}</div>
               {hint && <div className="sd-bubble-hint">{hint}</div>}
             </div>
-            <div className="sd-face">{monster.state === 'boom' ? '💥' : monster.face}</div>
+            <div className="sd-face">
+              {monster.state === 'boom' ? (
+                <span className="text-5xl">💥</span>
+              ) : (
+                <img
+                  src="/assets/minigames/sprite-monster.webp"
+                  alt="단축키 몬스터"
+                  className="sd-monster-sprite"
+                  style={{
+                    filter: `hue-rotate(${MONSTER_HUES[monster.id % MONSTER_HUES.length]}deg)`,
+                  }}
+                  referrerPolicy="no-referrer"
+                  draggable={false}
+                />
+              )}
+            </div>
             <div className="sd-fuse">
               <i style={{ width: `${(1 - progress) * 100}%` }} />
             </div>
@@ -418,7 +437,7 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({ currentUser,
         {/* 눌린 키 표시 */}
         {phase === 'play' && (
           <div className="sd-keys">
-            <Keyboard className="w-4 h-4 text-cyan-300" />
+            <Keyboard className="w-4 h-4 text-[#ffe066] shrink-0" />
             {pressed.length ? (
               pressed.map((k, i) => (
                 <kbd key={i} className="sd-kbd">
@@ -431,17 +450,19 @@ export const ShortcutQuizView: React.FC<ShortcutQuizViewProps> = ({ currentUser,
           </div>
         )}
 
-        {/* 땅 / 기지 */}
-        <div className="sd-ground">
-          <span className="sd-base">🏰</span>
-          <span className="sd-base sd-base--2">🏠</span>
-          <span className="sd-base">🏫</span>
-        </div>
-
         {/* 시작 화면 */}
         {phase === 'ready' && (
           <div className="sd-overlay">
             <div className="sd-card">
+              <img
+                src="/assets/minigames/sprite-monster.webp"
+                alt=""
+                aria-hidden="true"
+                className="w-20 h-auto mx-auto mb-2"
+                style={{ imageRendering: 'pixelated' }}
+                referrerPolicy="no-referrer"
+                draggable={false}
+              />
               <div className="sd-title">⚡ 단축키 디펜스</div>
               <p className="sd-desc">
                 하늘에서 <b>단축키 몬스터</b>가 내려와요!

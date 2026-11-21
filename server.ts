@@ -9,11 +9,14 @@ import { stableSecret, sealPayload, unsealPayload } from './server/stableSecret'
 import { registerDailyReports, getDailyReports, mergeDailyReports } from './server/dailyReports';
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-// 클라우드(Cloud Run 등)에 올라가 있고 빌드 결과(dist)가 있으면 개발 모드 대신 빌드본으로 서비스 → 첫 화면이 훨씬 빠름
+// AI Studio 컨테이너에서는 Nginx가 8080을 사용하고 3000으로 프록시하므로 앱 서버는 3000 포트에서 실행
+const PORT = 3000;
+// 클라우드(Cloud Run 등) 배포 환경에서 빌드 결과(dist)가 있으면 빌드본으로 서비스 → 첫 화면이 훨씬 빠름
+// 단, 개발 모드(NODE_ENV=development)에서는 Vite 미들웨어를 사용해 빌드 중 dist/index.html ENOENT 오류를 방지
 const isProd =
-  process.env.NODE_ENV === 'production' ||
-  (!!process.env.K_SERVICE && fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')));
+  process.env.NODE_ENV !== 'development' &&
+  (process.env.NODE_ENV === 'production' || !!process.env.K_SERVICE) &&
+  fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'));
 
 app.disable('x-powered-by');
 app.set('etag', 'strong');
@@ -28,14 +31,16 @@ const ROOT = process.cwd();
 const DATA_DIR = path.join(ROOT, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// 서버가 "빈 상태로 새로 시작"했는지(코드 업데이트·재배포로 data 폴더가 비워짐).
-// 이때 선생님 컴퓨터에 자동 보관된 백업으로 학생 계정·포인트를 되살림.
-const FRESH_START = !fs.existsSync(path.join(DATA_DIR, 'members-live.json')) && !fs.existsSync(path.join(DATA_DIR, 'progress.json'));
-let needsRestore = FRESH_START;
-if (FRESH_START) console.log('[backup] 새로 시작한 서버입니다. 선생님(마스터)이 접속하면 자동 백업으로 되살립니다.');
-
 /** members.json = 코드와 함께 고정되는 회원 명단, data/members-live.json = 실행 중 최신 상태 */
 const members = new MemberStore(path.join(ROOT, 'members.json'), path.join(DATA_DIR, 'members-live.json'));
+
+// 서버가 "빈 상태로 새로 시작"했는지(코드 업데이트·재배포로 data 폴더가 비워짐 또는 학생 명단이 0명).
+// 이때 선생님 컴퓨터에 자동 보관된 백업으로 학생 계정·포인트를 되살림.
+const FRESH_START =
+  (!fs.existsSync(path.join(DATA_DIR, 'members-live.json')) && !fs.existsSync(path.join(DATA_DIR, 'progress.json'))) ||
+  members.status().total === 0;
+let needsRestore = FRESH_START;
+if (FRESH_START) console.log('[backup] 새로 시작했거나 학생 명단이 비어 있는 서버입니다. 선생님(마스터)이 접속하면 자동 백업으로 되살립니다.');
 
 const LEADERBOARD_FILE = path.join(DATA_DIR, 'leaderboard.json');
 const LEADERBOARD_ARCHIVE_FILE = path.join(DATA_DIR, 'leaderboard-archive.json');
@@ -650,10 +655,11 @@ app.get('/api/backup', (req, res) => {
 // 자동 백업 상태 (마스터 전용): 새로 시작해서 되살려야 하는지
 app.get('/api/backup/status', (req, res) => {
   if (!isMaster(req)) return denyMaster(res);
+  const memberTotal = members.status().total;
   res.json({
     success: true,
-    needsRestore,
-    members: members.status().total,
+    needsRestore: needsRestore || memberTotal === 0,
+    members: memberTotal,
     progress: Object.keys(progressCache).length,
   });
 });
@@ -734,17 +740,32 @@ app.use('/api', (_req, res) => res.status(404).json({ success: false, message: '
 // =========================================================================
 // 게임 파일(public/games 등): 하루 캐시
 const publicDir = path.join(ROOT, 'public');
+
+// /games/:game 또는 /games/:game/ 접속 시 index.html 로 연결
+app.get(['/games/:game', '/games/:game/'], (req, res, next) => {
+  const indexPath = path.join(publicDir, 'games', req.params.game, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.redirect(301, `/games/${req.params.game}/index.html`);
+  }
+  next();
+});
+
 if (fs.existsSync(publicDir))
   app.use(
     express.static(publicDir, {
       maxAge: '1d',
-      index: false,
+      index: 'index.html',
       // 게임 첫 화면(html)은 저장해 두지 않음 → 즐겨찾기로 열어도 매번 입장권 확인
       setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-store');
       },
     }),
   );
+
+// /games/... 경로에서 파일을 찾지 못한 경우(404), SPA 메인 화면으로 넘어가지 않고 404 반환 (게임 화면 안에 타자팡팡이 중복 로딩되는 문제 방지)
+app.use('/games', (_req, res) => {
+  res.status(404).send('게임을 찾을 수 없습니다.');
+});
 
 async function startServer() {
   if (!isProd) {

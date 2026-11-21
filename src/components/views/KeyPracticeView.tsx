@@ -408,28 +408,27 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
   const progressPercent = Math.round(((sampleIndex) / TOTAL_TRIALS) * 100);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="tp-typing-screen space-y-3">
       {/* Top Header & Language Selector */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
+      <div className="pr-toolbar flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-sky-500 animate-pulse"></span>
-          <h2 className="text-base sm:text-lg font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+          <h2 className="text-base sm:text-lg font-black text-[#2c1507] tracking-tight flex items-center gap-2 font-arcade">
             <span>자리 연습</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold border border-sky-200">
+            <span className="text-xs px-2.5 py-0.5 rounded-md bg-[#4e2b14] text-[#ffe899] font-bold border-2 border-[#2c1507]">
               {stage.title}
             </span>
           </h2>
         </div>
 
-        {/* Simultaneous Keyboard Status Badge & Language Tabs */}
+        {/* Course, Language & Reset Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* 코스 선택 */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="pr-wood-group flex items-center gap-0.5">
             <button
               type="button"
               onClick={() => { setPracticeCourse('3min'); handleReset(); }}
-              className={`px-3 py-1 rounded-lg text-sm font-black transition-all cursor-pointer ${
-                practiceCourse === '3min' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-2.5 py-1 text-xs sm:text-sm cursor-pointer whitespace-nowrap ${
+                practiceCourse === '3min' ? 'pr-wood-tab--active' : ''
               }`}
             >
               3분
@@ -437,8 +436,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
             <button
               type="button"
               onClick={() => { setPracticeCourse('5min'); handleReset(); }}
-              className={`px-3 py-1 rounded-lg text-sm font-black transition-all cursor-pointer ${
-                practiceCourse === '5min' ? 'bg-pink-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-2.5 py-1 text-xs sm:text-sm cursor-pointer whitespace-nowrap ${
+                practiceCourse === '5min' ? 'pr-wood-tab--green' : ''
               }`}
             >
               5분
@@ -446,8 +445,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
             <button
               type="button"
               onClick={() => { setPracticeCourse('10min'); handleReset(); }}
-              className={`px-3 py-1 rounded-lg text-sm font-black transition-all cursor-pointer ${
-                practiceCourse === '10min' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-2.5 py-1 text-xs sm:text-sm cursor-pointer whitespace-nowrap ${
+                practiceCourse === '10min' ? 'pr-wood-tab--blue' : ''
               }`}
             >
               10분
@@ -458,7 +457,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
             <button
               type="button"
               onClick={finishPractice}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black transition-all shadow-xs cursor-pointer flex items-center gap-1 active:scale-95"
+              className="tp-rpg-btn px-3 py-1.5 text-xs sm:text-sm bg-[#22c55e] text-[#052e16] cursor-pointer flex items-center gap-1 whitespace-nowrap"
               title="지금까지 연습한 결과로 완료합니다"
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -466,7 +465,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
             </button>
           )}
 
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="pr-wood-group flex items-center gap-0.5">
             <button
               type="button"
               onClick={() => {
@@ -474,8 +473,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
                 setSelectedStageId(1);
                 handleReset();
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
-                language === 'ko' ? 'bg-sky-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-2.5 py-1 text-xs cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                language === 'ko' ? 'pr-wood-tab--blue' : ''
               }`}
             >
               <span>🇰🇷 한글 자리</span>
@@ -487,8 +486,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
                 setSelectedStageId(1);
                 handleReset();
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
-                language === 'en' ? 'bg-indigo-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`pr-wood-tab px-2.5 py-1 text-xs cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                language === 'en' ? 'pr-wood-tab--active' : ''
               }`}
             >
               <span>🇺🇸 영어 자리</span>
@@ -498,263 +497,258 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
           <button
             type="button"
             onClick={handleReset}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+            className="tp-rpg-btn tp-rpg-btn--gold px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             title="현재 단계를 처음부터 다시 칩니다"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+            <RotateCcw className="w-3.5 h-3.5" />
             <span>이 단계 다시 치기</span>
           </button>
         </div>
       </div>
 
       {/* =========================================================================
-          CLASSIC HANCOM TYPING CONSOLE CASING
+          16-BIT PIXEL RPG PRACTICE CONSOLE SHELL
          ========================================================================= */}
-      <div className="bg-gradient-to-b from-slate-200 via-slate-100 to-slate-300 p-2.5 sm:p-4 rounded-3xl border-4 border-slate-300 shadow-2xl relative">
-        {/* Top Status Strip: 진행도 / 오타수 / 정확도 / 속도 */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl px-3 sm:px-4 py-1.5 border border-slate-300 shadow-xs mb-2 flex flex-wrap items-center justify-between gap-3 text-base sm:text-lg font-black text-slate-700">
+      <div className="pr-shell p-2.5 sm:p-3.5 relative">
+        {/* Top Wooden Signboard Status Bar: 진행도 / 오타수 / 정확도 / 속도 */}
+        <div className="pr-status-bar px-3.5 sm:px-5 py-2.5 mb-2.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3.5 text-base sm:text-lg font-black">
           {/* 진행도 */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-600">진행도</span>
-            <div className="w-24 sm:w-36 bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300 p-0.5">
+            <span className="text-[#ffe899]">진행도</span>
+            <div className="pr-gauge-track w-24 sm:w-36 h-4.5">
               <div
-                className="bg-gradient-to-r from-sky-400 to-blue-500 h-full rounded-full transition-all duration-300"
+                className="pr-gauge-fill pr-gauge-fill--blue"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <span className="w-16 text-right font-black text-slate-800 text-base">
+            <span className="w-14 text-right font-mono tabular-nums text-white text-base sm:text-lg">
               {progressPercent}%
             </span>
-            <span className="font-mono text-slate-500 text-sm">({sampleIndex + 1}/{TOTAL_TRIALS})</span>
+            <span className="min-w-[68px] text-center font-mono tabular-nums text-[#f7dca2] text-sm sm:text-base">({sampleIndex + 1}/{TOTAL_TRIALS})</span>
           </div>
 
           {/* 오타수 */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-600">오타수</span>
-            <div className="px-2.5 py-0.5 bg-slate-100 border border-slate-300 rounded-md font-mono font-black text-rose-600 text-base min-w-[40px] text-center shadow-inner">
+            <span className="text-[#ffe899]">오타수</span>
+            <div className="pr-status-chip px-3 py-0.5 font-mono tabular-nums font-black text-[#fda4af] text-base sm:text-lg min-w-[46px] text-center">
               {stats.errorCount}
             </div>
           </div>
 
           {/* 정확도 */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-600">정확도</span>
-            <div className="w-20 sm:w-28 bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300 p-0.5">
+            <span className="text-[#ffe899]">정확도</span>
+            <div className="pr-gauge-track w-20 sm:w-28 h-4.5">
               <div
-                className="bg-gradient-to-r from-teal-400 to-emerald-500 h-full rounded-full transition-all duration-300"
+                className="pr-gauge-fill pr-gauge-fill--green"
                 style={{ width: `${stats.accuracy}%` }}
               />
             </div>
-            <span className="w-14 text-right font-black text-slate-800 text-base">{stats.accuracy}%</span>
+            <span className="w-14 text-right font-mono tabular-nums text-white text-base sm:text-lg">{stats.accuracy}%</span>
           </div>
 
           {/* 타수 / CPM */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-600">속도</span>
-            <span className="font-mono text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 text-base font-black">
-              {stats.cpm} <span className="text-xs text-slate-500">타/분</span>
+            <span className="text-[#ffe899]">속도</span>
+            <span className="pr-status-chip min-w-[116px] text-center font-mono tabular-nums text-[#7dd3fc] px-3 py-0.5 text-base sm:text-lg font-black">
+              {stats.cpm} <span className="text-sm text-[#e6cfa0]">타/분</span>
             </span>
           </div>
         </div>
 
         {/* =========================================================================
-            CYAN AQUA DISPLAY PANEL (Classic Hancom Screen)
+            FOREST MEADOW STAGE WITH PARCHMENT CARD & WOODEN SIGNPOST
            ========================================================================= */}
-        <div className="bg-gradient-to-r from-sky-400 via-cyan-400 to-sky-400 rounded-2xl p-2.5 sm:p-3.5 border-3 border-sky-500 shadow-inner flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-3 relative overflow-hidden mb-2.5">
-          {/* Subtle Cyber / Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent pointer-events-none" />
-
-          {/* Left / Center: Target Card & Next Preview */}
+        <div className="pr-meadow-stage pr-meadow-stage--key p-3 sm:p-4 flex flex-col md:grid md:grid-cols-[minmax(44px,0.55fr)_auto_minmax(390px,1.45fr)] items-center gap-3 mb-2.5">
+          {/* Left Spacer */}
           <div className="hidden md:flex items-center justify-end w-full z-10 pr-2">
-            {/* Left Dotted Arrows */}
-            <div className="flex flex-col text-sky-200/80 font-mono text-sm select-none">
+            <div className="flex flex-col text-[#fff7dc] font-mono text-sm font-black drop-shadow-[1px_1px_0_#2c1507] select-none">
               <span>◀ ◀</span>
               <span>◀ ◀</span>
             </div>
           </div>
 
-            {/* Target Big Word / Key Card (Elevated Silver/White Box) */}
-            <div 
-              onClick={() => inputRef.current?.focus()}
-              className="bg-gradient-to-b from-white to-slate-100 rounded-2xl p-4 sm:p-6 border-3 border-slate-300 shadow-[0_6px_16px_rgba(0,0,0,0.15)] min-w-[280px] sm:min-w-[360px] text-center cursor-text relative"
-            >
-              {/* Target Text */}
-              <div className="text-6xl sm:text-7xl font-black text-slate-900 tracking-wider select-none mb-1 font-mono" data-sample={currentSample}>
-                {currentSample.split('').map((char, index) => {
-                  const isTyped = index < inputVal.length;
-                  const isMatch = isTyped && inputVal[index] === char;
-                  return (
-                    <span
-                      key={index}
-                      className={
-                        isMatch
-                          ? 'text-teal-600'
-                          : isTyped
-                          ? 'text-rose-500'
-                          : 'text-slate-800'
-                      }
-                    >
-                      {char === ' ' ? '␣' : char}
-                    </span>
-                  );
-                })}
-              </div>
-
-              {/* Typing Line & Blinking Cursor Area */}
-              <div className="min-h-[48px] flex items-center justify-center text-4xl sm:text-5xl font-black text-sky-600 font-mono">
-                <span>{inputVal}</span>
-                <span className="inline-block w-2.5 h-6 bg-slate-900 ml-0.5 animate-pulse rounded-xs" />
-              </div>
-
-              {/* Hidden Real Input */}
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputVal}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                className="opacity-0 absolute inset-0 w-full h-full cursor-text"
-                autoFocus
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-              />
+          {/* Target Big Key Card (Parchment Scroll) */}
+          <div 
+            onClick={() => inputRef.current?.focus()}
+            className="pr-parchment-card pr-parchment-card--prompt w-[340px] sm:w-[420px] max-w-full text-center cursor-text z-10"
+          >
+            {/* Target Text */}
+            <div className="h-[76px] sm:h-[84px] flex items-center justify-center overflow-hidden text-6xl sm:text-7xl font-black text-[#241106] tracking-wider select-none mb-1 font-mono leading-none" data-sample={currentSample}>
+              {currentSample.split('').map((char, index) => {
+                const isTyped = index < inputVal.length;
+                const isMatch = isTyped && inputVal[index] === char;
+                return (
+                  <span
+                    key={index}
+                    className={
+                      isMatch
+                        ? 'text-[#0f766e]'
+                        : isTyped
+                        ? 'text-[#be123c]'
+                        : 'text-[#241106]'
+                    }
+                  >
+                    {char === ' ' ? '␣' : char}
+                  </span>
+                );
+              })}
             </div>
 
-            <div className="flex flex-col md:flex-row items-center justify-between gap-3 w-full z-10 md:pl-2">
-            {/* Next Sample Preview on Aqua Background */}
-            <div className="flex items-center gap-2 select-none">
-              <div className="text-sky-200/90 font-mono text-lg">
-                ◀
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] sm:text-xs font-black text-sky-100 tracking-tight">다음 글쇠</span>
-                <span className="text-3xl sm:text-4xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-mono">
-                  {nextSample || '완주 직전!'}
+            {/* Typing Line & Blinking Cursor Area */}
+            <div className="h-[56px] flex items-center justify-center overflow-hidden text-4xl sm:text-5xl font-black text-[#0369a1] font-mono leading-none">
+              <span>{inputVal}</span>
+              <span className="inline-block w-2.5 h-6 bg-[#2c1507] ml-0.5 animate-pulse rounded-xs shrink-0" />
+            </div>
+
+            {/* Hidden Real Input */}
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputVal}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              className="opacity-0 absolute inset-0 w-full h-full cursor-text"
+              autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck="false"
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full z-10 md:pl-2">
+            {/* Next Key Preview on Wooden Signpost */}
+            <div className="pr-signpost select-none">
+              <div className="pr-signpost-board">
+                <span className="pr-signpost-label">다음 글쇠</span>
+                <span
+                  className={`pr-signpost-word font-mono ${
+                    nextSample ? 'pr-signpost-word--xl' : 'pr-signpost-word--xs'
+                  }`}
+                >
+                  {nextSample === ' ' ? '␣' : nextSample || '완주 직전!'}
                 </span>
               </div>
             </div>
 
-          {/* Right Side: Stage Setting (단계 설정), Mini Keyboard, Stage Buttons [1]~[8] */}
-          <div className="bg-white/90 backdrop-blur-md rounded-xl p-3 border-2 border-sky-300 shadow-md flex flex-col items-center gap-2 z-10 w-full md:w-auto">
-            {/* Header: ◀ 단계 설정 ▶ */}
-            <div className="flex items-center justify-between w-full gap-2 text-xs font-black text-slate-800">
-              <button
-                type="button"
-                onClick={handlePrevStage}
-                className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                title="이전 단계"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <span className="tracking-tight text-slate-900 font-extrabold">단계 설정</span>
-              <button
-                type="button"
-                onClick={handleNextStage}
-                className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                title="다음 단계"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {/* Right Side: Wooden/Parchment Stage Setting & Stone Buttons [1]~[8] */}
+            <div className="pr-stage-panel p-2.5 sm:p-3 flex flex-col items-center gap-2 z-10 w-full sm:w-auto">
+              {/* Header: ◀ 단계 설정 ▶ */}
+              <div className="pr-stage-panel-head flex items-center justify-between w-full gap-2 text-sm sm:text-base font-black">
+                <button
+                  type="button"
+                  onClick={handlePrevStage}
+                  className="pr-stone-btn p-1 cursor-pointer"
+                  title="이전 단계"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="tracking-tight font-extrabold px-1">단계 설정</span>
+                <button
+                  type="button"
+                  onClick={handleNextStage}
+                  className="pr-stone-btn p-1 cursor-pointer"
+                  title="다음 단계"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
 
-            {/* Mini Keyboard Diagram with Active Red Keys for Key Stages */}
-            <div className="bg-slate-800 p-1.5 rounded-lg border border-slate-700 shadow-inner">
-              <div className="space-y-0.5">
-                {/* Row 1 (Numbers) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(12)].map((_, i) => {
-                    const isRed = currentStageNum === 8;
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Row 2 (Top Row) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(11)].map((_, i) => {
-                    const isRed = (currentStageNum === 2 && i < 5) || (currentStageNum === 3 && i >= 5) || (currentStageNum === 7 && (i < 5 || i >= 8)) || currentStageNum === 8;
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Row 3 (Home Row) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(10)].map((_, i) => {
-                    const isRed = currentStageNum === 1 || currentStageNum === 6 || currentStageNum === 8;
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs animate-pulse' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Row 4 (Bottom Row) */}
-                <div className="flex gap-0.5 justify-center">
-                  {[...Array(9)].map((_, i) => {
-                    const isRed = (currentStageNum === 4 && i < 4) || (currentStageNum === 5 && i >= 4) || currentStageNum === 8;
-                    return (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500 shadow-xs' : 'bg-slate-600'}`}
-                      />
-                    );
-                  })}
+              {/* Mini Keyboard Diagram with Active Red Keys for Key Stages */}
+              <div className="bg-[#2c1a0e] p-1.5 rounded-lg border-2 border-[#4a2a12]">
+                <div className="space-y-0.5">
+                  {/* Row 1 (Numbers) */}
+                  <div className="flex gap-0.5 justify-center">
+                    {[...Array(12)].map((_, i) => {
+                      const isRed = currentStageNum === 8;
+                      return (
+                        <div
+                          key={i}
+                          className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500' : 'bg-[#6b5340]'}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  {/* Row 2 (Top Row) */}
+                  <div className="flex gap-0.5 justify-center">
+                    {[...Array(11)].map((_, i) => {
+                      const isRed = (currentStageNum === 2 && i < 5) || (currentStageNum === 3 && i >= 5) || (currentStageNum === 7 && (i < 5 || i >= 8)) || currentStageNum === 8;
+                      return (
+                        <div
+                          key={i}
+                          className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500' : 'bg-[#6b5340]'}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  {/* Row 3 (Home Row) */}
+                  <div className="flex gap-0.5 justify-center">
+                    {[...Array(10)].map((_, i) => {
+                      const isRed = currentStageNum === 1 || currentStageNum === 6 || currentStageNum === 8;
+                      return (
+                        <div
+                          key={i}
+                          className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-amber-400' : 'bg-[#6b5340]'}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  {/* Row 4 (Bottom Row) */}
+                  <div className="flex gap-0.5 justify-center">
+                    {[...Array(9)].map((_, i) => {
+                      const isRed = (currentStageNum === 4 && i < 4) || (currentStageNum === 5 && i >= 4) || currentStageNum === 8;
+                      return (
+                        <div
+                          key={i}
+                          className={`w-2.5 h-2 rounded-xs ${isRed ? 'bg-rose-500' : 'bg-[#6b5340]'}`}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Stage Selector Buttons [1] ~ [8] */}
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((stageNum) => {
-                const isSelected = currentStageNum === stageNum;
-                return (
-                  <button
-                    key={stageNum}
-                    type="button"
-                    onClick={() => selectStageByNumber(stageNum)}
-                    className={`w-5 h-5 sm:w-6 sm:h-6 rounded text-[11px] sm:text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
-                      isSelected
-                        ? 'bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-md ring-1 ring-sky-300 font-extrabold scale-110'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
-                    }`}
-                  >
-                    {stageNum}
-                  </button>
-                );
-              })}
+              {/* Stone Stage Selector Buttons [1] ~ [8] */}
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((stageNum) => {
+                  const isSelected = currentStageNum === stageNum;
+                  return (
+                    <button
+                      key={stageNum}
+                      type="button"
+                      onClick={() => selectStageByNumber(stageNum)}
+                      className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm font-black cursor-pointer flex items-center justify-center ${
+                        isSelected ? 'pr-stone-btn--active' : 'pr-stone-btn'
+                      }`}
+                    >
+                      {stageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* 이 단계에서 모은 별 (단계마다 10번씩 완주해야 별 10개) */}
+              <div className="flex items-center gap-0.5 text-xs sm:text-sm font-black text-[#8a4b08]" data-testid="stage-stars" title="정확도 95% 이상으로 이 단계를 완주할 때마다 별 1개">
+                {Array.from({ length: 10 }, (_, i) => (
+                  <span key={i} className={i < currentStarsCount ? 'text-[#f59e0b]' : 'text-[#cbb893]'}>★</span>
+                ))}
+                <span className="ml-1 text-[#4a2a12] font-mono tabular-nums">{currentStarsCount}/10</span>
+              </div>
             </div>
-            {/* 이 단계에서 모은 별 (단계마다 10번씩 완주해야 별 10개) */}
-            <div className="flex items-center gap-0.5 text-[11px] font-black text-amber-600" data-testid="stage-stars" title="정확도 95% 이상으로 이 단계를 완주할 때마다 별 1개">
-              {Array.from({ length: 10 }, (_, i) => (
-                <span key={i} className={i < currentStarsCount ? 'text-amber-400' : 'text-slate-300'}>★</span>
-              ))}
-              <span className="ml-1 text-slate-600">{currentStarsCount}/10</span>
-            </div>
-          </div>
           </div>
         </div>
 
         {/* Finished Overlay if practice completed */}
         {isFinished && (
-          <div className="mb-4 p-6 bg-white/95 backdrop-blur-md rounded-2xl border-2 border-emerald-300 shadow-xl text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 border border-emerald-300 shadow-xs">
+          <div className="mb-3 p-5 pr-parchment-card text-center space-y-4">
+            <div className="w-14 h-14 bg-[#fef3c7] rounded-xl flex items-center justify-center mx-auto text-[#b45309] border-2 border-[#3d220d]">
               <Award className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+              <h3 className="text-xl sm:text-2xl font-black text-[#2c1507] font-arcade">
                 🎉 '{stage.title}' 완주 성공!
               </h3>
-              <p className="text-xs text-slate-600 font-bold mt-1">
-                평균 속도 <strong className="text-emerald-600 font-black">{stats.cpm} CPM</strong> | 정확도 <strong className="text-emerald-600 font-black">{stats.accuracy}%</strong> | +40P 획득!
+              <p className="text-xs text-[#5c3214] font-bold mt-1">
+                평균 속도 <strong className="text-[#0f766e] font-black">{stats.cpm} CPM</strong> | 정확도 <strong className="text-[#0f766e] font-black">{stats.accuracy}%</strong> | +40P 획득!
               </p>
             </div>
 
@@ -767,18 +761,18 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
               />
             </div>
 
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <button
                 onClick={handleReset}
-                className="px-5 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer border border-amber-300 shadow-xs"
+                className="tp-rpg-btn tp-rpg-btn--gold px-5 py-2.5 text-xs flex items-center gap-1.5 cursor-pointer"
               >
-                <RotateCcw className="w-4 h-4 text-amber-700" />
+                <RotateCcw className="w-4 h-4" />
                 <span>🎯 직전 단계 다시 치기 (재도전)</span>
               </button>
 
               <button
                 onClick={handleNextStage}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer hover:opacity-95"
+                className="tp-rpg-btn tp-rpg-btn--wood px-6 py-2.5 text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <span>다음 단계로 이동</span>
                 <ChevronRight className="w-4 h-4" />

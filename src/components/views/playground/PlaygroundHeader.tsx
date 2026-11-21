@@ -130,27 +130,27 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
   const isLowTime = remainingSeconds > 0 && remainingSeconds <= 60;
 
   return (
-    <div className="bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-lg border-2 border-purple-500/40 mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="pg-header-bar px-3.5 py-2.5 mb-3 flex flex-wrap items-center justify-between gap-2.5">
       {/* Left: Back & Game Title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <button
           onClick={() => {
             playgroundManager.pauseTimer();
             onBack();
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 cursor-pointer"
+          className="tp-rpg-btn tp-rpg-btn--wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>플레이그라운드 홈</span>
         </button>
 
-        <div className="h-4 w-px bg-slate-700 hidden sm:block" />
+        <div className="h-4 w-px bg-[#c69148]/50 hidden sm:block" />
 
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded-full font-black bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+          <span className="text-[11px] px-2 py-0.5 rounded font-black bg-[#fbbf24] text-[#2c1507] border border-[#3d220d]">
             PLAYGROUND
           </span>
-          <h2 className="text-sm sm:text-base font-black tracking-tight text-white font-arcade">
+          <h2 className="text-sm sm:text-base font-black tracking-tight text-[#fff8e2] font-arcade">
             {gameTitle}
           </h2>
         </div>
@@ -158,54 +158,54 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
 
       {/* Right: Time Countdown & Points recharge */}
       {isMaster || isFree ? (
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+        <div className="flex items-center gap-2 sm:gap-2.5 ml-auto flex-wrap">
           {onToggleFullView && (
             <button
               onClick={onToggleFullView}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 text-purple-200 text-xs font-black border border-purple-500/50 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
               title={isFullView ? "일반 화면으로 복원" : "전체화면 전체보기로 전환"}
             >
               {isFullView ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               <span>{isFullView ? "창 복원" : "전체보기 전환"}</span>
             </button>
           )}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border-2 border-amber-400 bg-amber-950/80 text-amber-300 font-black text-xs sm:text-sm shadow-md">
-            <Crown className="w-4 h-4 text-amber-400 animate-bounce shrink-0" />
+          <div className="pr-status-chip flex items-center gap-2 px-3 py-1.5 text-[#fde68a] font-black text-xs sm:text-sm">
+            <Crown className="w-4 h-4 text-[#fbbf24] shrink-0" />
             <span>
               {isMaster
                 ? '👑 마스터 무제한 FREE (포인트 차감 없음)'
                 : `🎉 무료 개방 중! ${new Date(freeUntil).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}까지 포인트 없이 무제한`}
             </span>
           </div>
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300">
+          <div className="hidden md:flex pr-status-chip items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#fff6dc] tabular-nums">
             <span>보유: {points.toLocaleString()} P</span>
           </div>
         </div>
       ) : isBasicPlay ? (
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+        <div className="flex items-center gap-2 sm:gap-2.5 ml-auto flex-wrap">
           {onToggleFullView && (
             <button
               onClick={onToggleFullView}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 text-purple-200 text-xs font-black border border-purple-500/50 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
               title={isFullView ? "일반 화면으로 복원" : "전체화면 전체보기로 전환"}
             >
               {isFullView ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               <span>{isFullView ? "창 복원" : "전체보기 전환"}</span>
             </button>
           )}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border-2 border-emerald-400/80 bg-emerald-950/80 text-emerald-300 font-black text-xs sm:text-sm shadow-md">
+          <div className="pr-status-chip flex items-center gap-2 px-3 py-1.5 text-[#86efac] font-black text-xs sm:text-sm">
             <span>🎮 기본 플레이 (포인트 차감 없음 · 무제한 무료)</span>
           </div>
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300">
+          <div className="hidden md:flex pr-status-chip items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#fff6dc] tabular-nums">
             <span>보유: {points.toLocaleString()} P</span>
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2.5 sm:gap-4 ml-auto">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap">
           {onToggleFullView && (
             <button
               onClick={onToggleFullView}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 text-purple-200 text-xs font-black border border-purple-500/50 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-black cursor-pointer"
               title={isFullView ? "일반 화면으로 복원" : "전체화면 전체보기로 전환"}
             >
               {isFullView ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -213,21 +213,21 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
             </button>
           )}
           {/* Real-time remaining countdown */}
-          <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border font-mono font-black text-sm sm:text-base transition-all ${
+          <div className={`pr-status-chip flex items-center gap-2 px-3 py-1.5 font-mono font-black text-sm sm:text-base tabular-nums ${
             remainingSeconds === 0
-              ? 'bg-rose-950/80 border-rose-500 text-rose-300 animate-pulse'
+              ? 'text-[#fca5a5] border-[#ef4444]'
               : isLowTime
-              ? 'bg-amber-950/80 border-amber-500 text-amber-300 animate-bounce'
-              : 'bg-purple-950/60 border-purple-500/60 text-purple-200'
+              ? 'text-[#fde047] border-[#f59e0b]'
+              : 'text-[#fff6dc]'
           }`}>
-            <Clock className={`w-4 h-4 ${isLowTime ? 'text-amber-400' : 'text-purple-400'}`} />
+            <Clock className={`w-4 h-4 ${isLowTime ? 'text-[#fbbf24]' : 'text-[#fde68a]'}`} />
             <span>
               {remainingSeconds > 0 ? playgroundManager.formatTime(remainingSeconds) : '00:00 (시간종료)'}
             </span>
 
             <button
               onClick={togglePause}
-              className="ml-1 p-1 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="ml-1 p-1 hover:bg-white/10 rounded text-[#fde68a] hover:text-white cursor-pointer"
               title={isPaused ? '타이머 재개' : '타이머 일시정지'}
             >
               {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
@@ -235,8 +235,8 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
           </div>
 
           {/* Current Point Balance */}
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-amber-300">
-            <Coins className="w-3.5 h-3.5 text-yellow-400" />
+          <div className="hidden md:flex pr-status-chip items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#fde68a] tabular-nums">
+            <Coins className="w-3.5 h-3.5 text-[#fbbf24]" />
             <span>보유: {points.toLocaleString()} P</span>
           </div>
 
@@ -245,32 +245,32 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
             <button
               onClick={() => handleAddTime(10)}
               disabled={points < 1000}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-40 text-white text-xs font-black transition-all flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--gold px-3 py-1.5 disabled:opacity-40 text-xs font-black flex items-center gap-1 cursor-pointer"
               title="1,000 포인트로 10분 충전 (새 창 연동)"
             >
               <PlusCircle className="w-3.5 h-3.5" />
               <span>+10분</span>
-              <span className="text-[10px] opacity-80">(1,000P)</span>
+              <span className="text-[10px] opacity-85">(1,000P)</span>
             </button>
 
             <button
               onClick={() => handleAddTime(20)}
               disabled={points < 2000}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white text-xs font-black transition-all flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 border border-slate-700"
+              className="tp-rpg-btn tp-rpg-btn--wood px-3 py-1.5 disabled:opacity-40 text-xs font-black flex items-center gap-1 cursor-pointer"
               title="2,000 포인트로 20분 충전"
             >
-              <PlusCircle className="w-3.5 h-3.5 text-yellow-300" />
+              <PlusCircle className="w-3.5 h-3.5 text-[#fde047]" />
               <span>+20분</span>
-              <span className="text-[10px] opacity-80">(2,000P)</span>
+              <span className="text-[10px] opacity-85">(2,000P)</span>
             </button>
 
             {/* New Window Button for Playground */}
             <button
               onClick={handleOpenNewWindow}
-              className="px-2.5 py-1.5 rounded-xl bg-purple-900/60 hover:bg-purple-800 text-purple-200 hover:text-white border border-purple-600/50 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+              className="tp-rpg-btn tp-rpg-btn--wood px-2.5 py-1.5 text-xs font-bold flex items-center gap-1 cursor-pointer"
               title="새 브라우저 창으로 열기 (시간 및 포인트 실시간 연동)"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-pink-300" />
+              <ExternalLink className="w-3.5 h-3.5 text-[#fde68a]" />
               <span className="hidden sm:inline">새 창</span>
             </button>
           </div>
@@ -279,8 +279,8 @@ export const PlaygroundHeader: React.FC<PlaygroundHeaderProps> = ({
 
       {/* Expired or Recharge Alert Message */}
       {message && (
-        <div className="w-full mt-1 px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-2 animate-fade-in">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+        <div className="w-full mt-1 px-3 py-1.5 rounded-lg bg-[#7f1d1d] border-2 border-[#f87171] text-[#fee2e2] text-xs font-bold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-[#fca5a5] shrink-0" />
           <span>{message}</span>
         </div>
       )}

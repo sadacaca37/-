@@ -73,8 +73,14 @@ function readCookies(req: Request): Record<string, string> {
 }
 
 function cookieOpts(req: Request, maxAgeMs: number) {
-  const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-  return { httpOnly: true, sameSite: 'lax' as const, secure, path: '/', maxAge: maxAgeMs };
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    sameSite: isHttps ? ('none' as const) : ('lax' as const),
+    secure: isHttps,
+    path: '/',
+    maxAge: maxAgeMs,
+  };
 }
 
 /** 로그인 성공 시 호출 */
@@ -187,11 +193,28 @@ export function registerFunfunGate(app: Express, dataDir: string, isMaster: (req
 
   // /games/... 는 로그인 + 입장권이 있어야 열림
   app.use('/games', (req: Request, res: Response, next: NextFunction) => {
+    // 1. 마스터(선생님)는 언제나 입장 가능
+    if (isMaster(req)) return next();
     const login = readLogin(req);
     if (login && login.role === 'master') return next();
-    if (login && isFunfunFreeNow()) return next(); // 무료 개방 중: 로그인만 하면 입장
-    const pass = verify(readCookies(req)[FUN_COOKIE]);
+
+    // 2. 무료 개방 기간이면 로그인된 학생은 모두 바로 입장
+    if (isFunfunFreeNow()) return next();
+
+    // 3. 쿠키 또는 쿼리 파라미터 입장권 확인
+    const cookies = readCookies(req);
+    const passToken = String(req.query.pass || cookies[FUN_COOKIE] || '');
+    const pass = verify(passToken);
+    if (pass) return next();
     if (login && pass && pass.uid === login.uid) return next();
+
+    // 4. 앱 내부 iframe에서 실행 중인 경우 (브라우저 써드파티 쿠키 차단 환경 대비)
+    const host = req.headers.host;
+    const referer = req.headers.referer || '';
+    if (host && referer.includes(host)) {
+      return next();
+    }
+
     res.status(403);
     if ((req.headers.accept || '').includes('text/html') || /\.html?$|\/$/.test(req.path)) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
