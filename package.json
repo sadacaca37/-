@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "build:moa": "vite build --base /moa/taja/ --outDir dist-moa"
+    "build:moa": "vite build --base ./ --outDir dist-moa"
   },
   "dependencies": {
     "@fontsource/jua": "^5.3.0",
