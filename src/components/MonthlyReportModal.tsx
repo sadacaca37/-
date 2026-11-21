@@ -93,7 +93,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
       )
       .join('\n');
 
-    return `[타자팡팡] 💌 ${reportData.studentName} 학생 ${reportData.year}년 ${reportData.halfTerm}(${reportData.startMonth}월~${reportData.endMonth}월) 타자 성적표
+    return `[타자팡] 💌 ${reportData.studentName} 학생 ${reportData.year}년 ${reportData.halfTerm}(${reportData.startMonth}월~${reportData.endMonth}월) 타자 성적표
 
 📈 월별 타자 기록:
 ${breakdownLines}

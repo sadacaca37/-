@@ -1,6 +1,6 @@
 /**
- * 선생님: 모아팡팡 반 학생 명단 (타자팡팡 기록 보기 · 백업)
- *  - 학생 추가·이름 고치기는 모아팡팡 선생님 화면에서 (여기서는 보기만)
+ * 선생님: 모아팡 반 학생 명단 (타자팡 기록 보기 · 백업)
+ *  - 학생 추가·이름 고치기는 모아팡 선생님 화면에서 (여기서는 보기만)
  */
 import React, { useMemo, useState } from 'react';
 import { UserSession } from '../types';
@@ -41,9 +41,9 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
     <div className="flex-1 flex flex-col space-y-3 overflow-hidden" data-testid="moa-roster">
       <div className="px-3.5 py-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-xs font-bold shrink-0 space-y-2">
         <div>
-          🏫 학생은 모아팡팡 반 학생 그대로예요. 학생이 모아팡팡 첫 화면에서 <b>방번호 + 이름</b>으로 들어오면 여기에 저절로 생겨요. 반 만들기·이름 고치기는{' '}
+          🏫 학생은 모아팡 반 학생 그대로예요. 학생이 모아팡 첫 화면에서 <b>방번호 + 이름</b>으로 들어오면 여기에 저절로 생겨요. 반 만들기·이름 고치기는{' '}
           <a href="../teacher.html" className="underline text-sky-700">
-            모아팡팡 선생님 화면
+            모아팡 선생님 화면
           </a>
           에서 해 주세요.
         </div>
@@ -89,7 +89,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 찾기" className="shrink-0 w-full max-w-xs px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold" />
 
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-        {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">아직 학생이 없어요. 학생이 모아팡팡에 들어오면 생겨요.</div>}
+        {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">아직 학생이 없어요. 학생이 모아팡에 들어오면 생겨요.</div>}
         {groups.map(([cls, list]) => (
           <section key={cls}>
             <h3 className="text-sm font-black text-slate-800 mb-1.5">
@@ -128,7 +128,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                           type="button"
                           className={`${btn} bg-rose-50 text-rose-700 hover:bg-rose-100`}
                           onClick={async () => {
-                            if (!(await askConfirm(`'${u.name}' 학생의 타자팡팡 기록(포인트·연습 기록)을 지울까요?\n모아팡팡 이름·캐릭터는 그대로예요. 되돌릴 수 없어요.`, '지우기'))) return;
+                            if (!(await askConfirm(`'${u.name}' 학생의 타자팡 기록(포인트·연습 기록)을 지울까요?\n모아팡 이름·캐릭터는 그대로예요. 되돌릴 수 없어요.`, '지우기'))) return;
                             say((await typangApi.deleteUser(u.id)) ? `🗑️ ${u.name} 학생의 타자 기록을 지웠어요.` : '❌ 지우지 못했어요.');
                             void onRefresh();
                           }}

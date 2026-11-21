@@ -1,6 +1,6 @@
 /**
  * 펀펀 플레이 무료 개방 (선생님이 마스터 관리실에서 기간을 정함)
- *  - 모아팡팡 Firebase 'config/taja' 에 저장 (학생은 읽기만)
+ *  - 모아팡 Firebase 'config/taja' 에 저장 (학생은 읽기만)
  */
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { fs, isTeacherUser, ensureUser, errText } from './moaFirebase';

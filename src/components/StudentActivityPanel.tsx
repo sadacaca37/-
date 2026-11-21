@@ -172,7 +172,7 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
     const blob = new Blob(['﻿' + [head.join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `타자팡팡_학습현황_${ym.y}년${ym.m}월_${todayKey}.csv`;
+    a.download = `타자팡_학습현황_${ym.y}년${ym.m}월_${todayKey}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();

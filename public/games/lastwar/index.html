@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>다리 돌파 작전</title><style>
 *{box-sizing:border-box}body{margin:0;background:#101f29;color:#fff;font-family:Arial,'Malgun Gothic',sans-serif;overflow:hidden}main{height:100dvh;display:flex;align-items:center;justify-content:center;gap:65px;background:radial-gradient(ellipse at 60% 35%,#345365,#101f29 65%)}aside{width:245px}aside .tag{color:#74b4cb;font-size:10px;letter-spacing:4px}aside h1{font-size:51px;line-height:.97;letter-spacing:-2px;margin:23px 0}aside h1 span{color:#70d3f7}aside p{color:#adc1ca;font-size:13px;line-height:1.8}aside .rule{height:1px;background:#ffffff21;margin:27px 0}aside small{font-size:10px;color:#708e9d;line-height:1.8}.instruction{display:flex;gap:12px;align-items:center;margin:16px 0;color:#c3d4dc;font-size:12px}.key{border:1px solid #ffffff30;border-radius:6px;padding:7px;color:#fff;font-weight:700}#viewport{height:100dvh;aspect-ratio:9/16;position:relative;max-width:100vw;overflow:hidden;box-shadow:0 0 70px #0005;background:#398fb0}canvas{display:block;width:100%;height:100%;touch-action:none}header{position:absolute;inset:0 0 auto;padding:22px 22px 35px;background:linear-gradient(#142b3dc9,transparent);pointer-events:none}.top{display:flex;justify-content:space-between;align-items:center}.eyebrow{font-size:9px;letter-spacing:2px;color:#c4e2ed}.top strong{font-size:19px;letter-spacing:1px}.live{font-size:9px;letter-spacing:1px;color:#9deaff}.live:before{content:'';display:inline-block;width:6px;height:6px;background:#6bf1b8;border-radius:50%;margin-right:6px}.progress{height:4px;background:#10334355;border-radius:5px;margin:13px 0}.progress i{display:block;height:100%;width:0;background:#a5ebff;border-radius:5px}.stats{display:flex;gap:7px}.stat{background:#123149c4;border:1px solid #ccefff33;backdrop-filter:blur(6px);padding:8px 12px;border-radius:9px;min-width:67px}.stat span{display:block;font-size:8px;letter-spacing:1px;color:#aac6d4;margin-bottom:3px}.stat b{font-size:21px}.stat.weapon{margin-left:auto}.stat.weapon b{color:#ffdf88;font-size:18px}#bossHud{margin-top:12px;font-size:9px;color:#fff;letter-spacing:2px}#bossHud .progress{margin:6px 0;height:7px}#bossFill{background:#ff6c58;width:100%}#toast{position:absolute;top:25%;left:0;right:0;text-align:center;pointer-events:none;font-weight:bold;font-size:15px;text-shadow:0 2px 8px #003a;transition:opacity .3s}footer{pointer-events:none;position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:16px 18px 22px;background:linear-gradient(transparent,#0a233aac)}footer small{font-size:10px;color:#e4f3fc;text-shadow:0 1px 4px #000}button{font:inherit;cursor:pointer;color:#fff;background:#183b52cd;border:1px solid #d2f0ff44;border-radius:9px;padding:10px 13px;font-size:11px}button:hover{filter:brightness(1.18)}button:focus-visible{outline:3px solid #fff}#pause{font-size:16px;min-width:39px;padding:7px 10px}.actions{pointer-events:auto;display:flex;gap:7px}#menu{position:absolute;bottom:85px;left:22px;right:22px;padding:22px;background:linear-gradient(135deg,#132d40f2,#14364be8);border:1px solid #b1e5ff40;border-radius:18px;box-shadow:0 15px 45px #0018;backdrop-filter:blur(10px)}#menu h2{font-size:27px;margin:7px 0 9px;letter-spacing:-1px}#menu p{font-size:12px;color:#d1e5ef;line-height:1.7;margin:0 0 16px}#start{width:100%;background:#8ce0fa;border:0;color:#0b3347;font-size:15px;font-weight:900;padding:14px;border-radius:9px}#pauseScreen{position:absolute;inset:0;background:#102535aa;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;text-align:center}#pauseScreen h2{font-size:30px}.pop{animation:pop .2s}@keyframes pop{50%{transform:scale(1.23);color:#9ef6ff}}[hidden]{display:none!important}#error{position:absolute;inset:20%;padding:20px;background:#17364a;border-radius:20px;z-index:10;font-size:14px;line-height:1.7}@media(max-width:950px){aside{display:none}main{gap:0}}@media(min-width:951px){#viewport{height:calc(100dvh - 36px);border-radius:20px;border:1px solid #ffffff20}}@media(max-height:650px){#menu{bottom:70px;padding:15px}#menu h2{font-size:22px}header{padding:14px}footer{padding:12px}}
-.stageChoices{display:flex;gap:5px;margin:10px 0 14px}.stageChoices button{padding:9px 4px;flex:1;font-size:10px;background:#234459}.stageChoices button[aria-pressed="true"]{background:var(--accent,#8ce0fa);color:#122638}.stageChoices button:disabled{opacity:.5}#mapCaption{font-size:11px;color:var(--accent,#8ce0fa);margin-top:6px}#threat{font-size:10px;margin-top:9px;color:#ffdda3}#menu{bottom:65px}#menu h2{font-size:22px;margin:6px 0}#menu p{font-size:11px;margin-bottom:12px}header{padding-top:16px}#start{background:var(--accent,#8ce0fa)}@media(max-height:720px){#menu{padding:15px}#menu h2{font-size:19px}.stageChoices{margin:7px 0}.stageChoices button{padding:7px 3px}}</style></head><body><main><aside><div class="tag">TACTICAL RUNNER / 01</div><h1>BRIDGE<br><span>ASSAULT.</span></h1><p>파도를 가로지르는 마지막 다리.<br>부대를 모으고, 전선을 돌파하세요.</p><div class="rule"></div><div class="instruction"><span class="key">← →</span>좌우 이동</div><div class="instruction"><span class="key">+1</span>오른쪽 패널에서 병력 증강</div><div class="instruction"><span class="key">↑</span>타이어 장벽 파괴로 화력 강화</div><div class="instruction"><span class="key">SPACE</span>일시정지</div><div class="rule"></div><small>CAMPAIGN / 3.4<br>마우스 드래그 · 터치 지원<br>사격과 전진은 자동으로 진행됩니다.</small></aside><section id="viewport" aria-label="3D 부대 슈팅 게임"><header><div class="top"><div><div class="eyebrow"><span id="operationLabel">OCEAN BRIDGE</span></div><strong id="phase">STAGE 1 / 5</strong></div><div class="live">CAMPAIGN / 3.4</div></div><div class="progress"><i id="fill"></i></div><div class="stats"><div class="stat"><span>SQUAD</span><b id="troops">12</b></div><div class="stat"><span>ELIMINATED</span><b id="kills">0</b></div><div class="stat weapon"><span>FIREPOWER</span><b id="level">LV. 1</b></div></div><div id="threat">위협도 1</div><div id="bossHud" hidden><span id="bossText">보스</span><div class="progress"><i id="bossFill"></i></div></div></header><div id="toast"></div><div id="damageFlash" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 70px #ff593a;opacity:0"></div><footer><small>드래그하여 부대를 이동하세요</small><div class="actions"><button id="sound">소리 OFF</button><button id="pause" aria-label="일시정지">Ⅱ</button></div></footer><div id="menu"><div class="eyebrow">5 MAPS · 6 BOSSES · LEVEL UP</div><div id="mapCaption">해상 교량</div><div class="stageChoices" aria-label="스테이지 선택"><button data-stage="0" aria-pressed="true" aria-label="1 스테이지 해상">1 해상</button><button data-stage="1" aria-pressed="false" aria-label="2 스테이지 사막">2 사막</button><button data-stage="2" aria-pressed="false" aria-label="3 스테이지 설원">3 설원</button><button data-stage="3" aria-pressed="false" aria-label="4 스테이지 도시">4 도시</button><button data-stage="4" aria-pressed="false" aria-label="5 스테이지 용암">5 용암</button></div><h2 id="menuTitle">전진할 준비가 되었나요?</h2><p id="menuDesc">몰려오는 적을 막고 보스 2마리를 처치하세요.<br>클리어하면 다음 맵으로 진격합니다.</p><button id="start">작전 시작 →</button></div><div id="pauseScreen" hidden><div><div class="eyebrow">OPERATION PAUSED</div><h2>잠시 숨을 고르세요</h2><button id="resume">계속하기 →</button> <button id="retry">다시 시작</button></div></div><div id="error" hidden></div></section></main><script>window.addEventListener('error',function(e){let a=document.querySelector('#error');a.hidden=false;a.textContent='3D 화면을 열지 못했습니다. Chrome 또는 Edge에서 하드웨어 가속을 켠 뒤 다시 열어 주세요. '+e.message;});</script><script>console.warn('Scripts "build/three.js" and "build/three.min.js" are deprecated with r150+, and will be removed with r160. Please use ES Modules or alternatives: https://threejs.org/docs/index.html#manual/en/introduction/Installation'),
+.stageChoices{display:flex;gap:5px;margin:10px 0 14px}.stageChoices button{padding:9px 4px;flex:1;font-size:10px;background:#234459}.stageChoices button[aria-pressed="true"]{background:var(--accent,#8ce0fa);color:#122638}.stageChoices button:disabled{opacity:.5}#mapCaption{font-size:11px;color:var(--accent,#8ce0fa);margin-top:6px}#threat{font-size:10px;margin-top:9px;color:#ffdda3}#menu{bottom:65px}#menu h2{font-size:22px;margin:6px 0}#menu p{font-size:11px;margin-bottom:12px}header{padding-top:16px}#start{background:var(--accent,#8ce0fa)}@media(max-height:720px){#menu{padding:15px}#menu h2{font-size:19px}.stageChoices{margin:7px 0}.stageChoices button{padding:7px 3px}}</style></head><body><main><aside><div class="tag">TACTICAL RUNNER / 01</div><h1>BRIDGE<br><span>ASSAULT.</span></h1><p>파도를 가로지르는 마지막 다리.<br>부대를 모으고, 전선을 돌파하세요.</p><div class="rule"></div><div class="instruction"><span class="key">← →</span>좌우 이동</div><div class="instruction"><span class="key">+1</span>오른쪽 패널에서 병력 증강</div><div class="instruction"><span class="key">↑</span>타이어 장벽 파괴로 화력 강화</div><div class="instruction"><span class="key">SPACE</span>일시정지</div><div class="rule"></div><small>CAMPAIGN / 3.4<br>마우스 드래그 · 터치 지원<br>사격과 전진은 자동으로 진행됩니다.</small></aside><section id="viewport" aria-label="3D 부대 슈팅 게임"><header><div class="top"><div><div class="eyebrow"><span id="operationLabel">OCEAN BRIDGE</span></div><strong id="phase">STAGE 1 / 5</strong></div><div class="live">CAMPAIGN / 3.4</div></div><div class="progress"><i id="fill"></i></div><div class="stats"><div class="stat"><span>SQUAD</span><b id="troops">12</b></div><div class="stat"><span>ELIMINATED</span><b id="kills">0</b></div><div class="stat weapon"><span>FIREPOWER</span><b id="level">LV. 1</b></div></div><div id="threat">위협도 1</div><div id="bossHud" hidden><span id="bossText">보스</span><div class="progress"><i id="bossFill"></i></div></div></header><div id="toast"></div><div id="damageFlash" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 70px #ff593a;opacity:0"></div><footer><small>드래그하여 부대를 이동하세요</small><div class="actions"><button id="sound">소리 OFF</button><button id="pause" aria-label="일시정지">Ⅱ</button></div></footer><div id="menu"><div class="eyebrow">5 MAPS · 6 BOSSES · LEVEL UP</div><div id="mapCaption">해상 교량</div><div class="stageChoices" aria-label="스테이지 선택"><button data-stage="0" aria-pressed="true" aria-label="1 스테이지 해상">1 해상</button><button data-stage="1" aria-pressed="false" aria-label="2 스테이지 사막">2 사막</button><button data-stage="2" aria-pressed="false" aria-label="3 스테이지 설원">3 설원</button><button data-stage="3" aria-pressed="false" aria-label="4 스테이지 도시">4 도시</button><button data-stage="4" aria-pressed="false" aria-label="5 스테이지 용암">5 용암</button></div><h2 id="menuTitle">전진할 준비가 되었나요?</h2><p id="menuDesc">몰려오는 적을 막고 보스 2마리를 처치하세요.<br>클리어하면 다음 맵으로 진격합니다.</p><button id="start">작전 시작 →</button></div><div id="pauseScreen" hidden><div><div class="eyebrow">OPERATION PAUSED</div><h2>잠시 숨을 고르세요</h2><button id="resume">계속하기 →</button> <button id="retry">다시 시작</button></div></div><div id="error" hidden></div></section></main><script src="../_duo/duo.js"></script><script>window.addEventListener('error',function(e){let a=document.querySelector('#error');a.hidden=false;a.textContent='3D 화면을 열지 못했습니다. Chrome 또는 Edge에서 하드웨어 가속을 켠 뒤 다시 열어 주세요. '+e.message;});</script><script>console.warn('Scripts "build/three.js" and "build/three.min.js" are deprecated with r150+, and will be removed with r160. Please use ES Modules or alternatives: https://threejs.org/docs/index.html#manual/en/introduction/Installation'),
 /**
  * @license
  * Copyright 2010-2023 Three.js Authors
@@ -353,4 +353,94 @@ setInterval(scheduleMusic,25);
 
 function resize(){let r=host.getBoundingClientRect();renderer.setSize(r.width,r.height);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
 let fpsWindow=0,fpsFrames=0,displayFPS=0;function tick(ms){fpsWindow+=(ms-previous)/1000;fpsFrames++;if(fpsWindow>=1){displayFPS=Math.round(fpsFrames/fpsWindow);fpsWindow=0;fpsFrames=0}let dt=Math.min(.05,(ms-previous)/1000||.016);previous=ms;clock+=dt;if(battle.mode==='playing'&&!paused){let direction=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);battle.setTarget(battle.target+direction*dt*7);accum+=dt;while(accum>=1/60){battle.update(1/60);accum-=1/60}processEvents()}render(dt);requestAnimationFrame(tick)}requestAnimationFrame(tick);
+</script><script>// 2인 대결: 두 사람이 각자 컴퓨터에서 방 번호로 들어와 같은 전장을 동시에 (공용 ../_duo/duo.js)
+// build.js가 게임 스크립트 뒤에 붙임 → battle, scene, showStage, PLAYER_Z 같은 게임 변수를 그대로 씀
+// 한 판 = 한 스테이지. 스테이지를 확보하면 완주, 병력이 0이 되면 탈락. 처치 수가 점수.
+(function () {
+  if (!window.Duo) return;
+  var startBtn = $('#start'), retryBtn = $('#retry');
+  var origStart = startBtn.onclick, origRetry = retryBtn.onclick;
+  var nextIndex = function () {
+    return battle.mode === 'stage_clear' ? battle.stageIndex + 1 : battle.mode === 'won' ? 0 : battle.stageIndex;
+  };
+  startBtn.onclick = function () {
+    if (Duo.requestStart({ stage: nextIndex() })) return;
+    origStart.call(startBtn);
+  };
+  retryBtn.onclick = function () {
+    if (Duo.requestStart({ stage: battle.stageIndex })) return;
+    origRetry.call(retryBtn);
+  };
+  var kills = function () {
+    return (battle.totalKills || 0) + (battle.kills || 0);
+  };
+  Duo.init({
+    game: 'lastwar',
+    title: '다리 돌파 작전',
+    mode: 'score',
+    scoreLabel: '명 처치',
+    hudStyle: 'top:auto;bottom:8px',
+    onStart: function (s) {
+      var idx = Math.max(0, Math.min(4, (s && s.stage) | 0));
+      if (!(battle.mode === 'stage_clear' && idx === battle.stageIndex + 1)) showStage(idx);
+      origStart.call(startBtn);
+    },
+  });
+
+  // 친구 부대 표시: 파란 반투명 원 + 이름표 (내 길과 같은 자리에 겹쳐 보임)
+  var ghost = new THREE.Group();
+  var ring = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.12, 32), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.35, depthWrite: false }));
+  ghost.add(ring);
+  var canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 96;
+  var tex = new THREE.CanvasTexture(canvas);
+  var tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  tag.scale.set(4.2, 0.8, 1);
+  tag.position.y = 2.2;
+  tag.renderOrder = 999;
+  ghost.add(tag);
+  ghost.visible = false;
+  scene.add(ghost);
+  var lastText = '';
+  function setTag(text) {
+    if (text === lastText) return;
+    lastText = text;
+    var x = canvas.getContext('2d');
+    x.clearRect(0, 0, 512, 96);
+    x.font = 'bold 44px system-ui,"Malgun Gothic",sans-serif';
+    var w = Math.min(500, x.measureText(text).width + 36);
+    x.fillStyle = 'rgba(8,145,178,.92)';
+    x.fillRect(256 - w / 2, 10, w, 76);
+    x.fillStyle = '#fff';
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillText(text, 256, 50);
+    tex.needsUpdate = true;
+  }
+
+  var lastMode = '';
+  (function loop() {
+    requestAnimationFrame(loop);
+    var m = battle.mode;
+    if (Duo.playing && m !== lastMode) {
+      var k = kills();
+      if (m === 'stage_clear' || m === 'won') Duo.finish({ cleared: true, score: k, label: k + '명 처치 · 병력 ' + battle.n });
+      else if (m === 'lost') Duo.finish({ cleared: false, score: k, label: k + '명 처치' });
+    }
+    lastMode = m;
+    if (Duo.playing && m === 'playing') {
+      var kk = kills();
+      Duo.send({ x: battle.x, n: battle.n, stage: battle.stageIndex, score: kk, label: kk + '명 · 병력 ' + battle.n });
+    }
+    var ps = Duo.inRoom ? Duo.peerState() : null;
+    if (ps && ps.stage === battle.stageIndex && m === 'playing') {
+      ghost.visible = true;
+      ghost.position.set(ps.x, 0.06, PLAYER_Z - 0.6);
+      var r = Math.max(0.8, Math.min(3.2, Math.sqrt(ps.n || 1) * 0.45));
+      ring.scale.set(r, 1, r * 0.8);
+      setTag('👥 ' + Duo.peerName + ' · 병력 ' + (ps.n | 0));
+    } else ghost.visible = false;
+  })();
+})();
 </script></body></html>

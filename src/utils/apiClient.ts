@@ -1,7 +1,7 @@
 /**
- * 타자팡팡 자료 창구 (모아팡팡 Firebase)
+ * 타자팡 자료 창구 (모아팡 Firebase)
  *  - 예전에는 AI 스튜디오 서버의 파일에 저장해서, 서버가 잠들었다 깨면 기록이 사라졌음
- *  - 이제는 모아팡팡과 같은 Firebase에 저장: 학생 = 모아팡팡 반 + 이름, 선생님 = 모아팡팡 선생님 계정
+ *  - 이제는 모아팡과 같은 Firebase에 저장: 학생 = 모아팡 반 + 이름, 선생님 = 모아팡 선생님 계정
  */
 import { collection, collectionGroup, deleteField, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { get, ref, set } from 'firebase/database';
@@ -26,7 +26,7 @@ export interface MembersStatus {
 
 const USERS_CACHE_KEY = 'typang_users_db';
 const BOARD_KEY = 'typang_leaderboard';
-const MOA_ONLY = '학생은 모아팡팡 첫 화면에서 방번호와 이름으로 들어오면 저절로 등록돼요. 따로 등록할 필요가 없어요.';
+const MOA_ONLY = '학생은 모아팡 첫 화면에서 방번호와 이름으로 들어오면 저절로 등록돼요. 따로 등록할 필요가 없어요.';
 
 /* ---------------- 명예의 전당 정리 (예전 서버와 같은 규칙) ---------------- */
 const LB_MAX_CPM = 1200;
@@ -105,7 +105,7 @@ class TypangApiClient {
     return raw;
   }
 
-  /* ---------------- 선생님 = 모아팡팡 선생님 계정으로 로그인한 상태 ---------------- */
+  /* ---------------- 선생님 = 모아팡 선생님 계정으로 로그인한 상태 ---------------- */
   public getMasterKey(): string {
     return isTeacherUser() ? 'moa-teacher' : '';
   }
@@ -123,7 +123,7 @@ class TypangApiClient {
     }
   }
 
-  /* ---------------- 학생 명단 = 모아팡팡 반의 학생들 ---------------- */
+  /* ---------------- 학생 명단 = 모아팡 반의 학생들 ---------------- */
   public async getUsers(): Promise<UserSession[]> {
     if (!isTeacherUser()) return [];
     try {
@@ -167,7 +167,7 @@ class TypangApiClient {
   }
 
   public async login(_identifier: string, _password?: string): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
-    return { success: false, message: '모아팡팡 방번호와 이름으로 들어와 주세요.' };
+    return { success: false, message: '모아팡 방번호와 이름으로 들어와 주세요.' };
   }
 
   public async registerStudent(_p: { name: string; parentPhone: string; phone?: string; grade?: number; avatar?: string; avatarBg?: string }): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
@@ -178,7 +178,7 @@ class TypangApiClient {
     return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: MOA_ONLY };
   }
 
-  /** 학년·아바타·최고 기록 같은 타자팡팡 정보만 저장 (이름은 모아팡팡 것을 그대로 씀) */
+  /** 학년·아바타·최고 기록 같은 타자팡 정보만 저장 (이름은 모아팡 것을 그대로 씀) */
   public async updateUser(id: string, updates: Partial<UserSession>): Promise<boolean> {
     const p = parseUserId(id);
     if (!p) return id === 'master_admin';
@@ -199,7 +199,7 @@ class TypangApiClient {
     }
   }
 
-  /** 선생님: 이 학생의 타자팡팡 기록만 지움 (모아팡팡 이름·캐릭터는 그대로) */
+  /** 선생님: 이 학생의 타자팡 기록만 지움 (모아팡 이름·캐릭터는 그대로) */
   public async deleteUser(id: string): Promise<boolean> {
     const p = parseUserId(id);
     if (!p || !isTeacherUser()) return false;
@@ -250,11 +250,11 @@ class TypangApiClient {
     return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
   }
 
-  /** 명단 파일 (모아팡팡 반 학생 목록) */
+  /** 명단 파일 (모아팡 반 학생 목록) */
   public async downloadMembersFile(): Promise<boolean> {
     if (!isTeacherUser()) return false;
     const users = await this.getUsers();
-    this.download(`타자팡팡_명단_${this.stamp()}.json`, { version: 2, savedAt: Date.now(), members: users });
+    this.download(`타자팡_명단_${this.stamp()}.json`, { version: 2, savedAt: Date.now(), members: users });
     return true;
   }
 
@@ -278,7 +278,7 @@ class TypangApiClient {
       const current = kstMonth();
       const leaderboardArchive: Record<string, any[]> = {};
       for (const m of months) if (m !== current) leaderboardArchive[m] = flattenMonth(lbAll[m]);
-      this.download(`타자팡팡_백업_${this.stamp()}.json`, {
+      this.download(`타자팡_백업_${this.stamp()}.json`, {
         version: 2,
         savedAt: Date.now(),
         members: { members: await this.getUsers() },
@@ -337,7 +337,7 @@ class TypangApiClient {
   }
 
   public async setMasterPassword(_password: string): Promise<{ success: boolean; message?: string }> {
-    return { success: false, message: "선생님 비밀번호는 모아팡팡 선생님 계정 비밀번호예요. 바꾸려면 모아팡팡 선생님 로그인 화면의 '비밀번호를 잊었어요'를 눌러 주세요." };
+    return { success: false, message: "선생님 비밀번호는 모아팡 선생님 계정 비밀번호예요. 바꾸려면 모아팡 선생님 로그인 화면의 '비밀번호를 잊었어요'를 눌러 주세요." };
   }
 
   /* ---------------- 명예의 전당 (Realtime Database: taja/lb/달/학생) ---------------- */

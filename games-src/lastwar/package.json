@@ -1,0 +1,1 @@
+{"name":"bridge-assault","version":"3.4.0","private":true,"scripts":{"build":"node work/build.js","start":"node work/serve-game.js","test":"node work/check-hard-mode.js && node work/test-campaign.js"}}

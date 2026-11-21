@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@layer base {
+  .font-arcade {
+    font-family: 'Press Start 2P', monospace;
+  }
+  .font-retro {
+    font-family: 'Silkscreen', cursive;
+  }
+  .font-tech {
+    font-family: 'Chakra Petch', sans-serif;
+  }
+}
+
+/* Tactical Radar Grid & CRT Overlay Effect */
+.crt-overlay {
+  position: relative;
+}
+
+.crt-overlay::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(15, 23, 42, 0) 50%, rgba(2, 6, 23, 0.35) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.02));
+  z-index: 20;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+.crt-overlay::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: radial-gradient(circle at center, transparent 70%, rgba(2, 6, 23, 0.7) 100%);
+  z-index: 21;
+  pointer-events: none;
+}
+
+/* Pixel art rendering */
+canvas.pixelated {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@keyframes arcade-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-arcade-blink {
+  animation: arcade-blink 0.8s infinite;
+}
+
+@keyframes warning-flash {
+  0%, 100% { background-color: rgba(220, 38, 38, 0.3); }
+  50% { background-color: rgba(220, 38, 38, 0.05); }
+}
+
+.animate-warning-flash {
+  animation: warning-flash 0.5s infinite;
+}
+
+/* Tactical Grid pattern */
+.tactical-grid {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+

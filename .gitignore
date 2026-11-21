@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 dist-moa/
+
+# 게임 원본 빌드 중간 결과
+games-src/lastwar/outputs/bridge-assault-3d.html

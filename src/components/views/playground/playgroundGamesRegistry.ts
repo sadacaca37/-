@@ -13,6 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
+import { PogeunForestGame, AshenHollowGame, MoaMiniGames } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -83,7 +84,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '다리 돌파 작전',
     category: '펀펀',
     icon: '⚔️',
-    description: '3D 다리 돌파 액션 · 문을 지나며 부대를 늘리는 전략 아케이드',
+    description: '3D 다리 돌파 액션 · 문을 지나며 부대를 늘리는 전략 아케이드 · 👥 2인 대결',
     component: LastWarGameWrapper,
   },
   {
@@ -91,7 +92,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '숲속 사다리 모험',
     category: '펀펀',
     icon: '🦝',
-    description: '사다리를 오르내리며 과일을 모으는 옛날 오락실 느낌 게임',
+    description: '사다리를 오르내리며 과일을 모으는 옛날 오락실 느낌 게임 · 👥 2인 대결',
     component: PonpokoGameWrapper,
   },
   {
@@ -99,7 +100,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '방울 용 대작전',
     category: '펀펀',
     icon: '🫧',
-    description: '방울을 쏴서 몬스터를 가두고 터뜨리는 아케이드 게임',
+    description: '방울을 쏴서 몬스터를 가두고 터뜨리는 아케이드 게임 · 👥 2인 대결',
     component: BubbleBobbleGameWrapper,
   },
   {
@@ -107,7 +108,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '버섯 숲 점프 모험',
     category: '펀펀',
     icon: '🍄',
-    description: '달리고 점프해서 길을 건너는 옆으로 가는 액션 게임',
+    description: '달리고 점프해서 길을 건너는 옆으로 가는 액션 게임 · 👥 2인 대결',
     component: SuperMarioGameWrapper,
   },
   {
@@ -115,7 +116,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '하늘 비행 대작전',
     category: '펀펀',
     icon: '✈️',
-    description: '전투기 7종 · 스테이지 10개 · 보스전이 있는 비행 슈팅',
+    description: '전투기 7종 · 스테이지 10개 · 보스전이 있는 비행 슈팅 · 👥 2인 대결',
     component: AirplaneShootingGame,
   },
   {
@@ -123,7 +124,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '팡팡 카트 레이싱',
     category: '펀펀',
     icon: '🏎️',
-    description: '캐릭터·카트·트랙(사막·네온 시티·숲·좀비마을)을 골라 달리는 3D 드리프트 레이싱 · 별·부스터·점프·비행',
+    description: '캐릭터·카트·트랙(사막·네온 시티·숲·좀비마을)을 골라 달리는 3D 드리프트 레이싱 · 별·부스터·점프·비행 · 👥 2인 대결',
     component: PocketKartOriginal,
   },
   {
@@ -131,7 +132,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     title: '과자 왕국 런',
     category: '펀펀',
     icon: '🍪',
-    description: '쿠키가 달리는 러너 게임 · 쿠키 4종 · 스테이지 4개 · 점프·2단 점프·슬라이드로 젤리와 코인 모으기',
+    description: '쿠키가 달리는 러너 게임 · 쿠키 4종 · 스테이지 4개 · 점프·2단 점프·슬라이드로 젤리와 코인 모으기 · 👥 2인 대결',
     component: CookieKingdomRun,
   },
   {
@@ -141,6 +142,30 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '⛏️',
     description: '블록을 캐고 쌓는 3D 샌드박스 · 조합대 · 동물·몬스터',
     component: BlockCraftGame,
+  },
+  {
+    id: 'app-pogeunforest',
+    title: '포근숲 이야기',
+    category: '펀펀',
+    icon: '🌳',
+    description: '숲속 마을을 돌아다니며 재료를 모으고 요리·낚시를 하는 힐링 오픈월드 RPG',
+    component: PogeunForestGame,
+  },
+  {
+    id: 'app-ashenhollow',
+    title: 'Ashen Hollow',
+    category: '펀펀',
+    icon: '🕯️',
+    description: '어둠의 지하 던전을 내려가며 싸우는 쿼터뷰 액션 RPG · 화염구·치유 물약',
+    component: AshenHollowGame,
+  },
+  {
+    id: 'app-moa-minigames',
+    title: '모아팡 미니 게임',
+    category: '펀펀',
+    icon: '🎲',
+    description: '모아팡 미니 게임 모음 · OX 퀴즈·방탈출·운동장 놀이',
+    component: MoaMiniGames,
   },
 ];
 

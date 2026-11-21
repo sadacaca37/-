@@ -325,7 +325,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
           <span className="qm-cap qm-cap--tr" />
           <span className="qm-cap qm-cap--bl" />
           <span className="qm-cap qm-cap--br" />
-          타자팡팡 퀘스트 맵!
+          타자팡 퀘스트 맵!
         </div>
         <div className="qm-sub">★ 5단계 퀘스트 학습 로드맵 ★</div>
 
@@ -452,8 +452,8 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
           <div className="relative z-10 px-4 sm:px-10 pt-8 pb-10">
             <h2 className="tp-score-title">
               <span className="tp-chev hidden sm:inline">»</span>
-              <span className="tp-logo-a" data-text="타자팡팡">
-                타자팡팡
+              <span className="tp-logo-a" data-text="타자팡">
+                타자팡
               </span>{' '}
               <span className="tp-logo-b" data-text="기록 성적표">
                 기록 성적표

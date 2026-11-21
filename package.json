@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "build:moa": "vite build --base ./ --outDir dist-moa"
+    "build:moa": "vite build --base ./ --outDir dist-moa",
+    "build:games": "node scripts/build-games.mjs"
   },
   "dependencies": {
     "@fontsource/jua": "^5.3.0",

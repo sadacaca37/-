@@ -12,7 +12,7 @@ export class AuthService {
     this.loadFromStorage();
   }
 
-  /** 타자팡팡에 로그인한 학생이면 그 이름으로 자동 로그인 (같은 사이트라 localStorage 공유) */
+  /** 타자팡에 로그인한 학생이면 그 이름으로 자동 로그인 (같은 사이트라 localStorage 공유) */
   private loadFromStorage() {
     try {
       const raw = localStorage.getItem("typang_current_user");

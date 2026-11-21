@@ -194,7 +194,7 @@ export default function App() {
   // Initialize DB and sessions
   useEffect(() => {
     try {
-      // 1. 학생 명단: 모아팡팡 반 학생들 (선생님만 받아 옴)
+      // 1. 학생 명단: 모아팡 반 학생들 (선생님만 받아 옴)
       setUsersDb(userPersistenceManager.getLocalUsers());
       const isPopup = new URLSearchParams(window.location.search).get('popup') === 'true';
 
@@ -214,7 +214,7 @@ export default function App() {
         setIsAuthOpen(true);
       });
 
-      // 2. 지금 사용자: 모아팡팡에서 들어온 학생 / 모아팡팡 선생님 계정이면 저절로 로그인
+      // 2. 지금 사용자: 모아팡에서 들어온 학생 / 모아팡 선생님 계정이면 저절로 로그인
       const startSession = (u: UserSession) => {
         setCurrentUser(u);
         localStorage.setItem('typang_current_user', JSON.stringify(u));
@@ -244,7 +244,7 @@ export default function App() {
         const noAuto = sessionStorage.getItem('taja_no_auto') === '1';
         if (savedUser && savedUser.role !== 'master') {
           const p = parseUserId(savedUser.id);
-          // 같은 컴퓨터에서 모아팡팡에 다른 이름으로 들어왔으면 그 학생으로 바꿈
+          // 같은 컴퓨터에서 모아팡에 다른 이름으로 들어왔으면 그 학생으로 바꿈
           if (moa && p && (moa.cid !== p.cid || moa.key !== p.key) && !noAuto) startSession(await loadStudent(moa));
           else startSession(await loadStudent(moa && p && moa.cid === p.cid && moa.key === p.key ? moa : { cid: p!.cid, key: p!.key, name: savedUser.name, className: savedUser.studentId || '', room: '' }));
           return;
@@ -329,7 +329,7 @@ export default function App() {
   const handleUpdateProfile = (updatedUser: UserSession) => {
     setCurrentUser(updatedUser);
     localStorage.setItem('typang_current_user', JSON.stringify(updatedUser));
-    // 학년·아바타는 모아팡팡 학생 기록에도 저장 (다른 컴퓨터에서도 그대로)
+    // 학년·아바타는 모아팡 학생 기록에도 저장 (다른 컴퓨터에서도 그대로)
     if (parseUserId(updatedUser.id)) void typangApi.updateUser(updatedUser.id, pickTaja(updatedUser as any) as Partial<UserSession>);
 
     const updatedDb = usersDb.map((u) => (u.id === updatedUser.id ? updatedUser : u));

@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { MemberStore, digitsOf } from './server/memberStore';
 import { attachBlockcraft, registerBlockcraftHttp } from './server/blockcraftRooms';
+import { registerDuo, attachDuo } from './server/duoRooms';
 import { registerFunfunGate, setLoginCookie, readLogin, getFunfunFree, setFunfunFree } from './server/funfunGate';
 import { stableSecret, sealPayload, unsealPayload } from './server/stableSecret';
 import { registerDailyReports, getDailyReports, mergeDailyReports } from './server/dailyReports';
@@ -716,6 +717,16 @@ app.post('/api/backup/restore', (req, res) => {
 // 마크 멀티플레이: 소켓이 막힌 곳에서도 방 만들기·참가가 되도록 HTTP 접속 길도 열어 둠
 registerBlockcraftHttp(app);
 
+// 펀펀 플레이 2인 대결: 두 사람이 각자 컴퓨터에서 방 번호로 들어와 같은 판을 동시에 (마크 빼고 7종)
+const duoName = (req: express.Request) => {
+  const who = readLogin(req);
+  if (!who) return '';
+  if (who.role === 'master') return '선생님';
+  const m: any = members.list(true).find((x: any) => x.id === who.uid);
+  return m ? String(m.name || '').trim().slice(0, 12) : '';
+};
+registerDuo(app, duoName);
+
 // 펀펀 플레이 게임(/games)은 로그인 + 포인트로 받은 입장권이 있어야 열림
 // 예전 화면 코드가 남아 있어도 카트라이더가 열리도록: 옛 주소(games/pocketkart) → 새 카트라이더
 app.get(/^\/games\/pocketkart(\/.*)?$/, (_req, res) => res.redirect(302, '/games/kartrider/index.html'));
@@ -784,9 +795,10 @@ async function startServer() {
   });
   // 펀펀 플레이 '마크' 멀티플레이(같은 방 코드로 친구와 함께)
   try {
-    attachBlockcraft(server);
+    const io = attachBlockcraft(server);
+    attachDuo(io, (headers) => duoName({ headers } as any));
   } catch (e) {
-    console.warn('blockcraft multiplayer disabled:', e);
+    console.warn('blockcraft/duo multiplayer disabled:', e);
   }
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;

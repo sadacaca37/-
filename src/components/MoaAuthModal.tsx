@@ -1,7 +1,7 @@
 /**
- * 타자팡팡 들어가기 (모아팡팡과 같은 방식)
- *  - 학생: 방번호 + 이름 (모아팡팡에서 이미 들어왔으면 버튼 하나로)
- *  - 선생님: 모아팡팡 선생님 계정 비밀번호
+ * 타자팡 들어가기 (모아팡과 같은 방식)
+ *  - 학생: 방번호 + 이름 (모아팡에서 이미 들어왔으면 버튼 하나로)
+ *  - 선생님: 모아팡 선생님 계정 비밀번호
  */
 import React, { useEffect, useState } from 'react';
 import { X, LogIn, Crown, ArrowLeft } from 'lucide-react';
@@ -94,8 +94,8 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
         {!teacher ? (
           <>
             <div className="text-center">
-              <h2 className="text-2xl font-black text-slate-900">⌨️ 타자팡팡 들어가기</h2>
-              <p className="text-sm font-bold text-slate-500 mt-1">모아팡팡과 같은 방번호와 이름으로 들어와요.</p>
+              <h2 className="text-2xl font-black text-slate-900">⌨️ 타자팡 들어가기</h2>
+              <p className="text-sm font-bold text-slate-500 mt-1">모아팡과 같은 방번호와 이름으로 들어와요.</p>
             </div>
 
             {saved && (
@@ -137,7 +137,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
           <>
             <div className="text-center">
               <h2 className="text-2xl font-black text-slate-900">👑 선생님 로그인</h2>
-              <p className="text-sm font-bold text-slate-500 mt-1">모아팡팡 선생님 계정 비밀번호를 써 주세요.</p>
+              <p className="text-sm font-bold text-slate-500 mt-1">모아팡 선생님 계정 비밀번호를 써 주세요.</p>
             </div>
             <form onSubmit={master} className="space-y-3">
               <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="비밀번호" className={field} autoComplete="current-password" required autoFocus />
@@ -155,7 +155,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
 
         <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-sm font-bold">
           <a href="../" className="flex items-center gap-1 text-slate-500 hover:text-sky-600">
-            <ArrowLeft className="w-4 h-4" /> 모아팡팡으로
+            <ArrowLeft className="w-4 h-4" /> 모아팡으로
           </a>
           <button type="button" onClick={() => { setTeacher(!teacher); setMsg(''); }} className="flex items-center gap-1 text-slate-500 hover:text-pink-600 cursor-pointer">
             <Crown className="w-4 h-4" /> {teacher ? '학생으로 들어가기' : '선생님이에요'}

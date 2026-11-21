@@ -43,7 +43,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   onSingleplayer,
 }) => {
   const [nickname, setNickname] = useState(() => {
-    // 타자팡팡에 로그인한 이름을 그대로 닉네임으로
+    // 타자팡에 로그인한 이름을 그대로 닉네임으로
     try {
       const u = JSON.parse(localStorage.getItem("typang_current_user") || "null");
       const n = String(u?.name || u?.nickname || "").trim().slice(0, 16);
@@ -97,7 +97,7 @@ export const Lobby: React.FC<LobbyProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  /** 친구 초대 링크: 타자팡팡 안이면 사이트 첫 화면(?mark=코드), 따로 실행 중이면 이 게임 주소(?room=코드) */
+  /** 친구 초대 링크: 타자팡 안이면 사이트 첫 화면(?mark=코드), 따로 실행 중이면 이 게임 주소(?room=코드) */
   const inviteLink = (code: string) => {
     const p = location.pathname;
     const i = p.indexOf("/games/blockcraft/");

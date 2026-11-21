@@ -1,8 +1,8 @@
 /**
- * 모아팡팡과 함께 쓰는 Firebase 연결
- *  - 타자팡팡은 모아팡팡 홈페이지 안(/moa/taja/)에 있어서, 같은 주소의 로그인·저장소를 그대로 씀
- *  - 학생: 모아팡팡 첫 화면에서 방번호 + 이름으로 들어온 기록(localStorage 'moa_session')으로 바로 로그인
- *  - 선생님: 모아팡팡 선생님 계정(이메일·비밀번호)으로 로그인하면 타자팡팡 마스터
+ * 모아팡과 함께 쓰는 Firebase 연결
+ *  - 타자팡은 모아팡 홈페이지 안(/moa/taja/)에 있어서, 같은 주소의 로그인·저장소를 그대로 씀
+ *  - 학생: 모아팡 첫 화면에서 방번호 + 이름으로 들어온 기록(localStorage 'moa_session')으로 바로 로그인
+ *  - 선생님: 모아팡 선생님 계정(이메일·비밀번호)으로 로그인하면 타자팡 마스터
  *  - 자료: Firestore(학생 자료·보고), Realtime Database(명예의 전당) — 서버가 꺼져도 지워지지 않음
  */
 import { initializeApp } from 'firebase/app';
@@ -59,7 +59,7 @@ export async function signOutTeacher() {
   if (isTeacherUser()) await signOut(auth);
 }
 
-/* ---------------- 모아팡팡 입장 기록 (같은 주소라 함께 씀) ---------------- */
+/* ---------------- 모아팡 입장 기록 (같은 주소라 함께 씀) ---------------- */
 export interface MoaSession {
   cid: string;
   room: string;
@@ -84,21 +84,21 @@ export function setMoaSession(s: MoaSession) {
   } catch {}
 }
 
-/** 모아팡팡과 같은 규칙: 같은 반에서 같은 이름이면 같은 학생 */
+/** 모아팡과 같은 규칙: 같은 반에서 같은 이름이면 같은 학생 */
 export function nameKey(name: string) {
   const n = String(name || '').normalize('NFC').replace(/\s+/g, '').toLowerCase();
   return 'n_' + Array.from(n).map((ch) => (/[0-9a-z가-힣]/.test(ch) ? ch : '_' + ch.codePointAt(0)!.toString(16))).join('').slice(0, 120);
 }
 export const cleanName = (s: string) => String(s || '').normalize('NFC').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 10);
 
-/** 타자팡팡 학생 id = 반 + 이름 */
+/** 타자팡 학생 id = 반 + 이름 */
 export const userIdOf = (cid: string, key: string) => `m_${cid}_${key}`;
 export function parseUserId(id: string): { cid: string; key: string } | null {
   const m = /^m_([A-Za-z0-9]+)_(n_.+)$/.exec(String(id || ''));
   return m ? { cid: m[1], key: m[2] } : null;
 }
 
-/** 타자팡팡 전용 학생 정보 (모아팡팡 학생 기록의 taja 칸) */
+/** 타자팡 전용 학생 정보 (모아팡 학생 기록의 taja 칸) */
 export const TAJA_FIELDS = ['grade', 'avatar', 'avatarBg', 'levelTitle', 'totalPracticeCount', 'highestCpm', 'timeSpentSeconds', 'nickname', 'avatarConfig'] as const;
 export function pickTaja(u: Partial<UserSession> & Record<string, any>) {
   const out: Record<string, any> = {};
@@ -144,7 +144,7 @@ export function teacherSession(): UserSession {
   };
 }
 
-/** 모아팡팡 입장 기록으로 학생 정보 만들기 (타자 정보는 Firestore에서) */
+/** 모아팡 입장 기록으로 학생 정보 만들기 (타자 정보는 Firestore에서) */
 export async function loadStudent(s: MoaSession): Promise<UserSession> {
   const u = await ensureUser();
   let taja: Record<string, any> = {};
@@ -157,14 +157,14 @@ export async function loadStudent(s: MoaSession): Promise<UserSession> {
       // 다른 컴퓨터에서 들어온 적이 있으면 이 컴퓨터를 '지금 쓰는 기기'로 (그래야 내 자료를 읽고 저장할 수 있음)
       if (v.uid !== u.uid) await setDoc(sref, { name: v.name || s.name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
     } else {
-      // 선생님이 명단에서 지웠으면 모아팡팡처럼 새로 만듦
+      // 선생님이 명단에서 지웠으면 모아팡처럼 새로 만듦
       await setDoc(sref, { name: s.name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp() });
     }
   } catch {}
   return studentSession(s, taja);
 }
 
-/** 방번호 + 이름으로 들어오기 (모아팡팡 첫 화면과 같은 방식) */
+/** 방번호 + 이름으로 들어오기 (모아팡 첫 화면과 같은 방식) */
 export async function enterByRoom(room: string, rawName: string): Promise<{ ok: boolean; message?: string; user?: UserSession }> {
   const name = cleanName(rawName);
   if (!/^\d{5}$/.test(room)) return { ok: false, message: '방번호 5자리를 써 주세요.' };

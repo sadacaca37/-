@@ -192,7 +192,7 @@ export class MultiplayerManager {
     const host = location.hostname;
     const preview = /claude\.ai|claudeusercontent|localhost-preview/.test(host) || location.protocol === "file:";
     return preview
-      ? "이 미리보기 화면에는 멀티플레이 서버가 없어서 방을 만들 수 없어요. 실제 타자팡팡 사이트에서 해 주세요. (혼자 하기는 바로 할 수 있어요)"
+      ? "이 미리보기 화면에는 멀티플레이 서버가 없어서 방을 만들 수 없어요. 실제 타자팡 사이트에서 해 주세요. (혼자 하기는 바로 할 수 있어요)"
       : "멀티플레이 서버에 연결하지 못했어요. 잠시 후 다시 눌러 주세요. (혼자 하기는 바로 할 수 있어요)";
   }
 

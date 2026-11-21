@@ -122,13 +122,13 @@ export function isFunfunFreeNow(now = Date.now()) {
   return freeSettings.freeUntil > now && freeSettings.freeFrom <= now;
 }
 
-const DENY_HTML = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>타자팡팡 · 펀펀 플레이</title>
+const DENY_HTML = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>타자팡 · 펀펀 플레이</title>
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1e1b4b;color:#fff;font-family:system-ui,'Noto Sans KR',sans-serif}
 .box{max-width:420px;padding:32px;text-align:center;background:#312e81;border-radius:24px;box-shadow:0 10px 40px #0006}
 h1{font-size:22px;margin:.3em 0}p{line-height:1.6;color:#e0e7ff}a{display:inline-block;margin-top:14px;padding:12px 22px;border-radius:14px;background:#facc15;color:#1e1b4b;font-weight:900;text-decoration:none}</style></head>
 <body><div class="box"><div style="font-size:48px">🔒</div><h1>펀펀 플레이는 여기서 바로 열 수 없어요</h1>
-<p>타자팡팡에 <b>로그인</b>한 뒤<br><b>놀이터 → 펀펀 플레이</b>에서 포인트를 내고 입장해 주세요.</p>
-<a href="/?mode=playground" target="_top">타자팡팡으로 가기</a></div></body></html>`;
+<p>타자팡에 <b>로그인</b>한 뒤<br><b>놀이터 → 펀펀 플레이</b>에서 포인트를 내고 입장해 주세요.</p>
+<a href="/?mode=playground" target="_top">타자팡으로 가기</a></div></body></html>`;
 
 /**
  * 반드시 게임 파일(static) 을 내보내는 코드보다 먼저 등록

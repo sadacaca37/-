@@ -2,7 +2,7 @@
  * 선생님 컴퓨터 자동 백업
  *
  * 예전에는 서버가 비워질 때를 대비해 선생님 컴퓨터(IndexedDB)에 몇 분마다 백업하고 되살렸음.
- * 이제 자료는 모아팡팡 Firebase에 저장되어 서버가 꺼져도 사라지지 않음.
+ * 이제 자료는 모아팡 Firebase에 저장되어 서버가 꺼져도 사라지지 않음.
  * 그래도 혹시 모를 때를 위해, 선생님이 로그인해 있으면 하루에 한 번 이 컴퓨터에도 사본을 남겨 둠.
  */
 import { collection, collectionGroup, getDocs } from 'firebase/firestore';

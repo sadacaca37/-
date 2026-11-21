@@ -88,7 +88,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
   const [editParentPhone, setEditParentPhone] = useState(currentUser?.parentPhone || '');
   const [editGrade, setEditGrade] = useState<number>(currentUser?.grade || 3);
-  /** 모아팡팡 방번호+이름으로 들어온 학생 (비밀번호·전화번호 없음) */
+  /** 모아팡 방번호+이름으로 들어온 학생 (비밀번호·전화번호 없음) */
   const isMoaStudent = !!currentUser && currentUser.role !== 'master' && /^m_/.test(currentUser.id);
   const [editPassword, setEditPassword] = useState(currentUser?.password || '1234');
   const [showPassword, setShowPassword] = useState(false);
@@ -927,7 +927,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                           <User className="w-5 h-5 text-indigo-600" />
                           <span>내 정보</span>
                         </h3>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">모아팡팡에 들어온 방번호·이름 그대로예요. 비밀번호는 없어요.</p>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">모아팡에 들어온 방번호·이름 그대로예요. 비밀번호는 없어요.</p>
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-sm font-black text-slate-800">
                         <div className="p-3 rounded-2xl bg-slate-50 border-2 border-slate-200">

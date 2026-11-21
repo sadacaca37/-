@@ -513,7 +513,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
             <div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">👑 마스터(선생님) 관리실 입장</h2>
               <p className="text-xs text-slate-500 mt-1 font-medium">
-                모아팡팡 선생님 계정 비밀번호를 입력하세요. (모아팡팡 선생님 화면과 같은 비밀번호)
+                모아팡 선생님 계정 비밀번호를 입력하세요. (모아팡 선생님 화면과 같은 비밀번호)
               </p>
             </div>
 
@@ -526,7 +526,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
               <div>
                 <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                  모아팡팡 선생님 비밀번호
+                  모아팡 선생님 비밀번호
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -587,7 +587,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    학생이 보낸 연습 보고, 학습 현황, 학생 명단(모아팡팡 반), 선생님 계정
+                    학생이 보낸 연습 보고, 학습 현황, 학생 명단(모아팡 반), 선생님 계정
                   </p>
                 </div>
               </div>
@@ -662,7 +662,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
               <MoaRosterPanel users={users} onRefresh={refreshFromServer} onInspect={handleInspectStudentHistory} onReport={onOpenReportForUser} />
             )}
 
-            {/* 예전 전화번호 회원 관리 화면 (이제 모아팡팡 반 학생을 그대로 써서 보이지 않음) */}
+            {/* 예전 전화번호 회원 관리 화면 (이제 모아팡 반 학생을 그대로 써서 보이지 않음) */}
             {(activeConsoleTab as string) === 'old-students' && (
               <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                 {/* Real-time Toast Notification */}
@@ -1402,9 +1402,9 @@ export const MasterModal: React.FC<MasterModalProps> = ({
               <div className="flex-1 overflow-y-auto pr-1">
                 <div className="max-w-xl mx-auto space-y-3 py-2 text-sm font-bold text-slate-700">
                   <div className="p-4 rounded-2xl bg-purple-50 border-2 border-purple-200 space-y-2">
-                    <div className="font-black text-purple-900">👑 선생님 계정 = 모아팡팡 선생님 계정</div>
+                    <div className="font-black text-purple-900">👑 선생님 계정 = 모아팡 선생님 계정</div>
                     <p className="text-xs text-purple-800">
-                      타자팡팡 관리실은 모아팡팡 선생님 계정({TEACHER_EMAIL})으로 들어와요. 따로 마스터키나 관리실 비밀번호가 없어요.
+                      타자팡 관리실은 모아팡 선생님 계정({TEACHER_EMAIL})으로 들어와요. 따로 마스터키나 관리실 비밀번호가 없어요.
                       학생은 비밀번호 없이 방번호 + 이름으로 들어와서, 학생 비밀번호를 찾아 줄 일도 없어요.
                     </p>
                   </div>

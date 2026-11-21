@@ -2,7 +2,7 @@
  * 오늘의 연습 보고 (학생 → 선생님)
  *  - 학생: 연습을 마치고 [선생님께 보내기] → 오늘 연습 요약이 선생님께 감
  *  - 선생님: 마스터 관리실 '받은 보고'에서 날짜별로 모아 보고 [확인]
- *  - 저장: 모아팡팡 Firebase 'taja_reports/{학생}_{날짜}' (서버가 꺼져도 지워지지 않음)
+ *  - 저장: 모아팡 Firebase 'taja_reports/{학생}_{날짜}' (서버가 꺼져도 지워지지 않음)
  */
 import { collection, doc, getCountFromServer, getDoc, getDocs, onSnapshot, query, setDoc, where, writeBatch } from 'firebase/firestore';
 import type { UserSession } from '../types';
@@ -95,7 +95,7 @@ export async function sendTodayReport(user: UserSession, note: string): Promise<
   const { day, active, summary } = buildTodaySummary(user.id);
   if (!active) return { success: false, message: '오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요.' };
   const p = parseUserId(user.id);
-  if (!p) return { success: false, message: '모아팡팡에서 방번호와 이름으로 들어온 학생만 보낼 수 있어요.' };
+  if (!p) return { success: false, message: '모아팡에서 방번호와 이름으로 들어온 학생만 보낼 수 있어요.' };
   const report: DailyReport & { cid: string; key: string } = {
     id: reportId(user.id, day),
     userId: user.id,

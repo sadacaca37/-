@@ -380,7 +380,7 @@
 }
 
 /* ================================================================
-   TAPANG (타자팡팡) THEME – space neon CRT + wood signs + parchment
+   TAPANG (타자팡) THEME – space neon CRT + wood signs + parchment
    palette: sky #38B6FF · wood #784E3D · neon gold #FFD700 · cyan #6FF6FF
    ================================================================ */
 :root {
@@ -1252,7 +1252,7 @@
 .tp-modal-bot .tp-bubble { position: absolute; right: 92%; top: 26px; margin: 0; }
 .tp-modal-bot .tp-bubble::after { left: auto; right: -12px; top: 12px; bottom: auto; margin: 0; width: 12px; height: 12px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
 
-/* ---------- practice popup window (타자팡팡 shell) ---------- */
+/* ---------- practice popup window (타자팡 shell) ---------- */
 .tp-practice {
   position: fixed; inset: 0;
   display: flex; flex-direction: column;

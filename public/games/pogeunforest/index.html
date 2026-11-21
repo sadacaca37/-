@@ -1,0 +1,1362 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>포근숲 이야기</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap');
+
+  :root{
+    --sky-day:#bfe6f5;
+    --sky-sunset:#f7c9a6;
+    --sky-night:#4a4f86;
+    --bg-panel:#fffdf6;
+    --bg-panel-2:#fff6e8;
+    --ink:#6b5645;
+    --ink-soft:#a3907c;
+    --line: rgba(107,86,69,0.2);
+    --pink:#f5a9a8;
+    --pink-deep:#e78482;
+    --yellow:#f6d186;
+    --yellow-deep:#e8b455;
+    --mint:#8fd3c7;
+    --mint-deep:#5fb3a6;
+    --lavender:#c9b8e8;
+    --grass:#bfe7b0;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg-panel);
+    color:var(--ink);
+    font-family:'Gowun Dodum', sans-serif;
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+  }
+  .display{ font-family:'Jua', sans-serif; letter-spacing:.01em; }
+
+  #stage{ position:fixed; inset:0; height:100%; width:100%; }
+  #gl{ position:absolute; inset:0; display:block; width:100%; height:100%; }
+
+  .panel{
+    background:var(--bg-panel);
+    border:3px solid var(--ink);
+    border-radius:20px;
+    box-shadow:0 6px 0 rgba(107,86,69,0.18), 0 10px 20px rgba(107,86,69,0.12);
+  }
+  .btn{
+    font-family:'Jua', sans-serif; font-size:15px; color:#fff;
+    background:var(--pink); border:3px solid var(--ink); border-radius:14px;
+    padding:10px 22px; cursor:pointer;
+    box-shadow:0 4px 0 var(--pink-deep);
+    transition:transform 100ms ease, box-shadow 100ms ease;
+  }
+  .btn:hover{ transform:translateY(-2px); }
+  .btn:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--pink-deep); }
+  .btn.yellow{ background:var(--yellow); box-shadow:0 4px 0 var(--yellow-deep); color:var(--ink); }
+  .btn.mint{ background:var(--mint); box-shadow:0 4px 0 var(--mint-deep); color:#fff; }
+  .btn.ghost{ background:var(--bg-panel); color:var(--ink); box-shadow:0 4px 0 var(--line); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none !important; }
+  .btn.small{ padding:6px 14px; font-size:13px; border-radius:10px; box-shadow:0 3px 0 rgba(0,0,0,.15); }
+
+  /* ---------- floating layer ---------- */
+  #floaters{ position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:30; }
+  .floatnum{
+    position:absolute; transform:translate(-50%,-50%);
+    font-family:'Jua', sans-serif; font-size:17px; color:var(--ink);
+    text-shadow:0 2px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+    animation:floatUp 1000ms ease-out forwards; white-space:nowrap;
+  }
+  .floatnum.item{ color:var(--mint-deep); }
+  .floatnum.heart{ color:var(--pink-deep); font-size:20px; }
+  .floatnum.sparkle{ color:var(--lavender); font-size:22px; }
+  @keyframes floatUp{
+    0%{ opacity:0; transform:translate(-50%,-40%) scale(.8); }
+    14%{ opacity:1; transform:translate(-50%,-70%) scale(1); }
+    100%{ opacity:0; transform:translate(-50%,-150%) scale(1); }
+  }
+
+  #toasts{ position:absolute; top:16px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center; z-index:45; pointer-events:none; }
+  .toast{
+    background:var(--bg-panel); border:3px solid var(--ink); border-radius:14px; padding:7px 18px;
+    font-family:'Jua',sans-serif; font-size:13px; color:var(--ink);
+    box-shadow:0 4px 0 rgba(107,86,69,0.18);
+    animation:toastIn 3000ms ease forwards;
+  }
+  @keyframes toastIn{
+    0%{ opacity:0; transform:translateY(-10px); }
+    10%{ opacity:1; transform:translateY(0); }
+    84%{ opacity:1; }
+    100%{ opacity:0; transform:translateY(-6px); }
+  }
+
+  .namelabel{ position:absolute; transform:translate(-50%,-100%); pointer-events:none; z-index:24;
+    font-family:'Jua',sans-serif; font-size:12px; color:var(--ink); background:rgba(255,253,246,.88);
+    border:2px solid var(--ink); border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  .namelabel .heart{ color:var(--pink-deep); margin-left:3px; }
+
+  .prompt{ position:absolute; transform:translate(-50%,-100%); pointer-events:none; z-index:24;
+    font-family:'Jua',sans-serif; font-size:12px; color:#fff; background:var(--mint-deep);
+    border-radius:10px; padding:3px 10px; white-space:nowrap; box-shadow:0 3px 0 rgba(0,0,0,.15); }
+
+  /* ---------- top HUD ---------- */
+  #topleft{ position:absolute; top:14px; left:14px; z-index:35; padding:10px 16px; display:flex; flex-direction:column; gap:6px; min-width:170px; }
+  .dayrow{ display:flex; align-items:center; gap:8px; font-family:'Jua',sans-serif; font-size:14px; }
+  .timeicon{ width:26px; height:26px; border-radius:50%; background:var(--yellow); border:2px solid var(--ink); flex:none; }
+  .vibewrap{ display:flex; align-items:center; gap:6px; }
+  .vibetrack{ flex:1; height:8px; border-radius:5px; background:var(--bg-panel-2); border:2px solid var(--ink); overflow:hidden; }
+  .vibefill{ height:100%; background:linear-gradient(90deg, var(--mint), var(--lavender)); width:0%; transition:width 300ms ease; }
+  .vibelabel{ font-size:11px; color:var(--ink-soft); }
+
+  #bagbtn{ position:absolute; top:14px; right:14px; z-index:35; width:54px; height:54px; border-radius:16px;
+    display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; }
+  #bagpanel{ position:absolute; top:76px; right:14px; z-index:36; width:230px; padding:12px; display:none; max-height:60vh; overflow:auto; }
+  #bagpanel.show{ display:block; }
+  #bagpanel h3{ margin:0 0 8px; font-family:'Jua',sans-serif; font-size:14px; }
+  .itemrow{ display:flex; align-items:center; justify-content:space-between; padding:4px 2px; font-size:13px; border-bottom:1px dashed var(--line); }
+  .itemrow:last-child{ border-bottom:none; }
+  .itemname{ display:flex; align-items:center; gap:6px; }
+  .itemicon{ font-size:16px; }
+  .empty-hint{ color:var(--ink-soft); font-size:12px; text-align:center; padding:8px 0; }
+
+  /* ---------- bottom contextual action ---------- */
+  #actionhud{ position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:35; display:flex; gap:10px; align-items:center; }
+
+  /* ---------- dialogue ---------- */
+  #dialogue{ position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:50; width:min(640px,92vw); padding:16px 20px; display:none; }
+  #dialogue.show{ display:block; }
+  .dlg-top{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .portrait{ width:44px; height:44px; border-radius:50%; border:3px solid var(--ink); flex:none; }
+  .dlg-name{ font-family:'Jua',sans-serif; font-size:15px; }
+  .dlg-hearts{ margin-left:auto; font-size:13px; color:var(--pink-deep); }
+  #dlgtext{ font-size:15px; line-height:1.5; min-height:44px; }
+  .dlg-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; justify-content:flex-end; }
+
+  #giftpicker{ position:absolute; left:50%; bottom:210px; transform:translateX(-50%); z-index:52; width:min(360px,90vw); padding:12px; display:none; }
+  #giftpicker.show{ display:block; }
+  #giftpicker h4{ margin:0 0 8px; font-family:'Jua',sans-serif; font-size:13px; }
+  .giftrow{ display:flex; align-items:center; justify-content:space-between; padding:5px 4px; font-size:13px; }
+  .giftrow button{ font-family:'Gowun Dodum',sans-serif; }
+
+  /* ---------- crafting ---------- */
+  #craftpanel{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:55; width:min(420px,92vw); padding:18px; display:none; }
+  #craftpanel.show{ display:block; }
+  #craftpanel h3{ margin:0 0 4px; font-family:'Jua',sans-serif; }
+  #craftpanel .sub{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
+  .recipe{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 6px; border-bottom:1px dashed var(--line); }
+  .recipe:last-child{ border-bottom:none; }
+  .recipe .info{ font-size:13px; }
+  .recipe .need{ font-size:11px; color:var(--ink-soft); }
+  .recipe .need.bad{ color:var(--pink-deep); }
+  .closebar{ display:flex; justify-content:flex-end; margin-top:10px; }
+
+  /* ---------- fishing ---------- */
+  #fishpanel{ position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:55; width:min(420px,92vw); padding:18px; display:none; text-align:center; }
+  #fishpanel.show{ display:block; }
+  #fishpanel h3{ margin:0 0 10px; font-family:'Jua',sans-serif; }
+  #fishtrack{ position:relative; height:20px; border-radius:10px; background:var(--bg-panel-2); border:2px solid var(--ink); overflow:hidden; margin-bottom:14px; }
+  #fishzone{ position:absolute; top:0; bottom:0; background:var(--mint); opacity:.6; }
+  #fishmarker{ position:absolute; top:-3px; width:6px; height:26px; background:var(--pink-deep); border-radius:3px; }
+  #fishresult{ font-size:13px; color:var(--ink-soft); min-height:18px; margin-bottom:6px; }
+
+  /* ---------- decorate palette ---------- */
+  #decopalette{ position:absolute; left:50%; bottom:90px; transform:translateX(-50%); z-index:40; padding:10px; display:none; gap:8px; }
+  #decopalette.show{ display:flex; }
+  .decoitem{ width:56px; height:56px; border-radius:12px; background:var(--bg-panel-2); border:3px solid var(--ink);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:20px; position:relative; }
+  .decoitem.active{ outline:3px solid var(--mint-deep); }
+  .decoitem .cnt{ position:absolute; bottom:1px; right:3px; font-size:10px; font-family:'Jua',sans-serif; color:var(--ink-soft); }
+
+  /* ---------- overlays ---------- */
+  .overlay{ position:absolute; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; flex-direction:column;
+    background:linear-gradient(180deg, rgba(191,230,245,.88), rgba(246,209,134,.72)); text-align:center; padding:24px; }
+  .overlay.hidden{ display:none; }
+  .title-xl{ font-size:clamp(36px,8vw,72px); color:var(--pink-deep); margin:0;
+    text-shadow:3px 3px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff; }
+  .title-sub{ margin:8px 0 22px; color:var(--ink); font-size:15px; font-family:'Jua',sans-serif; }
+  .controls{ display:flex; gap:22px; flex-wrap:wrap; justify-content:center; margin:0 0 26px; max-width:560px; color:var(--ink); font-size:13px; }
+  .controls div b{ display:block; font-family:'Jua',sans-serif; font-size:13px; margin-bottom:3px; color:var(--pink-deep); }
+
+  #questline{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:34; padding:7px 18px;
+    font-family:'Jua',sans-serif; font-size:12px; color:var(--ink); display:none; }
+  #questline.show{ display:block; }
+
+  @media (max-width:640px){
+    .title-xl{ font-size:40px; }
+    #bagpanel{ width:200px; }
+    #topleft{ min-width:140px; }
+  }
+</style>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="floaters"></div>
+  <div id="toasts"></div>
+  <div id="questline" class="panel"></div>
+
+  <div id="topleft" class="panel">
+    <div class="dayrow"><div class="timeicon" id="timeicon"></div><span id="daytext">1일차</span> · <span id="timelabel">아침</span></div>
+    <div class="vibewrap"><div class="vibetrack"><div class="vibefill" id="vibefill"></div></div></div>
+    <div class="vibelabel">마을 활기 <span id="vibetext">0</span></div>
+  </div>
+
+  <div id="bagbtn" class="panel">🎒</div>
+  <div id="bagpanel" class="panel">
+    <h3>가방</h3>
+    <div id="baglist"></div>
+  </div>
+
+  <div id="actionhud"></div>
+
+  <div id="decopalette" class="panel"></div>
+
+  <div id="dialogue" class="panel">
+    <div class="dlg-top">
+      <div class="portrait" id="dlgportrait"></div>
+      <div class="dlg-name" id="dlgname"></div>
+      <div class="dlg-hearts" id="dlghearts"></div>
+    </div>
+    <div id="dlgtext"></div>
+    <div class="dlg-actions" id="dlgactions"></div>
+  </div>
+
+  <div id="giftpicker" class="panel">
+    <h4>무엇을 선물할까요?</h4>
+    <div id="giftlist"></div>
+  </div>
+
+  <div id="craftpanel" class="panel">
+    <h3 id="crafttitle">제작대</h3>
+    <div class="sub">재료를 모아 요리와 가구를 만들 수 있어요.</div>
+    <div id="recipelist"></div>
+    <div class="closebar"><button class="btn ghost small" id="craftclose">닫기</button></div>
+  </div>
+
+  <div id="fishpanel" class="panel">
+    <h3>🎣 낚시</h3>
+    <div id="fishtrack"><div id="fishzone"></div><div id="fishmarker"></div></div>
+    <div id="fishresult">표시된 구간에서 낚아채기를 눌러보세요!</div>
+    <button class="btn mint" id="fishcatch">낚아채기!</button>
+  </div>
+
+  <div class="overlay" id="startoverlay">
+    <h1 class="title-xl display">포근숲 이야기</h1>
+    <div class="title-sub">힐링 오픈월드 RPG · 프로토타입</div>
+    <div class="controls">
+      <div><b>좌클릭 (바닥)</b>이동</div>
+      <div><b>좌클릭 (주민·사물)</b>다가가서 상호작용</div>
+      <div><b>WASD</b>직접 이동</div>
+      <div><b>가방 🎒</b>모은 재료 확인</div>
+    </div>
+    <button class="btn" id="startbtn">포근숲으로 놀러가기</button>
+  </div>
+</div>
+
+<script src="three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ===================== state ===================== */
+var state = {
+  started:false,
+  day:1, timeHours:8.2, timeSpeed: 1/55, // game-hours per real second (~55s per game-hour => 24h in ~22min)
+  vibe:0,
+  inventory: {},
+  friendship: { mongle:0, rita:0 },
+  flags: { metBosol:false, questStage:0, cluesMongle:false, ritaPurified:false, gaveGift:{} },
+  decorPlaced: [],
+  moving:false
+};
+
+var ITEM_ICONS = { 사과:'🍎', 나뭇가지:'🌿', 솔방울:'🌰', 산딸기:'🍓', 꽃:'🌸', 조개:'🐚', 물고기:'🐟',
+  베리티:'🍵', 조개목걸이:'📿', 정원벤치:'🪑', 가로등:'🏮', 생선구이:'🍢' };
+
+function addItem(name, n){
+  n = n||1;
+  state.inventory[name] = (state.inventory[name]||0) + n;
+  refreshBag();
+}
+function hasItem(name, n){ return (state.inventory[name]||0) >= (n||1); }
+function takeItem(name, n){ state.inventory[name] = Math.max(0,(state.inventory[name]||0)-(n||1)); refreshBag(); }
+
+function addVibe(n){
+  state.vibe = Math.min(100, state.vibe+n);
+  $('vibefill').style.width = state.vibe+'%';
+  $('vibetext').textContent = state.vibe;
+  if(state.vibe>=30 && !state.flags.vibe30){ state.flags.vibe30=true; toast('마을이 조금씩 밝아지고 있어요 ✨'); }
+  if(state.vibe>=70 && !state.flags.vibe70){ state.flags.vibe70=true; toast('마을에 온기가 가득해졌어요 🌼'); }
+}
+
+/* ===================== dom ===================== */
+var $ = function(id){ return document.getElementById(id); };
+var elFloaters=$('floaters'), elToasts=$('toasts'), elQuestline=$('questline');
+var elStart=$('startoverlay');
+var elBagBtn=$('bagbtn'), elBagPanel=$('bagpanel'), elBagList=$('baglist');
+var elActionHud=$('actionhud');
+var elDialogue=$('dialogue'), elDlgPortrait=$('dlgportrait'), elDlgName=$('dlgname'), elDlgHearts=$('dlghearts'),
+    elDlgText=$('dlgtext'), elDlgActions=$('dlgactions');
+var elGiftPicker=$('giftpicker'), elGiftList=$('giftlist');
+var elCraftPanel=$('craftpanel'), elRecipeList=$('recipelist');
+var elFishPanel=$('fishpanel'), elFishZone=$('fishzone'), elFishMarker=$('fishmarker'), elFishResult=$('fishresult');
+var elDecoPalette=$('decopalette');
+var elDayText=$('daytext'), elTimeLabel=$('timelabel'), elTimeIcon=$('timeicon');
+
+function toast(msg){
+  var d=document.createElement('div'); d.className='toast'; d.textContent=msg;
+  elToasts.appendChild(d); setTimeout(function(){ d.remove(); }, 3100);
+}
+function setQuestline(msg){
+  if(!msg){ elQuestline.classList.remove('show'); return; }
+  elQuestline.textContent = '📜 '+msg;
+  elQuestline.classList.add('show');
+}
+
+function refreshBag(){
+  var keys = Object.keys(state.inventory).filter(function(k){ return state.inventory[k]>0; });
+  if(!keys.length){ elBagList.innerHTML = '<div class="empty-hint">아직 모은 게 없어요</div>'; return; }
+  elBagList.innerHTML = keys.map(function(k){
+    return '<div class="itemrow"><span class="itemname"><span class="itemicon">'+(ITEM_ICONS[k]||'▫️')+'</span>'+k+'</span><span>'+state.inventory[k]+'</span></div>';
+  }).join('');
+}
+elBagBtn.addEventListener('click', function(){ elBagPanel.classList.toggle('show'); });
+
+/* ===================== three.js ===================== */
+var canvas = $('gl');
+var renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+if(renderer.outputColorSpace!==undefined){ renderer.outputColorSpace = THREE.SRGBColorSpace; }
+/* no filmic tone mapping: ACES flattens saturation into a hazy, cinematic look —
+   this game wants punchy, saturated storybook colors, so use the raw output. */
+if(renderer.toneMapping!==undefined){ renderer.toneMapping = THREE.NoToneMapping; renderer.toneMappingExposure = 1.0; }
+
+var scene = new THREE.Scene();
+var skyColorDay = new THREE.Color(0x4fb8e8);
+var skyColorSunset = new THREE.Color(0xf28a4a);
+var skyColorNight = new THREE.Color(0x33377a);
+scene.background = skyColorDay.clone();
+scene.fog = new THREE.FogExp2(0xbfe8d6, 0.0016);
+
+var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 220);
+var camOffset = new THREE.Vector3(13, 15, 13);
+var camTarget = new THREE.Vector3();
+
+function resize(){
+  var w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+/* lighting (day/night reactive) */
+var hemi = new THREE.HemisphereLight(0xeaf6ff, 0x6fc85a, 0.55);
+scene.add(hemi);
+var sun = new THREE.DirectionalLight(0xfff3d6, 0.65);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left=-26; sun.shadow.camera.right=26; sun.shadow.camera.top=26; sun.shadow.camera.bottom=-26;
+sun.shadow.camera.far=70;
+scene.add(sun);
+scene.add(sun.target);
+var fill = new THREE.AmbientLight(0xffe9c9, 0.12);
+scene.add(fill);
+
+/* ===================== ground & village ===================== */
+function makeGroundTexture(){
+  var c=document.createElement('canvas'); c.width=512; c.height=512;
+  var ctx=c.getContext('2d');
+  ctx.fillStyle='#7ed164'; ctx.fillRect(0,0,512,512);
+  for(var i=0;i<1600;i++){
+    var x=Math.random()*512,y=Math.random()*512,r=Math.random()*2+0.5;
+    var g = Math.random()<0.5 ? 'rgba(94,178,76,' : 'rgba(168,224,120,';
+    ctx.fillStyle = g+(Math.random()*0.5+0.25)+')';
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  var tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(10,10);
+  return tex;
+}
+var ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(90,90),
+  new THREE.MeshStandardMaterial({ map:makeGroundTexture(), roughness:0.95, metalness:0.02, color:0xffffff })
+);
+ground.rotation.x=-Math.PI/2; ground.receiveShadow=true;
+scene.add(ground);
+
+function makePathTexture(){
+  var c=document.createElement('canvas'); c.width=128; c.height=128;
+  var ctx=c.getContext('2d');
+  ctx.fillStyle='#eccf9a'; ctx.fillRect(0,0,128,128);
+  for(var i=0;i<80;i++){
+    ctx.fillStyle='rgba(205,170,115,'+(Math.random()*0.4+0.15)+')';
+    ctx.beginPath(); ctx.arc(Math.random()*128,Math.random()*128,Math.random()*3+1,0,Math.PI*2); ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+var pathMat = new THREE.MeshStandardMaterial({ map:makePathTexture(), roughness:0.9 });
+function addPath(x,z,w,d,rot){
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(w,d), pathMat);
+  m.rotation.x=-Math.PI/2; if(rot) m.rotation.z=rot;
+  m.position.set(x,0.015,z); m.receiveShadow=true;
+  scene.add(m);
+}
+addPath(0,0,5,34,0);
+addPath(0,0,34,5,0);
+
+var ARENA_R = 26;
+
+/* boundary flower ring (visual) */
+(function(){
+  var n=48;
+  for(var i=0;i<n;i++){
+    var a=(i/n)*Math.PI*2;
+    var r=ARENA_R+0.6;
+    var col=[0xf5a9a8,0xf6d186,0xffffff,0xc9b8e8][i%4];
+    var m=new THREE.Mesh(new THREE.SphereGeometry(0.22,6,6), new THREE.MeshStandardMaterial({color:col, roughness:0.6}));
+    m.position.set(Math.cos(a)*r, 0.22, Math.sin(a)*r);
+    scene.add(m);
+  }
+})();
+
+var obstacles = [];
+function addObstacle(x,z,r){ obstacles.push({x:x,z:z,r:r}); }
+
+/* trees (forage: apple/branch/pinecone) */
+var forageNodes = [];
+function buildTree(kind){
+  var g = new THREE.Group();
+  var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.3,1.5,8), new THREE.MeshStandardMaterial({color:0xa9784f, roughness:0.9}));
+  trunk.position.y=0.75; trunk.castShadow=true;
+  var foliageColor = kind==='pine' ? 0x4fa668 : 0x7ed164;
+  var foliage = new THREE.Mesh(new THREE.SphereGeometry(1.15,10,10), new THREE.MeshStandardMaterial({color:foliageColor, roughness:0.85}));
+  foliage.position.y=2.0; foliage.scale.y=0.9; foliage.castShadow=true;
+  var foliage2 = new THREE.Mesh(new THREE.SphereGeometry(0.8,10,10), new THREE.MeshStandardMaterial({color:foliageColor, roughness:0.85}));
+  foliage2.position.set(0.5,2.5,0.2); foliage2.castShadow=true;
+  g.add(trunk, foliage, foliage2);
+  g.userData.foliage=[foliage,foliage2];
+  return g;
+}
+function spawnForageTree(x,z,kind,pool){
+  var mesh = buildTree(kind);
+  mesh.position.set(x,0,z);
+  scene.add(mesh);
+  addObstacle(x,z,0.9);
+  var node = { mesh:mesh, x:x, z:z, kind:'tree', pool:pool, ready:true, cooldown:0, label:'채집하기' };
+  forageNodes.push(node);
+  return node;
+}
+function buildBush(){
+  var g=new THREE.Group();
+  var colors=[0x8fd97f,0x7fce8f];
+  for(var i=0;i<3;i++){
+    var s=new THREE.Mesh(new THREE.SphereGeometry(0.42,8,8), new THREE.MeshStandardMaterial({color:colors[i%2], roughness:0.85}));
+    s.position.set((i-1)*0.35, 0.4+Math.random()*0.1, (i%2)*0.2);
+    s.castShadow=true;
+    g.add(s);
+  }
+  for(var b=0;b<5;b++){
+    var berry=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6), new THREE.MeshStandardMaterial({color:0xe0546a}));
+    berry.position.set((Math.random()-0.5)*0.8, 0.45+Math.random()*0.3, (Math.random()-0.5)*0.6);
+    g.add(berry);
+  }
+  return g;
+}
+function spawnForageBush(x,z){
+  var mesh = buildBush(); mesh.position.set(x,0,z); scene.add(mesh);
+  addObstacle(x,z,0.55);
+  var node = { mesh:mesh, x:x, z:z, kind:'bush', pool:['산딸기'], ready:true, cooldown:0, label:'채집하기' };
+  forageNodes.push(node);
+  return node;
+}
+function buildFlowerPatch(){
+  var g=new THREE.Group();
+  var colors=[0xf5a9a8,0xf6d186,0xc9b8e8,0xffffff];
+  for(var i=0;i<6;i++){
+    var stem=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.22,5), new THREE.MeshStandardMaterial({color:0x7fbf6f}));
+    var ang=Math.random()*Math.PI*2, rad=Math.random()*0.35;
+    stem.position.set(Math.cos(ang)*rad, 0.11, Math.sin(ang)*rad);
+    var bloom=new THREE.Mesh(new THREE.SphereGeometry(0.09,7,7), new THREE.MeshStandardMaterial({color:colors[i%4]}));
+    bloom.position.set(stem.position.x, 0.24, stem.position.z);
+    g.add(stem, bloom);
+  }
+  return g;
+}
+function spawnFlowerPatch(x,z){
+  var mesh = buildFlowerPatch(); mesh.position.set(x,0,z); scene.add(mesh);
+  var node = { mesh:mesh, x:x, z:z, kind:'flower', pool:['꽃'], ready:true, cooldown:0, label:'꽃 꺾기' };
+  forageNodes.push(node);
+  return node;
+}
+function buildShellSpot(){
+  var g=new THREE.Group();
+  var sand=new THREE.Mesh(new THREE.CircleGeometry(0.9,16), new THREE.MeshStandardMaterial({color:0xf3e2b8, roughness:1}));
+  sand.rotation.x=-Math.PI/2; sand.position.y=0.02;
+  g.add(sand);
+  for(var i=0;i<3;i++){
+    var shell=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.08,8), new THREE.MeshStandardMaterial({color:0xf0c9c0}));
+    shell.rotation.x=Math.PI/2;
+    shell.position.set((Math.random()-0.5)*0.7, 0.06, (Math.random()-0.5)*0.7);
+    g.add(shell);
+  }
+  return g;
+}
+function spawnShellSpot(x,z){
+  var mesh = buildShellSpot(); mesh.position.set(x,0,z); scene.add(mesh);
+  var node = { mesh:mesh, x:x, z:z, kind:'shell', pool:['조개'], ready:true, cooldown:0, label:'조개 줍기' };
+  forageNodes.push(node);
+  return node;
+}
+
+var treePositions = [[-9,-7,'apple'],[-11,-3,'apple'],[9,-9,'pine'],[11,-5,'pine'],[-8,9,'apple'],[7,10,'pine'],[-15,4,'apple'],[14,3,'pine']];
+treePositions.forEach(function(p){
+  var pool = p[2]==='pine' ? ['솔방울','나뭇가지','산딸기'] : ['사과','나뭇가지'];
+  spawnForageTree(p[0],p[1],p[2],pool);
+});
+[[-5,-11],[6,-13],[-13,-1],[10,8],[3,12]].forEach(function(p){ spawnForageBush(p[0],p[1]); });
+[[-3,6],[4,-5],[-16,-8],[13,-2],[0,15]].forEach(function(p){ spawnFlowerPatch(p[0],p[1]); });
+
+/* pond + dock + fishing + shell spot */
+var pondCenter = new THREE.Vector3(15, 0, 13);
+(function(){
+  var pond = new THREE.Mesh(new THREE.CircleGeometry(6.5,32), new THREE.MeshStandardMaterial({ color:0x9fdcd8, roughness:0.25, metalness:0.1, transparent:true, opacity:0.92 }));
+  pond.rotation.x=-Math.PI/2; pond.position.set(pondCenter.x,0.05,pondCenter.z);
+  scene.add(pond);
+  var rim = new THREE.Mesh(new THREE.RingGeometry(6.5,6.9,32), new THREE.MeshStandardMaterial({color:0xf3e2b8, roughness:1}));
+  rim.rotation.x=-Math.PI/2; rim.position.set(pondCenter.x,0.04,pondCenter.z);
+  scene.add(rim);
+  addObstacle(pondCenter.x,pondCenter.z,6.3);
+})();
+/* simple straight dock */
+(function(){
+  var dockMat = new THREE.MeshStandardMaterial({color:0xcfa06a, roughness:0.85});
+  var dock = new THREE.Group();
+  for(var i=0;i<6;i++){
+    var plank = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.15,0.7), dockMat);
+    plank.position.set(i*0.75, 0.12, 0);
+    plank.castShadow=true; plank.receiveShadow=true;
+    dock.add(plank);
+  }
+  dock.position.set(pondCenter.x-9.5, 0, pondCenter.z-2.5);
+  scene.add(dock);
+  var buoy = new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8), new THREE.MeshStandardMaterial({color:0xe0546a}));
+  buoy.position.set(pondCenter.x-5.5, 0.25, pondCenter.z-2.3);
+  scene.add(buoy);
+  var fishNode = { mesh:buoy, x:pondCenter.x-5.5, z:pondCenter.z-2.3, kind:'fish', pool:[], ready:true, cooldown:0, label:'낚시하기' };
+  forageNodes.push(fishNode);
+  fishNode.isFishingSpot = true;
+})();
+spawnShellSpot(pondCenter.x-1, pondCenter.z+6.5);
+
+/* house */
+var houseCenter = new THREE.Vector3(-14, 0, -13);
+(function(){
+  var g=new THREE.Group();
+  var wallMat = new THREE.MeshStandardMaterial({color:0xfff3e0, roughness:0.85});
+  var roofMat = new THREE.MeshStandardMaterial({color:0xe78482, roughness:0.7});
+  var body = new THREE.Mesh(new THREE.BoxGeometry(3.4,2.0,3.0), wallMat);
+  body.position.y=1.0; body.castShadow=true; body.receiveShadow=true;
+  var roof = new THREE.Mesh(new THREE.ConeGeometry(2.7,1.6,4), roofMat);
+  roof.rotation.y=Math.PI/4; roof.position.y=2.8; roof.castShadow=true;
+  var door = new THREE.Mesh(new THREE.BoxGeometry(0.7,1.1,0.1), new THREE.MeshStandardMaterial({color:0xa9784f}));
+  door.position.set(0,0.55,1.51);
+  var chimney = new THREE.Mesh(new THREE.BoxGeometry(0.35,0.9,0.35), new THREE.MeshStandardMaterial({color:0xd8b990}));
+  chimney.position.set(1.0,3.2,0);
+  g.add(body,roof,door,chimney);
+  g.position.copy(houseCenter);
+  scene.add(g);
+  addObstacle(houseCenter.x,houseCenter.z,2.2);
+})();
+
+/* crafting station (workbench) near house */
+var craftStation = new THREE.Vector3(houseCenter.x+4.2, 0, houseCenter.z+1.5);
+(function(){
+  var g=new THREE.Group();
+  var top=new THREE.Mesh(new THREE.CylinderGeometry(0.9,1.0,0.5,10), new THREE.MeshStandardMaterial({color:0xcfa06a, roughness:0.85}));
+  top.position.y=0.6; top.castShadow=true; top.receiveShadow=true;
+  var ring=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.06,8,16), new THREE.MeshStandardMaterial({color:0x8fd3c7}));
+  ring.rotation.x=Math.PI/2; ring.position.y=0.9;
+  g.add(top,ring);
+  g.position.copy(craftStation);
+  scene.add(g);
+  addObstacle(craftStation.x,craftStation.z,1.1);
+  forageNodes.push({ mesh:g, x:craftStation.x, z:craftStation.z, kind:'craft', pool:[], ready:true, cooldown:0, label:'제작하기', isCraftStation:true });
+})();
+
+/* pillars/fence posts for atmosphere (also light sources) */
+var lampPosts = [];
+[[-4,-4],[4,4],[-18,10],[18,-10]].forEach(function(p){
+  var g=new THREE.Group();
+  var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,1.6,6), new THREE.MeshStandardMaterial({color:0x8a6a4a}));
+  pole.position.y=0.8; pole.castShadow=true;
+  var lamp=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8), new THREE.MeshStandardMaterial({color:0xfff2c6, emissive:0xf6d186, emissiveIntensity:0.4}));
+  lamp.position.y=1.65;
+  var light=new THREE.PointLight(0xffdca0, 0, 8, 2.0);
+  light.position.y=1.65;
+  g.add(pole,lamp,light);
+  g.position.set(p[0],0,p[1]);
+  scene.add(g);
+  lampPosts.push({ group:g, light:light, lampMesh:lamp });
+});
+
+/* ===================== blob shadow ===================== */
+var blobTex = (function(){
+  var c=document.createElement('canvas'); c.width=64; c.height=64;
+  var ctx=c.getContext('2d');
+  var grad=ctx.createRadialGradient(32,32,2,32,32,30);
+  grad.addColorStop(0,'rgba(80,70,60,0.35)'); grad.addColorStop(1,'rgba(80,70,60,0)');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+})();
+function addBlobShadow(radius){
+  var mesh = new THREE.Mesh(new THREE.PlaneGeometry(radius*2,radius*2), new THREE.MeshBasicMaterial({map:blobTex, transparent:true, depthWrite:false}));
+  mesh.rotation.x=-Math.PI/2; mesh.position.y=0.025;
+  scene.add(mesh);
+  return mesh;
+}
+
+/* ===================== critter builder (player + npcs) ===================== */
+function buildCritter(opts){
+  opts = opts||{};
+  var body = opts.body!==undefined ? opts.body : 0xf5cba0;
+  var belly = opts.belly!==undefined ? opts.belly : 0xfff3e0;
+  var accent = opts.accent!==undefined ? opts.accent : 0xe78482;
+  var scale = opts.scale || 1;
+  var g = new THREE.Group();
+  var bodyMat = new THREE.MeshStandardMaterial({ color:body, roughness:0.75 });
+  var bellyMat = new THREE.MeshStandardMaterial({ color:belly, roughness:0.8 });
+  var accentMat = new THREE.MeshStandardMaterial({ color:accent, roughness:0.6 });
+
+  var torso = new THREE.Mesh(new THREE.SphereGeometry(0.46,14,14), bodyMat);
+  torso.position.y=0.62; torso.scale.set(1,0.98,0.92); torso.castShadow=true;
+  var bellyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3,12,12), bellyMat);
+  bellyMesh.position.set(0,0.52,0.32); bellyMesh.scale.set(0.9,1,0.6);
+  var head = new THREE.Mesh(new THREE.SphereGeometry(0.34,14,14), bodyMat);
+  head.position.y=1.16; head.castShadow=true;
+  var muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.16,10,10), bellyMat);
+  muzzle.position.set(0,1.08,0.28); muzzle.scale.set(1,0.8,0.9);
+  var nose = new THREE.Mesh(new THREE.SphereGeometry(0.045,6,6), new THREE.MeshStandardMaterial({color:0x4a3a2c}));
+  nose.position.set(0,1.1,0.42);
+  var eyeGeo = new THREE.SphereGeometry(0.045,6,6);
+  var eyeMat = new THREE.MeshStandardMaterial({color:0x4a3a2c});
+  var eyeL = new THREE.Mesh(eyeGeo,eyeMat); eyeL.position.set(-0.12,1.2,0.28);
+  var eyeR = new THREE.Mesh(eyeGeo,eyeMat); eyeR.position.set(0.12,1.2,0.28);
+  var earGeo = new THREE.SphereGeometry(0.13,10,10);
+  var earL = new THREE.Mesh(earGeo, accentMat); earL.position.set(-0.24,1.42,0.02); earL.scale.set(0.85,1,0.7);
+  var earR = new THREE.Mesh(earGeo, accentMat); earR.position.set(0.24,1.42,0.02); earR.scale.set(0.85,1,0.7);
+  var armGeo = new THREE.SphereGeometry(0.13,8,8);
+  var armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.42,0.55,0.12);
+  var armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set(0.42,0.55,0.12);
+  var footGeo = new THREE.SphereGeometry(0.17,8,8);
+  var footL = new THREE.Mesh(footGeo, accentMat); footL.position.set(-0.18,0.16,0.05); footL.scale.set(1,0.7,1.2);
+  var footR = new THREE.Mesh(footGeo, accentMat); footR.position.set(0.18,0.16,0.05); footR.scale.set(1,0.7,1.2);
+
+  g.add(torso,bellyMesh,head,muzzle,nose,eyeL,eyeR,earL,earR,armL,armR,footL,footR);
+  g.scale.setScalar(scale);
+  g.userData = { armL:armL, armR:armR, footL:footL, footR:footR, head:head, earL:earL, earR:earR, bodyMat:bodyMat, bellyMat:bellyMat, accentMat:accentMat };
+  return g;
+}
+
+/* player: cream bunny-ish critter with pink accents */
+var player = buildCritter({ body:0xf8ecd9, belly:0xfffaf0, accent:0xf5a9a8, scale:1.0 });
+player.position.set(0,0,-3);
+scene.add(player);
+var playerBlob = addBlobShadow(0.6);
+var playerFacing = 0;
+var walkPhase = 0;
+
+var markerGeo = new THREE.RingGeometry(0.28,0.4,20);
+var markerMat = new THREE.MeshBasicMaterial({color:0xf6d186, transparent:true, opacity:0.9, side:THREE.DoubleSide});
+var marker = new THREE.Mesh(markerGeo, markerMat);
+marker.rotation.x=-Math.PI/2; marker.visible=false;
+scene.add(marker);
+
+/* ===================== NPCs ===================== */
+var npcs = [];
+function spawnNpc(def){
+  var mesh = buildCritter(def.look);
+  mesh.position.set(def.x,0,def.z);
+  mesh.rotation.y = def.facing||0;
+  scene.add(mesh);
+  var blob = addBlobShadow(0.55*def.look.scale);
+  blob.position.set(def.x,0.025,def.z);
+  var npc = {
+    id:def.id, name:def.name, mesh:mesh, blob:blob, x:def.x, z:def.z, portraitColor:def.portraitColor,
+    stage:0, look:def.look, shadowed:!!def.shadowed, phase:Math.random()*10
+  };
+  npcs.push(npc);
+  return npc;
+}
+
+var bosol = spawnNpc({ id:'bosol', name:'보솔이', x:-2, z:-6, facing:0.4,
+  look:{ body:0xe8a15c, belly:0xfff0dd, accent:0x8a5a2c, scale:0.85 }, portraitColor:'#e8a15c' });
+var mongle = spawnNpc({ id:'mongle', name:'몽글이', x:-9.5, z:-11.5, facing:1.2,
+  look:{ body:0xf5f5f2, belly:0xffffff, accent:0x3a3a3a, scale:1.15 }, portraitColor:'#e9e9e6' });
+var rita = spawnNpc({ id:'rita', name:'레티', x:17, z:9.5, facing:-1.6,
+  look:{ body:0x9aa0ab, belly:0xc7cdd3, accent:0x777d88, scale:0.95 }, portraitColor:'#9aa0ab', shadowed:true });
+rita.trueLook = { body:0xe3c19b, belly:0xfff1de, accent:0xd88f8f };
+
+/* rita quills (extra spikes) */
+(function(){
+  var spikeMat = new THREE.MeshStandardMaterial({ color: rita.shadowed? 0x777d88 : 0xd88f8f, roughness:0.6 });
+  rita.spikeMat = spikeMat;
+  for(var i=0;i<9;i++){
+    var spike = new THREE.Mesh(new THREE.ConeGeometry(0.045,0.28,5), spikeMat);
+    var ang = (i/9)*Math.PI - Math.PI/2;
+    spike.position.set(Math.sin(ang)*0.28, 0.75+Math.cos(ang)*0.12, -0.28-Math.random()*0.05);
+    spike.rotation.x = Math.PI/2 + 0.3;
+    spike.rotation.z = ang*0.6;
+    rita.mesh.add(spike);
+  }
+})();
+
+/* ===================== dialogue data ===================== */
+var FAVORITES = { mongle:['산딸기','베리티'], rita:['솔방울','조개목걸이'] };
+
+function heartsStr(n){
+  var full = Math.round(n/20);
+  full = Math.max(0,Math.min(5,full));
+  var s=''; for(var i=0;i<5;i++){ s += i<full?'❤':'🤍'; }
+  return s;
+}
+
+var activeDialogue = null; // {npc, lines, idx, onEnd}
+function openDialogue(npc, lines, opts){
+  opts = opts||{};
+  activeDialogue = { npc:npc, lines:lines, idx:0, choices:opts.choices||null, onDone:opts.onDone };
+  elDlgPortrait.style.background = npc.portraitColor;
+  elDlgName.textContent = npc.name;
+  elDialogue.classList.add('show');
+  renderDialogueStep();
+}
+function closeDialogue(){
+  elDialogue.classList.remove('show');
+  elGiftPicker.classList.remove('show');
+  activeDialogue = null;
+}
+function renderDialogueStep(){
+  if(!activeDialogue) return;
+  var d = activeDialogue;
+  elDlgText.textContent = d.lines[d.idx];
+  var fr = d.npc.id==='mongle' ? state.friendship.mongle : d.npc.id==='rita' ? state.friendship.rita : null;
+  elDlgHearts.textContent = fr!==null ? heartsStr(fr) : '';
+  var isLast = d.idx >= d.lines.length-1;
+  var html = '';
+  if(!isLast){
+    html += '<button class="btn small" id="dlgnext">다음</button>';
+  } else {
+    if(d.choices){
+      d.choices.forEach(function(c,i){
+        html += '<button class="btn small '+(c.cls||'')+'" data-ci="'+i+'">'+c.label+'</button>';
+      });
+    }
+    if((d.npc.id==='mongle'||d.npc.id==='rita') && Object.keys(state.inventory).some(function(k){return state.inventory[k]>0;})){
+      html += '<button class="btn small yellow" id="dlggift">선물하기</button>';
+    }
+    html += '<button class="btn small ghost" id="dlgclose">닫기</button>';
+  }
+  elDlgActions.innerHTML = html;
+  var nextBtn = $('dlgnext');
+  if(nextBtn) nextBtn.addEventListener('click', function(){ d.idx++; renderDialogueStep(); });
+  var closeBtn = $('dlgclose');
+  if(closeBtn) closeBtn.addEventListener('click', function(){ if(d.onDone) d.onDone(); closeDialogue(); });
+  var giftBtn = $('dlggift');
+  if(giftBtn) giftBtn.addEventListener('click', function(){ openGiftPicker(d.npc); });
+  if(d.choices){
+    d.choices.forEach(function(c,i){
+      var b = elDlgActions.querySelector('[data-ci="'+i+'"]');
+      if(b) b.addEventListener('click', function(){ closeDialogue(); c.action(); });
+    });
+  }
+}
+
+function openGiftPicker(npc){
+  var keys = Object.keys(state.inventory).filter(function(k){ return state.inventory[k]>0; });
+  if(!keys.length){ return; }
+  elGiftList.innerHTML = keys.map(function(k,i){
+    return '<div class="giftrow"><span>'+(ITEM_ICONS[k]||'▫️')+' '+k+' x'+state.inventory[k]+'</span><button class="btn small" data-gi="'+i+'">선물</button></div>';
+  }).join('');
+  keys.forEach(function(k,i){
+    var b = elGiftList.querySelector('[data-gi="'+i+'"]');
+    b.addEventListener('click', function(){ giveGift(npc,k); elGiftPicker.classList.remove('show'); });
+  });
+  elGiftPicker.classList.add('show');
+}
+
+function giveGift(npc, itemName){
+  takeItem(itemName,1);
+  var favs = FAVORITES[npc.id]||[];
+  var isFav = favs.indexOf(itemName)!==-1;
+  var fkey = npc.id==='mongle' ? 'friendship' : null;
+  if(npc.id==='mongle') state.friendship.mongle = Math.min(100, state.friendship.mongle + (isFav?18:5));
+  if(npc.id==='rita') state.friendship.rita = Math.min(100, state.friendship.rita + (isFav?18:5));
+  spawnFloatText(npc.mesh.position, isFav ? (npc.name+' 최애 선물! ❤❤') : '고마워요', isFav?'heart':'item');
+  toast((isFav? '💖 ' : '🙂 ') + npc.name+'에게 '+itemName+'을(를) 선물했어요');
+  addVibe(isFav?4:2);
+  if(npc.id==='rita' && itemName==='조개목걸이' && !state.flags.ritaPurified){
+    purifyRita();
+  }
+  refreshBag();
+}
+
+/* ===================== quest: 흐려진 마음 편지 ===================== */
+function talkBosol(){
+  if(!state.flags.metBosol){
+    openDialogue(bosol, [
+      '어이쿠, 낯선 얼굴이네! 반가워, 나는 보솔이야.',
+      '포근숲 마을에 온 걸 환영해! 이 마을은 사계절 정령 새숨이가 지켜왔는데...',
+      '몇 해 전부터 새숨이가 깊이 잠들면서, 마을 곳곳의 빛이 옅어지고 있어.',
+      '네가 마을을 가꾸고 주민들과 친해지면, 새숨이도 다시 깨어날지 몰라!',
+      '아 참, 방금 우체통 근처에서 비에 번진 편지 하나를 주웠어.',
+      '받는 사람 이름이 지워져서 누구 건지 모르겠더라고... 네가 좀 찾아봐 줄래?',
+      '몽글이나 레티한테 넌지시 물어보면 단서가 나올지도 몰라!'
+    ], { onDone:function(){
+      state.flags.metBosol = true;
+      state.flags.questStage = 1;
+      setQuestline('흐려진 마음 편지 — 몽글이와 레티에게 편지에 대해 물어보기');
+      toast('보솔이에게 편지를 받았어요');
+    }});
+    return;
+  }
+  var lines;
+  if(state.flags.questStage>=4){
+    lines = ['편지 일, 정말 잘 해결했어! 요즘 레티가 부쩍 밝아졌더라.', '채집도 하고 낚시도 해보고, 마을을 네 맘대로 꾸며봐!'];
+  } else if(state.flags.cluesMongle){
+    lines = ['오, 몽글이한테 뭔가 알아냈구나! 레티한테도 한번 가봐.'];
+  } else {
+    lines = ['편지 주인, 아직 못 찾았어? 몽글이나 레티한테 물어봐!'];
+  }
+  openDialogue(bosol, lines, {});
+}
+
+function talkMongle(){
+  var base = ['으암... 낮잠 자기 딱 좋은 날씨네.', '요즘 부쩍 나른해... 넌 안 졸려?'];
+  if(state.flags.questStage>=4){
+    openDialogue(mongle, ['레티가 그 편지 읽고 좋아했다면서? 다행이다... 정말 다행이야.', '다음엔 내가 직접 전해줄 용기를 내볼게.'], {});
+    return;
+  }
+  var choices = null;
+  if(state.flags.questStage>=1 && !state.flags.cluesMongle){
+    choices = [{ label:'편지에 대해 물어보기', action:function(){
+      openDialogue(mongle, [
+        '편지? 아... 그거 내가 흘렸나 보다, 부끄럽게.',
+        '사실 예전에 고마운 친구한테 편지를 썼었어. 근데 막상 주려니 부끄러워서 숲에 숨겨놨거든.',
+        '그 친구가... 손재주가 좋고, 가시가 좀 따끔한 친구랄까? 힌트가 됐으려나 (웃음)'
+      ], { onDone:function(){
+        state.flags.cluesMongle = true;
+        setQuestline('흐려진 마음 편지 — 레티에게 편지를 보여주기');
+        toast('몽글이에게 단서를 들었어요');
+      }});
+    }}];
+  }
+  openDialogue(mongle, base, { choices:choices });
+}
+
+function talkRita(){
+  if(state.flags.questStage>=4){
+    openDialogue(rita, ['요즘은 매일이 참 따뜻해요, 다 당신 덕분이에요.', '이런 선물 정말 좋아해요, 고마워요!'], {});
+    return;
+  }
+  var base = rita.shadowed
+    ? ['...아, 누구세요. 미안해요, 요즘 기운이 좀 없어서.', '예전에 정성껏 옷을 만들었는데... 아무도 안 입어줘서요. 다 부질없나 봐요.']
+    : ['안녕하세요! 오늘도 좋은 하루예요.'];
+  var choices = null;
+  if(state.flags.cluesMongle){
+    choices = [{ label:'편지를 보여준다', cls:'yellow', action:function(){
+      openDialogue(rita, [
+        '이 편지... 저한테 온 거라고요?',
+        '(편지를 읽는다) ...세상에.',
+        '"가시가 따끔해도, 마음은 제일 따뜻한 친구에게" 라니...',
+        '이거 혹시... 몽글이가 쓴 건가요?',
+        '고마워요. 정말... 정말 고마워요. 오랜만에 마음이 밝아지는 기분이에요.'
+      ], { onDone:function(){
+        state.flags.questStage = 4;
+        state.friendship.mongle = Math.min(100,state.friendship.mongle+30);
+        state.friendship.rita = Math.min(100,state.friendship.rita+30);
+        addItem('정원벤치',1);
+        addVibe(15);
+        setQuestline('');
+        toast('편지가 무사히 전해졌어요! 정원벤치 재료를 얻었어요');
+        purifyRita();
+      }});
+    }}];
+  }
+  openDialogue(rita, base, { choices:choices });
+}
+
+function purifyRita(){
+  if(state.flags.ritaPurified) return;
+  state.flags.ritaPurified = true;
+  rita.shadowed = false;
+  var from = { body:new THREE.Color(rita.look.body), belly:new THREE.Color(rita.look.belly), accent:new THREE.Color(rita.look.accent), spike:new THREE.Color(0x777d88) };
+  var to = { body:new THREE.Color(rita.trueLook.body), belly:new THREE.Color(rita.trueLook.belly), accent:new THREE.Color(rita.trueLook.accent), spike:new THREE.Color(0xd88f8f) };
+  var t0 = performance.now();
+  (function anim(){
+    var t = Math.min(1,(performance.now()-t0)/1200);
+    rita.mesh.userData.bodyMat.color.lerpColors(from.body,to.body,t);
+    rita.mesh.userData.bellyMat.color.lerpColors(from.belly,to.belly,t);
+    rita.mesh.userData.accentMat.color.lerpColors(from.accent,to.accent,t);
+    rita.spikeMat.color.lerpColors(from.spike,to.spike,t);
+    if(t<1) requestAnimationFrame(anim);
+  })();
+  spawnFloatText(rita.mesh.position, '✨', 'sparkle');
+  var flashGeo = new THREE.RingGeometry(0.1,0.3,24);
+  var flashMat = new THREE.MeshBasicMaterial({ color:0xc9b8e8, transparent:true, opacity:0.85, side:THREE.DoubleSide });
+  var flash = new THREE.Mesh(flashGeo, flashMat);
+  flash.rotation.x=-Math.PI/2; flash.position.copy(rita.mesh.position); flash.position.y=0.05;
+  scene.add(flash);
+  var f0 = performance.now();
+  (function fanim(){
+    var t=(performance.now()-f0)/700;
+    if(t>=1){ scene.remove(flash); return; }
+    flash.scale.setScalar(1+t*8);
+    flashMat.opacity = 0.85*(1-t);
+    requestAnimationFrame(fanim);
+  })();
+}
+
+function handleNpcClick(npc){
+  if(npc.id==='bosol') talkBosol();
+  else if(npc.id==='mongle') talkMongle();
+  else if(npc.id==='rita') talkRita();
+}
+
+/* ===================== foraging / fishing / crafting ===================== */
+function spawnFloatText(worldPos, text, cls){
+  var s = worldToScreen(worldPos.clone().add(new THREE.Vector3(0,1.4,0)));
+  if(s.behind) return;
+  var d=document.createElement('div');
+  d.className='floatnum '+(cls||'');
+  d.style.left=s.x+'px'; d.style.top=s.y+'px';
+  d.textContent=text;
+  elFloaters.appendChild(d);
+  setTimeout(function(){ d.remove(); }, 1000);
+}
+function worldToScreen(vec3){
+  var v=vec3.clone().project(camera);
+  return { x:(v.x*0.5+0.5)*window.innerWidth, y:(-v.y*0.5+0.5)*window.innerHeight, behind:v.z>1 };
+}
+
+function harvestNode(node){
+  if(node.isFishingSpot){ openFishing(); return; }
+  if(node.isCraftStation){ openCraft(); return; }
+  if(!node.ready) return;
+  var item = node.pool[Math.floor(Math.random()*node.pool.length)];
+  addItem(item,1);
+  spawnFloatText(node.mesh.position, '+'+item, 'item');
+  addVibe(1);
+  node.ready = false;
+  node.cooldown = node.kind==='tree' ? 16 : 10;
+  node.mesh.scale.setScalar(0.15);
+  var targetScale = node.kind==='tree' ? 1 : 1;
+  var t0=performance.now();
+  (function anim(){
+    var t=Math.min(1,(performance.now()-t0)/260);
+    node.mesh.scale.setScalar(0.15+0.85*t);
+    if(t<1) requestAnimationFrame(anim);
+  })();
+}
+
+/* fishing minigame */
+var fishing = { active:false, dir:1, pos:0, zoneStart:0.55, zoneW:0.18 };
+function openFishing(){
+  fishing.active = true;
+  fishing.pos = 0; fishing.dir=1;
+  fishing.zoneStart = 0.35 + Math.random()*0.35;
+  fishing.zoneW = 0.16;
+  elFishZone.style.left = (fishing.zoneStart*100)+'%';
+  elFishZone.style.width = (fishing.zoneW*100)+'%';
+  elFishResult.textContent = '표시된 구간에서 낚아채기를 눌러보세요!';
+  elFishPanel.classList.add('show');
+}
+function closeFishing(){ fishing.active=false; elFishPanel.classList.remove('show'); }
+$('fishcatch').addEventListener('click', function(){
+  if(!fishing.active) return;
+  var hit = fishing.pos >= fishing.zoneStart && fishing.pos <= fishing.zoneStart+fishing.zoneW;
+  if(hit){
+    addItem('물고기',1);
+    elFishResult.textContent = '🐟 물고기를 낚았어요!';
+    addVibe(2);
+  } else {
+    elFishResult.textContent = '아쉬워요, 놓쳤어요.';
+  }
+  fishing.active = false;
+  setTimeout(closeFishing, 900);
+});
+function updateFishing(dt){
+  if(!fishing.active) return;
+  fishing.pos += fishing.dir*dt*0.7;
+  if(fishing.pos>1){ fishing.pos=1; fishing.dir=-1; }
+  if(fishing.pos<0){ fishing.pos=0; fishing.dir=1; }
+  elFishMarker.style.left = (fishing.pos*100)+'%';
+}
+
+/* crafting */
+var RECIPES = [
+  { id:'berryTea', name:'베리 티', need:{산딸기:2}, gives:'베리티', icon:'🍵' },
+  { id:'shellNecklace', name:'조개 목걸이', need:{조개:2}, gives:'조개목걸이', icon:'📿' },
+  { id:'grilledFish', name:'생선구이', need:{물고기:2}, gives:'생선구이', icon:'🍢' },
+  { id:'gardenLamp', name:'가로등 장식', need:{나뭇가지:2, 조개:1}, gives:'가로등', icon:'🏮' }
+];
+function openCraft(){
+  renderCraft();
+  elCraftPanel.classList.add('show');
+}
+function renderCraft(){
+  elRecipeList.innerHTML = RECIPES.map(function(r,i){
+    var needStr = Object.keys(r.need).map(function(k){ return k+' '+(state.inventory[k]||0)+'/'+r.need[k]; }).join(', ');
+    var ok = Object.keys(r.need).every(function(k){ return (state.inventory[k]||0) >= r.need[k]; });
+    return '<div class="recipe"><div class="info">'+r.icon+' '+r.name+'<div class="need '+(ok?'':'bad')+'">'+needStr+'</div></div>'+
+      '<button class="btn small '+(ok?'mint':'ghost')+'" data-ri="'+i+'" '+(ok?'':'disabled')+'>만들기</button></div>';
+  }).join('');
+  RECIPES.forEach(function(r,i){
+    var b = elRecipeList.querySelector('[data-ri="'+i+'"]');
+    if(b) b.addEventListener('click', function(){
+      Object.keys(r.need).forEach(function(k){ takeItem(k, r.need[k]); });
+      addItem(r.gives,1);
+      toast(r.icon+' '+r.name+'을(를) 만들었어요!');
+      addVibe(2);
+      renderCraft();
+    });
+  });
+}
+$('craftclose').addEventListener('click', function(){ elCraftPanel.classList.remove('show'); });
+
+/* ===================== decorating ===================== */
+var DECOR_TYPES = {
+  정원벤치: { icon:'🪑', build:function(){
+    var g=new THREE.Group();
+    var seat=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.12,0.4), new THREE.MeshStandardMaterial({color:0xcfa06a}));
+    seat.position.y=0.4;
+    var back=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.4,0.1), new THREE.MeshStandardMaterial({color:0xcfa06a}));
+    back.position.set(0,0.62,-0.17);
+    var legGeo=new THREE.BoxGeometry(0.1,0.4,0.1);
+    var legMat=new THREE.MeshStandardMaterial({color:0x8a6a4a});
+    [[-0.35,-0.15],[0.35,-0.15],[-0.35,0.15],[0.35,0.15]].forEach(function(p){
+      var leg=new THREE.Mesh(legGeo,legMat); leg.position.set(p[0],0.2,p[1]); g.add(leg);
+    });
+    g.add(seat,back);
+    g.traverse(function(c){ c.castShadow=true; });
+    return g;
+  }},
+  가로등: { icon:'🏮', build:function(){
+    var g=new THREE.Group();
+    var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,1.3,6), new THREE.MeshStandardMaterial({color:0x8a6a4a}));
+    pole.position.y=0.65;
+    var lamp=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), new THREE.MeshStandardMaterial({color:0xfff2c6, emissive:0xf6d186, emissiveIntensity:0.5}));
+    lamp.position.y=1.35;
+    g.add(pole,lamp);
+    g.traverse(function(c){ c.castShadow=true; });
+    return g;
+  }}
+};
+var decorateMode=false, selectedDecor=null;
+function refreshDecoPalette(){
+  var keys = Object.keys(DECOR_TYPES).filter(function(k){ return (state.inventory[k]||0)>0; });
+  if(!keys.length){ elDecoPalette.innerHTML='<div style="font-size:12px;color:var(--ink-soft);padding:6px 10px;">배치할 가구가 없어요. 제작대에서 만들어보세요!</div>'; return; }
+  elDecoPalette.innerHTML = keys.map(function(k){
+    return '<div class="decoitem'+(selectedDecor===k?' active':'')+'" data-dk="'+k+'">'+DECOR_TYPES[k].icon+'<span class="cnt">x'+state.inventory[k]+'</span></div>';
+  }).join('');
+  keys.forEach(function(k){
+    var el = elDecoPalette.querySelector('[data-dk="'+k+'"]');
+    el.addEventListener('click', function(){ selectedDecor = (selectedDecor===k)?null:k; refreshDecoPalette(); });
+  });
+}
+function toggleDecorateMode(){
+  decorateMode = !decorateMode;
+  selectedDecor = null;
+  elDecoPalette.classList.toggle('show', decorateMode);
+  refreshDecoPalette();
+  refreshActionHud();
+}
+function placeDecor(x,z){
+  if(!selectedDecor || !hasItem(selectedDecor,1)) return;
+  var mesh = DECOR_TYPES[selectedDecor].build();
+  mesh.position.set(x,0,z);
+  scene.add(mesh);
+  takeItem(selectedDecor,1);
+  state.decorPlaced.push({ key:selectedDecor, x:x, z:z });
+  addVibe(3);
+  toast(DECOR_TYPES[selectedDecor].icon+' 배치했어요!');
+  refreshDecoPalette();
+}
+
+/* ===================== action hud (contextual) ===================== */
+var nearbyTarget = null; // node or npc
+function refreshActionHud(){
+  elActionHud.innerHTML='';
+  var decoBtn = document.createElement('button');
+  decoBtn.className = 'btn '+(decorateMode?'mint':'ghost');
+  decoBtn.textContent = decorateMode ? '꾸미기 종료' : '🏡 꾸미기';
+  decoBtn.addEventListener('click', toggleDecorateMode);
+  elActionHud.appendChild(decoBtn);
+}
+refreshActionHud();
+
+/* ===================== input ===================== */
+var raycaster = new THREE.Raycaster();
+var mouseNdc = new THREE.Vector2();
+var keys = {};
+var moveTarget=null, interactTarget=null;
+
+function getGroundPoint(cx,cy){
+  mouseNdc.x=(cx/window.innerWidth)*2-1; mouseNdc.y=-(cy/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouseNdc,camera);
+  var hits = raycaster.intersectObject(ground);
+  return hits.length ? hits[0].point : null;
+}
+function pickThing(cx,cy){
+  mouseNdc.x=(cx/window.innerWidth)*2-1; mouseNdc.y=-(cy/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouseNdc,camera);
+  var meshes = npcs.map(function(n){return n.mesh;}).concat(forageNodes.map(function(n){return n.mesh;}));
+  var hits = raycaster.intersectObjects(meshes,true);
+  if(!hits.length) return null;
+  var obj = hits[0].object;
+  while(obj && !obj.userData.__root){ obj = obj.parent; }
+  for(var i=0;i<npcs.length;i++){ if(npcs[i].mesh===obj) return {type:'npc',ref:npcs[i]}; }
+  for(var j=0;j<forageNodes.length;j++){ if(forageNodes[j].mesh===obj) return {type:'node',ref:forageNodes[j]}; }
+  return null;
+}
+npcs.forEach(function(n){ n.mesh.userData.__root=true; });
+forageNodes.forEach(function(n){ n.mesh.userData.__root=true; });
+
+function onPointerDown(e){
+  if(!state.started) return;
+  if(e.button!==0) return;
+  if(activeDialogue) return;
+  if(decorateMode){
+    var p = getGroundPoint(e.clientX,e.clientY);
+    if(p && selectedDecor){ placeDecor(p.x,p.z); }
+    return;
+  }
+  var pick = pickThing(e.clientX,e.clientY);
+  if(pick){
+    interactTarget = pick; moveTarget=null;
+  } else {
+    var g = getGroundPoint(e.clientX,e.clientY);
+    if(g){
+      var d=Math.sqrt(g.x*g.x+g.z*g.z);
+      if(d>ARENA_R-1){ var sc=(ARENA_R-1)/d; g.x*=sc; g.z*=sc; }
+      moveTarget=g; interactTarget=null;
+      marker.position.set(g.x,0.04,g.z); marker.visible=true;
+    }
+  }
+}
+canvas.addEventListener('mousedown', onPointerDown);
+canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+canvas.addEventListener('touchstart', function(e){
+  if(!e.touches||!e.touches.length) return;
+  onPointerDown({button:0, clientX:e.touches[0].clientX, clientY:e.touches[0].clientY});
+}, {passive:true});
+
+window.addEventListener('keydown', function(e){
+  var k=e.key.toLowerCase(); keys[k]=true;
+  if(['w','a','s','d'].indexOf(k)!==-1){ moveTarget=null; interactTarget=null; marker.visible=false; }
+});
+window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()]=false; });
+
+function faceTowards(p){
+  var dx=p.x-player.position.x, dz=p.z-player.position.z;
+  if(Math.abs(dx)>0.001||Math.abs(dz)>0.001) playerFacing=Math.atan2(dx,dz);
+}
+
+function collideObstacles(pos,radius){
+  for(var i=0;i<obstacles.length;i++){
+    var o=obstacles[i];
+    var dx=pos.x-o.x, dz=pos.z-o.z;
+    var dist=Math.sqrt(dx*dx+dz*dz);
+    var min=o.r+radius;
+    if(dist<min && dist>0.0001){ var push=(min-dist); pos.x+=dx/dist*push; pos.z+=dz/dist*push; }
+  }
+}
+
+/* ===================== update loop ===================== */
+var INTERACT_RANGE = 1.7;
+function updatePlayer(dt){
+  var moved=false;
+  var moveVec = new THREE.Vector3();
+  var wasdActive = keys['w']||keys['a']||keys['s']||keys['d'];
+  if(wasdActive){
+    var mx=0,mz=0;
+    if(keys['w']) mz-=1; if(keys['s']) mz+=1;
+    if(keys['a']) mx-=1; if(keys['d']) mx+=1;
+    moveVec.set(mx,0,mz);
+    if(moveVec.lengthSq()>0){ moveVec.normalize(); moved=true; }
+  } else if(interactTarget){
+    var refPos = interactTarget.type==='npc' ? interactTarget.ref.mesh.position : interactTarget.ref.mesh.position;
+    var toT = refPos.clone().sub(player.position); toT.y=0;
+    var dist = toT.length();
+    if(dist > INTERACT_RANGE){ moveVec.copy(toT.normalize()); moved=true; }
+    else {
+      faceTowards(refPos);
+      if(interactTarget.type==='npc') handleNpcClick(interactTarget.ref);
+      else harvestNode(interactTarget.ref);
+      interactTarget = null;
+    }
+  } else if(moveTarget){
+    var toM = new THREE.Vector3(moveTarget.x,0,moveTarget.z).sub(player.position);
+    var dm = toM.length();
+    if(dm>0.25){ moveVec.copy(toM.normalize()); moved=true; }
+    else { moveTarget=null; marker.visible=false; }
+  }
+
+  if(moved){
+    var speed=6.0;
+    var step = moveVec.clone().multiplyScalar(speed*dt);
+    player.position.add(step);
+    var r=Math.sqrt(player.position.x*player.position.x+player.position.z*player.position.z);
+    if(r>ARENA_R-0.6){ var sc=(ARENA_R-0.6)/r; player.position.x*=sc; player.position.z*=sc; }
+    collideObstacles(player.position,0.5);
+    faceTowards(player.position.clone().add(moveVec));
+    walkPhase += dt*8;
+    player.userData.footL.position.y = 0.16+Math.max(0,Math.sin(walkPhase))*0.08;
+    player.userData.footR.position.y = 0.16+Math.max(0,Math.sin(walkPhase+Math.PI))*0.08;
+    player.userData.armL.rotation.x = Math.sin(walkPhase)*0.5;
+    player.userData.armR.rotation.x = Math.sin(walkPhase+Math.PI)*0.5;
+  } else {
+    player.userData.armL.rotation.x *= 0.85; player.userData.armR.rotation.x *= 0.85;
+  }
+  player.rotation.y = playerFacing;
+  if(marker.visible) marker.rotation.z += dt*2;
+}
+
+function updateNpcs(t){
+  npcs.forEach(function(n){
+    var bob = Math.sin(t*2+n.phase)*0.04;
+    n.mesh.position.y = bob<0?0:bob;
+    n.mesh.userData.earL.rotation.z = Math.sin(t*1.5+n.phase)*0.05;
+  });
+}
+
+function updateNearbyPrompts(){
+  document.querySelectorAll('.prompt').forEach(function(e){ e.remove(); });
+  var best=null, bd=INTERACT_RANGE+0.4;
+  npcs.concat(forageNodes.filter(function(n){return n.ready || n.isFishingSpot || n.isCraftStation;})).forEach(function(n){
+    var pos = n.mesh ? n.mesh.position : null;
+    if(!pos) return;
+    var dx=pos.x-player.position.x, dz=pos.z-player.position.z;
+    var d=Math.sqrt(dx*dx+dz*dz);
+    if(d<bd){ bd=d; best=n; }
+  });
+  if(best){
+    var label = best.name ? '대화하기' : best.label;
+    var s = worldToScreen(best.mesh.position.clone().add(new THREE.Vector3(0, best.look?1.9*best.look.scale:1.2,0)));
+    if(!s.behind){
+      var d=document.createElement('div');
+      d.className='prompt';
+      d.style.left=s.x+'px'; d.style.top=s.y+'px';
+      d.textContent=label;
+      elFloaters.appendChild(d);
+    }
+  }
+}
+
+function updateNameLabels(){
+  document.querySelectorAll('.namelabel').forEach(function(e){ e.remove(); });
+  npcs.forEach(function(n){
+    var s = worldToScreen(n.mesh.position.clone().add(new THREE.Vector3(0,1.9*n.look.scale,0)));
+    if(s.behind) return;
+    var d=document.createElement('div');
+    d.className='namelabel';
+    var fr = n.id==='mongle'?state.friendship.mongle : n.id==='rita'?state.friendship.rita : null;
+    d.innerHTML = n.name + (fr!==null? ' <span class="heart">'+heartsStr(fr).slice(0,1)+'</span>':'');
+    d.style.left=s.x+'px'; d.style.top=s.y+'px';
+    elFloaters.appendChild(d);
+  });
+}
+
+function updateBlobs(){
+  playerBlob.position.x=player.position.x; playerBlob.position.z=player.position.z;
+  npcs.forEach(function(n){ n.blob.position.x=n.mesh.position.x; n.blob.position.z=n.mesh.position.z; });
+}
+
+function updateForageRegrow(dt){
+  forageNodes.forEach(function(n){
+    if(!n.ready && !n.isFishingSpot && !n.isCraftStation){
+      n.cooldown -= dt;
+      if(n.cooldown<=0){ n.ready=true; }
+    }
+  });
+}
+
+function updateCamera(dt){
+  camTarget.lerp(player.position, Math.min(1,dt*6));
+  var desired = camTarget.clone().add(camOffset);
+  camera.position.lerp(desired, Math.min(1,dt*6));
+  camera.lookAt(camTarget.x, camTarget.y+1.0, camTarget.z);
+}
+
+/* ===================== day/night cycle ===================== */
+function tickTime(dt){
+  state.timeHours += dt*state.timeSpeed;
+  if(state.timeHours>=24){ state.timeHours-=24; state.day++; }
+  var h = state.timeHours;
+  elDayText.textContent = state.day+'일차';
+  var label = h<6?'깊은 밤':h<11?'아침':h<15?'낮':h<18?'노을':h<21?'저녁':'밤';
+  elTimeLabel.textContent = label;
+
+  // sun angle
+  var ang = (h/24)*Math.PI*2 - Math.PI/2;
+  var sunHeight = Math.sin(ang);
+  sun.position.set(Math.cos(ang)*20, Math.max(2,sunHeight*22), 10);
+  sun.target.position.set(0,0,0);
+
+  var dayness = Math.max(0, sunHeight); // 0..1 daytime
+  var duskness = Math.max(0, 1-Math.abs(sunHeight)*3); // near horizon
+  var isNight = sunHeight < -0.05;
+
+  var col = new THREE.Color();
+  if(isNight){ col.copy(skyColorNight); }
+  else { col.copy(skyColorDay).lerp(skyColorSunset, Math.min(1,duskness)); }
+  scene.background.copy(col);
+  scene.fog.color.copy(col);
+
+  sun.intensity = isNight ? 0.1 : (0.4+dayness*0.35);
+  hemi.intensity = isNight ? 0.22 : (0.4+dayness*0.3);
+  fill.intensity = isNight ? 0.1 : 0.12;
+  elTimeIcon.style.background = isNight ? '#c9b8e8' : (duskness>0.5 ? '#f5a9a8' : '#f6d186');
+
+  lampPosts.forEach(function(lp){ lp.light.intensity = isNight ? 1.4 : 0; lp.lampMesh.material.emissiveIntensity = isNight?0.9:0.3; });
+}
+
+/* ===================== minimap-free HUD loop ===================== */
+var clock = new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  var dt = Math.min(0.05, clock.getDelta());
+  var t = clock.elapsedTime;
+  if(state.started){
+    updatePlayer(dt);
+    updateNpcs(t);
+    updateForageRegrow(dt);
+    updateFishing(dt);
+    tickTime(dt);
+  }
+  updateCamera(dt);
+  updateBlobs();
+  renderer.render(scene, camera);
+  if(state.started && !activeDialogue){
+    updateNearbyPrompts();
+  } else {
+    document.querySelectorAll('.prompt').forEach(function(e){ e.remove(); });
+  }
+  updateNameLabels();
+}
+
+/* ===================== boot ===================== */
+function startGame(){
+  state.started = true;
+  elStart.classList.add('hidden');
+  refreshBag();
+  addVibe(0);
+}
+$('startbtn').addEventListener('click', startGame);
+
+resize();
+tickTime(0);
+loop();
+
+})();
+</script>
+
+</body></html>
