@@ -276,6 +276,17 @@ const MISSIONS_DATABASE: MissionItem[] = [
   },
 ];
 
+/** 배경 테마별 방 그림 (제미나이로 그린 것) */
+const THEME_PICTURES: Record<string, string> = {
+  warm_living: './assets/tamagotchi/themes/warm_living.webp',
+  cosmic_space: './assets/tamagotchi/themes/cosmic_space.webp',
+  deep_ocean: './assets/tamagotchi/themes/deep_ocean.webp',
+  cloud_heaven: './assets/tamagotchi/themes/cloud_heaven.webp',
+  fairy_forest: './assets/tamagotchi/themes/fairy_forest.webp',
+  candy_land: './assets/tamagotchi/themes/candy_land.webp',
+  crystal_castle: './assets/tamagotchi/themes/crystal_castle.webp',
+};
+
 export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
   currentUser,
   onOpenProfile,
@@ -1046,22 +1057,17 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
           <div className="tg-screen relative rounded-3xl overflow-hidden border-4 border-[#4a2810] shadow-2xl bg-[#6f4421] flex flex-col justify-between min-h-[460px]">
             
             {/* ================= 16-BIT PIXEL WOODEN COTTAGE ROOM / CUSTOM THEME ================= */}
-            {(!pet.homeTheme || pet.homeTheme === 'warm_living') ? (
-              <img
-                src="./assets/minigames/bg-pet.webp"
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
-                style={{ imageRendering: 'pixelated' }}
-                referrerPolicy="no-referrer"
-                draggable={false}
-              />
-            ) : (
-              <TamagotchiThemeBackground 
-                theme={pet.homeTheme} 
-                decor={pet.roomDecor} 
-              />
-            )}
+            {/* 방 배경 = 배경 테마 그림(제미나이), 그 위에 내가 고른 가구·소품 */}
+            <img
+              key={pet.homeTheme || 'warm_living'}
+              src={THEME_PICTURES[pet.homeTheme || 'warm_living'] || THEME_PICTURES.warm_living}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
+              style={{ imageRendering: 'pixelated' }}
+              draggable={false}
+            />
+            <TamagotchiThemeBackground theme={pet.homeTheme} decor={pet.roomDecor} itemsOnly />
 
             {/* ================= TOP HUD (Pet Stats, Stage, Info) ================= */}
             <div className="relative z-10 p-3.5 sm:p-5 flex flex-wrap items-center justify-between gap-3 bg-[#fdf5dd]/92 border-b-3 border-[#4a2810] shadow-xs">

@@ -4,11 +4,14 @@ import { TamagotchiThemeType, RoomDecorState } from '../types';
 interface TamagotchiThemeBackgroundProps {
   theme?: TamagotchiThemeType;
   decor?: RoomDecorState;
+  /** 배경 그림(제미나이 그림) 위에 소품만 그림: 벽지·바닥·창문은 그리지 않음 */
+  itemsOnly?: boolean;
 }
 
 export const TamagotchiThemeBackground: React.FC<TamagotchiThemeBackgroundProps> = ({
   theme = 'warm_living',
   decor,
+  itemsOnly = false,
 }) => {
   // If no custom decor is passed, provide defaults
   const activeDecor: RoomDecorState = decor || {
@@ -137,6 +140,7 @@ export const TamagotchiThemeBackground: React.FC<TamagotchiThemeBackgroundProps>
           </radialGradient>
         </defs>
 
+        {!itemsOnly && (<>
         {/* ==================================================== */}
         {/* 1. WALLPAPER BASE & PATTERNS (0 ~ 335px) */}
         {/* ==================================================== */}
@@ -409,6 +413,8 @@ export const TamagotchiThemeBackground: React.FC<TamagotchiThemeBackgroundProps>
           <path d="M 140,0 Q 115,85 140,170 L 146,170 L 146,0 Z" fill="#FDA4AF" opacity="0.9" />
           <line x1="-12" y1="-2" x2="152" y2="-2" stroke="#B45309" strokeWidth="5" strokeLinecap="round" />
         </g>
+
+        </>)}
 
         {/* ==================================================== */}
         {/* 4. WALL DECOR (Upper Right Wall) */}

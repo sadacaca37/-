@@ -42,6 +42,9 @@ export type DecorCategory =
   | 'floorToy' 
   | 'lighting';
 
+/** 방 배경 그림(배경 테마)에 이미 들어 있는 부분: 소품 상점에서는 숨김 */
+const ROOM_PICTURE_PARTS: string[] = ['wallpaper', 'flooring', 'windowView'];
+
 export const DECOR_CATEGORIES: Array<{
   id: DecorCategory;
   label: string;
@@ -224,7 +227,7 @@ export const RoomDecorModal: React.FC<RoomDecorModalProps> = ({
   petName,
   isMaster = false,
 }) => {
-  const [currentTab, setCurrentTab] = useState<DecorCategory>('wallpaper');
+  const [currentTab, setCurrentTab] = useState<DecorCategory>('furniture');
   const [tempDecor, setTempDecor] = useState<RoomDecorState>(decor);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
@@ -368,7 +371,7 @@ export const RoomDecorModal: React.FC<RoomDecorModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-amber-100 font-bold">
-                타자 연습으로 모은 포인트로 벽지, 바닥, 창문 풍경, 가구, 소품을 해금하고 인테리어하세요!
+                타자 연습으로 모은 포인트로 가구·러그·벽 장식·장난감·조명을 해금하고 방을 꾸며요! (방 배경은 '배경 테마 상점'에서)
               </p>
             </div>
           </div>
@@ -413,7 +416,7 @@ export const RoomDecorModal: React.FC<RoomDecorModalProps> = ({
 
         {/* Categories Tab Navigation */}
         <div className="flex items-center gap-1.5 p-2.5 px-4 bg-slate-100 border-b border-slate-200 overflow-x-auto scrollbar-none shrink-0">
-          {DECOR_CATEGORIES.map((cat) => {
+          {DECOR_CATEGORIES.filter((c) => !ROOM_PICTURE_PARTS.includes(c.id)).map((cat) => {
             const isActive = currentTab === cat.id;
             return (
               <button

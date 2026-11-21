@@ -143,9 +143,14 @@ export const ThemeShopModal: React.FC<ThemeShopModalProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <span className="text-3xl p-2 rounded-xl bg-white shadow-xs border border-slate-100">
-                        {theme.icon}
-                      </span>
+                      <img
+                        src={`./assets/tamagotchi/themes/${theme.id}.webp`}
+                        alt=""
+                        aria-hidden="true"
+                        className="w-20 h-12 shrink-0 rounded-lg object-cover border-2 border-white shadow-xs"
+                        style={{ imageRendering: 'pixelated' }}
+                        draggable={false}
+                      />
                       <div>
                         <div className="flex items-center gap-1.5">
                           <h4 className="font-black text-slate-900 text-sm">{theme.name}</h4>
