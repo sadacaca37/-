@@ -2,13 +2,14 @@
  * 오늘의 연습 보고 (학생 → 선생님)
  *  - 학생: 연습을 마치고 [선생님께 보내기] → 오늘 연습 요약이 선생님께 감
  *  - 선생님: 마스터 관리실 '받은 보고'에서 날짜별로 모아 보고 [확인]
- *  - 서버가 없는 미리보기에서는 이 브라우저에만 저장
+ *  - 저장: 모아팡팡 Firebase 'taja_reports/{학생}_{날짜}' (서버가 꺼져도 지워지지 않음)
  */
+import { collection, doc, getCountFromServer, getDoc, getDocs, onSnapshot, query, setDoc, where, writeBatch } from 'firebase/firestore';
 import type { UserSession } from '../types';
-import { typangApi } from './apiClient';
 import { activityTracker, dayActive, dayKey, dayKeys, dayKeySets, daySeconds, daySets } from './activityLog';
 import { readLocalActivity } from './studentActivity';
-import { markMyReportsChecked, rejoinMembers, rememberMyReport } from './serverHeal';
+import { markMyReportsChecked, rememberMyReport } from './serverHeal';
+import { fs, isTeacherUser, parseUserId, errText } from './moaFirebase';
 
 export interface ReportSummary {
   /** 끝낸 세트 (자리 연습 3번 = 1세트) */
@@ -48,23 +49,19 @@ export interface MyReport {
   keys: number;
 }
 
-const LOCAL_KEY = 'typang_daily_reports_local';
+const COL = 'taja_reports';
+const MY_REPORTS_PREFIX = 'typang_my_reports_';
+const reportId = (userId: string, day: string) => `${userId}_${day}`;
 
-function localAll(): DailyReport[] {
+function myLocal(userId: string): DailyReport[] {
   try {
-    const v = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+    const v = JSON.parse(localStorage.getItem(MY_REPORTS_PREFIX + userId) || '[]');
     return Array.isArray(v) ? v : [];
   } catch {
     return [];
   }
 }
-function localSave(list: DailyReport[]) {
-  try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(list.slice(-500)));
-  } catch {}
-}
-
-const isJson = (r: Response) => (r.headers.get('content-type') || '').includes('application/json');
+const toMine = (x: DailyReport): MyReport => ({ day: x.day, sentAt: x.sentAt, checkedAt: x.checkedAt || 0, sets: x.summary?.sets || 0, keys: x.summary?.keys || 0 });
 
 /** 오늘 연습 요약 (이 브라우저의 학습 일지에서) */
 export function buildTodaySummary(userId: string): { day: string; active: boolean; summary: ReportSummary } {
@@ -97,50 +94,76 @@ export function buildTodaySummary(userId: string): { day: string; active: boolea
 export async function sendTodayReport(user: UserSession, note: string): Promise<{ success: boolean; message?: string; report?: DailyReport }> {
   const { day, active, summary } = buildTodaySummary(user.id);
   if (!active) return { success: false, message: '오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요.' };
+  const p = parseUserId(user.id);
+  if (!p) return { success: false, message: '모아팡팡에서 방번호와 이름으로 들어온 학생만 보낼 수 있어요.' };
+  const report: DailyReport & { cid: string; key: string } = {
+    id: reportId(user.id, day),
+    userId: user.id,
+    cid: p.cid,
+    key: p.key,
+    name: user.name,
+    grade: user.grade || 0,
+    day,
+    sentAt: Date.now(),
+    checkedAt: 0,
+    note: String(note || '').slice(0, 120),
+    summary,
+  };
   try {
-    const send = () =>
-      fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, day, summary, note }),
-      });
-    let r = await send();
-    // 서버가 새로 켜져 학생 명단이 비어 있으면 회원증으로 되살리고 한 번 더
-    if (r.status === 400 && isJson(r) && (await rejoinMembers()) > 0) r = await send();
-    if (isJson(r)) {
-      const j = await r.json();
-      if (j?.success) {
-        if (j.report) rememberMyReport(j.report); // 서버가 비워져도 다시 올릴 수 있게 사본 보관
-        window.dispatchEvent(new Event('daily-report-updated'));
-        return { success: true, report: j.report };
-      }
-      if ('success' in (j || {})) return { success: false, message: j.message || '보내지 못했어요. 잠시 뒤 다시 해 주세요.' };
-    }
-  } catch {}
-  // 서버 없는 미리보기
-  const id = `${user.id}_${day}`;
-  const list = localAll().filter((x) => x.id !== id);
-  const report: DailyReport = { id, userId: user.id, name: user.name, grade: user.grade || 0, day, sentAt: Date.now(), checkedAt: 0, note: note.slice(0, 120), summary };
-  localSave([...list, report]);
-  window.dispatchEvent(new Event('daily-report-updated'));
-  return { success: true, report };
+    await setDoc(doc(fs, COL, report.id), report);
+    rememberMyReport(report); // 이 컴퓨터에도 사본 (지난 보고 목록용)
+    window.dispatchEvent(new Event('daily-report-updated'));
+    return { success: true, report };
+  } catch (e) {
+    return { success: false, message: errText(e) };
+  }
+}
+
+/* 학생: 오늘 보고는 실시간으로 지켜보고(선생님이 확인하면 바로 표시), 지난 보고는 가끔만 새로 읽음 */
+let watch: { id: string; unsub: () => void; data: DailyReport | null; ready: Promise<void> } | null = null;
+const fullReadAt = new Map<string, number>();
+const FULL_EVERY_MS = 30 * 60 * 1000;
+
+function watchToday(userId: string, day: string) {
+  const id = reportId(userId, day);
+  if (watch?.id === id) return watch;
+  watch?.unsub();
+  let done: () => void = () => {};
+  const w = { id, unsub: () => {}, data: null as DailyReport | null, ready: new Promise<void>((r) => (done = r)) };
+  w.unsub = onSnapshot(
+    doc(fs, COL, id),
+    (snap) => {
+      const before = w.data?.checkedAt || 0;
+      w.data = snap.exists() ? (snap.data() as DailyReport) : null;
+      done();
+      if ((w.data?.checkedAt || 0) !== before) window.dispatchEvent(new Event('daily-report-updated'));
+    },
+    () => done(),
+  );
+  watch = w;
+  return w;
 }
 
 /** 학생: 내가 최근에 보낸 보고 (보냈는지 · 선생님이 확인했는지) */
 export async function fetchMyReports(userId: string): Promise<MyReport[]> {
-  try {
-    const r = await fetch(`/api/reports/mine?userId=${encodeURIComponent(userId)}`, { cache: 'no-store' });
-    if (isJson(r)) {
-      const j = await r.json();
-      if (j?.success && Array.isArray(j.reports)) {
-        markMyReportsChecked(userId, j.reports);
-        return j.reports;
-      }
-    }
-  } catch {}
-  return localAll()
-    .filter((x) => x.userId === userId)
-    .map((x) => ({ day: x.day, sentAt: x.sentAt, checkedAt: x.checkedAt, sets: x.summary.sets, keys: x.summary.keys }));
+  if (!parseUserId(userId)) return [];
+  const today = dayKey();
+  const w = watchToday(userId, today);
+  await Promise.race([w.ready, new Promise((r) => setTimeout(r, 4000))]);
+  const byDay = new Map<string, DailyReport>();
+  for (const x of myLocal(userId)) if (x?.day) byDay.set(x.day, x);
+  // 지난 2주 보고의 '확인' 표시는 30분에 한 번만 새로 읽음
+  if (Date.now() - (fullReadAt.get(userId) || 0) > FULL_EVERY_MS) {
+    fullReadAt.set(userId, Date.now());
+    const days = [...byDay.keys()].filter((d) => d !== today).sort().slice(-14);
+    const got = await Promise.all(days.map((d) => getDoc(doc(fs, COL, reportId(userId, d))).catch(() => null)));
+    for (const g of got) if (g?.exists()) byDay.set((g.data() as DailyReport).day, g.data() as DailyReport);
+  }
+  if (w.data) byDay.set(today, w.data);
+  else byDay.delete(today);
+  const list = [...byDay.values()].sort((a, b) => b.sentAt - a.sentAt).map(toMine);
+  markMyReportsChecked(userId, list);
+  return list;
 }
 
 export interface InboxResult {
@@ -151,48 +174,56 @@ export interface InboxResult {
 
 /** 선생님: 받은 보고 */
 export async function fetchReports(days = 62): Promise<InboxResult> {
+  if (!isTeacherUser()) return { fromServer: true, error: '선생님 계정으로 로그인해 주세요.', reports: [] };
   try {
-    const r = await fetch(`/api/reports?days=${days}`, { headers: { 'x-master-key': typangApi.getMasterKey() }, cache: 'no-store' });
-    if (isJson(r)) {
-      const j = await r.json();
-      if (j?.success && Array.isArray(j.reports)) return { fromServer: true, reports: j.reports };
-      if (r.status === 403) return { fromServer: true, error: j?.message || '마스터 관리실에 다시 로그인해 주세요.', reports: [] };
-    }
-  } catch {}
-  return { fromServer: false, reports: localAll().sort((a, b) => b.sentAt - a.sentAt) };
+    const since = dayKey(Date.now() - days * 86400000);
+    const snap = await getDocs(query(collection(fs, COL), where('day', '>=', since)));
+    return { fromServer: true, reports: snap.docs.map((d) => d.data() as DailyReport).sort((a, b) => b.sentAt - a.sentAt) };
+  } catch (e) {
+    return { fromServer: true, error: errText(e), reports: [] };
+  }
+}
+
+/** 선생님: 받은 보고를 실시간으로 (처음 한 번 읽고, 그 뒤로는 바뀐 보고만 받아서 읽기 수가 적음) */
+export function watchReports(days: number, cb: (r: InboxResult) => void): () => void {
+  if (!isTeacherUser()) {
+    cb({ fromServer: true, error: '선생님 계정으로 로그인해 주세요.', reports: [] });
+    return () => {};
+  }
+  const since = dayKey(Date.now() - days * 86400000);
+  return onSnapshot(
+    query(collection(fs, COL), where('day', '>=', since)),
+    (snap) => cb({ fromServer: true, reports: snap.docs.map((d) => d.data() as DailyReport).sort((a, b) => b.sentAt - a.sentAt) }),
+    (e) => cb({ fromServer: true, error: errText(e), reports: [] }),
+  );
 }
 
 /** 선생님: 확인 표시 */
 export async function checkReports(target: { ids?: string[]; all?: boolean }, checked = true): Promise<boolean> {
+  if (!isTeacherUser()) return false;
   try {
-    const r = await fetch('/api/reports/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-master-key': typangApi.getMasterKey() },
-      body: JSON.stringify({ ...target, checked }),
-    });
-    if (isJson(r)) {
-      const j = await r.json();
-      if (j && 'success' in j) {
-        window.dispatchEvent(new Event('daily-report-updated'));
-        return !!j.success;
-      }
+    let ids = target.ids || [];
+    if (target.all) ids = (await getDocs(query(collection(fs, COL), where('checkedAt', '==', 0)))).docs.map((d) => d.id);
+    const at = checked ? Date.now() : 0;
+    for (let i = 0; i < ids.length; i += 400) {
+      const b = writeBatch(fs);
+      for (const id of ids.slice(i, i + 400)) b.update(doc(fs, COL, id), { checkedAt: at });
+      await b.commit();
     }
-  } catch {}
-  const ids = new Set(target.ids || []);
-  localSave(localAll().map((x) => (target.all ? (x.checkedAt ? x : { ...x, checkedAt: Date.now() }) : ids.has(x.id) ? { ...x, checkedAt: checked ? Date.now() : 0 } : x)));
-  window.dispatchEvent(new Event('daily-report-updated'));
-  return true;
+    window.dispatchEvent(new Event('daily-report-updated'));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 선생님: 아직 확인하지 않은 보고 수 (관리실 버튼의 숫자) */
 export async function fetchUncheckedCount(): Promise<number> {
+  if (!isTeacherUser()) return 0;
   try {
-    const r = await fetch('/api/reports/count', { headers: { 'x-master-key': typangApi.getMasterKey() }, cache: 'no-store' });
-    if (isJson(r)) {
-      const j = await r.json();
-      if (j?.success) return Number(j.unchecked) || 0;
-      if ('success' in (j || {})) return 0;
-    }
-  } catch {}
-  return localAll().filter((x) => !x.checkedAt).length;
+    const c = await getCountFromServer(query(collection(fs, COL), where('checkedAt', '==', 0)));
+    return c.data().count;
+  } catch {
+    return 0;
+  }
 }

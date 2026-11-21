@@ -1,13 +1,15 @@
 /**
- * 학생 자료(포인트·연습 기록·별·퀘스트·다마고치 등)를 서버에 보관해서
- * 어느 컴퓨터에서 로그인해도 이어서 쓰도록 맞춰 주는 도구.
+ * 학생 자료(포인트·연습 기록·별·퀘스트·다마고치 등)를 모아팡팡 Firebase에 보관해서
+ * 어느 컴퓨터에서 들어와도 이어서 쓰도록 맞춰 주는 도구.
  *
- * - 로그인할 때: 서버에 보관된 자료를 받아 이 브라우저에 깔아 줌
- * - 쓰는 동안: 바뀐 내용을 몇 초마다(그리고 창을 닫을 때) 서버에 올려 둠
- * - 서버가 없는 미리보기에서는 조용히 아무 일도 하지 않음(브라우저에만 저장)
+ * - 들어올 때: 보관된 자료를 받아 이 브라우저에 깔아 줌
+ * - 쓰는 동안: 바뀐 내용을 1분마다(그리고 창을 닫거나 다른 창으로 갈 때) 올려 둠
+ * - 보관 자리: classes/{반}/students/{학생}/taja/progress  (서버가 꺼져도 지워지지 않음)
  */
 
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { activityTracker } from './activityLog';
+import { fs, parseUserId } from './moaFirebase';
 
 /** 학생 한 명에게 딸린 자료의 키 앞부분 */
 const USER_KEY_PREFIXES = [
@@ -35,8 +37,12 @@ const SHARED_PERSONAL_KEYS = [
   'cat_runner_high_score',
 ];
 
-const SYNC_INTERVAL_MS = 15000;
-/** 이 브라우저가 서버에 마지막으로 올린 시각(학생별) — 서버가 비워져 옛날 백업으로 돌아갔는지 판단용 */
+const SYNC_INTERVAL_MS = 60000;
+/** Firestore 문서 한 개는 1MB까지라 넉넉히 줄여서 올림 */
+const MAX_JSON = 900000;
+/** 줄여야 할 때도 꼭 지키는 자료 (포인트·진도·일지) */
+const KEEP_FIRST = ['taja_practice_points_wallet_v2', 'tp_quest_done_', 'typang_activity_log_', 'typang_star_mission_v1_'];
+/** 이 브라우저가 마지막으로 올린 시각(학생별) */
 const PUSHED_AT_PREFIX = 'typang_progress_pushed_at_';
 
 function belongsToUser(key: string, userId: string): boolean {
@@ -61,6 +67,22 @@ function collect(userId: string): Record<string, string> {
   return out;
 }
 
+/** 너무 크면 덜 중요한 큰 자료부터 빼서 1MB 안으로 */
+function fit(data: Record<string, string>): string {
+  let json = JSON.stringify(data);
+  if (json.length <= MAX_JSON) return json;
+  const keys = Object.keys(data)
+    .filter((k) => !KEEP_FIRST.some((p) => k.startsWith(p)))
+    .sort((a, b) => data[b].length - data[a].length);
+  const d = { ...data };
+  for (const k of keys) {
+    delete d[k];
+    json = JSON.stringify(d);
+    if (json.length <= MAX_JSON) break;
+  }
+  return json;
+}
+
 function apply(data: Record<string, string>) {
   try {
     for (const [k, v] of Object.entries(data)) {
@@ -69,50 +91,59 @@ function apply(data: Record<string, string>) {
   } catch {}
 }
 
+const progressRef = (userId: string) => {
+  const p = parseUserId(userId);
+  return p ? doc(fs, 'classes', p.cid, 'students', p.key, 'taja', 'progress') : null;
+};
+
+/** 선생님 화면용: 한 학생의 보관 자료 읽기 */
+export async function readProgress(userId: string): Promise<{ data: Record<string, string>; updatedAt: number } | null> {
+  const r = progressRef(userId);
+  if (!r) return null;
+  const snap = await getDoc(r);
+  if (!snap.exists()) return null;
+  const v = snap.data() as any;
+  try {
+    return { data: JSON.parse(v.json || '{}'), updatedAt: Number(v.updatedAt) || 0 };
+  } catch {
+    return { data: {}, updatedAt: Number(v.updatedAt) || 0 };
+  }
+}
+
 class ProgressSync {
   private userId = '';
   private timer: number | null = null;
   private lastSent = '';
-  private serverAvailable = true;
+  private busy = false;
 
-  /** 로그인 직후: 서버 자료를 내려받아 이 브라우저에 깔고, 이후 자동 보관 시작 */
+  /** 들어온 직후: 보관된 자료를 받아 이 브라우저에 깔고, 이후 자동 보관 시작 */
   public async start(userId: string): Promise<{ restored: boolean }> {
     this.stop();
-    if (!userId) return { restored: false };
+    if (!userId || !progressRef(userId)) return { restored: false };
     this.userId = userId;
 
     let restored = false;
     try {
-      const res = await fetch(`/api/progress/${encodeURIComponent(userId)}`);
-      const json = await res.json();
-      if (json && json.success) {
-        if (json.data && Object.keys(json.data).length) {
-          const mine = collect(userId);
-          const localCount = Object.keys(mine).length;
-          let pushedAt = 0;
-          try {
-            pushedAt = Number(localStorage.getItem(PUSHED_AT_PREFIX + userId)) || 0;
-          } catch {}
-          // 서버 자료가 이 컴퓨터가 마지막으로 올린 것보다 오래됐으면(서버가 업데이트로 비워졌다가
-          // 옛 백업으로 돌아간 경우) 이 컴퓨터의 최신 포인트·기록을 지키고 서버에 다시 올림
-          if (!localCount || (json.updatedAt || 0) >= pushedAt) {
-            apply(json.data);
-            restored = true;
-          }
+      const got = await readProgress(userId);
+      if (got && Object.keys(got.data).length) {
+        const localCount = Object.keys(collect(userId)).length;
+        let pushedAt = 0;
+        try {
+          pushedAt = Number(localStorage.getItem(PUSHED_AT_PREFIX + userId)) || 0;
+        } catch {}
+        // 보관본이 이 컴퓨터가 마지막으로 올린 것보다 오래됐으면 이 컴퓨터의 최신 자료를 지킴
+        if (!localCount || got.updatedAt >= pushedAt) {
+          apply(got.data);
+          restored = true;
         }
-      } else {
-        this.serverAvailable = false;
       }
-    } catch {
-      this.serverAvailable = false; // 서버 없는 미리보기
-    }
+    } catch {}
+    if (this.userId !== userId) return { restored };
 
-    if (this.serverAvailable) {
-      this.push();
-      this.timer = window.setInterval(() => this.push(), SYNC_INTERVAL_MS);
-      window.addEventListener('beforeunload', this.flush);
-      window.addEventListener('pagehide', this.flush);
-    }
+    this.push();
+    this.timer = window.setInterval(() => this.push(), SYNC_INTERVAL_MS);
+    window.addEventListener('pagehide', this.flush);
+    document.addEventListener('visibilitychange', this.onHide);
     return { restored };
   }
 
@@ -121,16 +152,15 @@ class ProgressSync {
       window.clearInterval(this.timer);
       this.timer = null;
     }
-    window.removeEventListener('beforeunload', this.flush);
     window.removeEventListener('pagehide', this.flush);
+    document.removeEventListener('visibilitychange', this.onHide);
     this.userId = '';
     this.lastSent = '';
   }
 
-  /** 서버가 빈 상태로 새로 켜졌을 때: 바뀐 게 없어도 이 컴퓨터의 자료를 다시 통째로 올림 */
+  /** 바뀐 게 없어도 이 컴퓨터의 자료를 다시 통째로 올림 */
   public resync() {
     if (!this.userId) return;
-    this.serverAvailable = true;
     this.lastSent = '';
     activityTracker.flush();
     this.push();
@@ -139,34 +169,33 @@ class ProgressSync {
   /** 지금 바로 한 번 올리기 (로그아웃 전 등) */
   public flush = () => {
     activityTracker.flush(); // 방금까지 친 글자 수·시간을 일지에 먼저 적어 두고 올림
-    this.push(true);
+    return this.push();
   };
 
-  private push(useBeacon = false) {
-    if (!this.userId || !this.serverAvailable) return;
-    const data = collect(this.userId);
-    const body = JSON.stringify({ data, updatedAt: Date.now() });
-    const fingerprint = JSON.stringify(data);
-    if (fingerprint === this.lastSent) return; // 바뀐 게 없으면 건너뜀
-    this.lastSent = fingerprint;
-    const url = `/api/progress/${encodeURIComponent(this.userId)}`;
+  private onHide = () => {
+    if (document.visibilityState === 'hidden') this.flush();
+  };
+
+  private async push(): Promise<void> {
+    if (!this.userId || this.busy) return;
+    const r = progressRef(this.userId);
+    if (!r) return;
+    const json = fit(collect(this.userId));
+    if (json === this.lastSent) return; // 바뀐 게 없으면 건너뜀
+    const uid = this.userId;
+    const updatedAt = Date.now();
+    this.busy = true;
     try {
-      if (useBeacon && navigator.sendBeacon) {
-        navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-        return;
-      }
-      const uid = this.userId;
-      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true })
-        .then((r) => r.json())
-        .then((j) => {
-          if (j?.success && !j.skipped) {
-            try {
-              localStorage.setItem(PUSHED_AT_PREFIX + uid, String(j.updatedAt || Date.now()));
-            } catch {}
-          }
-        })
-        .catch(() => {});
-    } catch {}
+      await setDoc(r, { json, updatedAt });
+      this.lastSent = json;
+      try {
+        localStorage.setItem(PUSHED_AT_PREFIX + uid, String(updatedAt));
+      } catch {}
+    } catch {
+      // 인터넷이 끊겼으면 다음 차례에 다시
+    } finally {
+      this.busy = false;
+    }
   }
 }
 

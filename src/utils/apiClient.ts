@@ -1,5 +1,12 @@
-import { rejoinMembers, rememberMemberPass } from './serverHeal';
+/**
+ * 타자팡팡 자료 창구 (모아팡팡 Firebase)
+ *  - 예전에는 AI 스튜디오 서버의 파일에 저장해서, 서버가 잠들었다 깨면 기록이 사라졌음
+ *  - 이제는 모아팡팡과 같은 Firebase에 저장: 학생 = 모아팡팡 반 + 이름, 선생님 = 모아팡팡 선생님 계정
+ */
+import { collection, collectionGroup, deleteField, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { get, ref, set } from 'firebase/database';
 import { UserSession, LeaderboardEntry } from '../types';
+import { fs, rt, ensureUser, isTeacherUser, teacherSignIn, signOutTeacher, parseUserId, pickTaja, userIdOf, kstMonth, errText } from './moaFirebase';
 
 export interface BatchRegisterResult {
   success: boolean;
@@ -12,29 +19,85 @@ export interface BatchRegisterResult {
 export interface MembersStatus {
   total: number;
   pendingApproval: number;
-  pendingChanges: number; // members.json 에 아직 고정되지 않은 변경 수
+  pendingChanges: number;
   fixedUpdatedAt: number;
   masterPasswordSet: boolean;
 }
 
 const USERS_CACHE_KEY = 'typang_users_db';
-const MASTER_KEY = 'typang_master_key';
+const BOARD_KEY = 'typang_leaderboard';
+const MOA_ONLY = '학생은 모아팡팡 첫 화면에서 방번호와 이름으로 들어오면 저절로 등록돼요. 따로 등록할 필요가 없어요.';
 
-/**
- * 서버가 회원 명단의 유일한 기준입니다.
- * (예전처럼 브라우저에 남은 명단을 서버에 다시 밀어넣지 않으므로, 마스터가 삭제한 학생이 되살아나지 않습니다.)
- */
+/* ---------------- 명예의 전당 정리 (예전 서버와 같은 규칙) ---------------- */
+const LB_MAX_CPM = 1200;
+const LB_PER_STUDENT = 3;
+const lbWho = (e: any) => String(e?.userId || e?.userName || '');
+const lbNum = (v: any, max: number) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
+/** RTDB 칸 이름으로 쓸 수 있게 */
+const safeKey = (s: string) => String(s || 'x').replace(/[.#$\[\]\/]/g, '_').slice(0, 120) || 'x';
+
+export function tidyLeaderboard(list: any[]): LeaderboardEntry[] {
+  const seen = new Set<string>();
+  const per = new Map<string, number>();
+  const out: any[] = [];
+  const sorted = [...(Array.isArray(list) ? list : [])]
+    .filter((e) => e && e.userName && Number(e.cpm) > 0 && Number(e.cpm) <= LB_MAX_CPM)
+    .sort((a, b) => (b.cpm || 0) - (a.cpm || 0) || (b.accuracy || 0) - (a.accuracy || 0) || (b.score || 0) - (a.score || 0));
+  for (const e of sorted) {
+    const sig = [lbWho(e), e.cpm, e.accuracy, e.elapsedSeconds || 0, e.completedSentences || 0, e.modeTitle || ''].join('|');
+    if (seen.has(sig) || seen.has(`id:${e.id}`)) continue;
+    seen.add(sig);
+    seen.add(`id:${e.id}`);
+    const n = per.get(lbWho(e)) || 0;
+    if (n >= LB_PER_STUDENT) continue;
+    per.set(lbWho(e), n + 1);
+    out.push(e);
+  }
+  return out;
+}
+
+export function cleanLeaderboardEntry(raw: any): (LeaderboardEntry & { ts: number }) | null {
+  if (!raw || !raw.userName) return null;
+  const cpm = Number(raw.cpm);
+  if (!(cpm > 0) || cpm > LB_MAX_CPM) return null;
+  const now = Date.now();
+  const ts = Number(raw.ts) > 1600000000000 && Number(raw.ts) < now + 86400000 ? Number(raw.ts) : now;
+  const grade = Number(raw.grade);
+  const e: any = {
+    id: /^lead_[A-Za-z0-9_]{6,48}$/.test(String(raw.id || '')) ? String(raw.id) : `lead_${now}_${Math.random().toString(36).substring(2, 8)}`,
+    userName: String(raw.userName).slice(0, 30),
+    mode: String(raw.mode || 'sentence').slice(0, 20),
+    modeTitle: String(raw.modeTitle || '').slice(0, 60),
+    score: lbNum(raw.score, 1000000),
+    cpm: lbNum(raw.cpm, 2000),
+    accuracy: lbNum(raw.accuracy, 100),
+    date: new Date(ts + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '.'),
+    ts,
+  };
+  if (raw.userId) e.userId = String(raw.userId).slice(0, 160);
+  if (raw.userAvatar) e.userAvatar = String(raw.userAvatar).slice(0, 8);
+  if (grade >= 1 && grade <= 6) e.grade = grade;
+  if (raw.details) e.details = String(raw.details).slice(0, 80);
+  if (raw.completedSentences) e.completedSentences = lbNum(raw.completedSentences, 9999);
+  if (raw.elapsedSeconds) e.elapsedSeconds = lbNum(raw.elapsedSeconds, 86400);
+  return e;
+}
+
+function flattenMonth(val: any): LeaderboardEntry[] {
+  const all: any[] = [];
+  if (val && typeof val === 'object') for (const v of Object.values<any>(val)) if (v && Array.isArray(v.entries)) all.push(...v.entries);
+  return tidyLeaderboard(all).slice(0, 300);
+}
+
 class TypangApiClient {
-  /* ---------------- helpers ---------------- */
+  /* ---------------- helpers (예전 화면들이 씀) ---------------- */
   public extractDigits(phone: string): string {
     return (phone || '').replace(/[^0-9]/g, '');
   }
-
   public getLast4Digits(phone: string): string {
-    const digits = this.extractDigits(phone);
-    return digits.length >= 4 ? digits.slice(-4) : digits.padEnd(4, '0');
+    const d = this.extractDigits(phone);
+    return d.length >= 4 ? d.slice(-4) : d.padEnd(4, '0');
   }
-
   public formatPhone(raw: string): string {
     const d = this.extractDigits(raw);
     if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
@@ -42,95 +105,13 @@ class TypangApiClient {
     return raw;
   }
 
-  /* ---------------- master key (이 브라우저에서 마스터로 인증한 동안만 보관) ---------------- */
+  /* ---------------- 선생님 = 모아팡팡 선생님 계정으로 로그인한 상태 ---------------- */
   public getMasterKey(): string {
-    try {
-      return localStorage.getItem(MASTER_KEY) || '';
-    } catch {
-      return '';
-    }
+    return isTeacherUser() ? 'moa-teacher' : '';
   }
-  public setMasterKey(key: string) {
-    try {
-      localStorage.setItem(MASTER_KEY, key);
-    } catch {}
-  }
+  public setMasterKey(_key: string) {}
   public clearMasterKey() {
-    try {
-      localStorage.removeItem(MASTER_KEY);
-    } catch {}
-  }
-
-  private headers(json = true): Record<string, string> {
-    const h: Record<string, string> = {};
-    if (json) h['Content-Type'] = 'application/json';
-    const k = this.getMasterKey();
-    if (k) h['x-master-key'] = k;
-    return h;
-  }
-
-  private async request<T = any>(url: string, init: RequestInit = {}, timeoutMs = 10000): Promise<{ ok: boolean; status: number; data: T | any }> {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { ...init, signal: ctrl.signal });
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch {}
-      return { ok: res.ok, status: res.status, data };
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  /** 서버 API 가 실제로 응답했는지 (정적 미리보기처럼 서버가 없으면 HTML/404 가 옴) */
-  private isApi(r: { data: any }) {
-    return !!r.data && typeof r.data === 'object' && 'success' in r.data;
-  }
-
-  /* ---- 서버가 없는 곳(미리보기)에서 쓰는 이 브라우저 전용 명단 ---- */
-  private localList(): UserSession[] {
-    return this.getCachedUsers();
-  }
-  private localSave(list: UserSession[]) {
-    try {
-      localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(list));
-    } catch {}
-  }
-  private localAdd(p: { name: string; phone: string; grade?: number; avatar?: string; avatarBg?: string; approved: boolean }) {
-    const d = this.extractDigits(p.phone);
-    const list = this.localList();
-    const dup = list.find((u) => u.name === p.name.trim() && this.extractDigits(u.parentPhone || u.phone || '') === d);
-    if (dup) return { user: dup, existing: true };
-    const grade = Number(p.grade) || 3;
-    const user: UserSession = {
-      id: `user_local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name: p.name.trim(),
-      studentId: `std_${this.getLast4Digits(d)}`,
-      phone: this.formatPhone(d),
-      parentPhone: this.formatPhone(d),
-      grade,
-      password: this.getLast4Digits(d),
-      avatar: p.avatar || '⭐',
-      avatarBg: p.avatarBg || 'bg-yellow-100',
-      levelTitle: `${grade}학년 타자 꿈나무`,
-      isApproved: p.approved,
-      role: 'student',
-      createdAt: Date.now(),
-      lastLoginAt: 0,
-      totalPracticeCount: 0,
-      highestCpm: 0,
-    };
-    this.localSave([user, ...list]);
-    return { user, existing: false };
-  }
-
-  private cacheUsers(users: UserSession[]) {
-    try {
-      localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
-      localStorage.removeItem('typang_registered_students_vault'); // 예전 "영구 볼트"는 더 이상 쓰지 않음
-    } catch {}
+    void signOutTeacher();
   }
 
   public getCachedUsers(): UserSession[] {
@@ -142,371 +123,274 @@ class TypangApiClient {
     }
   }
 
-  /* ---------------- members ---------------- */
-  /** 서버 명단 (마스터 인증 상태면 관리용 정보 포함). 서버에 닿지 않으면 마지막으로 받은 명단 */
+  /* ---------------- 학생 명단 = 모아팡팡 반의 학생들 ---------------- */
   public async getUsers(): Promise<UserSession[]> {
+    if (!isTeacherUser()) return [];
     try {
-      const r = await this.request('/api/users', { headers: this.headers(false) });
-      if (r.ok && r.data?.success && Array.isArray(r.data.users)) {
-        this.cacheUsers(r.data.users);
-        return r.data.users;
+      const [cls, sts] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collectionGroup(fs, 'students'))]);
+      const names = new Map(cls.docs.map((d) => [d.id, String((d.data() as any).name || '')]));
+      const users: UserSession[] = [];
+      for (const d of sts.docs) {
+        const cid = d.ref.parent.parent?.id;
+        if (!cid || !names.has(cid)) continue;
+        const v = d.data() as any;
+        const t = v.taja || {};
+        const grade = Number(t.grade) || undefined;
+        users.push({
+          id: userIdOf(cid, d.id),
+          name: String(v.name || ''),
+          studentId: names.get(cid),
+          grade,
+          avatar: t.avatar || '⭐',
+          avatarBg: t.avatarBg || 'bg-yellow-100',
+          levelTitle: t.levelTitle || (grade ? `${grade}학년 타자 꿈나무` : '타자 꿈나무'),
+          isApproved: true,
+          role: 'student',
+          createdAt: Number(v.created?.toMillis?.() || 0),
+          lastLoginAt: Number(v.seen?.toMillis?.() || 0),
+          totalPracticeCount: Number(t.totalPracticeCount) || 0,
+          highestCpm: Number(t.highestCpm) || 0,
+        } as UserSession);
       }
-    } catch {}
-    return this.getCachedUsers();
+      users.sort((a, b) => String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));
+      try {
+        localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
+      } catch {}
+      return users;
+    } catch {
+      return this.getCachedUsers();
+    }
   }
 
-  /** 더 이상 사용하지 않음 (호환용) */
   public async syncUsers(_users: UserSession[]): Promise<boolean> {
     return true;
   }
 
-  public async login(identifier: string, password?: string): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
-    try {
-      const send = () =>
-        this.request('/api/users/login', {
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({ identifier: identifier.trim(), password: (password || '').trim() }),
-        });
-      let r = await send();
-      // 서버가 빈 상태로 다시 켜져 학생을 못 찾으면: 이 컴퓨터의 회원증으로 되살린 뒤 한 번 더
-      if (r.status === 404 && this.isApi(r) && (await rejoinMembers()) > 0) r = await send();
-      if (r.ok && r.data?.success && r.data.user) {
-        rememberMemberPass(r.data.user.id, r.data.memberPass);
-        try {
-          localStorage.setItem('typang_current_user', JSON.stringify(r.data.user));
-          sessionStorage.setItem('typang_active_user_id', r.data.user.id);
-        } catch {}
-        return { success: true, user: r.data.user, message: '로그인 성공' };
-      }
-      if (!this.isApi(r)) return this.localLogin(identifier, password || '');
-      return { success: false, pending: !!r.data?.pending, message: r.data?.message || '로그인에 실패했어요.' };
-    } catch {
-      return this.localLogin(identifier, password || '');
-    }
+  public async login(_identifier: string, _password?: string): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
+    return { success: false, message: '모아팡팡 방번호와 이름으로 들어와 주세요.' };
   }
 
-  private localLogin(identifier: string, password: string) {
-    const ident = identifier.trim().replace(/\s+/g, '').toLowerCase();
-    const d = this.extractDigits(identifier);
-    const pw = password.trim();
-    const hit = this.localList().find((u) => {
-      const ud = this.extractDigits(u.parentPhone || u.phone || '');
-      const match = u.name.replace(/\s+/g, '').toLowerCase() === ident || (d.length >= 7 && ud === d) || (d.length === 4 && ud.endsWith(d));
-      const okPw = (u.password && u.password === pw) || (ud && ud.slice(-4) === pw);
-      return match && okPw;
-    });
-    if (!hit) return { success: false, message: '학생 정보를 찾을 수 없거나 비밀번호가 맞지 않아요.' };
-    if (!hit.isApproved) return { success: false, pending: true, message: `'${hit.name}' 학생은 선생님 승인 대기 중이에요.` };
-    try {
-      localStorage.setItem('typang_current_user', JSON.stringify(hit));
-    } catch {}
-    return { success: true, user: hit, message: '로그인 성공' };
+  public async registerStudent(_p: { name: string; parentPhone: string; phone?: string; grade?: number; avatar?: string; avatarBg?: string }): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
+    return { success: false, message: MOA_ONLY };
   }
 
-  /** 학생이 하면 "가입 신청"(승인 대기), 마스터가 하면 바로 등록 */
-  public async registerStudent(params: {
-    name: string;
-    parentPhone: string;
-    phone?: string;
-    grade?: number;
-    avatar?: string;
-    avatarBg?: string;
-  }): Promise<{ success: boolean; user?: UserSession; message: string; pending?: boolean }> {
-    const { name, parentPhone, phone, grade = 3, avatar = '⭐', avatarBg = 'bg-yellow-100' } = params;
-    try {
-      const r = await this.request('/api/users/register', {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({ name: name.trim(), parentPhone: parentPhone || phone, grade, avatar, avatarBg }),
-      });
-      if (r.ok && r.data?.success) {
-        return { success: true, user: r.data.user, pending: !!r.data.pending, message: r.data.message };
-      }
-      if (!this.isApi(r)) return this.localRegister(name, parentPhone || phone || '', grade, avatar, avatarBg);
-      return { success: false, message: r.data?.message || '등록에 실패했어요.' };
-    } catch {
-      return this.localRegister(name, parentPhone || phone || '', grade, avatar, avatarBg);
-    }
+  public async batchRegisterStudents(students: Array<{ name: string; parentPhone: string; grade?: number; avatar?: string }>, _autoApprove = true): Promise<BatchRegisterResult> {
+    return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: MOA_ONLY };
   }
 
-  private localRegister(name: string, phone: string, grade: number, avatar: string, avatarBg: string) {
-    if (!name.trim() || this.extractDigits(phone).length < 8) return { success: false, message: '이름과 부모님 전화번호를 확인해 주세요.' };
-    const master = !!this.getMasterKey();
-    const r = this.localAdd({ name, phone, grade, avatar, avatarBg, approved: master });
-    return {
-      success: true,
-      user: r.user,
-      pending: !r.user.isApproved,
-      message: master ? `'${r.user.name}' 학생을 등록했어요.` : `'${r.user.name}' 가입 신청이 접수됐어요. 선생님 승인 후 로그인할 수 있어요.`,
-    };
-  }
-
-  public async batchRegisterStudents(
-    students: Array<{ name: string; parentPhone: string; grade?: number; avatar?: string }>,
-    autoApprove = true,
-  ): Promise<BatchRegisterResult> {
-    try {
-      const r = await this.request('/api/users/batch', {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({ students, autoApprove }),
-      }, 30000);
-      if (r.ok && r.data?.success) {
-        return {
-          success: true,
-          addedCount: r.data.addedCount,
-          skippedCount: r.data.skippedCount,
-          totalUsers: r.data.totalUsers,
-          message: `총 ${r.data.addedCount}명의 학생을 등록했어요.`,
-        };
-      }
-      if (!this.isApi(r)) return this.localBatch(students, autoApprove);
-      return { success: false, addedCount: 0, skippedCount: students.length, totalUsers: 0, message: r.data?.message || '일괄 등록에 실패했어요.' };
-    } catch {
-      return this.localBatch(students, autoApprove);
-    }
-  }
-
-  private localBatch(students: Array<{ name: string; parentPhone: string; grade?: number; avatar?: string }>, autoApprove: boolean): BatchRegisterResult {
-    let added = 0;
-    let skipped = 0;
-    for (const st of students) {
-      if (!st.name || this.extractDigits(st.parentPhone).length < 7) { skipped++; continue; }
-      const r = this.localAdd({ name: st.name, phone: st.parentPhone, grade: st.grade, avatar: st.avatar, approved: autoApprove });
-      if (r.existing) skipped++; else added++;
-    }
-    return { success: true, addedCount: added, skippedCount: skipped, totalUsers: this.localList().length, message: `총 ${added}명의 학생을 등록했어요.` };
-  }
-
+  /** 학년·아바타·최고 기록 같은 타자팡팡 정보만 저장 (이름은 모아팡팡 것을 그대로 씀) */
   public async updateUser(id: string, updates: Partial<UserSession>): Promise<boolean> {
+    const p = parseUserId(id);
+    if (!p) return id === 'master_admin';
+    const taja = pickTaja(updates as any);
+    if (!Object.keys(taja).length) return true;
     try {
-      const r = await this.request(`/api/users/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: this.headers(),
-        body: JSON.stringify(updates),
-      });
-      if (r.ok) return true;
-      if (!this.isApi(r)) return this.localUpdate(id, updates);
-      return false;
+      const patch: Record<string, any> = {};
+      for (const [k, v] of Object.entries(taja)) patch[`taja.${k}`] = v;
+      await updateDoc(doc(fs, 'classes', p.cid, 'students', p.key), patch);
+      return true;
     } catch {
-      return this.localUpdate(id, updates);
+      try {
+        await setDoc(doc(fs, 'classes', p.cid, 'students', p.key), { taja }, { merge: true });
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 
-  private localUpdate(id: string, updates: Partial<UserSession>) {
-    const list = this.localList();
-    if (!list.some((u) => u.id === id)) return false;
-    this.localSave(list.map((u) => (u.id === id ? { ...u, ...updates } : u)));
-    return true;
-  }
-
+  /** 선생님: 이 학생의 타자팡팡 기록만 지움 (모아팡팡 이름·캐릭터는 그대로) */
   public async deleteUser(id: string): Promise<boolean> {
+    const p = parseUserId(id);
+    if (!p || !isTeacherUser()) return false;
     try {
-      const r = await this.request(`/api/users/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.headers(false) });
-      if (r.ok) return true;
-      if (!this.isApi(r)) return this.localDelete(id);
+      await deleteDoc(doc(fs, 'classes', p.cid, 'students', p.key, 'taja', 'progress'));
+      await updateDoc(doc(fs, 'classes', p.cid, 'students', p.key), { taja: deleteField() }).catch(() => {});
+      return true;
+    } catch {
       return false;
-    } catch {
-      return this.localDelete(id);
     }
   }
 
-  private localDelete(id: string) {
-    const list = this.localList();
-    const next = list.filter((u) => u.id !== id);
-    if (next.length === list.length) return false;
-    this.localSave(next);
-    return true;
-  }
-
-  /* ---------------- master ---------------- */
-  /**
-   * 마스터 로그인
-   * 1) 서버에서 확인
-   * 2) 서버가 거절했지만 이 브라우저에 예전에 저장한 마스터 비밀번호(localPasswordOk)와 같고,
-   *    서버는 아직 기본 비밀번호(1234)라면 → 기본값으로 들어간 뒤 서버 비밀번호를 예전 것으로 맞춰 줌
-   * 3) 서버가 없는 곳(미리보기 등)에서는 이 브라우저의 마스터 설정으로 확인
-   */
-  public async masterLogin(password: string, localPasswordOk = false): Promise<{ success: boolean; message?: string; status?: MembersStatus }> {
-    const pw = password.trim();
-    const tryServer = async (p: string) =>
-      this.request('/api/master/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: p }),
-      });
+  /* ---------------- 선생님 로그인 ---------------- */
+  public async masterLogin(password: string, _localPasswordOk = false): Promise<{ success: boolean; message?: string; status?: MembersStatus }> {
     try {
-      const r = await tryServer(pw);
-      if (r.ok && r.data?.success) {
-        this.setMasterKey(pw);
-        return { success: true, status: r.data.status };
-      }
-      const serverAnswered = !!r.data && typeof r.data === 'object' && 'success' in r.data;
-      if (!serverAnswered) {
-        // 서버 API 가 없는 곳 (정적 미리보기 등)
-        if (localPasswordOk) {
-          this.setMasterKey(pw);
-          return { success: true };
-        }
-        return { success: false, message: '마스터 비밀번호가 올바르지 않습니다.' };
-      }
-      if (localPasswordOk && pw !== '1234') {
-        const def = await tryServer('1234');
-        if (def.ok && def.data?.success) {
-          this.setMasterKey('1234');
-          const moved = await this.setMasterPassword(pw);
-          if (moved.success) return { success: true, status: def.data.status };
-          return { success: true, status: def.data.status };
-        }
-      }
-      return { success: false, message: r.data?.message || '마스터 비밀번호가 올바르지 않습니다.' };
-    } catch {
-      if (localPasswordOk) {
-        this.setMasterKey(pw);
-        return { success: true };
-      }
-      return { success: false, message: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
+      const u = await teacherSignIn(password.trim());
+      if (!isTeacherUser(u)) return { success: false, message: '선생님 계정이 아니에요.' };
+      return { success: true, status: (await this.getMembersStatus()) || undefined };
+    } catch (e) {
+      return { success: false, message: errText(e) };
     }
   }
 
-  /** 저장된 마스터 키가 서버에서 아직 유효한지: 'ok' | 'bad' | 'noserver' */
   public async checkMasterKey(): Promise<'ok' | 'bad' | 'noserver'> {
-    if (!this.getMasterKey()) return 'bad';
-    try {
-      const r = await this.request('/api/members/status', { headers: this.headers(false) });
-      if (r.ok && r.data?.success) return 'ok';
-      return this.isApi(r) ? 'bad' : 'noserver';
-    } catch {
-      return 'noserver';
-    }
+    return isTeacherUser() ? 'ok' : 'bad';
   }
 
   public async getMembersStatus(): Promise<MembersStatus | null> {
-    try {
-      const r = await this.request('/api/members/status', { headers: this.headers(false) });
-      return r.ok && r.data?.status ? r.data.status : null;
-    } catch {
-      return null;
-    }
+    if (!isTeacherUser()) return null;
+    const users = await this.getUsers();
+    return { total: users.length, pendingApproval: 0, pendingChanges: 0, fixedUpdatedAt: Date.now(), masterPasswordSet: true };
   }
 
-  /** members.json 파일을 내려받음 */
+  private download(name: string, data: any) {
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  private stamp() {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+
+  /** 명단 파일 (모아팡팡 반 학생 목록) */
   public async downloadMembersFile(): Promise<boolean> {
-    try {
-      const res = await fetch('/api/members/export', { headers: this.headers(false) });
-      if (!res.ok) return false;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'members.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      return true;
-    } catch {
-      return false;
-    }
+    if (!isTeacherUser()) return false;
+    const users = await this.getUsers();
+    this.download(`타자팡팡_명단_${this.stamp()}.json`, { version: 2, savedAt: Date.now(), members: users });
+    return true;
   }
 
-  /** 전체 백업(명단 + 학생 자료 + 명예의 전당) 내려받기 */
+  /** 전체 백업: 학생 자료 + 명예의 전당 + 보고 */
   public async downloadBackup(): Promise<boolean> {
+    if (!isTeacherUser()) return false;
     try {
-      const res = await fetch('/api/backup', { headers: this.headers(false) });
-      if (!res.ok) return false;
-      const json = await res.json();
-      if (!json?.success || !json.backup) return false;
-      const blob = new Blob([JSON.stringify(json.backup)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const d = new Date();
-      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
-      a.href = url;
-      a.download = `타자팡팡_백업_${stamp}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      const [prog, reps, lb] = await Promise.all([getDocs(collectionGroup(fs, 'taja')), getDocs(collection(fs, 'taja_reports')), get(ref(rt, 'taja/lb'))]);
+      const progress: Record<string, any> = {};
+      prog.docs.forEach((d) => {
+        const st = d.ref.parent.parent;
+        const cid = st?.parent?.parent?.id;
+        if (d.id !== 'progress' || !st || !cid) return;
+        const v = d.data() as any;
+        try {
+          progress[userIdOf(cid, st.id)] = { data: JSON.parse(v.json || '{}'), updatedAt: v.updatedAt || 0 };
+        } catch {}
+      });
+      const lbAll = lb.val() || {};
+      const months = Object.keys(lbAll).sort();
+      const current = kstMonth();
+      const leaderboardArchive: Record<string, any[]> = {};
+      for (const m of months) if (m !== current) leaderboardArchive[m] = flattenMonth(lbAll[m]);
+      this.download(`타자팡팡_백업_${this.stamp()}.json`, {
+        version: 2,
+        savedAt: Date.now(),
+        members: { members: await this.getUsers() },
+        progress,
+        leaderboard: flattenMonth(lbAll[current]),
+        leaderboardArchive,
+        reports: reps.docs.map((d) => d.data()),
+      });
       return true;
     } catch {
       return false;
     }
   }
 
-  /** 백업 파일로 되돌리기 */
+  /**
+   * 백업 파일로 되돌리기
+   *  - 명예의 전당(이번 달·지난달)과 받은 보고를 합쳐 넣음
+   *  - 예전 서버의 학생 자료는 학생 id가 달라서(전화번호 방식) 그대로 옮기지 않음
+   */
   public async restoreBackup(backup: any): Promise<{ success: boolean; message?: string }> {
+    if (!isTeacherUser()) return { success: false, message: '선생님 계정으로 로그인해 주세요.' };
+    const b = backup?.backup || backup;
     try {
-      const r = await this.request('/api/backup/restore', {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({ backup }),
-      });
-      if (r.ok && r.data?.success) return { success: true, message: r.data.message };
-      return { success: false, message: r.data?.message || '되돌리지 못했어요.' };
-    } catch {
-      return { success: false, message: '서버에 연결하지 못했어요.' };
-    }
-  }
-
-  public async setMasterPassword(password: string): Promise<{ success: boolean; message?: string }> {
-    try {
-      const r = await this.request('/api/master/password', {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({ password }),
-      });
-      if (r.ok && r.data?.success) {
-        this.setMasterKey(password);
-        return { success: true };
+      const byMonth: Record<string, any[]> = {};
+      const add = (list: any[]) => {
+        for (const raw of list || []) {
+          const e = cleanLeaderboardEntry(raw);
+          if (e) (byMonth[kstMonth(e.ts)] = byMonth[kstMonth(e.ts)] || []).push(e);
+        }
+      };
+      add(Array.isArray(b?.leaderboard) ? b.leaderboard : []);
+      if (b?.leaderboardArchive && typeof b.leaderboardArchive === 'object') for (const l of Object.values<any>(b.leaderboardArchive)) add(l);
+      let n = 0;
+      for (const [m, list] of Object.entries(byMonth)) {
+        const snap = await get(ref(rt, `taja/lb/${m}`));
+        const cur = snap.val() || {};
+        const groups: Record<string, any[]> = {};
+        for (const e of list) (groups[safeKey(lbWho(e))] = groups[safeKey(lbWho(e))] || []).push(e);
+        for (const [who, es] of Object.entries(groups)) {
+          const merged = tidyLeaderboard([...(cur[who]?.entries || []), ...es]).slice(0, LB_PER_STUDENT);
+          await set(ref(rt, `taja/lb/${m}/${who}`), { userName: es[0].userName, entries: merged, t: Date.now() });
+          n += es.length;
+        }
+        await set(ref(rt, `taja/lbMonths/${m}`), true);
       }
-      return { success: false, message: r.data?.message || '변경에 실패했어요.' };
-    } catch {
-      return { success: false, message: '서버에 연결할 수 없어요.' };
+      let r = 0;
+      for (const rep of Array.isArray(b?.reports) ? b.reports : []) {
+        if (!rep?.id || !rep.userId || !rep.day) continue;
+        await setDoc(doc(fs, 'taja_reports', safeKey(rep.id)), { ...rep, checkedAt: Number(rep.checkedAt) || 0 }, { merge: true });
+        r++;
+      }
+      return { success: true, message: `명예의 전당 기록 ${n}개, 보고 ${r}개를 합쳤어요.` };
+    } catch (e) {
+      return { success: false, message: errText(e) };
     }
   }
 
-  /* ---------------- leaderboard ---------------- */
+  public async setMasterPassword(_password: string): Promise<{ success: boolean; message?: string }> {
+    return { success: false, message: "선생님 비밀번호는 모아팡팡 선생님 계정 비밀번호예요. 바꾸려면 모아팡팡 선생님 로그인 화면의 '비밀번호를 잊었어요'를 눌러 주세요." };
+  }
+
+  /* ---------------- 명예의 전당 (Realtime Database: taja/lb/달/학생) ---------------- */
   public async getLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
-      const r = await this.request('/api/leaderboard');
-      if (r.ok && r.data?.success && Array.isArray(r.data.leaderboard)) {
-        try {
-          localStorage.setItem('typang_leaderboard', JSON.stringify(r.data.leaderboard));
-        } catch {}
-        return r.data.leaderboard;
+      const list = await this.getLeaderboardMonth(kstMonth());
+      try {
+        localStorage.setItem(BOARD_KEY, JSON.stringify(list));
+      } catch {}
+      return list;
+    } catch {
+      try {
+        return JSON.parse(localStorage.getItem(BOARD_KEY) || '[]');
+      } catch {
+        return [];
       }
-    } catch {}
+    }
+  }
+
+  public async getLeaderboardMonth(month: string): Promise<LeaderboardEntry[]> {
+    await ensureUser(); // 로그인 안 한 손님도 순위표는 볼 수 있게 (익명으로)
+    const snap = await get(ref(rt, `taja/lb/${month}`));
+    return flattenMonth(snap.val());
+  }
+
+  /** 기록이 있는 달 (최근 것부터) */
+  public async getLeaderboardMonths(): Promise<string[]> {
     try {
-      const local = localStorage.getItem('typang_leaderboard');
-      return local ? JSON.parse(local) : [];
+      await ensureUser();
+      const snap = await get(ref(rt, 'taja/lbMonths'));
+      return Object.keys(snap.val() || {}).sort().reverse();
     } catch {
       return [];
     }
   }
 
-  public async recordScore(entry: Omit<LeaderboardEntry, 'id' | 'date'>): Promise<LeaderboardEntry[]> {
+  public async recordScore(entry: Omit<LeaderboardEntry, 'id' | 'date'> & { ts?: number; id?: string }): Promise<LeaderboardEntry[]> {
+    const e = cleanLeaderboardEntry(entry);
+    if (!e) return this.getLeaderboard();
+    const month = kstMonth(e.ts);
+    const who = safeKey(lbWho(e));
     try {
-      const r = await this.request('/api/leaderboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
-      });
-      if (r.ok && r.data?.success && Array.isArray(r.data.leaderboard)) {
-        try {
-          localStorage.setItem('typang_leaderboard', JSON.stringify(r.data.leaderboard));
-        } catch {}
-        return r.data.leaderboard;
-      }
+      await ensureUser();
+      const r = ref(rt, `taja/lb/${month}/${who}`);
+      const snap = await get(r);
+      const prev = (snap.val() && snap.val().entries) || [];
+      const entries = tidyLeaderboard([...prev, e]).slice(0, LB_PER_STUDENT);
+      const rec: any = { userName: e.userName, entries, t: Date.now() };
+      if (e.grade) rec.grade = e.grade;
+      await set(r, rec);
+      await set(ref(rt, `taja/lbMonths/${month}`), true);
     } catch {}
-    const local = await this.getLeaderboard();
-    const newEntry: LeaderboardEntry = { ...entry, id: `lead_local_${Date.now()}`, date: new Date().toISOString().slice(0, 10).replace(/-/g, '.') } as LeaderboardEntry;
-    const updated = [newEntry, ...local].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 100);
-    try {
-      localStorage.setItem('typang_leaderboard', JSON.stringify(updated));
-    } catch {}
-    return updated;
+    return this.getLeaderboard();
   }
 }
 

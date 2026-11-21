@@ -71,7 +71,7 @@ export const StudentActivityPanel: React.FC<Props> = ({ students, focusStudentId
 
   useEffect(() => {
     void load();
-    const t = window.setInterval(() => void load(), 60000); // 1분마다 새로 받아 옴
+    const t = window.setInterval(() => void load(), 5 * 60000); // 5분마다 새로 받아 옴 (Firebase 읽기 아끼기)
     return () => window.clearInterval(t);
   }, [load]);
 

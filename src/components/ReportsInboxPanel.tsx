@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { UserSession } from '../types';
-import { checkReports, DailyReport, fetchReports } from '../utils/dailyReport';
+import { checkReports, DailyReport, fetchReports, watchReports } from '../utils/dailyReport';
 import { dayKey, modeSetLabel } from '../utils/activityLog';
 
 interface Props {
@@ -37,7 +37,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetchReports(100);
+    const r = await fetchReports(45);
     setReports(r.reports);
     setFromServer(r.fromServer);
     setError(r.error || '');
@@ -45,11 +45,17 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
     setLoading(false);
   }, []);
 
+  // 받은 보고는 실시간으로 (바뀐 보고만 새로 받아서 Firebase 읽기 수를 아낌)
   useEffect(() => {
-    void load();
-    const t = window.setInterval(() => void load(), 60000);
-    return () => window.clearInterval(t);
-  }, [load]);
+    setLoading(true);
+    return watchReports(45, (r) => {
+      setReports(r.reports);
+      setFromServer(r.fromServer);
+      setError(r.error || '');
+      setLoadedAt(Date.now());
+      setLoading(false);
+    });
+  }, []);
 
   const byId = useMemo(() => new Map(students.map((s) => [s.id, s])), [students]);
   const unchecked = reports.filter((r) => !r.checkedAt).length;

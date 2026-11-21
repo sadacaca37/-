@@ -12,5 +12,5 @@ export const BlockCraftGame: React.FC<{ onBack?: () => void; currentUser?: any }
     } catch {}
     return code ? `games/blockcraft/index.html?room=${encodeURIComponent(code)}` : 'games/blockcraft/index.html';
   });
-  return <IframeGame src={src} title="마크 (블록 크래프트)" icon="⛏️" />;
+  return <IframeGame src={src} title="블록 쌓기 월드" icon="⛏️" />;
 };

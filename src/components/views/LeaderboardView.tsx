@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LeaderboardEntry } from '../../types';
 import { Pixel, TvBot } from './TapangHome';
+import { typangApi } from '../../utils/apiClient';
 
 interface LeaderboardViewProps {
   entries: LeaderboardEntry[];
@@ -61,15 +62,22 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
 
   useEffect(() => {
     let alive = true;
-    const q = month ? `?month=${encodeURIComponent(month)}` : '';
-    fetch(`/api/leaderboard${q}`, { cache: 'no-store' })
-      .then((r) => ((r.headers.get('content-type') || '').includes('application/json') ? r.json() : null))
-      .then((j) => {
-        if (!alive || !j?.success) return;
-        if (Array.isArray(j.months)) setMonths(j.months.filter((m: string) => m !== j.currentMonth));
-        setArchived(month ? (Array.isArray(j.leaderboard) ? j.leaderboard : []) : null);
+    typangApi
+      .getLeaderboardMonths()
+      .then((ms) => {
+        if (alive) setMonths(ms.filter((m) => m !== thisMonth()));
       })
       .catch(() => {});
+    if (month)
+      typangApi
+        .getLeaderboardMonth(month)
+        .then((list) => {
+          if (alive) setArchived(list);
+        })
+        .catch(() => {
+          if (alive) setArchived([]);
+        });
+    else setArchived(null);
     return () => {
       alive = false;
     };

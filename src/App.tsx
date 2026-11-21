@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { GameFitStage } from './components/GameFitStage';
 import { makeLeaderboardEntry, readCachedBoard, rememberMyRecord, saveCachedBoard, serverHeal, syncLeaderboard } from './utils/serverHeal';
 import { progressSync } from './utils/progressSync';
@@ -7,7 +7,8 @@ import { buildTodaySummary, fetchMyReports, fetchUncheckedCount } from './utils/
 import { backupKeeper } from './utils/backupKeeper';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
-import { AuthModal } from './components/AuthModal';
+import { MoaAuthModal } from './components/MoaAuthModal';
+import { authReady, getMoaSession, isTeacherUser, loadStudent, parseUserId, pickTaja, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
@@ -193,9 +194,9 @@ export default function App() {
   // Initialize DB and sessions
   useEffect(() => {
     try {
-      // 1. 회원 명단: 서버(members.json 고정 명단)가 기준. 먼저 캐시로 그리고, 서버 명단으로 교체
+      // 1. 학생 명단: 모아팡팡 반 학생들 (선생님만 받아 옴)
       setUsersDb(userPersistenceManager.getLocalUsers());
-      typangApi.getUsers().then((serverUsers) => setUsersDb(serverUsers)).catch(() => {});
+      const isPopup = new URLSearchParams(window.location.search).get('popup') === 'true';
 
       // 1-1. 선생님(마스터) 컴퓨터: 전체 백업 자동 보관 + 업데이트로 서버가 비면 자동 복원
       backupKeeper.start();
@@ -213,16 +214,48 @@ export default function App() {
         setIsAuthOpen(true);
       });
 
-      // 2. Current User Session
-      const savedUser = localStorage.getItem('typang_current_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        setCurrentUser(parsed);
-        // 이 학생의 자료를 서버에서 받아 와 이어서 쓰게 함
-        void progressSync.start(parsed?.id).then((r) => {
-          if (r.restored) window.dispatchEvent(new Event('storage'));
-        });
+      // 2. 지금 사용자: 모아팡팡에서 들어온 학생 / 모아팡팡 선생님 계정이면 저절로 로그인
+      const startSession = (u: UserSession) => {
+        setCurrentUser(u);
+        localStorage.setItem('typang_current_user', JSON.stringify(u));
+        // 이 학생의 자료를 받아 와 이어서 쓰게 함
+        if (u.role !== 'master')
+          void progressSync.start(u.id).then((r) => {
+            if (r.restored) window.dispatchEvent(new Event('storage'));
+          });
+      };
+      let savedUser: UserSession | null = null;
+      try {
+        savedUser = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+      } catch {}
+      // 예전(전화번호) 방식으로 저장된 로그인은 버림
+      if (savedUser && savedUser.id !== 'master_admin' && !parseUserId(savedUser.id)) {
+        localStorage.removeItem('typang_current_user');
+        savedUser = null;
       }
+      if (savedUser) setCurrentUser(savedUser); // 먼저 그려 두고 아래에서 확인
+      void authReady().then(async () => {
+        if (isTeacherUser()) {
+          startSession(savedUser?.role === 'master' ? savedUser : teacherSession());
+          typangApi.getUsers().then((list) => setUsersDb(list)).catch(() => {});
+          return;
+        }
+        const moa = getMoaSession();
+        const noAuto = sessionStorage.getItem('taja_no_auto') === '1';
+        if (savedUser && savedUser.role !== 'master') {
+          const p = parseUserId(savedUser.id);
+          // 같은 컴퓨터에서 모아팡팡에 다른 이름으로 들어왔으면 그 학생으로 바꿈
+          if (moa && p && (moa.cid !== p.cid || moa.key !== p.key) && !noAuto) startSession(await loadStudent(moa));
+          else startSession(await loadStudent(moa && p && moa.cid === p.cid && moa.key === p.key ? moa : { cid: p!.cid, key: p!.key, name: savedUser.name, className: savedUser.studentId || '', room: '' }));
+          return;
+        }
+        if (savedUser?.role === 'master') {
+          // 선생님 로그인이 풀렸으면 학생 화면으로
+          localStorage.removeItem('typang_current_user');
+          setCurrentUser(null);
+        }
+        if (moa && !noAuto && !isPopup) startSession(await loadStudent(moa));
+      });
 
       // 3. 명예의 전당: 이 컴퓨터가 마지막으로 본 순위표를 먼저 보여 주고, 서버와 합친 순위표로 바꿈
       //    (서버가 빈 상태로 다시 켜져도 학생 컴퓨터들이 기억하는 기록이 다시 올라감)
@@ -253,15 +286,22 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    progressSync.flush(); // 나가기 전에 마지막으로 자료를 서버에 보관
+    progressSync.flush(); // 나가기 전에 마지막으로 자료를 보관
     progressSync.stop();
-    serverLogout(); // 서버 로그인 확인표·게임 입장권도 지움
+    serverLogout();
     localStorage.removeItem('typang_current_user');
     typangApi.clearMasterKey();
+    try {
+      sessionStorage.setItem('taja_no_auto', '1'); // 이 창에서는 저절로 다시 들어가지 않게
+    } catch {}
     setCurrentUser(null);
   };
 
   const handleLoginSuccess = (user: UserSession) => {
+    try {
+      sessionStorage.removeItem('taja_no_auto');
+    } catch {}
+    progressSync.stop();
     setCurrentUser(user);
     localStorage.setItem('typang_current_user', JSON.stringify(user));
     if (user.role === 'master') setTimeout(() => void backupKeeper.tick(), 300);
@@ -271,21 +311,26 @@ export default function App() {
     });
   };
 
-  const handleUpdateUsersList = (updated: UserSession[]) => {
+  // 관리실이 이 함수에 기대어 명단을 다시 받으므로, 매번 새 함수가 되지 않게 고정 (안 그러면 명단을 끝없이 다시 읽음)
+  const currentUserRef = useRef<UserSession | null>(null);
+  currentUserRef.current = currentUser;
+  const handleUpdateUsersList = useCallback((updated: UserSession[]) => {
     setUsersDb(updated);
-    // If currently logged in user got updated or revoked
-    if (currentUser) {
-      const matched = updated.find((u) => u.id === currentUser.id);
+    const cu = currentUserRef.current;
+    if (cu && cu.role !== 'master') {
+      const matched = updated.find((u) => u.id === cu.id);
       if (matched) {
         setCurrentUser(matched);
         localStorage.setItem('typang_current_user', JSON.stringify(matched));
       }
     }
-  };
+  }, []);
 
   const handleUpdateProfile = (updatedUser: UserSession) => {
     setCurrentUser(updatedUser);
     localStorage.setItem('typang_current_user', JSON.stringify(updatedUser));
+    // 학년·아바타는 모아팡팡 학생 기록에도 저장 (다른 컴퓨터에서도 그대로)
+    if (parseUserId(updatedUser.id)) void typangApi.updateUser(updatedUser.id, pickTaja(updatedUser as any) as Partial<UserSession>);
 
     const updatedDb = usersDb.map((u) => (u.id === updatedUser.id ? updatedUser : u));
     setUsersDb(updatedDb);
@@ -331,6 +376,8 @@ export default function App() {
     };
     setCurrentUser(updatedUser);
     localStorage.setItem('typang_current_user', JSON.stringify(updatedUser));
+    if (parseUserId(updatedUser.id))
+      void typangApi.updateUser(updatedUser.id, { totalPracticeCount: updatedUser.totalPracticeCount, highestCpm: updatedUser.highestCpm });
 
     const updatedDb = usersDb.map((u) => (u.id === updatedUser.id ? updatedUser : u));
     setUsersDb(updatedDb);
@@ -667,7 +714,7 @@ export default function App() {
       )}
 
       {/* Auth Modal (Login / Register with Approval Notice) */}
-      <AuthModal
+      <MoaAuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onLoginSuccess={handleLoginSuccess}

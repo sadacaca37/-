@@ -1,10 +1,11 @@
 /**
  * 학생별 학습 현황 불러오기
- *  - 선생님(마스터): 서버에 보관된 모든 학생의 학습 일지·연습 기록·진도
+ *  - 선생님(마스터): 모아팡팡 Firebase에 보관된 모든 학생의 학습 일지·연습 기록·진도
  *  - 학생 본인 / 서버 없는 미리보기: 이 브라우저에 있는 자료
  */
 import type { PracticeHistoryRecord } from '../types';
-import { typangApi } from './apiClient';
+import { collectionGroup, getDocs } from 'firebase/firestore';
+import { fs, isTeacherUser, userIdOf } from './moaFirebase';
 import { ACTIVITY_LOG_PREFIX, DayStat, mergeHistoryIntoDays, parseActivityLog } from './activityLog';
 import { computeQuestProgress, QuestMode, QuestStageProgress } from './questProgress';
 
@@ -77,23 +78,52 @@ export interface AllActivityResult {
   users: Record<string, StudentActivity>;
 }
 
+/** 보관 자료(localStorage 사본)에서 선생님 화면에 필요한 것만 */
+function fromStored(uid: string, d: Record<string, string>, updatedAt: number) {
+  const p = (k: string) => {
+    try {
+      return d[k] ? JSON.parse(d[k]) : null;
+    } catch {
+      return null;
+    }
+  };
+  const hist = p(`typang_history_user_${uid}`);
+  const wallet = p(`taja_practice_points_wallet_v2_${uid}`);
+  return build({
+    updatedAt,
+    log: p(`typang_activity_log_${uid}`),
+    quest: p(`tp_quest_done_${uid}`),
+    points: typeof wallet?.points === 'number' ? wallet.points : null,
+    history: Array.isArray(hist) ? hist.slice(0, 100) : [],
+  });
+}
+
 /** 선생님: 모든 학생의 학습 현황 */
 export async function fetchAllActivity(userIds: string[]): Promise<AllActivityResult> {
-  try {
-    const r = await fetch('/api/activity', { headers: { 'x-master-key': typangApi.getMasterKey() }, cache: 'no-store' });
-    const ct = r.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      const j = await r.json();
-      if (j?.success && j.users) {
-        const users: Record<string, StudentActivity> = {};
-        for (const [uid, raw] of Object.entries<any>(j.users)) users[uid] = build(raw);
-        for (const id of userIds) if (id && !users[id]) users[id] = build({}); // 아직 한 번도 저장된 적 없는 학생
-        return { fromServer: true, users };
+  if (isTeacherUser()) {
+    try {
+      const snap = await getDocs(collectionGroup(fs, 'taja'));
+      const users: Record<string, StudentActivity> = {};
+      for (const d of snap.docs) {
+        if (d.id !== 'progress') continue;
+        const st = d.ref.parent.parent;
+        const cid = st?.parent?.parent?.id;
+        if (!st || !cid) continue;
+        const uid = userIdOf(cid, st.id);
+        const v = d.data() as any;
+        let data: Record<string, string> = {};
+        try {
+          data = JSON.parse(v.json || '{}');
+        } catch {}
+        users[uid] = fromStored(uid, data, Number(v.updatedAt) || 0);
       }
-      if (r.status === 403) return { fromServer: true, error: j?.message || '마스터 관리실에 다시 로그인해 주세요.', users: {} };
+      for (const id of userIds) if (id && !users[id]) users[id] = build({}); // 아직 한 번도 저장된 적 없는 학생
+      return { fromServer: true, users };
+    } catch (e: any) {
+      if (/permission/i.test(String(e?.code || ''))) return { fromServer: true, error: '선생님 계정으로 다시 로그인해 주세요.', users: {} };
     }
-  } catch {}
-  // 서버가 없는 미리보기: 이 브라우저에 있는 자료만
+  }
+  // 학생 본인: 이 브라우저에 있는 자료만
   const users: Record<string, StudentActivity> = {};
   for (const id of userIds) users[id] = readLocalActivity(id);
   return { fromServer: false, users };

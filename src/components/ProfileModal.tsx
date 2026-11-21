@@ -88,6 +88,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
   const [editParentPhone, setEditParentPhone] = useState(currentUser?.parentPhone || '');
   const [editGrade, setEditGrade] = useState<number>(currentUser?.grade || 3);
+  /** 모아팡팡 방번호+이름으로 들어온 학생 (비밀번호·전화번호 없음) */
+  const isMoaStudent = !!currentUser && currentUser.role !== 'master' && /^m_/.test(currentUser.id);
   const [editPassword, setEditPassword] = useState(currentUser?.password || '1234');
   const [showPassword, setShowPassword] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -698,7 +700,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <h1 className="text-sm sm:text-base font-black tracking-tight text-slate-900 font-sans">
-                  {mainTab === 'avatar' ? 'MY AVATAR MAKER' : '내 계정 & 비밀번호 확인'}
+                  {mainTab === 'avatar' ? 'MY AVATAR MAKER' : isMoaStudent ? '내 정보' : '내 계정 & 비밀번호 확인'}
                 </h1>
                 <span className="text-xs sm:text-sm">💕</span>
               </div>
@@ -738,7 +740,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              <span>내 계정 정보 & 비밀번호</span>
+              <span>{isMoaStudent ? '내 정보' : '내 계정 정보 & 비밀번호'}</span>
             </button>
             <button
               onClick={() => {
@@ -918,6 +920,51 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
                 {/* Right Column: Editable Account Details & Password Inspection */}
                 <div className="pf-card pf-card--form md:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col justify-between">
+                  {isMoaStudent ? (
+                    <div className="space-y-4" data-testid="moa-account">
+                      <div className="pb-3 border-b border-slate-100">
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                          <User className="w-5 h-5 text-indigo-600" />
+                          <span>내 정보</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">모아팡팡에 들어온 방번호·이름 그대로예요. 비밀번호는 없어요.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm font-black text-slate-800">
+                        <div className="p-3 rounded-2xl bg-slate-50 border-2 border-slate-200">
+                          <div className="text-[11px] text-slate-400">이름</div>
+                          {currentUser?.name}
+                        </div>
+                        <div className="p-3 rounded-2xl bg-slate-50 border-2 border-slate-200">
+                          <div className="text-[11px] text-slate-400">반</div>
+                          {currentUser?.studentId || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-extrabold text-slate-700 mb-1.5">내 학년 (명예의 전당 학년별 순위에 쓰여요)</div>
+                        <div className="grid grid-cols-6 gap-1.5">
+                          {[1, 2, 3, 4, 5, 6].map((g) => (
+                            <button
+                              key={g}
+                              type="button"
+                              onClick={() => {
+                                soundManager.play('click');
+                                setEditGrade(g);
+                                if (currentUser) {
+                                  onUpdateUser({ ...currentUser, grade: g, levelTitle: `${g}학년 타자 꿈나무` });
+                                  setAccountFeedback({ message: `✨ ${g}학년으로 저장했어요!`, type: 'success' });
+                                  setTimeout(() => setAccountFeedback(null), 3000);
+                                }
+                              }}
+                              className={`py-2 rounded-xl text-xs font-black border-2 cursor-pointer ${currentUser?.grade === g ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                            >
+                              {g}학년
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-bold">이름을 바꾸려면 선생님께 말해 주세요. (다른 이름으로 들어오면 새 학생이 돼요)</p>
+                    </div>
+                  ) : (
                   <form onSubmit={handleSaveAccountInfo} className="space-y-4">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                       <div>
@@ -1133,6 +1180,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       )}
                     </div>
                   </form>
+                  )}
                 </div>
 
               </div>

@@ -1,8 +1,9 @@
 /**
  * 펀펀 플레이 무료 개방 (선생님이 마스터 관리실에서 기간을 정함)
- *  - 서버가 있으면 서버 설정을 따르고, 서버가 없는 미리보기에서는 이 브라우저에 저장
+ *  - 모아팡팡 Firebase 'config/taja' 에 저장 (학생은 읽기만)
  */
-import { typangApi } from './apiClient';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { fs, isTeacherUser, ensureUser, errText } from './moaFirebase';
 
 export interface FunfunFreeInfo {
   freeFrom: number;
@@ -31,14 +32,23 @@ export function isFreeActive(info: FunfunFreeInfo | null | undefined) {
   return info.freeUntil > now && info.freeFrom <= now;
 }
 
+const CONF = () => doc(fs, 'config', 'taja');
+const toInfo = (v: any): FunfunFreeInfo => {
+  const now = Date.now();
+  const freeFrom = Number(v?.freeFrom) || 0;
+  const freeUntil = Number(v?.freeUntil) || 0;
+  return { freeFrom, freeUntil, note: String(v?.note || ''), active: freeUntil > now && freeFrom <= now };
+};
+
 export async function fetchFunfunFree(): Promise<FunfunFreeInfo> {
   try {
-    const r = await fetch('/api/funfun/free', { credentials: 'same-origin' });
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) return readLocal();
-    const j = await r.json();
-    if (!j?.success) return readLocal();
-    return { freeFrom: j.freeFrom || 0, freeUntil: j.freeUntil || 0, note: j.note || '', active: !!j.active };
+    await ensureUser();
+    const snap = await getDoc(CONF());
+    const info = toInfo(snap.exists() ? (snap.data() as any).funfun : null);
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(info));
+    } catch {}
+    return info;
   } catch {
     return readLocal();
   }
@@ -46,27 +56,17 @@ export async function fetchFunfunFree(): Promise<FunfunFreeInfo> {
 
 /** 선생님이 무료 개방 기간 정하기 (off: true 면 끄기) */
 export async function saveFunfunFree(v: { freeFrom?: number; freeUntil?: number; note?: string; off?: boolean }): Promise<{ success: boolean; message?: string; info?: FunfunFreeInfo }> {
+  if (!isTeacherUser()) return { success: false, message: '선생님 계정으로 로그인해 주세요.' };
+  const val = v.off ? { freeFrom: 0, freeUntil: 0, note: '' } : { freeFrom: v.freeFrom || Date.now(), freeUntil: v.freeUntil || 0, note: String(v.note || '').slice(0, 60) };
   try {
-    const r = await fetch('/api/funfun/free', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'x-master-key': typangApi.getMasterKey() },
-      body: JSON.stringify(v),
-    });
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) throw new Error('noserver');
-    const j = await r.json();
-    if (!j?.success) return { success: false, message: j?.message || '저장하지 못했어요.' };
-    window.dispatchEvent(new Event('funfun-free-updated'));
-    return { success: true, info: { freeFrom: j.freeFrom, freeUntil: j.freeUntil, note: j.note, active: j.active } };
-  } catch {
-    // 서버 없는 미리보기: 이 브라우저에만 저장
+    await setDoc(CONF(), { funfun: val }, { merge: true });
     try {
-      if (v.off) localStorage.removeItem(LOCAL_KEY);
-      else localStorage.setItem(LOCAL_KEY, JSON.stringify({ freeFrom: v.freeFrom || Date.now(), freeUntil: v.freeUntil || 0, note: v.note || '' }));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(val));
     } catch {}
     window.dispatchEvent(new Event('funfun-free-updated'));
-    return { success: true, info: readLocal() };
+    return { success: true, info: toInfo(val) };
+  } catch (e) {
+    return { success: false, message: errText(e) };
   }
 }
 

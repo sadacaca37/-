@@ -60,6 +60,8 @@ import {
 } from '../utils/excelStudentManager';
 import { typangApi, MembersStatus } from '../utils/apiClient';
 import { askConfirm, showAlert } from '../utils/dialog';
+import { TEACHER_EMAIL, teacherResetMail } from '../utils/moaFirebase';
+import { MoaRosterPanel } from './MoaRosterPanel';
 
 interface MasterModalProps {
   isOpen: boolean;
@@ -269,16 +271,15 @@ export const MasterModal: React.FC<MasterModalProps> = ({
     e.preventDefault();
     setAuthError('');
     const currentCfg = getMasterConfig();
-    const auth = await typangApi.masterLogin(masterPassInput.trim(), masterPassInput.trim() === currentCfg.masterPassword || verifyMasterAuth(masterPassInput.trim()));
+    const auth = await typangApi.masterLogin(masterPassInput.trim());
+    setMasterPassInput('');
 
     if (auth.success) {
       setIsAuthenticated(true);
       const masterUser: UserSession = {
         id: 'master_admin',
-        name: currentCfg.masterName || '마스터 선생님',
+        name: currentCfg.masterName || '선생님',
         studentId: 'master',
-        phone: currentCfg.masterPhone || '010-0000-0000',
-        password: masterPassInput,
         avatar: '👑',
         isApproved: true,
         role: 'master',
@@ -512,7 +513,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
             <div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">👑 마스터(선생님) 관리실 입장</h2>
               <p className="text-xs text-slate-500 mt-1 font-medium">
-                학생들의 가입 승인, 비밀번호 관리 및 상세 타자 연습 기록 조회를 위해 마스터 비밀번호를 입력하세요.
+                모아팡팡 선생님 계정 비밀번호를 입력하세요. (모아팡팡 선생님 화면과 같은 비밀번호)
               </p>
             </div>
 
@@ -525,7 +526,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
               <div>
                 <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                  마스터 로그인 비밀번호
+                  모아팡팡 선생님 비밀번호
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -541,9 +542,21 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                     autoFocus
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 font-medium mt-1">
-                  * 마스터키와 관리자 비밀번호는 선생님만 수정 및 보관할 수 있습니다.
-                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!(await askConfirm(`${TEACHER_EMAIL} 메일로 비밀번호를 새로 정하는 링크를 보낼까요?`))) return;
+                    try {
+                      await teacherResetMail();
+                      void showAlert('메일을 보냈어요. 메일함(스팸함도)에서 링크를 눌러 새 비밀번호를 정해 주세요.');
+                    } catch {
+                      void showAlert('메일을 보내지 못했어요. 잠시 뒤에 다시 해 주세요.');
+                    }
+                  }}
+                  className="mt-1.5 text-[12px] font-bold text-pink-600 underline cursor-pointer"
+                >
+                  비밀번호를 잊었어요
+                </button>
               </div>
 
               <button
@@ -574,7 +587,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    학생이 보낸 연습 보고, 학습 현황, 가입 승인·비밀번호, 보안 설정
+                    학생이 보낸 연습 보고, 학습 현황, 학생 명단(모아팡팡 반), 선생님 계정
                   </p>
                 </div>
               </div>
@@ -621,7 +634,7 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   }`}
                 >
                   <Users className="w-3.5 h-3.5" />
-                  <span>학생 승인 & 비번 관리</span>
+                  <span>학생 명단</span>
                   {pendingCount > 0 && (
                     <span className="px-1.5 py-0.2 bg-amber-400 text-amber-950 rounded-full text-[10px] font-black animate-pulse">
                       {pendingCount}
@@ -639,13 +652,18 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                   }`}
                 >
                   <Key className="w-3.5 h-3.5" />
-                  <span>마스터키 & 보안</span>
+                  <span>선생님 계정</span>
                 </button>
               </div>
             </div>
 
             {/* TAB 1: STUDENTS MANAGEMENT & APPROVAL */}
             {activeConsoleTab === 'students' && (
+              <MoaRosterPanel users={users} onRefresh={refreshFromServer} onInspect={handleInspectStudentHistory} onReport={onOpenReportForUser} />
+            )}
+
+            {/* 예전 전화번호 회원 관리 화면 (이제 모아팡팡 반 학생을 그대로 써서 보이지 않음) */}
+            {(activeConsoleTab as string) === 'old-students' && (
               <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                 {/* Real-time Toast Notification */}
                 {realtimeNotification && (
@@ -1381,6 +1399,35 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
             {/* TAB 3: MASTER SECURITY & SECRET MASTER KEY SETTINGS */}
             {activeConsoleTab === 'security' && (
+              <div className="flex-1 overflow-y-auto pr-1">
+                <div className="max-w-xl mx-auto space-y-3 py-2 text-sm font-bold text-slate-700">
+                  <div className="p-4 rounded-2xl bg-purple-50 border-2 border-purple-200 space-y-2">
+                    <div className="font-black text-purple-900">👑 선생님 계정 = 모아팡팡 선생님 계정</div>
+                    <p className="text-xs text-purple-800">
+                      타자팡팡 관리실은 모아팡팡 선생님 계정({TEACHER_EMAIL})으로 들어와요. 따로 마스터키나 관리실 비밀번호가 없어요.
+                      학생은 비밀번호 없이 방번호 + 이름으로 들어와서, 학생 비밀번호를 찾아 줄 일도 없어요.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!(await askConfirm(`${TEACHER_EMAIL} 메일로 비밀번호를 새로 정하는 링크를 보낼까요?`))) return;
+                      try {
+                        await teacherResetMail();
+                        void showAlert('메일을 보냈어요. 메일함(스팸함도)에서 링크를 눌러 새 비밀번호를 정해 주세요.');
+                      } catch {
+                        void showAlert('메일을 보내지 못했어요. 잠시 뒤에 다시 해 주세요.');
+                      }
+                    }}
+                    className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm cursor-pointer"
+                  >
+                    🔑 선생님 비밀번호 바꾸기 (메일로 링크 받기)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(activeConsoleTab as string) === 'old-security' && (
               <div className="flex-1 overflow-y-auto pr-1">
                 <form onSubmit={handleSaveSecurityConfig} className="max-w-xl mx-auto space-y-4 py-2">
                   <div className="p-4 rounded-2xl bg-purple-50 border-2 border-purple-200 space-y-1">
