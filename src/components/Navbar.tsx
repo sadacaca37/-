@@ -338,7 +338,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="tp-nbtn tp-nbtn--start arcade-btn-sky text-white px-3.5 py-2 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
-                <span>로그인 / 학생등록</span>
+                <span>들어가기 (방번호·이름)</span>
               </button>
             )}
           </div>

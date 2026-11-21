@@ -642,7 +642,7 @@ export default function App() {
                   onClick={() => setIsAuthOpen(true)}
                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
                 >
-                  ✨ 로그인 / 회원가입 하러 가기
+                  ✨ 방번호·이름으로 들어가기
                 </button>
                 <button
                   onClick={() => setCurrentMode('home')}
