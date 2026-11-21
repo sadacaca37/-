@@ -26,6 +26,7 @@ import {
 import { AppMode, UserSession } from '../types';
 import { pointsManager } from '../utils/pointsManager';
 import { soundManager } from '../utils/sound';
+import { MoaCharacter } from './MoaCharacter';
 
 
 interface NavbarProps {
@@ -186,11 +187,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a
               href="../"
               data-testid="nav-go-moapang"
-              className="tp-nbtn tp-nbtn--wood px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 no-underline"
+              className="tp-nbtn tp-nbtn--wood px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 no-underline"
               title="모아팡 첫 화면으로 가기"
+              aria-label="모아팡으로 가기"
             >
               <span aria-hidden="true">🏠</span>
-              <span className="hidden sm:inline">모아팡</span>
+              <span className={currentUser ? 'hidden 2xl:inline' : 'hidden sm:inline'}>모아팡</span>
             </a>
 
             {/* Typing History Modal Button */}
@@ -317,7 +319,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   title="내 계정 정보(이름/전화번호) & 4자리 비밀번호 확인/수정"
                 >
                   <div className="w-8 h-8 rounded-xl bg-white border border-sky-200 shadow-2xs flex items-center justify-center text-lg leading-none">
-                    {currentUser.avatar || (currentUser.role === 'master' ? '👑' : '🙂')}
+                    {currentUser.role === 'master' ? '👑' : <MoaCharacter size={30} fallback={currentUser.avatar || '🙂'} />}
                   </div>
                   <div className="text-left hidden sm:block">
                     <span className="font-extrabold text-slate-800 block leading-tight">

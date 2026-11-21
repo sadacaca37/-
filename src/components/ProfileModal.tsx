@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MoaCharacter, DRESS_URL } from './MoaCharacter';
 import { TvBot } from './views/TapangHome';
 import {
   X,
@@ -237,13 +238,28 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 {/* Left Column: Simple Emoji Profile & Stats Card */}
                 <div className="pf-card pf-card--id md:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col items-center text-center space-y-4">
                   <div className="pf-avatar relative w-28 h-28 rounded-2xl bg-gradient-to-b from-sky-100 to-indigo-100 border-2 border-sky-200 flex items-center justify-center shadow-inner">
-                    <span className="text-6xl select-none" role="img" aria-label="프로필 아이콘">
-                      {profileEmoji}
-                    </span>
+                    {isMoaStudent ? (
+                      <MoaCharacter size={104} fallback={profileEmoji} className="text-6xl select-none" />
+                    ) : (
+                      <span className="text-6xl select-none" role="img" aria-label="프로필 아이콘">
+                        {profileEmoji}
+                      </span>
+                    )}
                     <div className="absolute -bottom-2 right-2 px-2 py-0.5 rounded-full bg-white/95 text-[10px] font-black text-slate-700 border border-slate-200 shadow-xs">
                       {currentUser.role === 'master' ? '👑 마스터' : `${editGrade}학년`}
                     </div>
                   </div>
+
+                  {isMoaStudent && (
+                    <a
+                      href={DRESS_URL}
+                      data-testid="go-dress"
+                      className="px-4 py-2 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white text-sm font-black shadow-sm border-2 border-pink-600 no-underline"
+                      title="모아팡 캐릭터 꾸미기에서 옷을 입혀요. 다 꾸미면 타자팡으로 돌아와요"
+                    >
+                      👕 캐릭터 꾸미기
+                    </a>
+                  )}
 
                   <div>
                     <div className="flex items-center justify-center gap-2">

@@ -154,6 +154,14 @@ export async function loadStudent(s: MoaSession): Promise<UserSession> {
     if (snap.exists()) {
       const v = snap.data() as any;
       taja = v.taja || {};
+      // 모아팡 캐릭터 꾸미기에서 입힌 옷을 이 컴퓨터에도 맞춰 둠 (타자팡 상단·내 정보에 보임)
+      if (v.outfit && JSON.stringify(v.outfit) !== JSON.stringify(s.outfit || null)) {
+        const cur = getMoaSession();
+        if (cur && cur.cid === s.cid && cur.key === s.key) {
+          setMoaSession({ ...cur, outfit: v.outfit });
+          window.dispatchEvent(new Event('moa-outfit-changed'));
+        }
+      }
       // 다른 컴퓨터에서 들어온 적이 있으면 이 컴퓨터를 '지금 쓰는 기기'로 (그래야 내 자료를 읽고 저장할 수 있음)
       if (v.uid !== u.uid) await setDoc(sref, { name: v.name || s.name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
     } else {
