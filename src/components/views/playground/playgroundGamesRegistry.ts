@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame, MoaMiniGames } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -158,14 +158,6 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '🕯️',
     description: '어둠의 지하 던전을 내려가며 싸우는 쿼터뷰 액션 RPG · 화염구·치유 물약',
     component: AshenHollowGame,
-  },
-  {
-    id: 'app-moa-minigames',
-    title: '모아팡 미니 게임',
-    category: '펀펀',
-    icon: '🎲',
-    description: '모아팡 미니 게임 모음 · OX 퀴즈·방탈출·운동장 놀이',
-    component: MoaMiniGames,
   },
 ];
 
