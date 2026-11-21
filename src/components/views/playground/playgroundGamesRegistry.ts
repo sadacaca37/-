@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame, BaramIslandGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -173,6 +173,14 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '🕯️',
     description: '어둠의 지하 던전을 내려가며 싸우는 쿼터뷰 액션 RPG · 화염구·치유 물약',
     component: AshenHollowGame,
+  },
+  {
+    id: 'app-baramisland',
+    title: '바람의 섬',
+    category: '펀펀',
+    icon: '🏝️',
+    description: '네 개의 섬을 모험하는 3D 액션 RPG · 원소 공격 · 미션 · 보스 (컴퓨터 추천)',
+    component: BaramIslandGame,
   },
 ];
 
