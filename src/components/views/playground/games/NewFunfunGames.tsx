@@ -15,3 +15,8 @@ export const AshenHollowGame: React.FC<{ onBack?: () => void }> = () => (
 export const BaramIslandGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/baramisland/index.html" title="바람의 섬" icon="🏝️" />
 );
+
+/** 광선검 결투 – 졸라맨 제다이 vs 시스, 컴퓨터 대결 · 한 컴퓨터 2인 · 👥 2인 대결 (public/games/lightsaber, 원본은 games-src/lightsaber) */
+export const LightsaberDuelGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/lightsaber/index.html" title="광선검 결투" icon="⚔️" />
+);

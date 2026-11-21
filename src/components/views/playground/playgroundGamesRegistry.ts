@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame, BaramIslandGame } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -181,6 +181,14 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '🏝️',
     description: '네 개의 섬을 모험하는 3D 액션 RPG · 원소 공격 · 미션 · 보스 (컴퓨터 추천)',
     component: BaramIslandGame,
+  },
+  {
+    id: 'app-lightsaber',
+    title: '광선검 결투',
+    category: '펀펀',
+    icon: '⚔️',
+    description: '졸라맨 제다이와 시스의 광선검 대결 · 컴퓨터 대결 · 한 컴퓨터 2인 · 👥 2인 대결(각자 컴퓨터)',
+    component: LightsaberDuelGame,
   },
 ];
 
