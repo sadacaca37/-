@@ -302,6 +302,15 @@ const ROAD_WAYPOINTS: RoadPoint[] = [
 /* Stage index (0..5) -> index in ROAD_WAYPOINTS */
 const STAGE_WAYPOINT_IDX = [2, 5, 8, 12, 15, 18];
 
+/** 로봇이 그 단계에서 서 있는 자리: 돌 받침대 위(지금 치는 곳). 명예의 전당(신전)은 신전 앞 길 위. */
+const onPedestal = (stageIdx: number) => MAP_STOPS[stageIdx]?.kind !== 'arch';
+const stagePoint = (stageIdx: number): RoadPoint => {
+  const s = MAP_STOPS[stageIdx];
+  if (!s || !onPedestal(stageIdx)) return ROAD_WAYPOINTS[STAGE_WAYPOINT_IDX[stageIdx] ?? 0];
+  // 받침대 윗면 가운데에 무한궤도가 닿게 (점 = 로봇 발밑 가운데)
+  return { x: s.ped.cx, y: s.ped.cy - s.ped.h * 0.12 };
+};
+
 const BOT_STAGE_KEY = (userId: string) => `tp_quest_bot_stage_${userId}`;
 
 /** Korean particle 으로/로 (받침 없거나 ㄹ 받침이면 '로', 그 외 '으로') */
@@ -463,16 +472,16 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     onSelectMode(mode);
   };
 
-  // 로그인한 학생(마스터/선생님 제외)의 로봇 위치 계산:
-  // 마지막으로 치던/방금 친 단계("▶ 여기까지 쳤어요 · 이어서"와 같은 단계)로 이동하고,
-  // 마지막 연습 기록이 없으면 아직 안 끝낸 첫 단계에 배치
+  // 로봇 위치 계산:
+  // 마지막으로 치던/방금 친 단계("▶ 여기까지 쳤어요 · 이어서"와 같은 단계)의 받침대 위로 이동 (선생님 계정도 똑같이),
+  // 마지막 연습 기록이 없으면 학생은 아직 안 끝낸 첫 단계, 선생님은 출발점
   const isStudent = currentUser?.role !== 'master'; // 로그인 안 한 학생도 로봇이 따라감
   const targetStageIdx = useMemo(() => {
-    if (!isStudent) return -1;
     if (lastMode) {
       const lastIdx = MAP_STOPS.findIndex((s) => s.mode === lastMode);
       if (lastIdx >= 0) return lastIdx;
     }
+    if (!isStudent) return -1;
     for (let i = 0; i < MAP_STOPS.length; i++) {
       const s = MAP_STOPS[i];
       const q = quest[s.mode as QuestMode];
@@ -482,7 +491,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     return MAP_STOPS.length - 1; // 모두 완료 → 명예의 전당 신전 앞
   }, [isStudent, lastMode, quest, stats.byMode]);
 
-  const targetPoint = targetStageIdx >= 0 ? ROAD_WAYPOINTS[STAGE_WAYPOINT_IDX[targetStageIdx]] : ROAD_WAYPOINTS[0];
+  const targetPoint = targetStageIdx >= 0 ? stagePoint(targetStageIdx) : ROAD_WAYPOINTS[0];
   const [botPos, setBotPos] = useState<RoadPoint>(targetPoint);
   const [isWalking, setIsWalking] = useState(false);
   const [arrivedStageIdx, setArrivedStageIdx] = useState<number | null>(null);
@@ -490,8 +499,8 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
   const botLayerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // 비로그인 또는 선생님 계정: 왼쪽 출발점 고정
-    if (!isStudent || targetStageIdx < 0) {
+    // 아직 친 곳이 없는 선생님 계정: 왼쪽 출발점 고정
+    if (targetStageIdx < 0) {
       setBotPos(ROAD_WAYPOINTS[0]);
       setIsWalking(false);
       setArrivedStageIdx(null);
@@ -514,7 +523,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       }
     } catch {}
 
-    const dest = ROAD_WAYPOINTS[STAGE_WAYPOINT_IDX[targetStageIdx]];
+    const dest = stagePoint(targetStageIdx);
     const reducedMotion =
       typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
@@ -552,10 +561,16 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     // 이전 단계 → 새 단계까지 흙길(나무 다리 포함)을 따라 양방향으로 걸어가기 (transform만 업데이트)
     const startWp = STAGE_WAYPOINT_IDX[prevIdx];
     const endWp = STAGE_WAYPOINT_IDX[targetStageIdx];
-    const pathPts =
+    // 이전 받침대에서 내려와 → 길을 따라 → 새 받침대 위로 올라감
+    const roadPts =
       startWp <= endWp
         ? ROAD_WAYPOINTS.slice(startWp, endWp + 1)
         : ROAD_WAYPOINTS.slice(endWp, startWp + 1).reverse();
+    const pathPts = [
+      ...(onPedestal(prevIdx) ? [stagePoint(prevIdx)] : []),
+      ...roadPts,
+      ...(onPedestal(targetStageIdx) ? [dest] : []),
+    ];
     const startPt = pathPts[0];
     const duration = Math.min(2900, 2000 + Math.max(0, Math.abs(targetStageIdx - prevIdx) - 1) * 350);
 
@@ -603,7 +618,11 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
 
   const activeBotStop = targetStageIdx >= 0 ? MAP_STOPS[targetStageIdx] : MAP_STOPS[0];
   const isResumingStage = !!lastMode && activeBotStop.mode === lastMode;
-  const botBubbleText = !isStudent
+  // 받침대 위에 서 있을 때: 말풍선은 받침대 아래로 내리고,
+  // 그 자리에 '여기까지 쳤어요' 표시가 이미 있으면 말풍선은 숨김(같은 말이라 겹치지 않게)
+  const botOnPed = !isWalking && targetStageIdx >= 0 && onPedestal(targetStageIdx);
+  const hideBotBubble = botOnPed && !!currentUser && isResumingStage;
+  const botBubbleText = targetStageIdx < 0
     ? '오늘의 퀘스트 맵: 1단계부터 5단계까지 도전!'
     : isWalking
       ? `${activeBotStop.label} ${withRo(activeBotStop.name)} 이동 중!`
@@ -749,7 +768,8 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
               <button
                 type="button"
                 onClick={() => go(activeBotStop.mode)}
-                className={`qm-bot-btn ${isWalking ? 'qm-bot-btn--walk' : ''}`}
+                className={`qm-bot-btn ${isWalking ? 'qm-bot-btn--walk' : ''} ${botOnPed ? 'qm-bot-btn--ped' : ''}`}
+                data-testid="quest-bot"
                 aria-label={`${activeBotStop.label} ${activeBotStop.name} 바로 시작하기`}
               >
                 {showSparkle && (
@@ -764,16 +784,18 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                   <Pixel grid={TV_BOT} pal={TV_PAL} size={64} className="qm-bot-tv" />
                   <span className="qm-tracks" aria-hidden="true" />
                 </span>
-                <span
-                  className="qm-bot-bubble"
-                  style={
-                    bubbleNudgeCqw
-                      ? ({ ['--qm-bn' as any]: `${bubbleNudgeCqw}cqw` } as React.CSSProperties)
-                      : undefined
-                  }
-                >
-                  {botBubbleText}
-                </span>
+                {!hideBotBubble && (
+                  <span
+                    className="qm-bot-bubble"
+                    style={
+                      bubbleNudgeCqw
+                        ? ({ ['--qm-bn' as any]: `${bubbleNudgeCqw}cqw` } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    {botBubbleText}
+                  </span>
+                )}
               </button>
             </div>
 
