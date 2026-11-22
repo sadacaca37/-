@@ -10,3 +10,13 @@ export const PogeunForestGame: React.FC<{ onBack?: () => void }> = () => (
 export const AshenHollowGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/ashenhollow/index.html" title="Ashen Hollow" icon="🕯️" />
 );
+
+/** 바람의 섬 – 3D 액션 RPG, 4개 섬 이야기 (public/games/baramisland, 한 파일에 모두 들어 있음) */
+export const BaramIslandGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/baramisland/index.html" title="바람의 섬" icon="🏝️" />
+);
+
+/** 광선검 결투 – 졸라맨 제다이 vs 시스, 컴퓨터 대결 · 한 컴퓨터 2인 · 👥 2인 대결 (public/games/lightsaber, 원본은 games-src/lightsaber) */
+export const LightsaberDuelGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/lightsaber/index.html" title="광선검 결투" icon="⚔️" />
+);
