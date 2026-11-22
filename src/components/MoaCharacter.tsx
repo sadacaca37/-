@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getMoaSession } from '../utils/moaFirebase';
+import { getMemberDress, getMoaSession, MEMBER_CID } from '../utils/moaFirebase';
 
 /**
  * 모아팡 캐릭터 (모아팡 '캐릭터 꾸미기'에서 입힌 옷 그대로)
@@ -28,14 +28,26 @@ function loadAvatarLib(): Promise<any> {
   return loader;
 }
 
-/** 지금 학생의 옷차림 (모아팡 입장 기록에 저장된 것) */
+/** 지금 타자팡에 로그인한 사람이 타자팡 회원(이름+전화번호)인지 */
+function isMemberNow(): boolean {
+  try {
+    const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+    return !!u && typeof u.id === 'string' && u.id.startsWith(`m_${MEMBER_CID}_`);
+  } catch {
+    return false;
+  }
+}
+
+/** 지금 학생의 옷차림 (타자팡 회원이면 회원 옷, 모아팡 방번호로 들어왔으면 모아팡 옷) */
 export function currentOutfit(): any | null {
+  if (isMemberNow()) return getMemberDress()?.outfit || null;
   return getMoaSession()?.outfit || null;
 }
 
 /** 모아팡 캐릭터 꾸미기 화면으로 (다 꾸미면 타자팡으로 돌아옴) */
 export const DRESS_URL = MOA_ROOT + 'dress.html?back=taja';
-export const hasMoaCharacter = () => !!getMoaSession();
+export const dressUrl = () => (isMemberNow() && getMemberDress() ? DRESS_URL + '&who=member' : DRESS_URL);
+export const hasMoaCharacter = () => !!getMoaSession() || (isMemberNow() && !!getMemberDress());
 
 export const MoaCharacter: React.FC<{ size?: number; fallback?: React.ReactNode; className?: string }> = ({ size = 32, fallback = '🙂', className = '' }) => {
   const [src, setSrc] = useState('');
@@ -55,10 +67,6 @@ export const MoaCharacter: React.FC<{ size?: number; fallback?: React.ReactNode;
   }, []);
 
   useEffect(() => {
-    if (!getMoaSession()) {
-      setSrc('');
-      return;
-    }
     let alive = true;
     void loadAvatarLib().then(async (A) => {
       if (!A || !alive) return;

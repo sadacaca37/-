@@ -14,7 +14,7 @@ import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
 import { payWeeklyRankRewards } from './utils/rankRewards';
 import { weekLabel } from './utils/weekBest';
-import { authReady, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
+import { authReady, clearMemberDress, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
@@ -418,6 +418,7 @@ export default function App() {
     progressSync.stop();
     serverLogout();
     localStorage.removeItem('typang_current_user');
+    clearMemberDress(); // 다음 사람이 이 컴퓨터를 쓰면 기본 캐릭터로
     typangApi.clearMasterKey();
     try {
       sessionStorage.setItem('taja_no_auto', '1'); // 이 창에서는 저절로 다시 들어가지 않게

@@ -242,9 +242,28 @@ export async function memberKey(name: string, phone: string): Promise<string> {
   return 'n_t' + hex.slice(0, 30);
 }
 const memberRef = (key: string) => doc(fs, 'classes', MEMBER_CID, 'students', key);
+/** 타자팡 회원의 캐릭터(옷차림) — 모아팡 '캐릭터 꾸미기'(dress.html?who=member)와 함께 씀 */
+export const MEMBER_DRESS_KEY = 'taja_member_dress';
+export function getMemberDress(): { cid: string; key: string; name: string; className: string; outfit: any } | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(MEMBER_DRESS_KEY) || 'null');
+    return d && d.cid === MEMBER_CID && d.key ? d : null;
+  } catch {
+    return null;
+  }
+}
+export function clearMemberDress() {
+  try {
+    localStorage.removeItem(MEMBER_DRESS_KEY);
+  } catch {}
+}
 const memberSession = (key: string, v: any, approved: boolean): UserSession => {
   const taja = v?.taja || {};
   const s: MoaSession = { cid: MEMBER_CID, room: '', className: taja.className || MEMBER_CLASS, name: String(v?.name || ''), key };
+  try {
+    localStorage.setItem(MEMBER_DRESS_KEY, JSON.stringify({ cid: MEMBER_CID, key, name: s.name, className: s.className, outfit: v?.outfit || null }));
+    window.dispatchEvent(new Event('moa-outfit-changed'));
+  } catch {}
   return { ...studentSession(s, taja, approved), parentPhone: taja.phone ? prettyPhone(taja.phone) : undefined };
 };
 const checkInput = (name: string, phone: string) => {

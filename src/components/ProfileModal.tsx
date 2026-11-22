@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MoaCharacter, DRESS_URL } from './MoaCharacter';
+import { MoaCharacter, dressUrl } from './MoaCharacter';
 import { TvBot } from './views/TapangHome';
 import {
   X,
@@ -252,7 +252,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
                   {isMoaStudent && (
                     <a
-                      href={DRESS_URL}
+                      href={dressUrl()}
                       data-testid="go-dress"
                       className="px-4 py-2 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white text-sm font-black shadow-sm border-2 border-pink-600 no-underline"
                       title="모아팡 캐릭터 꾸미기에서 옷을 입혀요. 다 꾸미면 타자팡으로 돌아와요"
