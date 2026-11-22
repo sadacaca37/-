@@ -252,6 +252,21 @@ export function getMemberDress(): { cid: string; key: string; name: string; clas
     return null;
   }
 }
+/**
+ * 이 컴퓨터에 남아 있는 '다른 사람'의 캐릭터·이름 기록을 지움
+ *  - 타자팡에 선생님이나 다른 학생이 로그인했는데 예전 학생(모아팡 방번호 입장 등)의 옷·이름이 게임에 남는 문제 막기
+ *  - user 가 없으면(로그아웃) 둘 다 지움
+ */
+export function purgeStaleIdentities(user: { id: string; role?: string } | null) {
+  try {
+    const p = user && user.role !== 'master' ? parseUserId(user.id) : null;
+    const ses = getMoaSession();
+    if (ses && !(p && ses.cid === p.cid && ses.key === p.key)) localStorage.removeItem(SKEY);
+    const d = JSON.parse(localStorage.getItem(MEMBER_DRESS_KEY) || 'null');
+    if (d && !(p && p.cid === MEMBER_CID && d.key === p.key)) localStorage.removeItem(MEMBER_DRESS_KEY);
+    window.dispatchEvent(new Event('moa-outfit-changed'));
+  } catch {}
+}
 export function clearMemberDress() {
   try {
     localStorage.removeItem(MEMBER_DRESS_KEY);

@@ -16,7 +16,7 @@ import { bestShortCpm, longUnlocked, SHORT_TO_LONG_CPM } from './utils/longGate'
 import { AccountTabs, AccountTab } from './components/AccountTabs';
 import { payWeeklyRankRewards } from './utils/rankRewards';
 import { weekLabel } from './utils/weekBest';
-import { authReady, clearMemberDress, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
+import { authReady, purgeStaleIdentities, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
@@ -298,6 +298,7 @@ export default function App() {
       // 2. 지금 사용자: 선생님 계정 / 이 컴퓨터에 로그인해 둔 타자팡 회원(이름+전화번호)
       //    모아팡 방번호로만 들어온 학생은 로그인 없이 연습만 (저장 안 함, 미니게임·놀이터는 로그인 뒤에)
       const startSession = (u: UserSession) => {
+        purgeStaleIdentities(u);
         setCurrentUser(u);
         localStorage.setItem('typang_current_user', JSON.stringify(u));
         // 이 학생의 자료를 받아 와 이어서 쓰게 함
@@ -431,7 +432,7 @@ export default function App() {
     progressSync.stop();
     serverLogout();
     localStorage.removeItem('typang_current_user');
-    clearMemberDress(); // 다음 사람이 이 컴퓨터를 쓰면 기본 캐릭터로
+    purgeStaleIdentities(null); // 다음 사람이 이 컴퓨터를 쓰면 예전 캐릭터·이름이 남지 않게
     typangApi.clearMasterKey();
     try {
       sessionStorage.setItem('taja_no_auto', '1'); // 이 창에서는 저절로 다시 들어가지 않게
@@ -444,6 +445,7 @@ export default function App() {
       sessionStorage.removeItem('taja_no_auto');
     } catch {}
     progressSync.stop();
+    purgeStaleIdentities(user); // 이 컴퓨터에 남은 다른 학생의 캐릭터·이름은 지움
     setCurrentUser(user);
     localStorage.setItem('typang_current_user', JSON.stringify(user));
     if (user.role === 'master') setTimeout(() => void backupKeeper.tick(), 300);
