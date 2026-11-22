@@ -254,14 +254,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onOpenProfile('account')}
               className="tp-nbtn tp-nbtn--coin px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-100 hover:from-yellow-100 hover:to-amber-200 text-amber-950 border-2 border-yellow-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 group"
-              title="전체 보유 포인트 (클릭하여 내 프로필 확인)"
+              title="내 포인트 (클릭하여 내 프로필 확인)"
             >
               <div className="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-500 flex items-center justify-center text-xs shadow-2xs group-hover:rotate-12 transition-transform">
                 🪙
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-[9px] sm:text-[10px] font-black text-amber-800 leading-none">
-                  전체 보유 포인트
+                  포인트
                 </span>
                 <span className="font-extrabold text-xs sm:text-sm font-arcade tracking-tight text-amber-950 leading-tight">
                   {userPoints >= MASTER_POINTS ? (

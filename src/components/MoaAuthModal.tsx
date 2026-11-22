@@ -77,7 +77,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
       if (signup) {
         const r = await signupMember(name, phone, grade);
         if (!r.ok) return setMsg(r.message);
-        setOkMsg(r.message);
+        setOkMsg(`${r.message} 승인되면 이름과 전화번호 뒷자리 4자리로 로그인해요.`);
         setSignup(false);
         setPhone('');
         return;
@@ -121,7 +121,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
             <div className="text-center">
               <h2 className="text-2xl font-black text-slate-900">{signup ? '✨ 타자팡 새로 가입하기' : '⌨️ 타자팡 로그인'}</h2>
               <p className="text-sm font-bold text-slate-500 mt-1">
-                {signup ? '이름·전화번호·학년을 쓰면 가입 신청이 돼요. 선생님이 승인하면 로그인할 수 있어요.' : '이름과 전화번호로 로그인해요. 로그인하면 기록이 저장되고 미니게임·놀이터를 할 수 있어요.'}
+                {signup ? '이름·전화번호·학년을 쓰면 가입 신청이 돼요. 선생님이 승인하면 로그인할 수 있어요.' : '이름과 전화번호 뒷자리 4자리로 로그인해요. 로그인하면 기록이 저장되고 미니게임·놀이터를 할 수 있어요.'}
               </p>
             </div>
 
@@ -140,7 +140,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9-]/g, '').slice(0, 13))}
                 inputMode="tel"
-                placeholder="전화번호 (010-0000-0000)"
+                placeholder={signup ? '전화번호 (010-0000-0000)' : '전화번호 뒷자리 4자리'}
                 className={field}
                 data-testid="moa-phone"
                 autoComplete="tel"

@@ -389,6 +389,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser?.role !== 'master' || isPopupMode) return;
     const t = window.setTimeout(() => {
+      void typangApi.getUsers().catch(() => {}); // 뒷자리 로그인 목록도 새로 맞춤
       void payWeeklyRankRewards()
         .then((r) => {
           if (r.weeks.length) setRankMsg(`🏆 ${r.weeks.map(weekLabel).join(', ')} 주간 랭킹 보상을 학년별 1~3등 ${r.count}명에게 보냈어요. (1등 500P · 2등 200P · 3등 100P)`);

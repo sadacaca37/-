@@ -10,7 +10,7 @@ import { readParentPhones } from './moaStudentImport';
 import { collection, collectionGroup, deleteField, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { get, ref, set } from 'firebase/database';
 import { UserSession, LeaderboardEntry } from '../types';
-import { fs, rt, ensureUser, isTeacherUser, teacherSignIn, signOutTeacher, parseUserId, pickTaja, userIdOf, kstMonth, errText, MEMBER_CID, MEMBER_CLASS, memberKey, phoneDigits, prettyPhone } from './moaFirebase';
+import { fs, rt, ensureUser, isTeacherUser, teacherSignIn, signOutTeacher, parseUserId, pickTaja, userIdOf, kstMonth, errText, MEMBER_CID, MEMBER_CLASS, memberKey, phoneDigits, prettyPhone, rebuildLoginIndex } from './moaFirebase';
 
 export interface BatchRegisterResult {
   success: boolean;
@@ -162,6 +162,12 @@ class TypangApiClient {
         } as UserSession);
       }
       users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));
+      // 뒷자리 로그인 목록 (승인한 회원만)
+      void rebuildLoginIndex(
+        sts.docs
+          .filter((d) => d.ref.parent.parent?.id === MEMBER_CID)
+          .map((d) => ({ key: d.id, name: String((d.data() as any).name || ''), phone: String((d.data() as any).taja?.phone || ''), approved: !!approved[userIdOf(MEMBER_CID, d.id)] })),
+      );
       try {
         localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
       } catch {}

@@ -4040,3 +4040,20 @@ body:has(.tp-typing-screen) .tp-result-big * {
 .tp-brand-moa .tp-moa-a { color: #1f7a4d; }
 .tp-brand-moa .tp-moa-b { color: #f97316; }
 .tp-brand--moa:hover .tp-brand-moa { filter: brightness(1.1); }
+
+/* 위쪽 버튼들 높이 통일 (타자 기록 · 보내기 · 성적표 · 포인트 · 소리 · 내 이름 · 로그아웃) */
+.tp-nbtn {
+  box-sizing: border-box;
+  height: 50px !important;
+  min-height: 50px;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center;
+}
+.tp-nbtn--red { min-width: 50px; }
+@media (max-width: 767px) {
+  .tp-nbtn { height: 42px !important; min-height: 42px; }
+  .tp-nbtn--red { min-width: 42px; }
+}

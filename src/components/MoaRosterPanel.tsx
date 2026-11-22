@@ -108,7 +108,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
     <div className="flex-1 flex flex-col space-y-3 overflow-hidden" data-testid="moa-roster">
       <div className="px-3.5 py-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-xs font-bold shrink-0 space-y-2">
         <div>
-          🏫 타자팡 회원은 <b>이름 + 전화번호</b>로 로그인해요. 학생이 [새로 가입하기]를 하면 아래에 <b>승인 대기</b>로 생기고, 선생님이 승인해야 로그인할 수 있어요. 엑셀로 올린 학생은 바로 승인돼요.
+          🏫 타자팡 회원은 <b>이름 + 전화번호 뒷자리 4자리</b>로 로그인해요. (가입할 때는 전화번호 전체) 학생이 [새로 가입하기]를 하면 아래에 <b>승인 대기</b>로 생기고, 선생님이 승인해야 로그인할 수 있어요. 엑셀로 올린 학생은 바로 승인돼요.
           <br />모아팡 방번호로 들어온 학생은 연습만 할 수 있고(저장 안 됨), 미니게임·놀이터는 회원 로그인 뒤에 할 수 있어요.
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -294,7 +294,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                     <th className="px-3 py-2">승인</th>
                     <th className="px-3 py-2 text-left">이름</th>
                     <th className="px-3 py-2">학년</th>
-                    <th className="px-3 py-2">🔑 비밀번호(전화번호)</th>
+                    <th className="px-3 py-2">🔑 비밀번호(전화 뒷자리)</th>
                     <th className="px-3 py-2">최고 타수</th>
                     <th className="px-3 py-2">연습</th>
                     <th className="px-3 py-2">마지막</th>
@@ -356,7 +356,18 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
                       <td className="px-3 py-1.5 text-center whitespace-nowrap">
-                        <span className="text-slate-700 font-mono tracking-wide select-all" data-testid="pw-cell">{u.parentPhone ? (showPw ? u.parentPhone : '•••-••••-••••') : '-'}</span>
+                        {u.parentPhone ? (
+                          showPw ? (
+                            <span data-testid="pw-cell">
+                              <b className="text-base font-mono text-rose-700 tracking-widest select-all">{u.parentPhone.replace(/[^0-9]/g, '').slice(-4)}</b>
+                              <span className="ml-1.5 text-[10px] text-slate-400 font-mono">{u.parentPhone}</span>
+                            </span>
+                          ) : (
+                            <span className="font-mono text-slate-400" data-testid="pw-cell">••••</span>
+                          )
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.highestCpm || '-'}</td>
                       <td className="px-3 py-1.5 text-center">{u.totalPracticeCount || 0}번</td>

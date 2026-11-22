@@ -275,11 +275,54 @@ export async function signupMember(rawName: string, phone: string, grade = 0): P
 }
 
 /** 로그인: 이름 + 전화번호, 승인된 회원만 */
+/* ---- 전화번호 뒷자리로 로그인: 선생님이 승인한 회원만 '이름+뒷자리 → 회원' 목록(config/taja_login)에 올라감 ---- */
+const LOGIN_IDX = () => doc(fs, 'config', 'taja_login');
+async function loginKey(name: string, last4: string): Promise<string> {
+  const text = `login|${cleanName(name).replace(/\s+/g, '')}|${last4}`;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return 'l' + Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+}
+
+/** 선생님: 승인한 회원 목록으로 뒷자리 로그인 목록을 새로 만듦 (바뀐 게 있을 때만 저장) */
+export async function rebuildLoginIndex(members: { key: string; name: string; phone: string; approved: boolean }[]): Promise<void> {
+  if (!isTeacherUser()) return;
+  const idx: Record<string, string[]> = {};
+  for (const m of members) {
+    const d = phoneDigits(m.phone);
+    if (!m.approved || d.length < 10) continue;
+    const k = await loginKey(m.name, d.slice(-4));
+    (idx[k] = idx[k] || []).push(m.key);
+  }
+  Object.values(idx).forEach((a) => a.sort());
+  try {
+    const snap = await getDoc(LOGIN_IDX());
+    const old = snap.exists() ? (snap.data() as any).idx || {} : null;
+    const same = old && JSON.stringify(Object.keys(old).sort().map((k) => [k, old[k]])) === JSON.stringify(Object.keys(idx).sort().map((k) => [k, idx[k]]));
+    if (!same) await setDoc(LOGIN_IDX(), { idx, at: Date.now() });
+  } catch {}
+}
+
 export async function loginMember(rawName: string, phone: string): Promise<{ ok: boolean; message?: string; user?: UserSession }> {
-  const bad = checkInput(rawName, phone);
-  if (bad) return { ok: false, message: bad };
+  if (!cleanName(rawName)) return { ok: false, message: '이름을 써 주세요.' };
+  const digits = phoneDigits(phone);
   const u = await ensureUser();
-  const key = await memberKey(rawName, phone);
+  let key = '';
+  if (digits.length === 4) {
+    // 전화번호 뒷자리 4자리로 로그인
+    let found: string[] = [];
+    try {
+      const snap = await getDoc(LOGIN_IDX());
+      const v = snap.exists() ? (snap.data() as any).idx?.[await loginKey(rawName, digits)] : null;
+      found = Array.isArray(v) ? v : v ? [String(v)] : [];
+    } catch {}
+    if (!found.length) return { ok: false, message: '이름과 전화번호 뒷자리가 맞지 않거나, 아직 선생님 승인 전이에요. 처음이면 [새로 가입하기]를 해 주세요.' };
+    if (found.length > 1) return { ok: false, message: '이름과 뒷자리가 같은 친구가 있어요. 전화번호를 모두(010-0000-0000) 써 주세요.' };
+    key = found[0];
+  } else {
+    const bad = checkInput(rawName, phone);
+    if (bad) return { ok: false, message: '전화번호 뒷자리 4자리를 써 주세요.' };
+    key = await memberKey(rawName, phone);
+  }
   const snap = await getDoc(memberRef(key));
   if (!snap.exists()) return { ok: false, message: '가입한 기록이 없어요. 이름과 전화번호를 확인하거나 [새로 가입하기]를 해 주세요.' };
   if (!(await approvedByTeacher(userIdOf(MEMBER_CID, key)))) return { ok: false, message: '아직 선생님 승인 전이에요. 선생님께 승인해 달라고 말씀드려 주세요.' };
