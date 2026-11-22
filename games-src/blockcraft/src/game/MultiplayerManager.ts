@@ -449,6 +449,10 @@ export class MultiplayerManager {
       );
     }
     geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    if (!geo.getAttribute("color")) {
+      const vCount = geo.getAttribute("position").count;
+      geo.setAttribute("color", new THREE.Float32BufferAttribute(new Array(vCount * 3).fill(1), 3));
+    }
   }
 
   // Remove remote avatar
@@ -469,8 +473,12 @@ export class MultiplayerManager {
 
       // Rotation lerp
       const [pitch, yaw] = visual.targetRotation;
-      visual.group.rotation.y = THREE.MathUtils.lerp(visual.group.rotation.y, yaw, 0.25);
-      visual.head.rotation.x = THREE.MathUtils.lerp(visual.head.rotation.x, pitch, 0.25);
+      // Face is on +z, players look down -z: add PI so avatars face where they walk
+      const targetYaw = yaw + Math.PI;
+      let dy = targetYaw - visual.group.rotation.y;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      visual.group.rotation.y += dy * 0.25;
+      visual.head.rotation.x = THREE.MathUtils.lerp(visual.head.rotation.x, -pitch, 0.25);
 
       // Walking animation based on speed
       const distMoved = visual.group.position.distanceTo(oldPos);

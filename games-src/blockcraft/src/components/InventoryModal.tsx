@@ -11,6 +11,9 @@ interface InventoryModalProps {
   icons: Record<BlockType, string>;
   onAssignToSlot: (slotIndex: number, block: BlockType) => void;
   initialTab?: "all" | "crafting" | "tools" | "animals" | "blocks" | "items";
+  // Survival: only owned items are shown, with counts; crafting consumes them
+  survivalInventory?: Record<number, number>;
+  onCraft?: (blockType: BlockType, count: number, consumed: Record<number, number>) => void;
 }
 
 type TabType = "all" | "crafting" | "tools" | "animals" | "blocks" | "items";
@@ -23,7 +26,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   icons,
   onAssignToSlot,
   initialTab = "all",
+  survivalInventory,
+  onCraft,
 }) => {
+  const isSurvival = !!survivalInventory;
   const [selectedTab, setSelectedTab] = useState<TabType>(initialTab);
 
   useEffect(() => {
@@ -43,6 +49,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     BlockType.WOODEN_SWORD,
     BlockType.WOODEN_PICKAXE,
     BlockType.WOODEN_AXE,
+    BlockType.IRON_SWORD,
+    BlockType.IRON_PICKAXE,
+    BlockType.IRON_AXE,
+    BlockType.IRON_SHOVEL,
+    BlockType.WOODEN_SHOVEL,
+    BlockType.SHIELD,
   ];
 
   const animalsList = [
@@ -88,6 +100,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     BlockType.WOOL_BLUE,
     BlockType.WOOL_WHITE,
     BlockType.WOOL_YELLOW,
+    BlockType.ANVIL,
+    BlockType.ENCHANTING_TABLE,
+    BlockType.COAL_ORE,
+    BlockType.IRON_ORE,
+    BlockType.DEEPSLATE,
   ];
 
   const itemsList = [
@@ -120,7 +137,18 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     displayItems = itemsList;
   }
 
-  const tabs: { id: TabType; label: string; icon: React.ReactNode; count?: number }[] = [
+  // Survival: you only see (and can only equip) what you actually own
+  if (isSurvival) {
+    const owned = new Set(Object.keys(survivalInventory!).filter((k) => (survivalInventory![Number(k)] ?? 0) > 0).map(Number));
+    displayItems = displayItems.filter((b) => owned.has(b));
+    for (const b of owned) if (!displayItems.includes(b) && selectedTab === "all") displayItems.push(b as BlockType);
+  }
+  const ownedCount = isSurvival ? Object.values(survivalInventory!).filter((c) => c > 0).length : 0;
+
+  const tabs: { id: TabType; label: string; icon: React.ReactNode; count?: number }[] = isSurvival ? [
+    { id: "all", label: "내 아이템", icon: <Layers className="w-3.5 h-3.5" />, count: ownedCount },
+    { id: "crafting", label: "조합/제작대", icon: <Hammer className="w-3.5 h-3.5 text-amber-400" /> },
+  ] : [
     { id: "all", label: "전체", icon: <Layers className="w-3.5 h-3.5" />, count: toolsList.length + animalsList.length + blocksList.length + itemsList.length },
     { id: "crafting", label: "조합/제작대", icon: <Hammer className="w-3.5 h-3.5 text-amber-400" /> },
     { id: "tools", label: "도구/무기", icon: <Wrench className="w-3.5 h-3.5" />, count: toolsList.length },
@@ -129,8 +157,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     { id: "items", label: "드롭/소모품", icon: <Apple className="w-3.5 h-3.5" />, count: itemsList.length },
   ];
 
-  const handleCraftedItem = (craftedBlock: BlockType, count: number) => {
-    // Equip crafted item directly into current active slot!
+  const handleCraftedItem = (craftedBlock: BlockType, count: number, consumed: Record<number, number>) => {
+    if (onCraft) {
+      onCraft(craftedBlock, count, consumed);
+      return;
+    }
+    // Creative: equip crafted item directly into current active slot
     onAssignToSlot(activeSlot, craftedBlock);
   };
 
@@ -194,9 +226,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 dim={3}
                 onCraftItem={handleCraftedItem}
                 icons={icons}
+                survivalInventory={survivalInventory}
               />
               <p className="text-xs text-stone-400 text-center mt-2 font-mono">
-                제작 완료 시 현재 선택된 퀵슬롯 [{activeSlot + 1}]에 자동으로 등록됩니다!
+                {isSurvival ? "재료는 가진 것만 쓸 수 있고, 제작하면 재료가 소모됩니다." : `제작 완료 시 현재 선택된 퀵슬롯 [${activeSlot + 1}]에 자동으로 등록됩니다!`}
               </p>
             </div>
           ) : (
@@ -207,7 +240,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   아이템 목록 ({displayItems.length})
                 </h3>
                 <span className="text-[11px] text-amber-400/90 font-mono">
-                  클릭하여 퀵슬롯 [{activeSlot + 1}]에 등록
+                  {isSurvival && displayItems.length === 0 ? "블록을 캐거나 몬스터를 잡아 아이템을 모으세요" : `클릭하여 퀵슬롯 [${activeSlot + 1}]에 등록`}
                 </span>
               </div>
 
@@ -252,6 +285,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       <span className="text-[10px] font-medium text-neutral-200 text-center truncate w-full">
                         {meta.nameKo}
                       </span>
+                      {isSurvival && (
+                        <span className="absolute bottom-1 right-1.5 rounded bg-black/70 px-1 text-[10px] font-bold text-amber-200">
+                          x{survivalInventory![blockType] ?? 0}
+                        </span>
+                      )}
 
                       {/* Badge if currently in hotbar */}
                       {isEquippedInHotbar && (

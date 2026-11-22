@@ -59,6 +59,15 @@ export enum TileID {
   FENCE = 41,
   WINDOW = 42,
   FLOWER_POT = 43,
+  ANVIL_TOP = 44,
+  ANVIL_SIDE = 45,
+  ENCHANT_TOP = 46,
+  ENCHANT_SIDE = 47,
+  COAL_ORE = 48,
+  IRON_ORE = 49,
+  DEEPSLATE = 50,
+  BED_FOOT_TOP = 51,
+  LAVA = 52,
 }
 
 // Deterministic pseudo-random noise for pixel art
@@ -493,6 +502,22 @@ export class VoxelTextureAtlas {
       }
     });
 
+    // LAVA (bright orange with dark crust cracks)
+    paintTile(TileID.LAVA, (tctx) => {
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = noise(x, y, 4242);
+          const n2 = noise(Math.floor(x / 3), Math.floor(y / 3), 4343);
+          const crust = n2 > 0.72;
+          const r = crust ? 150 + Math.floor(n * 40) : 240;
+          const g = crust ? 40 + Math.floor(n * 30) : 110 + Math.floor(n * 90);
+          const b = crust ? 10 : 10 + Math.floor(n * 30);
+          tctx.fillStyle = `rgb(${r},${g},${b})`;
+          tctx.fillRect(x, y, 1, 1);
+        }
+      }
+    });
+
     // 22. GRAVEL (Natural textured pebbles)
     paintTile(TileID.GRAVEL, (tctx) => {
       for (let y = 0; y < TILE_PX; y++) {
@@ -625,6 +650,17 @@ export class VoxelTextureAtlas {
           if (y < 5) px(tctx, x, y, `rgb(${235 + n | 0},${235 + n | 0},${240 + n | 0})`);
           else if (y === 5) px(tctx, x, y, "#7f1d1d");
           else px(tctx, x, y, `rgb(${200 + n | 0},${36 + n / 2 | 0},${36 + n / 2 | 0})`);
+          if (x === 0 || x === 15) px(tctx, x, y, "#5b3a14");
+        }
+      }
+    });
+    // BED foot top: blanket only (no pillow)
+    paintTile(TileID.BED_FOOT_TOP, (tctx) => {
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2725) - 0.5) * 16;
+          px(tctx, x, y, `rgb(${200 + n | 0},${36 + n / 2 | 0},${36 + n / 2 | 0})`);
+          if (y >= 12) px(tctx, x, y, `rgb(${170 + n | 0},${28 + n / 2 | 0},${28 + n / 2 | 0})`);
           if (x === 0 || x === 15) px(tctx, x, y, "#5b3a14");
         }
       }
@@ -766,6 +802,79 @@ export class VoxelTextureAtlas {
       }
     });
 
+
+    // ANVIL top: dark iron slab with lighter worn centre
+    paintTile(TileID.ANVIL_TOP, (tctx) => {
+      tctx.clearRect(0, 0, TILE_PX, TILE_PX);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2716) - 0.5) * 18;
+          const inFace = y >= 3 && y <= 12;
+          if (!inFace) continue;
+          const edge = y === 3 || y === 12 || x === 0 || x === 15;
+          const g = edge ? 40 : 78 + n;
+          px(tctx, x, y, `rgb(${g | 0},${g | 0},${(g + 6) | 0})`);
+        }
+      }
+    });
+    // ANVIL side: classic anvil silhouette (wide top, narrow waist, flared base) on transparent background
+    paintTile(TileID.ANVIL_SIDE, (tctx) => {
+      tctx.clearRect(0, 0, TILE_PX, TILE_PX);
+      for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x < TILE_PX; x++) {
+          const n = (noise(x, y, 2717) - 0.5) * 16;
+          const top = y >= 3 && y <= 6;                      // horn/face slab
+          const waist = y >= 7 && y <= 10 && x >= 5 && x <= 10;
+          const base = y >= 11 && y <= 15 && x >= 2 && x <= 13;
+          if (!(top || waist || base)) continue;
+          const edge = y === 3 || y === 15 || (top && (x === 0 || x === 15)) || (base && (x === 2 || x === 13)) || (waist && (x === 5 || x === 10));
+          const g = edge ? 34 : (top ? 92 : 68) + n;
+          px(tctx, x, y, `rgb(${g | 0},${g | 0},${(g + 6) | 0})`);
+        }
+      }
+    });
+
+
+    // ENCHANTING TABLE top: red cloth with a glowing open book
+    paintTile(TileID.ENCHANT_TOP, (tctx) => {
+      noisyFill(tctx, [150, 30, 40], 14, 2718);
+      for (let i = 0; i < TILE_PX; i++) { px(tctx, i, 0, "#1c1023"); px(tctx, i, 15, "#1c1023"); px(tctx, 0, i, "#1c1023"); px(tctx, 15, i, "#1c1023"); }
+      for (let y = 4; y <= 11; y++) for (let x = 3; x <= 12; x++) px(tctx, x, y, (x === 7 || x === 8) ? "#7c3aed" : (y === 4 || y === 11) ? "#d6d3d1" : "#f5f5f4");
+      [[1,1],[14,1],[1,14],[14,14]].forEach(([x,y]) => px(tctx, x, y, "#67e8f9"));
+      px(tctx, 5, 7, "#a78bfa"); px(tctx, 10, 8, "#a78bfa");
+    });
+    // ENCHANTING TABLE side: obsidian base with diamond inlay
+    paintTile(TileID.ENCHANT_SIDE, (tctx) => {
+      noisyFill(tctx, [32, 20, 50], 16, 2719);
+      for (let i = 0; i < TILE_PX; i++) { px(tctx, i, 0, "#991b1b"); px(tctx, i, 1, "#7f1d1d"); }
+      for (let y = 5; y <= 10; y++) for (let x = 5; x <= 10; x++) {
+        const d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
+        if (d <= 3.2) px(tctx, x, y, d <= 1.2 ? "#cffafe" : "#22d3ee");
+      }
+    });
+
+
+    // ORES: stone base with mineral specks
+    const ore = (id: TileID, seed: number, specks: Array<[number, number]>, c1: string, c2: string) =>
+      paintTile(id, (tctx) => {
+        noisyFill(tctx, [120, 120, 124], 22, seed);
+        for (const [sx, sy] of specks) {
+          px(tctx, sx, sy, c1); px(tctx, sx + 1, sy, c1); px(tctx, sx, sy + 1, c1); px(tctx, sx + 1, sy + 1, c2);
+          px(tctx, sx + 2, sy + 1, c2); px(tctx, sx + 1, sy + 2, c2);
+        }
+      });
+    ore(TileID.COAL_ORE, 2720, [[2, 2], [9, 3], [4, 9], [11, 10], [7, 6], [12, 1]], "#1f2937", "#111827");
+    ore(TileID.IRON_ORE, 2721, [[2, 3], [9, 2], [5, 9], [11, 11], [8, 6]], "#e7c9a9", "#c8a57f");
+
+    // DEEPSLATE: dark layered rock with faint horizontal strata
+    paintTile(TileID.DEEPSLATE, (tctx) => {
+      noisyFill(tctx, [62, 62, 70], 20, 2722);
+      for (let y = 0; y < TILE_PX; y++) {
+        if (y % 4 === 1) for (let x = 0; x < TILE_PX; x++) if (noise(x, y, 2723) > 0.35) px(tctx, x, y, "#2b2b31");
+        if (y % 4 === 3) for (let x = 0; x < TILE_PX; x++) if (noise(x, y, 2724) > 0.6) px(tctx, x, y, "#52525b");
+      }
+    });
+
     this.atlasTexture = new THREE.CanvasTexture(canvas);
     this.atlasTexture.magFilter = THREE.NearestFilter;
     this.atlasTexture.minFilter = THREE.NearestFilter;
@@ -831,6 +940,12 @@ export class VoxelTextureAtlas {
       [BlockType.FENCE]: TileID.FENCE,
       [BlockType.WINDOW]: TileID.WINDOW,
       [BlockType.FLOWER_POT]: TileID.FLOWER_POT,
+      [BlockType.ANVIL]: TileID.ANVIL_SIDE,
+      [BlockType.COAL_ORE]: TileID.COAL_ORE,
+      [BlockType.IRON_ORE]: TileID.IRON_ORE,
+      [BlockType.DEEPSLATE]: TileID.DEEPSLATE,
+      [BlockType.LAVA]: TileID.LAVA,
+      [BlockType.ENCHANTING_TABLE]: TileID.ENCHANT_SIDE,
     };
 
     const iconCanvas = document.createElement("canvas");
@@ -1152,6 +1267,42 @@ export class VoxelTextureAtlas {
       ictx.fillRect(18, 2, 3, 3);
       return iconCanvas.toDataURL();
     };
+    // Shield icon: wooden kite shield with iron rim
+    ictx.clearRect(0, 0, 32, 32);
+    ictx.fillStyle = "#9ca3af";
+    ictx.beginPath(); ictx.moveTo(16, 3); ictx.lineTo(27, 7); ictx.lineTo(25, 20); ictx.lineTo(16, 29); ictx.lineTo(7, 20); ictx.lineTo(5, 7); ictx.closePath(); ictx.fill();
+    ictx.fillStyle = "#b45309";
+    ictx.beginPath(); ictx.moveTo(16, 6); ictx.lineTo(24, 9); ictx.lineTo(22.5, 19); ictx.lineTo(16, 25.5); ictx.lineTo(9.5, 19); ictx.lineTo(8, 9); ictx.closePath(); ictx.fill();
+    ictx.fillStyle = "#7c2d12"; ictx.fillRect(15, 7, 2, 18); ictx.fillRect(10, 13, 12, 2);
+    ictx.fillStyle = "#e5e7eb"; ictx.fillRect(14, 12, 4, 4);
+    this.icons[BlockType.SHIELD] = iconCanvas.toDataURL();
+
+    // Buckets (empty / water / lava)
+    const drawBucket = (fill: string | null) => {
+      ictx.clearRect(0, 0, 32, 32);
+      ictx.fillStyle = "#6b7280"; // handle
+      ictx.fillRect(8, 6, 2, 4);
+      ictx.fillRect(22, 6, 2, 4);
+      ictx.fillRect(10, 4, 12, 2);
+      // body: a tapered pail
+      for (let r = 0; r < 18; r++) {
+        const inset = Math.floor(r / 4);
+        ictx.fillStyle = r % 2 === 0 ? "#9ca3af" : "#b4b9c2";
+        ictx.fillRect(6 + inset, 10 + r, 20 - inset * 2, 1);
+      }
+      ictx.fillStyle = "#4b5563";
+      ictx.fillRect(6, 10, 20, 2);
+      ictx.fillRect(10, 27, 12, 2);
+      if (fill) {
+        ictx.fillStyle = fill;
+        ictx.fillRect(8, 11, 16, 3);
+      }
+      return iconCanvas.toDataURL();
+    };
+    this.icons[BlockType.BUCKET] = drawBucket(null);
+    this.icons[BlockType.WATER_BUCKET] = drawBucket("#3b82f6");
+    this.icons[BlockType.LAVA_BUCKET] = drawBucket("#f97316");
+
     this.icons[BlockType.FIREWORK] = drawBombIcon("#ef4444", "#fde047", "#78350f", "#f472b6");
     this.icons[BlockType.SMOKE_BOMB] = drawBombIcon("#4b5563", "#9ca3af", "#78350f", "#d1d5db");
     this.icons[BlockType.HEAL_BOMB] = drawBombIcon("#16a34a", "#bbf7d0", "#78350f", "#4ade80");
@@ -1293,6 +1444,10 @@ export class VoxelTextureAtlas {
         if (faceIndex === 2) return TileID.BED_TOP;
         if (faceIndex === 3) return TileID.PLANK;
         return TileID.BED_SIDE;
+      case BlockType.BED_FOOT:
+        if (faceIndex === 2) return TileID.BED_FOOT_TOP;
+        if (faceIndex === 3) return TileID.PLANK;
+        return TileID.BED_SIDE;
       case BlockType.TABLE:
         if (faceIndex === 2) return TileID.TABLE_TOP;
         if (faceIndex === 3) return TileID.PLANK;
@@ -1320,6 +1475,21 @@ export class VoxelTextureAtlas {
         return TileID.WINDOW;
       case BlockType.FLOWER_POT:
         return TileID.FLOWER_POT;
+      case BlockType.ENCHANTING_TABLE:
+        if (faceIndex === 2) return TileID.ENCHANT_TOP;
+        if (faceIndex === 3) return TileID.OBSIDIAN;
+        return TileID.ENCHANT_SIDE;
+      case BlockType.COAL_ORE:
+        return TileID.COAL_ORE;
+      case BlockType.IRON_ORE:
+        return TileID.IRON_ORE;
+      case BlockType.DEEPSLATE:
+        return TileID.DEEPSLATE;
+      case BlockType.LAVA:
+        return TileID.LAVA;
+      case BlockType.ANVIL:
+        if (faceIndex === 2 || faceIndex === 3) return TileID.ANVIL_TOP;
+        return TileID.ANVIL_SIDE;
       default:
         return TileID.DIRT;
     }

@@ -20,6 +20,8 @@ export interface MonsterEntity {
   jumpTimer: number;
   isGrounded: boolean;
   attackCooldown: number;
+  burnTime?: number; // Fire Aspect: seconds left burning
+  burnTick?: number;
   // Node references for procedural animation
   head?: THREE.Object3D;
   leftArm?: THREE.Object3D;
@@ -58,6 +60,9 @@ export class MonsterManager {
   private hurtMaterial: THREE.MeshBasicMaterial;
 
   public onPlayerDamaged?: (damage: number, attackerPos: THREE.Vector3) => void;
+  // Natural spawning (survival): tuned by difficulty
+  public maxMonsters: number = 6;
+  public spawnInterval: number = 5;
   public onItemPickup?: (blockType: BlockType, count: number) => void;
 
   constructor(scene: THREE.Scene, world: VoxelWorld) {
@@ -275,7 +280,31 @@ export class MonsterManager {
   }
 
   // --- Combat: Player Hits Monster ---
-  public attackMonster(rayOrigin: THREE.Vector3, rayDir: THREE.Vector3, heldItem: BlockType): boolean {
+  // Hurt the monster closest to a point (used by Thorns / golem-style retaliation)
+  public damageNearest(point: THREE.Vector3, radius: number, dmg: number) {
+    let best: MonsterEntity | null = null;
+    let bd = radius;
+    for (const mob of this.monsters) {
+      const d = mob.position.distanceTo(point);
+      if (d < bd) { bd = d; best = mob; }
+    }
+    if (!best) return;
+    best.health -= dmg;
+    best.isHurt = true;
+    best.hurtTimer = 0.3;
+    best.bodyMesh.material = this.hurtMaterial;
+    this.spawnParticles(best.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0x84cc16, 5);
+    if (best.health <= 0) this.killMonster(best);
+  }
+
+  public attackMonster(
+    rayOrigin: THREE.Vector3,
+    rayDir: THREE.Vector3,
+    heldItem: BlockType,
+    opts: { bonusDamage?: number; knockbackMult?: number; vsZombie?: number; vsSlime?: number; fireSeconds?: number; looting?: number; sweep?: number; onKill?: () => void } = {}
+  ): boolean {
+    const bonusDamage = opts.bonusDamage ?? 0;
+    const knockbackMult = opts.knockbackMult ?? 1;
     let nearestMob: MonsterEntity | null = null;
     let minDistance = 3.6;
 
@@ -302,6 +331,32 @@ export class MonsterManager {
     else if (heldItem === BlockType.WOODEN_SWORD) damage = 4;
     else if (heldItem === BlockType.WOODEN_AXE) damage = 3;
     else if (heldItem === BlockType.DIAMOND_PICKAXE) damage = 3;
+    else if (heldItem === BlockType.IRON_SWORD) damage = 6;
+    else if (heldItem === BlockType.IRON_AXE) damage = 5;
+    damage += bonusDamage;
+    if (nearestMob.type === "zombie") damage += opts.vsZombie ?? 0;
+    if (nearestMob.type === "slime") damage += opts.vsSlime ?? 0;
+    if (opts.fireSeconds && opts.fireSeconds > 0) {
+      nearestMob.burnTime = opts.fireSeconds;
+      nearestMob.burnTick = 0;
+    }
+    // Sweeping Edge: everything near the target gets a weaker hit too
+    if (opts.sweep && opts.sweep > 0) {
+      const sweepDmg = Math.max(1, Math.round(damage * (0.25 * opts.sweep)));
+      for (const other of [...this.monsters]) {
+        if (other === nearestMob) continue;
+        if (other.position.distanceTo(nearestMob.position) > 2.5) continue;
+        other.health -= sweepDmg;
+        other.isHurt = true;
+        other.hurtTimer = 0.3;
+        other.bodyMesh.material = this.hurtMaterial;
+        const kb = other.position.clone().sub(nearestMob.position).normalize();
+        kb.y = 0.4;
+        other.velocity.copy(kb.multiplyScalar(3));
+        this.spawnParticles(other.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 3);
+        if (other.health <= 0) { this.killMonster(other, opts.looting ?? 0); opts.onKill?.(); }
+      }
+    }
 
     // Apply hit feedback
     nearestMob.isHurt = true;
@@ -314,7 +369,7 @@ export class MonsterManager {
     // Knockback
     const kbDir = nearestMob.position.clone().sub(rayOrigin).normalize();
     kbDir.y = 0.5;
-    nearestMob.velocity.copy(kbDir.multiplyScalar(5.0));
+    nearestMob.velocity.copy(kbDir.multiplyScalar(5.0 * knockbackMult));
 
     // Spawn hit particles
     this.spawnParticles(nearestMob.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 6);
@@ -322,28 +377,29 @@ export class MonsterManager {
     nearestMob.health -= damage;
 
     if (nearestMob.health <= 0) {
-      this.killMonster(nearestMob);
+      this.killMonster(nearestMob, opts.looting ?? 0);
+      opts.onKill?.();
     }
 
     return true;
   }
 
-  public killMonster(mob: MonsterEntity): void {
+  public killMonster(mob: MonsterEntity, looting: number = 0): void {
     // Monster Death Puff & Drops
     this.spawnParticles(mob.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xd1d5db, 16);
     this.scene.remove(mob.group);
 
     // Drops
     if (mob.type === "zombie") {
-      this.spawnDroppedItem(BlockType.ROTTEN_FLESH, mob.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 1 + Math.floor(Math.random() * 2));
-      if (Math.random() < 0.4) {
+      this.spawnDroppedItem(BlockType.ROTTEN_FLESH, mob.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 1 + Math.floor(Math.random() * (2 + looting)));
+      if (Math.random() < 0.4 + looting * 0.15) {
         this.spawnDroppedItem(BlockType.BONE, mob.position.clone().add(new THREE.Vector3(0.2, 0.5, 0.2)), 1);
       }
-      if (Math.random() < 0.15) {
+      if (Math.random() < 0.15 + looting * 0.1) {
         this.spawnDroppedItem(BlockType.DIAMOND, mob.position.clone().add(new THREE.Vector3(-0.2, 0.5, -0.2)), 1);
       }
     } else if (mob.type === "slime") {
-      this.spawnDroppedItem(BlockType.SLIME_BALL, mob.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 1 + Math.floor(Math.random() * 3));
+      this.spawnDroppedItem(BlockType.SLIME_BALL, mob.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 1 + Math.floor(Math.random() * (3 + looting)));
     }
 
     const idx = this.monsters.indexOf(mob);
@@ -362,9 +418,9 @@ export class MonsterManager {
 
     // 0. Automatic Monster Spawning at Night or in Dark
     this.spawnTimer += deltaTime;
-    if (this.spawnTimer >= 3.5) {
+    if (this.spawnTimer >= this.spawnInterval) {
       this.spawnTimer = 0;
-      if (isNight && this.monsters.length < 10) {
+      if (isNight && this.monsters.length < this.maxMonsters) {
         // Find random position 18-32 blocks away from player
         const angle = Math.random() * Math.PI * 2;
         const dist = 18 + Math.random() * 14;
@@ -394,6 +450,24 @@ export class MonsterManager {
         if (mob.health <= 0) {
           this.killMonster(mob);
           continue;
+        }
+      }
+
+      // Burning (Fire Aspect): 1 damage per second
+      if (mob.burnTime && mob.burnTime > 0) {
+        mob.burnTime -= deltaTime;
+        mob.burnTick = (mob.burnTick ?? 0) + deltaTime;
+        if (Math.random() < deltaTime * 6) this.spawnParticles(mob.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 0.6)), 0xf97316, 1);
+        if (mob.burnTick >= 1) {
+          mob.burnTick = 0;
+          mob.health -= 1;
+          mob.isHurt = true;
+          mob.hurtTimer = 0.2;
+          mob.bodyMesh.material = this.hurtMaterial;
+          if (mob.health <= 0) {
+            this.killMonster(mob);
+            continue;
+          }
         }
       }
 

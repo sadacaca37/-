@@ -80,7 +80,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               }`}
             >
               <span>🚀 비행 모드:</span>
-              <span>{isFlying ? "ON (Space:상승)" : "OFF [F]"}</span>
+              <span>{isFlying ? "ON (Space:상승)" : "OFF [Space 2번]"}</span>
             </button>
           </div>
 
@@ -223,8 +223,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <span>점프 / (비행 시) 위로 상승</span>
               </div>
               <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
-                <span className="text-amber-400 font-bold block mb-0.5">F 키 / Space 더블탭</span>
-                <span>비행 모드 토글 (공중 부양)</span>
+                <span className="text-amber-400 font-bold block mb-0.5">F5</span>
+                <span>1인칭 ↔ 3인칭 시점 전환</span>
+              </div>
+              <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
+                <span className="text-amber-400 font-bold block mb-0.5">F 키</span>
+                <span>손에 든 아이템을 왼손과 바꾸기 (방패를 왼손에!)</span>
+              </div>
+              <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
+                <span className="text-amber-400 font-bold block mb-0.5">Space 더블탭</span>
+                <span>비행 모드 토글 (크리에이티브만)</span>
               </div>
               <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
                 <span className="text-amber-400 font-bold block mb-0.5">Shift</span>
