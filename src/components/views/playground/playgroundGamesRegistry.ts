@@ -165,7 +165,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '펀펀',
     icon: '🐭',
     thumb: './assets/playground/thumb-pogeunforest.webp',
-    description: '생쥐 농부의 작은 농장이 동물 마을로 자라는 3D 농장 게임 · 심기·물주기·수확·팔기 · 밭 넓히기·집 고치기·이웃 이사 · ★5 수확 축제 · 이어하기 저장',
+    description: '모아팡 내 캐릭터로 하는 스타듀밸리풍 2D 농장 · 친구 10명까지 함께 · 산에서 벌목·몬스터 사냥·마을 습격 · 알·아기 동물 키우기 · 날씨·밤낮 · 이웃 이사 · 이어하기 저장',
     component: PogeunForestGame,
   },
   {
