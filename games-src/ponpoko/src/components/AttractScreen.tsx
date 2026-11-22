@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Play, Volume2, VolumeX, Trophy, Users, User, Zap, Flame, ShieldAlert, Sparkles } from 'lucide-react';
 import { DifficultyLevel, DIFFICULTY_CONFIGS } from '../types';
 import { soundManager } from '../utils/audio';
+import { ArtSprite } from './ArtSprite';
+
+const TITLE_FRAMES = ['p1_idle', 'p1_run1', 'p1_jump', 'p1_run3', 'p2_run1', 'p2_jump', 'p2_idle'];
 
 interface AttractScreenProps {
   difficulty: DifficultyLevel;
@@ -53,11 +56,9 @@ export const AttractScreen: React.FC<AttractScreenProps> = ({
       <div className="flex gap-2.5 my-1.5 z-10 animate-bounce">
         {['P', 'O', 'N', 'P', 'O', 'K', 'O'].map((char, index) => (
           <div key={index} className="flex flex-col items-center">
-            {/* Raccoon Icon */}
-            <div className="w-6 h-6 bg-red-600 rounded-sm flex items-center justify-center border border-white mb-1 shadow-md">
-              <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                <div className="w-1.5 h-1 bg-black rounded-xs" />
-              </div>
+            {/* 너구리 (제미나이 그림) */}
+            <div className="h-8 mb-1 flex items-end justify-center">
+              <ArtSprite name={TITLE_FRAMES[index]} height={index === 2 || index === 5 ? 32 : 28} flip={index > 3} />
             </div>
             <span className="text-yellow-300 font-extrabold text-sm sm:text-base tracking-widest">{char}</span>
           </div>
