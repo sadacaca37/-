@@ -275,7 +275,8 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     return isFullView ? <BodyPortal>{gameView}</BodyPortal> : gameView;
   }
 
-  const funfunGames = PLAYGROUND_GAMES.filter((g) => g.category === '펀펀');
+  // 펀펀 플레이는 최신 게임이 맨 위: 목록에 나중에 넣은 게임부터 보여 줌
+  const funfunGames = PLAYGROUND_GAMES.filter((g) => g.category === '펀펀').reverse();
   let markInvite = '';
   try {
     markInvite = sessionStorage.getItem('typang_mark_invite') || '';

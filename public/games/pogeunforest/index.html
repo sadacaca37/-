@@ -175,9 +175,22 @@
   .controls{ display:flex; gap:22px; flex-wrap:wrap; justify-content:center; margin:0 0 26px; max-width:560px; color:var(--ink); font-size:13px; }
   .controls div b{ display:block; font-family:'Jua',sans-serif; font-size:13px; margin-bottom:3px; color:var(--pink-deep); }
 
-  #questline{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:34; padding:7px 18px;
-    font-family:'Jua',sans-serif; font-size:12px; color:var(--ink); display:none; }
+  #questline{ position:absolute; top:104px; left:14px; z-index:34; padding:9px 14px; max-width:min(270px,60vw);
+    font-family:'Jua',sans-serif; font-size:12.5px; color:var(--ink); display:none; line-height:1.45; }
   #questline.show{ display:block; }
+  #questline .qt{ color:var(--pink-deep); margin-bottom:3px; }
+  #questline .qi{ font-family:'Gowun Dodum',sans-serif; font-size:12px; }
+  #questline .qi.done{ color:var(--mint-deep); text-decoration:line-through; }
+  .castrow{ display:flex; align-items:flex-end; justify-content:center; gap:6px; margin-bottom:6px; }
+  .castrow img{ height:clamp(58px,11vh,96px); image-rendering:auto; filter:drop-shadow(0 4px 0 rgba(107,86,69,.25)); animation:castBob 2.4s ease-in-out infinite; }
+  .castrow img.big{ height:clamp(74px,14vh,124px); }
+  .castrow img:nth-child(2){ animation-delay:.3s } .castrow img:nth-child(3){ animation-delay:.6s } .castrow img:nth-child(4){ animation-delay:.9s } .castrow img:nth-child(5){ animation-delay:1.2s }
+  @keyframes castBob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-6px) } }
+  .startbtns{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .endstats{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:0 0 22px; }
+  .endstats div{ background:var(--bg-panel); border:3px solid var(--ink); border-radius:14px; padding:8px 14px; font-family:'Jua',sans-serif; font-size:14px; }
+  .endstats b{ display:block; font-size:20px; color:var(--pink-deep); }
+  .portrait{ background-repeat:no-repeat; background-size:150%; background-position:50% 12%; }
 
   @media (max-width:640px){
     .title-xl{ font-size:40px; }
@@ -238,15 +251,30 @@
   </div>
 
   <div class="overlay" id="startoverlay">
+    <div class="castrow"><img src="sprites/bosol.webp" alt=""><img src="sprites/player.webp" alt="" class="big"><img src="sprites/saesum.webp" alt=""><img src="sprites/mongle.webp" alt=""><img src="sprites/rita.webp" alt=""></div>
     <h1 class="title-xl display">포근숲 이야기</h1>
-    <div class="title-sub">힐링 오픈월드 RPG · 프로토타입</div>
+    <div class="title-sub">잠든 숲의 정령 새숨이를 깨워 주세요!</div>
     <div class="controls">
-      <div><b>좌클릭 (바닥)</b>이동</div>
-      <div><b>좌클릭 (주민·사물)</b>다가가서 상호작용</div>
-      <div><b>WASD</b>직접 이동</div>
-      <div><b>가방 🎒</b>모은 재료 확인</div>
+      <div><b>바닥 클릭·터치</b>그곳으로 이동</div>
+      <div><b>주민·나무 클릭</b>대화하고 채집하기</div>
+      <div><b>W A S D</b>직접 걷기</div>
+      <div><b>가방 🎒</b>모은 재료 보기</div>
     </div>
-    <button class="btn" id="startbtn">포근숲으로 놀러가기</button>
+    <div class="startbtns">
+      <button class="btn mint" id="continuebtn" hidden>이어서 하기</button>
+      <button class="btn" id="startbtn">포근숲으로 놀러가기</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="endoverlay" style="display:none">
+    <div class="castrow"><img src="sprites/mongle.webp" alt=""><img src="sprites/saesum.webp" alt="" class="big"><img src="sprites/player.webp" alt=""><img src="sprites/rita.webp" alt=""><img src="sprites/bosol.webp" alt=""></div>
+    <h1 class="title-xl display">새숨이가 깨어났어요!</h1>
+    <div class="title-sub" id="endsub">포근숲에 다시 봄빛이 가득해졌어요.</div>
+    <div class="endstats" id="endstats"></div>
+    <div class="startbtns">
+      <button class="btn mint" id="keepplay">마을에서 계속 놀기</button>
+      <button class="btn ghost" id="restartbtn">처음부터 다시</button>
+    </div>
   </div>
 </div>
 
@@ -262,10 +290,18 @@ var state = {
   vibe:0,
   inventory: {},
   friendship: { mongle:0, rita:0 },
-  flags: { metBosol:false, questStage:0, cluesMongle:false, ritaPurified:false, gaveGift:{} },
+  flags: { metBosol:false, questStage:0, cluesMongle:false, ritaPurified:false, gaveGift:{}, offered:{}, saesumAwake:false },
   decorPlaced: [],
   moving:false
 };
+/* 새숨이를 깨우는 조건: 제단에 계절 선물 3가지 + 마을 활기 */
+var OFFERINGS = [
+  { item:'베리티', label:'베리 티', icon:'🍵', hint:'산딸기 2개로 제작대에서 만들기' },
+  { item:'생선구이', label:'생선구이', icon:'🍢', hint:'연못 낚시로 물고기 2마리' },
+  { item:'조개목걸이', label:'조개 목걸이', icon:'📿', hint:'연못가 조개 2개로 만들기' }
+];
+var VIBE_GOAL = 60;
+var SAVE_KEY = 'pogeunforest-save-v1';
 
 var ITEM_ICONS = { 사과:'🍎', 나뭇가지:'🌿', 솔방울:'🌰', 산딸기:'🍓', 꽃:'🌸', 조개:'🐚', 물고기:'🐟',
   베리티:'🍵', 조개목걸이:'📿', 정원벤치:'🪑', 가로등:'🏮', 생선구이:'🍢' };
@@ -283,7 +319,8 @@ function addVibe(n){
   $('vibefill').style.width = state.vibe+'%';
   $('vibetext').textContent = state.vibe;
   if(state.vibe>=30 && !state.flags.vibe30){ state.flags.vibe30=true; toast('마을이 조금씩 밝아지고 있어요 ✨'); }
-  if(state.vibe>=70 && !state.flags.vibe70){ state.flags.vibe70=true; toast('마을에 온기가 가득해졌어요 🌼'); }
+  if(state.vibe>=VIBE_GOAL && !state.flags.vibeGoal){ state.flags.vibeGoal=true; toast('마을 활기가 가득 찼어요! 제단의 등불이 켜졌어요 🌼'); if(typeof refreshShrine==='function') refreshShrine(); }
+  if(typeof refreshQuest==='function') refreshQuest();
 }
 
 /* ===================== dom ===================== */
@@ -304,13 +341,32 @@ function toast(msg){
   var d=document.createElement('div'); d.className='toast'; d.textContent=msg;
   elToasts.appendChild(d); setTimeout(function(){ d.remove(); }, 3100);
 }
-function setQuestline(msg){
-  if(!msg){ elQuestline.classList.remove('show'); return; }
-  elQuestline.textContent = '📜 '+msg;
-  elQuestline.classList.add('show');
+function setQuestline(msg){ refreshQuest(); }
+/* 지금 할 일 판: 단계마다 무엇을 하면 되는지 보여 준다 */
+function refreshQuest(){
+  if(!elQuestline) return;
+  var f = state.flags, title='', items=[];
+  if(f.saesumAwake){ title='🌸 새숨이가 깨어났어요'; items=[{t:'마을을 마음껏 꾸미고 주민들과 놀아요', d:false}]; }
+  else if(f.questStage<1){ title='📜 포근숲에 온 걸 환영해요'; items=[{t:'길 위의 보솔이(다람쥐)에게 말 걸기', d:false}]; }
+  else if(f.questStage<4){
+    title='📜 흐려진 마음 편지';
+    items=[{t:'몽글이(양)에게 편지에 대해 묻기', d:!!f.cluesMongle},{t:'연못가 레티(고양이)에게 편지 보여 주기', d:false}];
+  } else {
+    title='🌱 새숨이 깨우기';
+    items = OFFERINGS.map(function(o){
+      var done=!!f.offered[o.item];
+      return { t:o.icon+' '+o.label+' 바치기'+(done?'':(hasItem(o.item)?' (가지고 있어요!)':' — '+o.hint)), d:done };
+    });
+    items.push({ t:'✨ 마을 활기 '+Math.min(state.vibe,VIBE_GOAL)+'/'+VIBE_GOAL, d:state.vibe>=VIBE_GOAL });
+    var all = items.every(function(i){return i.d;});
+    items.push({ t: all ? '👉 숲 북쪽 제단의 새숨이에게 가기!' : '제단은 길을 따라 숲 북쪽 끝에 있어요', d:false });
+  }
+  elQuestline.innerHTML = '<div class="qt">'+title+'</div>'+items.map(function(i){ return '<div class="qi'+(i.d?' done':'')+'">'+(i.d?'✔ ':'· ')+i.t+'</div>'; }).join('');
+  elQuestline.classList.toggle('show', !!state.started);
 }
 
 function refreshBag(){
+  refreshQuest();
   var keys = Object.keys(state.inventory).filter(function(k){ return state.inventory[k]>0; });
   if(!keys.length){ elBagList.innerHTML = '<div class="empty-hint">아직 모은 게 없어요</div>'; return; }
   elBagList.innerHTML = keys.map(function(k){
@@ -338,7 +394,7 @@ scene.background = skyColorDay.clone();
 scene.fog = new THREE.FogExp2(0xbfe8d6, 0.0016);
 
 var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 220);
-var camOffset = new THREE.Vector3(13, 15, 13);
+var camOffset = new THREE.Vector3(11, 13, 11);
 var camTarget = new THREE.Vector3();
 
 function resize(){
@@ -403,6 +459,7 @@ function addPath(x,z,w,d,rot){
 }
 addPath(0,0,5,34,0);
 addPath(0,0,34,5,0);
+addPath(0,-18.5,4,4,0);
 
 var ARENA_R = 26;
 
@@ -615,55 +672,43 @@ function addBlobShadow(radius){
   return mesh;
 }
 
-/* ===================== critter builder (player + npcs) ===================== */
-function buildCritter(opts){
-  opts = opts||{};
-  var body = opts.body!==undefined ? opts.body : 0xf5cba0;
-  var belly = opts.belly!==undefined ? opts.belly : 0xfff3e0;
-  var accent = opts.accent!==undefined ? opts.accent : 0xe78482;
-  var scale = opts.scale || 1;
+/* ===================== characters: 제미나이가 그린 픽셀 그림을 세워 둔 판 (빌보드) ===================== */
+var SPRITE_INFO = { player:[176,256], bosol:[190,256], mongle:[197,256], rita:[176,256], saesum:[180,256] };
+var texLoader = new THREE.TextureLoader();
+var spriteMats = [];
+var spriteLight = 1;
+function buildSpriteChar(name, height){
+  var info = SPRITE_INFO[name];
+  var tex = texLoader.load('sprites/'+name+'.webp');
+  tex.anisotropy = 4;
+  var mat = new THREE.MeshBasicMaterial({ map:tex, transparent:true, alphaTest:0.35, side:THREE.DoubleSide, depthWrite:true });
+  mat.userData = { tint:new THREE.Color(1,1,1) };
+  spriteMats.push(mat);
+  var w = height*info[0]/info[1];
+  var plane = new THREE.Mesh(new THREE.PlaneGeometry(w, height), mat);
+  plane.position.y = height/2;
+  plane.userData.isSpritePlane = true;
   var g = new THREE.Group();
-  var bodyMat = new THREE.MeshStandardMaterial({ color:body, roughness:0.75 });
-  var bellyMat = new THREE.MeshStandardMaterial({ color:belly, roughness:0.8 });
-  var accentMat = new THREE.MeshStandardMaterial({ color:accent, roughness:0.6 });
-
-  var torso = new THREE.Mesh(new THREE.SphereGeometry(0.46,14,14), bodyMat);
-  torso.position.y=0.62; torso.scale.set(1,0.98,0.92); torso.castShadow=true;
-  var bellyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3,12,12), bellyMat);
-  bellyMesh.position.set(0,0.52,0.32); bellyMesh.scale.set(0.9,1,0.6);
-  var head = new THREE.Mesh(new THREE.SphereGeometry(0.34,14,14), bodyMat);
-  head.position.y=1.16; head.castShadow=true;
-  var muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.16,10,10), bellyMat);
-  muzzle.position.set(0,1.08,0.28); muzzle.scale.set(1,0.8,0.9);
-  var nose = new THREE.Mesh(new THREE.SphereGeometry(0.045,6,6), new THREE.MeshStandardMaterial({color:0x4a3a2c}));
-  nose.position.set(0,1.1,0.42);
-  var eyeGeo = new THREE.SphereGeometry(0.045,6,6);
-  var eyeMat = new THREE.MeshStandardMaterial({color:0x4a3a2c});
-  var eyeL = new THREE.Mesh(eyeGeo,eyeMat); eyeL.position.set(-0.12,1.2,0.28);
-  var eyeR = new THREE.Mesh(eyeGeo,eyeMat); eyeR.position.set(0.12,1.2,0.28);
-  var earGeo = new THREE.SphereGeometry(0.13,10,10);
-  var earL = new THREE.Mesh(earGeo, accentMat); earL.position.set(-0.24,1.42,0.02); earL.scale.set(0.85,1,0.7);
-  var earR = new THREE.Mesh(earGeo, accentMat); earR.position.set(0.24,1.42,0.02); earR.scale.set(0.85,1,0.7);
-  var armGeo = new THREE.SphereGeometry(0.13,8,8);
-  var armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.42,0.55,0.12);
-  var armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set(0.42,0.55,0.12);
-  var footGeo = new THREE.SphereGeometry(0.17,8,8);
-  var footL = new THREE.Mesh(footGeo, accentMat); footL.position.set(-0.18,0.16,0.05); footL.scale.set(1,0.7,1.2);
-  var footR = new THREE.Mesh(footGeo, accentMat); footR.position.set(0.18,0.16,0.05); footR.scale.set(1,0.7,1.2);
-
-  g.add(torso,bellyMesh,head,muzzle,nose,eyeL,eyeR,earL,earR,armL,armR,footL,footR);
-  g.scale.setScalar(scale);
-  g.userData = { armL:armL, armR:armR, footL:footL, footR:footR, head:head, earL:earL, earR:earR, bodyMat:bodyMat, bellyMat:bellyMat, accentMat:accentMat };
+  g.add(plane);
+  g.userData = { plane:plane, mat:mat, h:height, flip:1, name:name };
   return g;
 }
+function applySpriteLight(mat){ var t=mat.userData.tint; mat.color.setRGB(t.r*spriteLight, t.g*spriteLight, t.b*spriteLight); }
+/* 판이 늘 카메라를 보게 돌린다 */
+function faceCamera(g){
+  var dx = camera.position.x - g.position.x, dz = camera.position.z - g.position.z;
+  g.rotation.y = Math.atan2(dx, dz);
+  g.userData.plane.scale.x = g.userData.flip;
+}
 
-/* player: cream bunny-ish critter with pink accents */
-var player = buildCritter({ body:0xf8ecd9, belly:0xfffaf0, accent:0xf5a9a8, scale:1.0 });
+/* player: 밀짚모자를 쓴 아이 */
+var player = buildSpriteChar('player', 2.2);
 player.position.set(0,0,-3);
 scene.add(player);
-var playerBlob = addBlobShadow(0.6);
+var playerBlob = addBlobShadow(0.7);
 var playerFacing = 0;
 var walkPhase = 0;
+var camRight = new THREE.Vector3(1,0,-1).normalize();
 
 var markerGeo = new THREE.RingGeometry(0.28,0.4,20);
 var markerMat = new THREE.MeshBasicMaterial({color:0xf6d186, transparent:true, opacity:0.9, side:THREE.DoubleSide});
@@ -674,41 +719,82 @@ scene.add(marker);
 /* ===================== NPCs ===================== */
 var npcs = [];
 function spawnNpc(def){
-  var mesh = buildCritter(def.look);
+  var mesh = buildSpriteChar(def.sprite, def.h);
   mesh.position.set(def.x,0,def.z);
-  mesh.rotation.y = def.facing||0;
   scene.add(mesh);
-  var blob = addBlobShadow(0.55*def.look.scale);
+  var blob = addBlobShadow(def.shadowR||0.55);
   blob.position.set(def.x,0.025,def.z);
   var npc = {
-    id:def.id, name:def.name, mesh:mesh, blob:blob, x:def.x, z:def.z, portraitColor:def.portraitColor,
-    stage:0, look:def.look, shadowed:!!def.shadowed, phase:Math.random()*10
+    id:def.id, name:def.name, mesh:mesh, blob:blob, x:def.x, z:def.z, portraitColor:def.portraitColor, sprite:def.sprite,
+    stage:0, h:def.h, shadowed:!!def.shadowed, phase:Math.random()*10, float:def.float||0
   };
   npcs.push(npc);
   return npc;
 }
+function setNpcTint(npc, r,g,b){ npc.mesh.userData.mat.userData.tint.setRGB(r,g,b); applySpriteLight(npc.mesh.userData.mat); }
 
-var bosol = spawnNpc({ id:'bosol', name:'보솔이', x:-2, z:-6, facing:0.4,
-  look:{ body:0xe8a15c, belly:0xfff0dd, accent:0x8a5a2c, scale:0.85 }, portraitColor:'#e8a15c' });
-var mongle = spawnNpc({ id:'mongle', name:'몽글이', x:-9.5, z:-11.5, facing:1.2,
-  look:{ body:0xf5f5f2, belly:0xffffff, accent:0x3a3a3a, scale:1.15 }, portraitColor:'#e9e9e6' });
-var rita = spawnNpc({ id:'rita', name:'레티', x:17, z:9.5, facing:-1.6,
-  look:{ body:0x9aa0ab, belly:0xc7cdd3, accent:0x777d88, scale:0.95 }, portraitColor:'#9aa0ab', shadowed:true });
-rita.trueLook = { body:0xe3c19b, belly:0xfff1de, accent:0xd88f8f };
+var bosol = spawnNpc({ id:'bosol', name:'보솔이', sprite:'bosol', h:1.9, x:-2, z:-6, portraitColor:'#f7d2a6' });
+var mongle = spawnNpc({ id:'mongle', name:'몽글이', sprite:'mongle', h:2.1, x:-5.5, z:-13.5, shadowR:0.7, portraitColor:'#eef3ff' });
+var rita = spawnNpc({ id:'rita', name:'레티', sprite:'rita', h:2.05, x:17, z:4.2, portraitColor:'#d9dde6', shadowed:true });
+/* 레티는 처음엔 마음이 흐려서 어둡고 푸르스름하게 보인다 */
+setNpcTint(rita, 0.55, 0.6, 0.78);
+var SHRINE = new THREE.Vector3(0, 0, -20.5);
+var saesum = spawnNpc({ id:'saesum', name:'새숨이', sprite:'saesum', h:2.5, x:SHRINE.x, z:SHRINE.z-0.3, shadowR:0.7, portraitColor:'#e3f7c8', float:0.35 });
+setNpcTint(saesum, 0.62, 0.72, 0.7);
+saesum.mesh.userData.mat.opacity = 0.72;
 
-/* rita quills (extra spikes) */
+/* ===================== 새숨이 제단 ===================== */
+var shrineOrbs = [];
 (function(){
-  var spikeMat = new THREE.MeshStandardMaterial({ color: rita.shadowed? 0x777d88 : 0xd88f8f, roughness:0.6 });
-  rita.spikeMat = spikeMat;
-  for(var i=0;i<9;i++){
-    var spike = new THREE.Mesh(new THREE.ConeGeometry(0.045,0.28,5), spikeMat);
-    var ang = (i/9)*Math.PI - Math.PI/2;
-    spike.position.set(Math.sin(ang)*0.28, 0.75+Math.cos(ang)*0.12, -0.28-Math.random()*0.05);
-    spike.rotation.x = Math.PI/2 + 0.3;
-    spike.rotation.z = ang*0.6;
-    rita.mesh.add(spike);
+  var g = new THREE.Group();
+  var stone = new THREE.MeshStandardMaterial({ color:0xd8d2c4, roughness:0.95 });
+  var base = new THREE.Mesh(new THREE.CylinderGeometry(3.0,3.25,0.12,24), stone);
+  base.position.y = 0.06; base.receiveShadow = true;
+  var moss = new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.3,0.03,24), new THREE.MeshStandardMaterial({ color:0x9fd48a, roughness:1 }));
+  moss.position.y = 0.13; moss.receiveShadow = true;
+  g.add(base, moss);
+  /* 등불 기둥 4개: 선물 3가지 + 마을 활기 */
+  for(var i=0;i<4;i++){
+    var a = Math.PI*0.15 + i*(Math.PI*0.7/3) + Math.PI; // 제단 뒤쪽 반원
+    var px = Math.cos(a)*2.4, pz = Math.sin(a)*2.4;
+    var pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.28,1.4,8), stone);
+    pillar.position.set(px, 0.9, pz); pillar.castShadow = true;
+    var orbMat = new THREE.MeshStandardMaterial({ color:0x9aa39a, emissive:0x000000, roughness:0.4 });
+    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.26,12,12), orbMat);
+    orb.position.set(px, 1.82, pz);
+    var light = new THREE.PointLight(0xd8ffb0, 0, 6, 2);
+    light.position.copy(orb.position);
+    g.add(pillar, orb, light);
+    shrineOrbs.push({ mat:orbMat, light:light, mesh:orb });
   }
+  /* 뒤편 큰 고목 */
+  var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.8,3.2,10), new THREE.MeshStandardMaterial({ color:0x8f6a48, roughness:0.9 }));
+  trunk.position.set(0,1.6,-3.6); trunk.castShadow = true;
+  var crownMat = new THREE.MeshStandardMaterial({ color:0x6fbf6a, roughness:0.85 });
+  var crown = new THREE.Mesh(new THREE.SphereGeometry(2.4,14,12), crownMat);
+  crown.position.set(0,4.3,-3.6); crown.castShadow = true;
+  var crown2 = new THREE.Mesh(new THREE.SphereGeometry(1.6,12,10), crownMat);
+  crown2.position.set(1.6,3.7,-3.0);
+  var crown3 = new THREE.Mesh(new THREE.SphereGeometry(1.5,12,10), crownMat);
+  crown3.position.set(-1.7,3.6,-3.1);
+  g.add(trunk, crown, crown2, crown3);
+  g.userData.crownMat = crownMat;
+  g.position.copy(SHRINE);
+  scene.add(g);
+  addObstacle(SHRINE.x, SHRINE.z-3.6, 1.2);
+  window.__shrineGroup = g;
 })();
+function refreshShrine(){
+  var lit = OFFERINGS.map(function(o){ return !!state.flags.offered[o.item]; });
+  lit.push(state.vibe >= VIBE_GOAL);
+  shrineOrbs.forEach(function(o,i){
+    var on = lit[i] || state.flags.saesumAwake;
+    o.mat.color.setHex(on ? 0xeaffc4 : 0x9aa39a);
+    o.mat.emissive.setHex(on ? 0x9fe07a : 0x000000);
+    o.mat.emissiveIntensity = on ? 0.9 : 0;
+    o.light.intensity = on ? 1.1 : 0;
+  });
+}
 
 /* ===================== dialogue data ===================== */
 var FAVORITES = { mongle:['산딸기','베리티'], rita:['솔방울','조개목걸이'] };
@@ -724,7 +810,8 @@ var activeDialogue = null; // {npc, lines, idx, onEnd}
 function openDialogue(npc, lines, opts){
   opts = opts||{};
   activeDialogue = { npc:npc, lines:lines, idx:0, choices:opts.choices||null, onDone:opts.onDone };
-  elDlgPortrait.style.background = npc.portraitColor;
+  elDlgPortrait.style.backgroundColor = npc.portraitColor;
+  elDlgPortrait.style.backgroundImage = 'url(sprites/'+npc.sprite+'.webp)';
   elDlgName.textContent = npc.name;
   elDialogue.classList.add('show');
   renderDialogueStep();
@@ -819,8 +906,22 @@ function talkBosol(){
     return;
   }
   var lines;
+  if(state.flags.saesumAwake){
+    openDialogue(bosol, ['새숨이가 깨어나다니, 꿈만 같아! 숲이 이렇게 반짝인 건 정말 오랜만이야.', '네 덕분이야. 앞으로도 포근숲에 자주 놀러 와!'], {});
+    return;
+  }
   if(state.flags.questStage>=4){
-    lines = ['편지 일, 정말 잘 해결했어! 요즘 레티가 부쩍 밝아졌더라.', '채집도 하고 낚시도 해보고, 마을을 네 맘대로 꾸며봐!'];
+    if(!state.flags.heardShrine){
+      openDialogue(bosol, [
+        '편지 일, 정말 잘 해결했어! 레티 얼굴이 환해졌더라.',
+        '이제 새숨이를 깨울 차례야. 길을 따라 숲 북쪽 끝으로 가면 새숨이가 잠든 제단이 있어.',
+        '제단 등불 네 개를 모두 켜면 새숨이가 깨어난대.',
+        '계절 선물 세 가지 — 베리 티, 생선구이, 조개 목걸이 — 를 바치고, 마을 활기를 '+VIBE_GOAL+'까지 채우면 돼!',
+        '재료는 나무·덤불·연못에서 모으고, 집 옆 제작대에서 만들 수 있어. 할 일은 왼쪽 위 쪽지에 적어 둘게!'
+      ], { onDone:function(){ state.flags.heardShrine = true; refreshQuest(); saveGame(); } });
+      return;
+    }
+    lines = ['계절 선물은 집 옆 제작대에서 만들 수 있어.', '채집하고, 낚시하고, 주민에게 선물하고, 가구를 놓으면 마을 활기가 올라가!'];
   } else if(state.flags.cluesMongle){
     lines = ['오, 몽글이한테 뭔가 알아냈구나! 레티한테도 한번 가봐.'];
   } else {
@@ -831,8 +932,12 @@ function talkBosol(){
 
 function talkMongle(){
   var base = ['으암... 낮잠 자기 딱 좋은 날씨네.', '요즘 부쩍 나른해... 넌 안 졸려?'];
+  if(state.flags.saesumAwake){
+    openDialogue(mongle, ['새숨이 덕분에 숲이 따뜻해져서... 낮잠이 더 달콤해졌어. 으암~', '고마워, 정말로.'], {});
+    return;
+  }
   if(state.flags.questStage>=4){
-    openDialogue(mongle, ['레티가 그 편지 읽고 좋아했다면서? 다행이다... 정말 다행이야.', '다음엔 내가 직접 전해줄 용기를 내볼게.'], {});
+    openDialogue(mongle, ['레티가 그 편지 읽고 좋아했다면서? 다행이다... 정말 다행이야.', '새숨이한테 바칠 베리 티? 산딸기 두 개면 제작대에서 금방 만들어.', '빨간 열매가 달린 덤불을 찾아봐. 남으면... 나한테도 한 잔 줄래? (웃음)'], {});
     return;
   }
   var choices = null;
@@ -854,7 +959,9 @@ function talkMongle(){
 
 function talkRita(){
   if(state.flags.questStage>=4){
-    openDialogue(rita, ['요즘은 매일이 참 따뜻해요, 다 당신 덕분이에요.', '이런 선물 정말 좋아해요, 고마워요!'], {});
+    openDialogue(rita, state.flags.saesumAwake
+      ? ['숲이 이렇게 반짝이다니... 새숨이를 깨워 줘서 고마워요.', '다음엔 당신 옷도 하나 지어 줄게요!']
+      : ['요즘은 매일이 참 따뜻해요, 다 당신 덕분이에요.', '조개 목걸이를 만들려면 연못가 모래밭에서 조개를 두 개 주워요.', '생선구이는 부두 끝 빨간 찌에서 낚시로 물고기 두 마리!'], {});
     return;
   }
   var base = rita.shadowed
@@ -888,15 +995,12 @@ function purifyRita(){
   if(state.flags.ritaPurified) return;
   state.flags.ritaPurified = true;
   rita.shadowed = false;
-  var from = { body:new THREE.Color(rita.look.body), belly:new THREE.Color(rita.look.belly), accent:new THREE.Color(rita.look.accent), spike:new THREE.Color(0x777d88) };
-  var to = { body:new THREE.Color(rita.trueLook.body), belly:new THREE.Color(rita.trueLook.belly), accent:new THREE.Color(rita.trueLook.accent), spike:new THREE.Color(0xd88f8f) };
+  var from = rita.mesh.userData.mat.userData.tint.clone(), to = new THREE.Color(1,1,1);
   var t0 = performance.now();
   (function anim(){
     var t = Math.min(1,(performance.now()-t0)/1200);
-    rita.mesh.userData.bodyMat.color.lerpColors(from.body,to.body,t);
-    rita.mesh.userData.bellyMat.color.lerpColors(from.belly,to.belly,t);
-    rita.mesh.userData.accentMat.color.lerpColors(from.accent,to.accent,t);
-    rita.spikeMat.color.lerpColors(from.spike,to.spike,t);
+    rita.mesh.userData.mat.userData.tint.lerpColors(from,to,t);
+    applySpriteLight(rita.mesh.userData.mat);
     if(t<1) requestAnimationFrame(anim);
   })();
   spawnFloatText(rita.mesh.position, '✨', 'sparkle');
@@ -915,10 +1019,83 @@ function purifyRita(){
   })();
 }
 
+function talkSaesum(){
+  if(state.flags.saesumAwake){
+    openDialogue(saesum, ['포근숲을 다시 밝혀 줘서 고마워.', '네가 웃으면 숲도 따라 웃는단다. 언제든 놀러 오렴.'], {});
+    return;
+  }
+  if(state.flags.questStage<4){
+    openDialogue(saesum, ['(나뭇잎 왕관을 쓴 정령이 깊이 잠들어 있다...)', '(먼저 마을 주민들을 도와주면 무언가 달라질지도 몰라.)'], {});
+    return;
+  }
+  var choices = [];
+  OFFERINGS.forEach(function(o){
+    if(!state.flags.offered[o.item] && hasItem(o.item)){
+      choices.push({ label:o.icon+' '+o.label+' 바치기', cls:'yellow', action:function(){ offerToShrine(o); } });
+    }
+  });
+  var ready = allShrineDone();
+  if(ready) choices.push({ label:'🌸 새숨이 깨우기', cls:'mint', action:awakenSaesum });
+  var left = OFFERINGS.filter(function(o){ return !state.flags.offered[o.item]; }).map(function(o){ return o.label; });
+  var lines = ['(새숨이가 새근새근 잠들어 있다. 제단의 등불이 '+litCount()+'개 켜져 있다.)'];
+  if(ready) lines.push('(등불 네 개가 모두 환하게 빛난다! 지금이라면 깨울 수 있을 것 같다.)');
+  else {
+    if(left.length) lines.push('(아직 바치지 않은 선물: '+left.join(', ')+')');
+    if(state.vibe<VIBE_GOAL) lines.push('(마을 활기 '+state.vibe+'/'+VIBE_GOAL+' — 채집·낚시·선물·꾸미기로 마을을 더 밝혀 보자.)');
+  }
+  openDialogue(saesum, lines, { choices:choices.length?choices:null });
+}
+function litCount(){
+  var n = OFFERINGS.filter(function(o){ return state.flags.offered[o.item]; }).length;
+  return n + (state.vibe>=VIBE_GOAL?1:0);
+}
+function allShrineDone(){ return litCount()>=4; }
+function offerToShrine(o){
+  if(!hasItem(o.item)) return;
+  takeItem(o.item,1);
+  state.flags.offered[o.item] = true;
+  addVibe(5);
+  refreshShrine();
+  spawnFloatText(saesum.mesh.position, o.icon+' 등불이 켜졌어요!', 'sparkle');
+  toast(o.icon+' '+o.label+'을(를) 제단에 바쳤어요 ('+litCount()+'/4)');
+  refreshQuest(); saveGame();
+  if(allShrineDone()) setTimeout(function(){ toast('등불이 모두 켜졌어요! 새숨이에게 말을 걸어 보세요 🌸'); }, 900);
+}
+function awakenSaesum(){
+  if(state.flags.saesumAwake) return;
+  state.flags.saesumAwake = true;
+  setNpcTint(saesum,1,1,1); saesum.mesh.userData.mat.opacity = 1;
+  refreshShrine();
+  addVibe(20);
+  if(window.__shrineGroup) window.__shrineGroup.userData.crownMat.color.setHex(0x8fe07a);
+  /* 숲 곳곳에 꽃이 핀다 */
+  for(var i=0;i<26;i++){
+    var a=Math.random()*Math.PI*2, r=4+Math.random()*(ARENA_R-6);
+    var m=buildFlowerPatch(); m.position.set(Math.cos(a)*r,0,Math.sin(a)*r); m.scale.setScalar(0.01); scene.add(m);
+    (function(m,delay){ setTimeout(function(){ var t0=performance.now(); (function g(){ var t=Math.min(1,(performance.now()-t0)/500); m.scale.setScalar(t); if(t<1) requestAnimationFrame(g); })(); }, delay); })(m, i*70);
+  }
+  for(var k=0;k<4;k++) setTimeout(function(){ spawnFloatText(saesum.mesh.position, '✨🌸✨', 'sparkle'); }, k*350);
+  var flash = new THREE.Mesh(new THREE.RingGeometry(0.2,0.6,32), new THREE.MeshBasicMaterial({ color:0xd8ffb0, transparent:true, opacity:0.9, side:THREE.DoubleSide }));
+  flash.rotation.x=-Math.PI/2; flash.position.set(SHRINE.x,0.4,SHRINE.z); scene.add(flash);
+  var f0=performance.now();
+  (function fanim(){ var t=(performance.now()-f0)/1600; if(t>=1){ scene.remove(flash); return; } flash.scale.setScalar(1+t*40); flash.material.opacity=0.9*(1-t); requestAnimationFrame(fanim); })();
+  state.timeHours = 9; // 아침 햇살
+  saveGame();
+  setTimeout(function(){
+    openDialogue(saesum, ['...으음. 따뜻한 마음들이 나를 깨웠구나.', '편지를 전해 주고, 선물을 모으고, 마을을 가꿔 준 게 바로 너였지?', '고마워. 이제 포근숲에 다시 사계절이 돌아올 거야!'], { onDone:showEnding });
+  }, 1400);
+}
+function showEnding(){
+  var items = Object.keys(state.inventory).reduce(function(a,k){ return a+(state.inventory[k]||0); },0);
+  $('endstats').innerHTML = '<div><b>'+state.day+'일</b>걸린 날</div><div><b>'+state.vibe+'</b>마을 활기</div><div><b>'+state.decorPlaced.length+'개</b>놓은 가구</div>';
+  $('endoverlay').style.display = 'flex';
+  refreshQuest();
+}
 function handleNpcClick(npc){
   if(npc.id==='bosol') talkBosol();
   else if(npc.id==='mongle') talkMongle();
   else if(npc.id==='rita') talkRita();
+  else if(npc.id==='saesum') talkSaesum();
 }
 
 /* ===================== foraging / fishing / crafting ===================== */
@@ -1077,6 +1254,7 @@ function placeDecor(x,z){
   takeItem(selectedDecor,1);
   state.decorPlaced.push({ key:selectedDecor, x:x, z:z });
   addVibe(3);
+  saveGame();
   toast(DECOR_TYPES[selectedDecor].icon+' 배치했어요!');
   refreshDecoPalette();
 }
@@ -1171,7 +1349,7 @@ function collideObstacles(pos,radius){
 }
 
 /* ===================== update loop ===================== */
-var INTERACT_RANGE = 1.7;
+var INTERACT_RANGE = 2.0;
 function updatePlayer(dt){
   var moved=false;
   var moveVec = new THREE.Vector3();
@@ -1208,24 +1386,40 @@ function updatePlayer(dt){
     if(r>ARENA_R-0.6){ var sc=(ARENA_R-0.6)/r; player.position.x*=sc; player.position.z*=sc; }
     collideObstacles(player.position,0.5);
     faceTowards(player.position.clone().add(moveVec));
-    walkPhase += dt*8;
-    player.userData.footL.position.y = 0.16+Math.max(0,Math.sin(walkPhase))*0.08;
-    player.userData.footR.position.y = 0.16+Math.max(0,Math.sin(walkPhase+Math.PI))*0.08;
-    player.userData.armL.rotation.x = Math.sin(walkPhase)*0.5;
-    player.userData.armR.rotation.x = Math.sin(walkPhase+Math.PI)*0.5;
+    walkPhase += dt*11;
+    var side = moveVec.dot(camRight);
+    if(Math.abs(side)>0.2) player.userData.flip = side<0 ? -1 : 1;
+    player.userData.plane.position.y = player.userData.h/2 + Math.abs(Math.sin(walkPhase))*0.13;
+    player.userData.plane.rotation.z = Math.sin(walkPhase)*0.07;
   } else {
-    player.userData.armL.rotation.x *= 0.85; player.userData.armR.rotation.x *= 0.85;
+    player.userData.plane.position.y += (player.userData.h/2 - player.userData.plane.position.y)*0.3;
+    player.userData.plane.rotation.z *= 0.8;
+    player.userData.plane.scale.y = 1 + Math.sin(performance.now()/420)*0.015;
   }
-  player.rotation.y = playerFacing;
+  faceCamera(player);
   if(marker.visible) marker.rotation.z += dt*2;
 }
 
 function updateNpcs(t){
   npcs.forEach(function(n){
-    var bob = Math.sin(t*2+n.phase)*0.04;
-    n.mesh.position.y = bob<0?0:bob;
-    n.mesh.userData.earL.rotation.z = Math.sin(t*1.5+n.phase)*0.05;
+    var p = n.mesh.userData.plane;
+    if(n.float){
+      var awake = n.id==='saesum' && state.flags.saesumAwake;
+      n.mesh.position.y = n.float + Math.sin(t*(awake?2.2:0.9)+n.phase)*(awake?0.22:0.06);
+    } else {
+      p.scale.y = 1 + Math.sin(t*2.2+n.phase)*0.025;
+      p.rotation.z = Math.sin(t*1.1+n.phase)*0.025;
+    }
+    /* 플레이어 쪽을 바라보게 좌우를 뒤집는다 */
+    var side = (player.position.x-n.mesh.position.x)*camRight.x + (player.position.z-n.mesh.position.z)*camRight.z;
+    if(Math.abs(side)>0.6) n.mesh.userData.flip = side<0 ? -1 : 1;
+    faceCamera(n.mesh);
   });
+  if(!state.flags.saesumAwake && Math.floor(t/2.6)!==saesum.zzz){
+    saesum.zzz = Math.floor(t/2.6);
+    var dx=player.position.x-saesum.mesh.position.x, dz=player.position.z-saesum.mesh.position.z;
+    if(dx*dx+dz*dz < 144) spawnFloatText(saesum.mesh.position.clone().add(new THREE.Vector3(0.4,1.0,0)), 'Zzz…', 'sparkle');
+  }
 }
 
 function updateNearbyPrompts(){
@@ -1240,7 +1434,7 @@ function updateNearbyPrompts(){
   });
   if(best){
     var label = best.name ? '대화하기' : best.label;
-    var s = worldToScreen(best.mesh.position.clone().add(new THREE.Vector3(0, best.look?1.9*best.look.scale:1.2,0)));
+    var s = worldToScreen(best.mesh.position.clone().add(new THREE.Vector3(0, best.h?best.h+0.75:1.2,0)));
     if(!s.behind){
       var d=document.createElement('div');
       d.className='prompt';
@@ -1254,12 +1448,12 @@ function updateNearbyPrompts(){
 function updateNameLabels(){
   document.querySelectorAll('.namelabel').forEach(function(e){ e.remove(); });
   npcs.forEach(function(n){
-    var s = worldToScreen(n.mesh.position.clone().add(new THREE.Vector3(0,1.9*n.look.scale,0)));
+    var s = worldToScreen(n.mesh.position.clone().add(new THREE.Vector3(0,n.h+0.3,0)));
     if(s.behind) return;
     var d=document.createElement('div');
     d.className='namelabel';
     var fr = n.id==='mongle'?state.friendship.mongle : n.id==='rita'?state.friendship.rita : null;
-    d.innerHTML = n.name + (fr!==null? ' <span class="heart">'+heartsStr(fr).slice(0,1)+'</span>':'');
+    d.innerHTML = n.name + (fr!==null? ' <span class="heart">'+(fr>=20?'❤':'♡')+'</span>':'');
     d.style.left=s.x+'px'; d.style.top=s.y+'px';
     elFloaters.appendChild(d);
   });
@@ -1317,6 +1511,8 @@ function tickTime(dt){
   elTimeIcon.style.background = isNight ? '#c9b8e8' : (duskness>0.5 ? '#f5a9a8' : '#f6d186');
 
   lampPosts.forEach(function(lp){ lp.light.intensity = isNight ? 1.4 : 0; lp.lampMesh.material.emissiveIntensity = isNight?0.9:0.3; });
+  var sl = isNight ? 0.62 : Math.min(1, 0.82+dayness*0.4);
+  if(Math.abs(sl-spriteLight)>0.004){ spriteLight = sl; spriteMats.forEach(applySpriteLight); }
 }
 
 /* ===================== minimap-free HUD loop ===================== */
@@ -1344,14 +1540,52 @@ function loop(){
 }
 
 /* ===================== boot ===================== */
-function startGame(){
+/* ===================== 저장 / 이어하기 ===================== */
+function saveGame(){
+  if(!state.started) return;
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v:1, day:state.day, timeHours:state.timeHours, vibe:state.vibe,
+      inventory:state.inventory, friendship:state.friendship, flags:state.flags, decorPlaced:state.decorPlaced,
+      px:player.position.x, pz:player.position.z }));
+  }catch(e){}
+}
+function readSave(){ try{ var raw=localStorage.getItem(SAVE_KEY); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
+function applySave(d){
+  state.day=d.day||1; state.timeHours=d.timeHours||8.2; state.vibe=d.vibe||0;
+  state.inventory=d.inventory||{}; state.friendship=d.friendship||{mongle:0,rita:0};
+  var f=d.flags||{}; f.gaveGift=f.gaveGift||{}; f.offered=f.offered||{}; state.flags=f;
+  (d.decorPlaced||[]).forEach(function(dp){
+    if(!DECOR_TYPES[dp.key]) return;
+    var m=DECOR_TYPES[dp.key].build(); m.position.set(dp.x,0,dp.z); scene.add(m);
+    state.decorPlaced.push(dp);
+  });
+  if(typeof d.px==='number'){ player.position.set(d.px,0,d.pz); camTarget.copy(player.position); camera.position.copy(player.position).add(camOffset); }
+  if(f.ritaPurified){ rita.shadowed=false; setNpcTint(rita,1,1,1); }
+  if(f.saesumAwake){ setNpcTint(saesum,1,1,1); saesum.mesh.userData.mat.opacity=1; if(window.__shrineGroup) window.__shrineGroup.userData.crownMat.color.setHex(0x8fe07a); }
+  $('vibefill').style.width = state.vibe+'%'; $('vibetext').textContent = state.vibe;
+}
+function startGame(fromSave){
+  if(fromSave){ var d=readSave(); if(d) applySave(d); }
+  else { try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
   state.started = true;
   elStart.classList.add('hidden');
   refreshBag();
   addVibe(0);
+  refreshShrine();
+  refreshQuest();
+  if(!fromSave) setTimeout(function(){ toast('길 위의 보솔이에게 말을 걸어 보세요!'); }, 600);
 }
-$('startbtn').addEventListener('click', startGame);
+$('startbtn').addEventListener('click', function(){ startGame(false); });
+$('continuebtn').addEventListener('click', function(){ startGame(true); });
+(function(){ var d=readSave(); if(d && d.flags && (d.flags.metBosol || d.vibe>0)){ $('continuebtn').hidden=false; $('startbtn').textContent='처음부터 새로 하기'; $('startbtn').className='btn ghost'; } })();
+$('keepplay').addEventListener('click', function(){ $('endoverlay').style.display='none'; });
+$('restartbtn').addEventListener('click', function(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} location.reload(); });
+setInterval(saveGame, 8000);
+window.addEventListener('pagehide', saveGame);
+document.addEventListener('visibilitychange', function(){ if(document.hidden) saveGame(); });
 
+if(/[?&]debug/.test(location.search)) window.__pf = { state:state, addItem:addItem, addVibe:addVibe, player:player, npcs:npcs, OFFERINGS:OFFERINGS,
+  talk:handleNpcClick, offer:offerToShrine, awaken:awakenSaesum, closeDialogue:closeDialogue, camTarget:camTarget, camera:camera, saveGame:saveGame };
 resize();
 tickTime(0);
 loop();
