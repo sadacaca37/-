@@ -283,6 +283,8 @@ export interface UserSession {
   avatar: string;
   avatarBg?: string;
   avatarConfig?: AvatarConfig;
+  /** 모아팡 캐릭터 옷차림 (선생님 명단에서 받아 옴) */
+  moaOutfit?: any;
   levelTitle?: string;
   nickname?: string;
   averageCpm?: number;

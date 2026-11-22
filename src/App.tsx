@@ -12,6 +12,7 @@ import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
+import { AccountTabs, AccountTab } from './components/AccountTabs';
 import { payWeeklyRankRewards } from './utils/rankRewards';
 import { weekLabel } from './utils/weekBest';
 import { authReady, clearMemberDress, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
@@ -260,6 +261,14 @@ export default function App() {
     setProfileInitialTab(tab);
     setIsProfileOpen(true);
   };
+  // 내 계정 · 타자 기록 · 성적표를 한 창처럼 오가기
+  const openAccount = (tab: AccountTab) => {
+    setIsProfileOpen(tab === 'account');
+    setIsHistoryOpen(tab === 'records');
+    if (tab === 'report') setReportTargetUser(currentUserRef.current);
+    setIsReportOpen(tab === 'report');
+  };
+  const acctTabs = (active: AccountTab) => (currentUserRef.current ? <AccountTabs active={active} onChange={openAccount} /> : null);
 
   // Initialize DB and sessions
   useEffect(() => {
@@ -596,11 +605,7 @@ export default function App() {
               setIsMasterOpen(true);
             }
           }}
-          onOpenReport={() => {
-            setReportTargetUser(currentUser);
-            setIsReportOpen(true);
-          }}
-          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenHistory={() => openAccount('records')}
           onOpenSendReport={() => setIsSendReportOpen(true)}
           sendReportState={sendReportState}
           newReportsCount={newReportsCount}
@@ -711,11 +716,7 @@ export default function App() {
                 setIsMasterOpen(true);
               }
             }}
-            onOpenReport={() => {
-              setReportTargetUser(currentUser);
-              setIsReportOpen(true);
-            }}
-            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenHistory={() => openAccount('records')}
           />
         )}
 
@@ -894,6 +895,7 @@ export default function App() {
         onUpdateUser={handleUpdateProfile}
         onOpenAuth={() => setIsAuthOpen(true)}
         initialTab={profileInitialTab}
+        tabs={acctTabs('account')}
       />}
 
       {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
@@ -927,6 +929,7 @@ export default function App() {
         onClose={() => setIsReportOpen(false)}
         currentUser={currentUser}
         targetUser={reportTargetUser}
+        tabs={!reportTargetUser || reportTargetUser.id === currentUser?.id ? acctTabs('report') : null}
       />}
 
       {/* 세트를 끝냈을 때 화면 아래에 크게: 선생님께 보내기 */}
@@ -965,6 +968,7 @@ export default function App() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         currentUser={currentUser}
+        tabs={acctTabs('records')}
         onSelectMode={(mode) => {
           setIsHistoryOpen(false);
           handleSelectMode(mode);

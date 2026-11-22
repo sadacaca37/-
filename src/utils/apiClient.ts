@@ -159,6 +159,7 @@ class TypangApiClient {
           lastLoginAt: Number(v.seen?.toMillis?.() || 0),
           totalPracticeCount: Number(t.totalPracticeCount) || 0,
           highestCpm: Number(t.highestCpm) || 0,
+          moaOutfit: v.outfit || null, // 모아팡 캐릭터 옷차림 (성적표에 그림)
         } as UserSession);
       }
       users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));

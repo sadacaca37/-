@@ -43,6 +43,7 @@ interface PracticeHistoryModalProps {
   onClose: () => void;
   currentUser: UserSession | null;
   onSelectMode: (mode: AppMode) => void;
+  tabs?: React.ReactNode;
 }
 
 // Speed Tier Animal Badges for intuitive kid-friendly visuals
@@ -72,6 +73,7 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
   onClose,
   currentUser,
   onSelectMode,
+  tabs,
 }) => {
   const [historyList, setHistoryList] = useState<PracticeHistoryRecord[]>([]);
   const [filterLang, setFilterLang] = useState<'all' | 'ko' | 'en'>('all');
@@ -233,6 +235,7 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto tp-modal">
       <div className="bg-white rounded-3xl max-w-4xl w-full p-4 sm:p-7 shadow-2xl border-4 border-sky-300 relative my-6 arcade-card-glow max-h-[92vh] flex flex-col overflow-y-auto rp-journal">
+        {tabs && <div className="-mx-4 sm:-mx-7 -mt-4 sm:-mt-7 mb-4">{tabs}</div>}
         {/* Close Button */}
         <button
           onClick={onClose}

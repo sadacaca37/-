@@ -179,3 +179,23 @@ export const MoaWalker: React.FC<{ size?: number; walking?: boolean; dir?: WalkD
   if (failed) return <>{fallback}</>;
   return <canvas ref={canvasRef} className={className} style={{ width: size, height: size, imageRendering: 'pixelated', display: 'block' }} aria-label="내 모아팡 캐릭터" />;
 };
+
+/** 성적표 등에 그릴 캐릭터 그림 (정면, 서 있는 모습). 못 그리면 null */
+export async function characterCanvas(outfit: any | null | undefined, size = 256): Promise<HTMLCanvasElement | null> {
+  // outfit: undefined = 지금 로그인한 학생의 옷, null = 기본 옷
+  try {
+    const A = await loadAvatarLib();
+    if (!A) return null;
+    const o = A.clean((outfit === undefined ? currentOutfit() : outfit) || A.START);
+    await A.ensure(o);
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    A.drawFrame(ctx, A.sheet(o), 'front', 0, false, size);
+    return c;
+  } catch {
+    return null;
+  }
+}

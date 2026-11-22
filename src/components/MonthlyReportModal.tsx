@@ -27,6 +27,7 @@ interface MonthlyReportModalProps {
   onClose: () => void;
   currentUser: UserSession | null;
   targetUser?: UserSession | null; // For Master/Teacher viewing specific student
+  tabs?: React.ReactNode;
 }
 
 export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
@@ -34,6 +35,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   onClose,
   currentUser,
   targetUser,
+  tabs,
 }) => {
   const effectiveUser = targetUser || currentUser;
   const [periodOffset, setPeriodOffset] = useState(0); // 0 = latest 4-month window, 1 = previous 4 months
@@ -69,7 +71,9 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
         stats.teacherComment = customComment;
       }
       setReportData(stats);
-      const { dataUrl, blob } = await generateReportCardImage(stats);
+      // 성적표에 그릴 캐릭터: 학생 본인은 지금 옷, 선생님이 다른 학생 것을 보면 그 학생 옷(없으면 기본 옷)
+      const isSelf = !!currentUser && effectiveUser?.id === currentUser.id;
+      const { dataUrl, blob } = await generateReportCardImage(stats, { outfit: isSelf ? undefined : effectiveUser?.moaOutfit || null });
       setReportImageUrl(dataUrl);
       setReportBlob(blob);
     } catch (err) {
@@ -191,6 +195,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 tp-modal rp-report">
       <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl border-4 border-pink-300 overflow-hidden flex flex-col max-h-[96vh] h-[860px]">
+        {tabs}
         
         {/* Modal Header */}
         <div className="rp-woodbar p-4 text-white flex items-center justify-between shadow-md shrink-0">
