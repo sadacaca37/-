@@ -1081,7 +1081,7 @@ function buildFixed(){
   setBuilding('board','board',BOARD.x,BOARD.y,{ fd:0.7 });
 }
 function buildHomeSpots(){
-  addIA({ kind:'home', get x(){ return HOME.x; }, get y(){ return HOME.y+0.3; }, r:1.6, label:'🏠 우리 집', use:useHome, bld:'home' });
+  addIA({ kind:'home', get x(){ return HOME.x; }, get y(){ return HOME.y+0.3; }, r:1.6, label:'🏠 집에 들어가기 (꾸미기·잠자기)', use:useHome, bld:'home' });
   addIA({ kind:'coop', x:COOP.x, y:COOP.y+0.3, r:1.8, label:function(){ return state.coop ? (state.eggs?'🥚 달걀 줍기 ('+state.eggs+')':'🐔 닭장 ('+farmCount('coop')+'/'+FARM_CAP.coop+')') : '닭장 지을 자리'; }, use:useCoop, bld:'coop' });
   addIA({ kind:'barn', x:BARN.x, y:BARN.y+0.3, r:2.0, label:function(){ return state.barn ? (state.milk||state.truffles?'🥛 우유·🍄 받기':'🐮 외양간 ('+farmCount('barn')+'/'+FARM_CAP.barn+')') : '외양간 지을 자리'; }, use:useBarn, bld:'barn' });
   addIA({ kind:'shop', x:SHOP.x, y:SHOP.y+0.45, r:1.7, label:'🧺 가게 열기', use:function(){ openShop(); }, bld:'shop' });
@@ -1606,7 +1606,8 @@ function refreshQuest(){
     var openUp=upgrades().filter(function(u){ return u.avail() && u.star<=st; }).sort(function(a,b){ return a.cost-b.cost; })[0];
     if(openUp) tips.push('🔨 '+openUp.name.replace(/ \(.*\)/,'')+' ('+costLabel(openUp)+')');
     if((state.inv['목재']||0)<10) tips.push('🪓 산에서 나무 베기 (목재 '+(state.inv['목재']||0)+')');
-    if(state.decor.length<15) tips.push('🏡 가구 놓기 ('+state.decor.length+'/15)');
+    if((state.homeDecor||[]).length<8) tips.push('🏠 우리 집에 들어가 가구로 꾸미기 ('+(state.homeDecor||[]).length+'/8)');
+    if(state.decor.length<15) tips.push('🏡 마을에 꾸미기 놓기 ('+state.decor.length+'/15)');
     tips.forEach(function(t){ html+='<div class="qi">· '+t+'</div>'; });
   }
   var alerts=[];
@@ -1671,8 +1672,7 @@ function refreshBag(){
   var el=$('baglist'), keys=Object.keys(state.inv).filter(function(k){ return state.inv[k]>0; });
   var order={ crop:0, product:1, wood:2, loot:3, seed:4, petegg:5, decor:6, furn:7 };
   keys.sort(function(a,b){ return (order[(ITEMS[a]||{}).kind]||9)-(order[(ITEMS[b]||{}).kind]||9); });
-  el.innerHTML = '<div class="sub">'+SWORDS[state.sword].icon+' '+SWORDS[state.sword].name+' · 🪓 도끼 · 🏹 활 <span style="opacity:.7">(1·2·3 키)</span></div><div class="itemrow"><span>👕 내 캐릭터 옷</span><button class="btn small yellow" id="dressbtn">옷 바꾸기</button></div>' + (keys.length ? keys.map(function(k){ return '<div class="itemrow"><span class="itemname"><span class="itemicon">'+((ITEMS[k]||{}).icon||'▫️')+'</span>'+k+'</span><span>'+state.inv[k]+'</span></div>'; }).join('') : '<div class="empty-hint">가방이 비어 있어요</div>');
-  var db=$('dressbtn'); if(db) db.addEventListener('click', openDressPage);
+  el.innerHTML = '<div class="sub">'+SWORDS[state.sword].icon+' '+SWORDS[state.sword].name+' · 🪓 도끼 · 🏹 활 <span style="opacity:.7">(1·2·3 키)</span></div>' + (keys.length ? keys.map(function(k){ return '<div class="itemrow"><span class="itemname"><span class="itemicon">'+((ITEMS[k]||{}).icon||'▫️')+'</span>'+k+'</span><span>'+state.inv[k]+'</span></div>'; }).join('') : '<div class="empty-hint">가방이 비어 있어요</div>');
   if(state.started){ refreshQuest(); }
 }
 $('bagbtn').addEventListener('click', function(){ $('bagpanel').classList.toggle('show'); });
