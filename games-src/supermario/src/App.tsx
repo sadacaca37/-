@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ArtIcon } from './components/ArtIcon';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Play,
@@ -248,11 +249,11 @@ export default function App() {
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center font-black text-white text-xl shadow-[0_3px_0_0_#991b1b] border-2 border-red-400/50 italic">
-            M
+            <ArtIcon name="fox_idle" size={30} />
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tight italic text-gray-900 flex items-center gap-1.5 leading-tight">
-              SUPER MARIO <span className="text-red-600 font-extrabold not-italic font-mono">BROS.</span>
+              버섯 숲 <span className="text-red-600 font-extrabold not-italic">점프 모험</span>
             </h1>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest hidden sm:block">
               Sleek Interface • High Performance Canvas Engine
@@ -325,10 +326,10 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5" /> High Performance JS Engine
                 </div>
                 <h2 className="text-5xl sm:text-6xl font-black text-gray-900 tracking-tighter italic leading-none">
-                  WEB <span className="text-red-600">BROS.</span>
+                  버섯 숲 <span className="text-red-600">점프 모험</span>
                 </h2>
                 <p className="text-gray-400 font-bold tracking-[0.2em] uppercase text-xs">
-                  10 STAGES • YOSHI • PROPELLER • CLOWN CAR • BOSS SHOWDOWN
+                  10 STAGES • CHAMELEON • PINWHEEL • FLYING CUP • LAVA KING
                 </p>
               </div>
 
@@ -476,7 +477,7 @@ export default function App() {
 
       {/* Footer Info */}
       <footer className="w-full bg-white/80 backdrop-blur-sm border-t border-gray-200/80 px-4 py-2.5 text-center text-xs font-bold tracking-wider text-gray-500 uppercase z-30">
-        Super Mario Action Web • Sleek Interface Edition • High Performance Canvas Engine
+        Mushroom Forest Jump Adventure • Art by Gemini • High Performance Canvas Engine
       </footer>
 
       {/* Modals */}

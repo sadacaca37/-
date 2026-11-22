@@ -1,3 +1,4 @@
+import { ArtIcon } from './ArtIcon';
 import React from 'react';
 import { CharacterType } from '../types';
 import { Sparkles, Zap, Feather, Wind } from 'lucide-react';
@@ -14,6 +15,7 @@ interface CharInfo {
   name: string;
   krName: string;
   badge: string;
+  art: string;
   color: string;
   accentBg: string;
   borderColor: string;
@@ -24,9 +26,10 @@ interface CharInfo {
 const CHARACTERS: CharInfo[] = [
   {
     id: 'mario',
-    name: 'Mario',
-    krName: '마리오',
-    badge: 'M',
+    name: 'Fox',
+    krName: '토리',
+    badge: 'T',
+    art: 'fox_idle',
     color: '#E52521',
     accentBg: 'bg-red-500/10 text-red-600 border-red-200',
     borderColor: 'border-red-500 bg-red-50/50 ring-2 ring-red-400',
@@ -35,9 +38,10 @@ const CHARACTERS: CharInfo[] = [
   },
   {
     id: 'luigi',
-    name: 'Luigi',
-    krName: '루이지',
-    badge: 'L',
+    name: 'Frog',
+    krName: '퐁이',
+    badge: 'P',
+    art: 'frog_idle',
     color: '#00A651',
     accentBg: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
     borderColor: 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-400',
@@ -46,9 +50,10 @@ const CHARACTERS: CharInfo[] = [
   },
   {
     id: 'toad',
-    name: 'Toad',
-    krName: '키노피오',
-    badge: '🍄',
+    name: 'Bunny',
+    krName: '토토',
+    badge: '🐰',
+    art: 'rabbit_idle',
     color: '#0055D4',
     accentBg: 'bg-blue-500/10 text-blue-600 border-blue-200',
     borderColor: 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-400',
@@ -57,25 +62,27 @@ const CHARACTERS: CharInfo[] = [
   },
   {
     id: 'peach',
-    name: 'Peach',
-    krName: '피치공주',
-    badge: '👑',
+    name: 'Fairy',
+    krName: '라라',
+    badge: '🌸',
+    art: 'fairy_idle',
     color: '#F472B6',
     accentBg: 'bg-pink-500/10 text-pink-600 border-pink-200',
     borderColor: 'border-pink-500 bg-pink-50/50 ring-2 ring-pink-400',
-    trait: '드레스 공중 부양',
+    trait: '꽃잎 공중 부양',
     desc: '점프 키를 유지하여 우아하게 공중 체공',
   },
   {
     id: 'yoshi',
-    name: 'Yoshi',
-    krName: '요시',
-    badge: '🦖',
+    name: 'Dragon',
+    krName: '용이',
+    badge: '🐉',
+    art: 'dragon_idle',
     color: '#16A34A',
     accentBg: 'bg-lime-500/10 text-lime-700 border-lime-200',
     borderColor: 'border-lime-500 bg-lime-50/50 ring-2 ring-lime-400',
-    trait: '플러터 공중 점프',
-    desc: '공중에서 점프를 추가 연타하여 날갯짓',
+    trait: '날갯짓 공중 점프',
+    desc: '공중에서 점프를 꾹 누르면 잠깐 날갯짓',
   },
 ];
 
@@ -119,12 +126,12 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg shadow-sm border"
                 style={{
-                  backgroundColor: isSelected ? char.color : '#F3F4F6',
+                  backgroundColor: isSelected ? char.color + '33' : '#F3F4F6',
                   color: isSelected ? '#FFFFFF' : '#374151',
                   borderColor: isSelected ? 'transparent' : '#E5E7EB',
                 }}
               >
-                {char.badge}
+                <ArtIcon name={char.art} size={34} />
               </div>
 
               {/* Character Title */}

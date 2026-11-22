@@ -167,6 +167,8 @@ export interface Enemy {
   pipeBaseY?: number;
   plantState?: 'emerging' | 'extended' | 'retreating' | 'hidden';
   plantStateTimer?: number;
+  shellRed?: boolean; // 빨간 달팽이에서 나온 껍질
+  hurtFlash?: number; // 보스가 맞았을 때 잠깐 아픈 얼굴
 }
 
 export interface ItemEntity {

@@ -598,13 +598,22 @@ export class GameEngine {
           player.isGliding = true;
           player.vy = Math.min(player.vy, 1.2);
         }
-      } else if ((player.vehicle === 'yoshi' || player.character === 'yoshi') && !player.isGrounded && player.vy > 0) {
-        // Yoshi Flutter Jump!
-        if (player.flutterTimer < 20) {
+      } else if (
+        (player.vehicle === 'yoshi' || player.character === 'yoshi') &&
+        !player.isGrounded &&
+        (player.isFluttering || player.vy > 0)
+      ) {
+        // Yoshi Flutter Jump: 한 번 점프할 때 최대 40프레임(약 0.7초)만 버둥거림.
+        // 처음엔 살짝 떠오르고(약 20px) 그다음 천천히 내려옴 → 끝없이 올라가지 않음.
+        // flutterTimer는 땅에 닿을 때만 0으로 돌아가서, 공중에서 키를 다시 눌러도 남은 시간만 씀.
+        if (player.flutterTimer < 40) {
           player.isFluttering = true;
           player.flutterTimer += 1;
-          player.vy = -3.2;
+          const target = player.flutterTimer <= 22 ? -1.1 : 0.7;
+          player.vy += (target - player.vy) * 0.3;
           if (player.flutterTimer % 6 === 0) sound.playYoshiFlutter();
+        } else {
+          player.isFluttering = false;
         }
       } else if (player.character === 'peach' && !player.isGrounded && player.vy > 0.5) {
         // Princess Peach Royal Dress Float! (Gentle controlled hover for ~0.6s)
@@ -631,6 +640,8 @@ export class GameEngine {
       if (player.propellerTimer <= 0 || player.isGrounded) {
         player.isPropellerSpinning = false;
       }
+    } else if (player.isFluttering) {
+      // 버둥 점프 중에는 위에서 정한 속도를 그대로 씀 (중력을 더하지 않음)
     } else {
       // Normal Gravity
       player.vy += gravity;
@@ -761,6 +772,7 @@ export class GameEngine {
           player.vy = 0;
           player.isGrounded = true;
           player.flutterTimer = 0;
+          player.isFluttering = false;
           player.canDoubleJump = true;
           player.isPropellerSpinning = false;
         } else if (player.vy < 0) {
@@ -873,6 +885,7 @@ export class GameEngine {
 
       // Special Boss AI (King Bowser)
       if (enemy.type === 'bowser') {
+        if ((enemy.hurtFlash || 0) > 0) enemy.hurtFlash = (enemy.hurtFlash || 0) - 1;
         this.updateBowser(enemy);
         return;
       }
@@ -1341,6 +1354,7 @@ export class GameEngine {
       enemy.deathTimer = 20;
       this.addScore(player, 500, enemy.x, enemy.y);
     } else if (enemy.type === 'koopa_green' || enemy.type === 'koopa_red') {
+      enemy.shellRed = enemy.type === 'koopa_red';
       enemy.type = 'koopa_shell';
       enemy.isShellSpinning = false;
       this.addScore(player, 500, enemy.x, enemy.y);
@@ -1441,6 +1455,7 @@ export class GameEngine {
       if (this.checkOverlap(attackHitbox, enemy)) {
         if (enemy.type === 'bowser') {
           enemy.health = (enemy.health || 20) - 1;
+          enemy.hurtFlash = 24;
           sound.playBossHit();
           this.addStarSparkle(enemy.x + 20, enemy.y + 20);
           if (enemy.health <= 0) {
@@ -1474,7 +1489,7 @@ export class GameEngine {
           player.powerUp = 'super';
           player.height = 48;
           player.y -= 16;
-          this.addFloatingText('SUPER MARIO!', player.x, player.y - 12, '#ff3333');
+          this.addFloatingText('POWER UP!', player.x, player.y - 12, '#ff3333');
         }
         break;
       case 'fire_flower':
@@ -1483,19 +1498,19 @@ export class GameEngine {
         }
         player.powerUp = 'fire';
         player.height = 48;
-        this.addFloatingText('FIRE MARIO!', player.x, player.y - 12, '#ff8800');
+        this.addFloatingText('FIRE POWER!', player.x, player.y - 12, '#ff8800');
         break;
       case 'propeller_mushroom':
         if (player.powerUp === 'none') player.y -= 16;
         player.powerUp = 'propeller';
         player.height = 48;
-        this.addFloatingText('PROPELLER SUIT!', player.x, player.y - 12, '#ffaa00');
+        this.addFloatingText('PINWHEEL CAP!', player.x, player.y - 12, '#ffaa00');
         break;
       case 'super_acorn':
         if (player.powerUp === 'none') player.y -= 16;
         player.powerUp = 'squirrel';
         player.height = 48;
-        this.addFloatingText('FLYING SQUIRREL!', player.x, player.y - 12, '#8b5a2b');
+        this.addFloatingText('LEAF CAPE!', player.x, player.y - 12, '#8b5a2b');
         break;
       case 'spiny_shell':
         player.powerUp = 'spiny_helmet';
@@ -1509,15 +1524,15 @@ export class GameEngine {
         break;
       case 'yoshi_egg':
         player.vehicle = 'yoshi';
-        this.addFloatingText('YOSHI RIDE!', player.x, player.y - 12, '#00cc44');
+        this.addFloatingText('RIDE ON!', player.x, player.y - 12, '#00cc44');
         break;
       case 'clown_car':
         player.vehicle = 'fire_clown_car';
-        this.addFloatingText('KOOPA CLOWN CAR!', player.x, player.y - 12, '#ff6600');
+        this.addFloatingText('FLYING CUP!', player.x, player.y - 12, '#ff6600');
         break;
       case 'dry_bones_shell':
         player.vehicle = 'dry_bones_shell';
-        this.addFloatingText('DRY BONES SHELL!', player.x, player.y - 12, '#bbbbbb');
+        this.addFloatingText('STONE SHELL!', player.x, player.y - 12, '#bbbbbb');
         break;
       case '1up_mushroom':
         player.lives += 1;
@@ -1597,6 +1612,7 @@ export class GameEngine {
           if (this.checkOverlap(p, enemy)) {
             if (enemy.type === 'bowser') {
               enemy.health = (enemy.health || 20) - (p.type === 'charge_fireball' ? 4 : 1);
+              enemy.hurtFlash = 24;
               sound.playBossHit();
               this.addStarSparkle(enemy.x + 20, enemy.y + 20);
               if (enemy.health <= 0) {
@@ -1730,7 +1746,7 @@ export class GameEngine {
 
     const leadPlayer = this.players.find((p) => !p.isDead) || this.players[0];
     this.addScore(leadPlayer, 50000, bowser.x, bowser.y);
-    this.addFloatingText('BOWSER DEFEATED! +50000', bowser.x - 20, bowser.y - 30, '#ffcc00');
+    this.addFloatingText('LAVA KING DEFEATED! +50000', bowser.x - 20, bowser.y - 30, '#ffcc00');
 
     // Trigger clear transition
     this.triggerStageClear(leadPlayer);
