@@ -222,7 +222,9 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
     }
   }, [selectedCategoryIndex, isRandomOrder, currentCategory]);
 
-  const activeSentences = isRandomOrder && shuffledSentences.length > 0 ? shuffledSentences : currentCategory.sentences;
+  // 한 세트 = 짧은 글 20개 (선생님 요청). 섞기 모드면 세트마다 다른 20개
+  const SET_SENTENCES = 20;
+  const activeSentences = (isRandomOrder && shuffledSentences.length > 0 ? shuffledSentences : currentCategory.sentences).slice(0, SET_SENTENCES);
   const currentSentence = activeSentences[sentenceIndex] || activeSentences[0] || '';
 
   // Target next character and finger guide accurately based on atomic strokes
@@ -904,14 +906,14 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               <span className="pr-gauge-track w-28 sm:w-40 h-4.5 inline-block align-middle">
                 <span
                   className="pr-gauge-fill pr-gauge-fill--gold block"
-                  style={{ width: `${Math.round((sentenceIndex / Math.max(1, currentCategory.sentences.length)) * 100)}%` }}
+                  style={{ width: `${Math.round((sentenceIndex / Math.max(1, activeSentences.length)) * 100)}%` }}
                 />
               </span>
               <span className="min-w-[44px] text-right text-sm sm:text-base font-black text-white tabular-nums">
-                {Math.round((sentenceIndex / Math.max(1, currentCategory.sentences.length)) * 100)}%
+                {Math.round((sentenceIndex / Math.max(1, activeSentences.length)) * 100)}%
               </span>
               <span className="min-w-[100px] text-sm font-bold text-[#fde6a8] tabular-nums">
-                ({sentenceIndex + 1} / {currentCategory.sentences.length} 문장)
+                ({sentenceIndex + 1} / {activeSentences.length} 문장)
               </span>
             </span>
             {hasResumed && (
