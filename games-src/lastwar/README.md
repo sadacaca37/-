@@ -1,6 +1,6 @@
 # Bridge Assault
 
-5개 스테이지, 6종 보스, 단계별 난이도, 배경음악을 포함한 브라우저 게임입니다.
+5개 스테이지, 6종 보스, 단계별 난이도, 배경음악을 포함한 브라우저 게임입니다. 4.0부터 캐릭터는 제미나이가 그린 그림입니다.
 
 ## 바로 실행
 
@@ -17,7 +17,9 @@ npm start
 
 브라우저에서 http://127.0.0.1:8766/ 을 엽니다.
 
-- work/: 게임 소스와 빌드 도구, 포함된 Three.js 라이브러리
+- work/: 게임 소스와 빌드 도구, 포함된 Three.js 라이브러리 (sprites.js: 아군·몬스터 그림 표시와 움직임, boss-render.js: 보스 그림과 움직임, sfx.js: 효과음, music.js: 배경음악, duo-lastwar.js: 2인 대결)
+- work/art/: 제미나이가 그린 캐릭터 그림(배경 지운 PNG), work/sprite-atlas.js: 그 그림들을 한 장으로 묶은 자동 생성 파일
+- tools/: 그림 자르기(cutout.py), 그림 묶기(atlas.py), 난이도 자동 플레이 측정(sim.js: `node tools/sim.js`)
 - outputs/: 실행 가능한 HTML과 게임 안내
 - npm test: 게임 로직 점검. 최종 스테이지 자동 전투 패배는 현재 알려진 밸런스 결과이며, 클리어 가능성을 보장하지 않습니다.
 
