@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { AppMode, UserSession } from '../types';
 import { pointsManager, MASTER_POINTS } from '../utils/pointsManager';
+import { longUnlocked, SHORT_TO_LONG_CPM } from '../utils/longGate';
 import { soundManager } from '../utils/sound';
 import { MoaCharacter } from './MoaCharacter';
 
@@ -129,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { mode: 'key-practice' as AppMode, label: '자리 연습', icon: Keyboard, color: 'sky' },
     { mode: 'word-practice' as AppMode, label: '낱말 연습', icon: BookOpen, color: 'mint' },
     { mode: 'sentence-practice' as AppMode, label: '짧은 글 (5분)', icon: FileText, color: 'pink', badge: '한/영' },
-    { mode: 'long-practice' as AppMode, label: '긴 글 연습', icon: FileText, color: 'indigo', badge: '신규' },
+    { mode: 'long-practice' as AppMode, label: '긴 글 연습', icon: FileText, color: 'indigo', badge: longUnlocked(currentUser) ? '신규' : `🔒${SHORT_TO_LONG_CPM}타` },
     { mode: 'knowledge-hub' as AppMode, label: '지식 타자', icon: GraduationCap, color: 'purple', badge: '3대 코스' },
     { mode: 'mini-games' as any, label: '미니타자게임', icon: Gamepad2, color: 'rose', badge: '무료' },
     { 

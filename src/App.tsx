@@ -12,6 +12,7 @@ import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
+import { bestShortCpm, longUnlocked, SHORT_TO_LONG_CPM } from './utils/longGate';
 import { AccountTabs, AccountTab } from './components/AccountTabs';
 import { payWeeklyRankRewards } from './utils/rankRewards';
 import { weekLabel } from './utils/weekBest';
@@ -175,6 +176,8 @@ export default function App() {
   const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
   // 미니게임·놀이터는 타자팡 회원 로그인 뒤에만
   const loginGate = !currentUser && LOGIN_MODES.has(currentMode);
+  // 짧은 글 250타 이상이어야 긴 글로 (선생님은 언제나)
+  const longGate = (currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longUnlocked(currentUser);
 
   // 오늘의 연습 보고 상태: 학생 = 보냈는지/선생님이 확인했는지, 선생님 = 새 보고 수 (팝업 연습 창에서는 생략)
   useEffect(() => {
@@ -411,6 +414,7 @@ export default function App() {
   // 연습 단계에 들어가면(연습 창 포함) 이 컴퓨터에 기억 → 홈 지도 로봇이 그 단계로 감 (로그인 안 해도)
   useEffect(() => {
     if (!['key-practice', 'word-practice', 'sentence-practice', 'long-practice', 'transcription-challenge', 'knowledge-hub', 'leaderboard'].includes(currentMode)) return;
+    if ((currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longUnlocked(currentUser)) return; // 잠긴 긴 글은 로봇이 가지 않음
     try {
       localStorage.setItem('taja_last_mode', currentMode);
     } catch {}
@@ -534,6 +538,11 @@ export default function App() {
   };
 
   const handleSelectMode = (mode: AppMode) => {
+    // 짧은 글 250타 전에는 긴 글 창을 열지 않고 이 화면에서 안내
+    if ((mode === 'long-practice' || mode === 'transcription-challenge') && !longUnlocked(currentUserRef.current)) {
+      setCurrentMode(mode);
+      return;
+    }
     if (isPracticeMode(mode)) {
       if (!isPopupMode) {
         // Open dedicated popup browser window; if the browser blocks popups, open it inside this page
@@ -687,7 +696,35 @@ export default function App() {
           </PracticeWindowContainer>
         )}
 
-        {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && (
+        {longGate && (
+          <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-4 border-[#5a3417] shadow-xl text-center space-y-5 animate-fade-in" data-testid="long-gate">
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 mx-auto flex items-center justify-center text-3xl shadow-inner">🔒</div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-900 font-arcade">짧은 글 {SHORT_TO_LONG_CPM}타를 넘으면 긴 글이 열려요!</h3>
+              <p className="text-sm text-slate-600 leading-relaxed font-bold">
+                지금 내 짧은 글 최고 기록은 <strong className="text-pink-600 text-lg">{bestShortCpm(currentUser)}타</strong>예요.
+                <br />
+                {SHORT_TO_LONG_CPM - bestShortCpm(currentUser) > 0 ? `${SHORT_TO_LONG_CPM - bestShortCpm(currentUser)}타만 더 빨라지면 긴 글 연습을 할 수 있어요. 화이팅!` : ''}
+                {!currentUser && (
+                  <>
+                    <br />
+                    로그인하면 내 기록이 저장돼요.
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button onClick={() => handleSelectMode('sentence-practice')} className="px-6 py-3 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm shadow-md cursor-pointer">
+                📝 짧은 글 연습하러 가기
+              </button>
+              <button onClick={() => setCurrentMode('home')} className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer">
+                홈으로
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longGate && (
           <PracticeWindowContainer
             mode="long-practice"
             title="4단계: 긴 글 연습 (명작 완독)"
@@ -796,7 +833,7 @@ export default function App() {
               <p className="text-sm text-slate-600 leading-relaxed font-bold">
                 자리·낱말·짧은 글·긴 글·지식 타자 연습은 로그인 없이도 할 수 있어요.
                 <br />
-                <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
+                <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호 뒷자리</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
