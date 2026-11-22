@@ -390,22 +390,85 @@ function makeGroundTexture(){
   tex.repeat.set(9,9);
   return tex;
 }
+/* ===================== 바닥 모양: 돌판 바닥, 가운데 높은 단과 계단, 무너진 벽 ===================== */
+var DAIS_R = 5.8, STEP_R = 7.0, DAIS_H = 0.36, STEP_H = 0.18;
+function smooth01(a,b,v){ var t=Math.max(0,Math.min(1,(v-a)/(b-a))); return t*t*(3-2*t); }
+function heightAt(x,z){
+  var r = Math.sqrt(x*x+z*z);
+  return STEP_H*(1-smooth01(STEP_R-0.12, STEP_R+0.12, r)) + (DAIS_H-STEP_H)*(1-smooth01(DAIS_R-0.12, DAIS_R+0.12, r));
+}
+/* 돌판 사이 틈(어두운 바닥) — 클릭 위치를 찾는 데도 씀 */
 var groundGeo = new THREE.PlaneGeometry(90,90);
-var groundMat = new THREE.MeshStandardMaterial({ map:makeGroundTexture(), roughness:0.92, metalness:0.05, color:0x9e9ab2 });
+var groundMat = new THREE.MeshStandardMaterial({ color:0x15121a, roughness:1 });
 var ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI/2;
+ground.rotation.x = -Math.PI/2; ground.position.y = -0.06;
 ground.receiveShadow = true;
 scene.add(ground);
+var slabMat = new THREE.MeshStandardMaterial({ map:makeGroundTexture(), roughness:0.9, metalness:0.05, color:0x9e9ab2 });
+(function(){
+  var seed = 11; function rnd(){ seed = (seed*16807)%2147483647; return seed/2147483647; }
+  var size = 2.9, gap = 0.12, list = [];
+  for(var gx=-12; gx<=12; gx++) for(var gz=-12; gz<=12; gz++){
+    var cx = gx*size, cz = gz*size, r = Math.sqrt(cx*cx+cz*cz);
+    if(r < STEP_R-0.6 || r > 34) continue;
+    if(rnd() < 0.05) continue; // 깨져서 빠진 돌판
+    list.push([cx + (rnd()-0.5)*0.12, cz + (rnd()-0.5)*0.12, (rnd()-0.5)*0.05, 0.75+rnd()*0.35, (rnd()-0.5)*0.06, (rnd()-0.5)*0.06]);
+  }
+  var geo = new THREE.BoxGeometry(size-gap, 0.3, size-gap);
+  var mesh = new THREE.InstancedMesh(geo, slabMat, list.length);
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
+  list.forEach(function(L,i){
+    e.set(L[4], 0, L[5]); q.setFromEuler(e);
+    m4.compose(new THREE.Vector3(L[0], -0.15+L[2], L[1]), q, new THREE.Vector3(1,1,1));
+    mesh.setMatrixAt(i, m4); c.setScalar(L[3]); mesh.setColorAt(i, c);
+  });
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  /* 가운데 높은 단 + 계단 한 칸 */
+  var daisMat = new THREE.MeshStandardMaterial({ color:0x5a5468, roughness:0.85, metalness:0.1 });
+  var stepRing = new THREE.Mesh(new THREE.CylinderGeometry(STEP_R, STEP_R+0.15, STEP_H+0.2, 56), daisMat);
+  stepRing.position.y = (STEP_H-0.2)/2; stepRing.receiveShadow = true; stepRing.castShadow = true;
+  var dais = new THREE.Mesh(new THREE.CylinderGeometry(DAIS_R, DAIS_R+0.12, DAIS_H+0.2, 56), slabMat);
+  dais.position.y = (DAIS_H-0.2)/2; dais.receiveShadow = true; dais.castShadow = true;
+  scene.add(stepRing, dais);
+  /* 무너진 돌벽(화면 앞쪽은 낮게 해서 가리지 않게) */
+  var wallMat = new THREE.MeshStandardMaterial({ color:0x3a3442, roughness:0.95, flatShading:true });
+  var rubbleMat = new THREE.MeshStandardMaterial({ color:0x4a4352, roughness:0.95, flatShading:true });
+  for(var i=0;i<40;i++){
+    var a = i/40*Math.PI*2;
+    if(rnd() < 0.18) continue;
+    var front = Math.cos(a - Math.PI/4) > 0.35; // 카메라 쪽(+x,+z)
+    var hgt = front ? 0.5+rnd()*0.7 : 2.0+rnd()*2.6;
+    var w = new THREE.Mesh(new THREE.BoxGeometry(4.2, hgt, 1.3), wallMat);
+    var R = 29.6 + (rnd()-0.5)*0.6;
+    w.position.set(Math.cos(a)*R, hgt/2-0.05, Math.sin(a)*R);
+    w.rotation.y = -a + Math.PI/2 + (rnd()-0.5)*0.12;
+    w.castShadow = true; w.receiveShadow = true; scene.add(w);
+    if(rnd() < 0.6){
+      var rb = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3+rnd()*0.45,0), rubbleMat);
+      var rr = R - 1.4 - rnd()*1.5;
+      rb.position.set(Math.cos(a+0.05)*rr, 0.15, Math.sin(a+0.05)*rr); rb.rotation.set(rnd()*3,rnd()*3,rnd()*3);
+      rb.castShadow = true; scene.add(rb);
+    }
+  }
+  /* 바닥 곳곳 돌 부스러기 */
+  for(var j=0;j<34;j++){
+    var a2 = rnd()*Math.PI*2, r2 = 9 + rnd()*17;
+    var pc = new THREE.Mesh(new THREE.DodecahedronGeometry(0.12+rnd()*0.22,0), rubbleMat);
+    pc.position.set(Math.cos(a2)*r2, 0.06, Math.sin(a2)*r2); pc.rotation.set(rnd()*3,rnd()*3,rnd()*3);
+    scene.add(pc);
+  }
+})();
 
 /* rune circle glow at center */
-var runeGeo = new THREE.RingGeometry(6.6,7.0,64);
+var runeGeo = new THREE.RingGeometry(4.5,4.85,64);
 var runeMat = new THREE.MeshBasicMaterial({ color:0x6f4fc9, transparent:true, opacity:0.35, side:THREE.DoubleSide });
 var rune = new THREE.Mesh(runeGeo, runeMat);
-rune.rotation.x=-Math.PI/2; rune.position.y=0.03;
+rune.rotation.x=-Math.PI/2; rune.position.y=DAIS_H+0.01;
 scene.add(rune);
 var runeGeo2 = new THREE.RingGeometry(9.6,9.9,64);
 var rune2 = new THREE.Mesh(runeGeo2, runeMat.clone());
-rune2.rotation.x=-Math.PI/2; rune2.position.y=0.03;
+rune2.rotation.x=-Math.PI/2; rune2.position.y=0.04;
 scene.add(rune2);
 
 /* pillars / obstacles */
@@ -458,29 +521,73 @@ function spawnFloatText(worldPos, text, cls){
   setTimeout(function(){ d.remove(); }, 950);
 }
 
-/* ===================== characters: 제미나이가 그린 픽셀 그림 판 (빌보드) ===================== */
-var SPRITE_INFO = { knight:[227,256], skeleton:[260,256], cultist:[129,256], brute:[211,256], guardian:[214,256] };
-var texLoader = new THREE.TextureLoader();
-var camRight = new THREE.Vector3(1,0,-1).normalize();
-function buildSpriteChar(name, height){
-  var info = SPRITE_INFO[name];
-  var tex = texLoader.load('sprites/'+name+'.webp');
-  tex.anisotropy = 4;
-  var mat = new THREE.MeshBasicMaterial({ map:tex, transparent:true, alphaTest:0.35, side:THREE.DoubleSide, toneMapped:false });
-  mat.color.setRGB(0.92,0.9,0.95);
-  var w = height*info[0]/info[1];
-  var plane = new THREE.Mesh(new THREE.PlaneGeometry(w, height), mat);
-  plane.position.y = height/2;
-  var g = new THREE.Group();
-  g.add(plane);
-  g.userData = { plane:plane, mat:mat, h:height, flip:1, walk:0 };
+/* ===================== 블록 입체 캐릭터: 제미나이 픽셀 그림을 작은 블록으로 쌓아 두께 있는 인형으로 ===================== */
+var VOX_CACHE = {};
+var VOX_GEO = new THREE.BoxGeometry(1,1,1);
+function loadVoxData(name, rows){
+  var key = name+'@'+rows;
+  if(VOX_CACHE[key]) return VOX_CACHE[key];
+  VOX_CACHE[key] = new Promise(function(resolve){
+    var img = new Image();
+    img.onload = function(){
+      var H = rows, W = Math.max(4, Math.round(rows*img.width/img.height));
+      var c = document.createElement('canvas'); c.width = W; c.height = H;
+      var ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, W, H);
+      var px = ctx.getImageData(0,0,W,H).data, N = W*H, i, x, y, k, v;
+      var solid = new Uint8Array(N), d = new Float32Array(N);
+      for(i=0;i<N;i++){ solid[i] = px[i*4+3] > 100 ? 1 : 0; d[i] = solid[i] ? 1e6 : 0; }
+      /* 가장자리에서 얼마나 안쪽인지(거리) → 안쪽일수록 두껍게: 통통한 인형 모양 */
+      for(y=0;y<H;y++) for(x=0;x<W;x++){ k=y*W+x; if(!solid[k]) continue; v=d[k];
+        v = Math.min(v, x>0 ? d[k-1]+1 : 1, y>0 ? d[k-W]+1 : 1);
+        if(x>0&&y>0) v=Math.min(v,d[k-W-1]+1.414); if(x<W-1&&y>0) v=Math.min(v,d[k-W+1]+1.414);
+        d[k]=v; }
+      for(y=H-1;y>=0;y--) for(x=W-1;x>=0;x--){ k=y*W+x; if(!solid[k]) continue; v=d[k];
+        v = Math.min(v, x<W-1 ? d[k+1]+1 : 1, y<H-1 ? d[k+W]+1 : 1);
+        if(x<W-1&&y<H-1) v=Math.min(v,d[k+W+1]+1.414); if(x>0&&y<H-1) v=Math.min(v,d[k+W-1]+1.414);
+        d[k]=v; }
+      var maxT = Math.max(3, Math.min(W,H)*0.3), list = [];
+      for(y=0;y<H;y++) for(x=0;x<W;x++){ k=y*W+x; if(!solid[k]) continue;
+        var t = d[k] < 1.5 ? 1.2 : Math.min(maxT, 1.8 + Math.sqrt(d[k]-1)*2.3);
+        list.push(x-(W-1)/2, (H-1-y)+0.5, t, px[k*4]/255, px[k*4+1]/255, px[k*4+2]/255); }
+      resolve({ W:W, H:H, list:list });
+    };
+    img.onerror = function(){ resolve(null); };
+    img.src = 'sprites/'+name+'.webp';
+  });
+  return VOX_CACHE[key];
+}
+function buildVoxelChar(name, height, rows){
+  var g = new THREE.Group(), pivot = new THREE.Group();
+  g.add(pivot);
+  var mat = new THREE.MeshLambertMaterial({ color:0xc4c0cc, emissive:0x1a1622, toneMapped:false });
+  mat.userData = { tint:new THREE.Color(1,1,1) };
+  g.userData = { pivot:pivot, mat:mat, h:height, mesh:null, name:name, face:0 };
+  loadVoxData(name, rows).then(function(data){
+    if(!data) return;
+    var n = data.list.length/6, mesh = new THREE.InstancedMesh(VOX_GEO, mat, n);
+    var m4 = new THREE.Matrix4(), col = new THREE.Color(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+    for(var i=0;i<n;i++){
+      var o = i*6;
+      p.set(data.list[o], data.list[o+1], 0); s.set(1, 1, data.list[o+2]*2);
+      m4.compose(p, q, s); mesh.setMatrixAt(i, m4);
+      col.setRGB(data.list[o+3], data.list[o+4], data.list[o+5]); mesh.setColorAt(i, col);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if(mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.scale.setScalar(height/data.H);
+    mesh.castShadow = true; mesh.frustumCulled = false;
+    pivot.add(mesh); g.userData.mesh = mesh;
+  });
   return g;
 }
-function faceCamera(g){
-  g.rotation.y = Math.atan2(camera.position.x - g.position.x, camera.position.z - g.position.z);
-  g.userData.plane.scale.x = g.userData.flip;
+/* 바라보는 방향을 부드럽게 돌린다 */
+function turnTo(g, target, dt, speed){
+  var cur = g.rotation.y, diff = target - cur;
+  while(diff > Math.PI) diff -= Math.PI*2; while(diff < -Math.PI) diff += Math.PI*2;
+  g.rotation.y = cur + diff*Math.min(1, dt*(speed||10));
 }
-function setFlipByDir(g, dir){ var side = dir.x*camRight.x + dir.z*camRight.z; if(Math.abs(side)>0.15) g.userData.flip = side<0 ? -1 : 1; }
+
 /* 칼을 휘두를 때 보이는 반달 빛 */
 function slashEffect(pos, dir){
   var mat = new THREE.MeshBasicMaterial({ color:0xfff2c0, transparent:true, opacity:0.85, side:THREE.DoubleSide, toneMapped:false, depthWrite:false });
@@ -513,7 +620,7 @@ function addBlobShadow(radius){
   return mesh;
 }
 
-var player = buildSpriteChar('knight', 2.6);
+var player = buildVoxelChar('knight', 2.6, 46);
 player.position.set(0,0,4);
 scene.add(player);
 var playerBlob = addBlobShadow(0.8);
@@ -532,11 +639,11 @@ scene.add(marker);
 /* ===================== monsters ===================== */
 var monsters = [];
 var MTYPES = {
-  skeleton:{ sprite:'skeleton', h:2.5, hp:20, speed:3.4, dmg:[3,5], range:1.9, aggro:13, atkCd:1100, xp:8, gold:[2,6], color:0xcac2ad, cloak:0x3a2b2b, accent:0xb3212f, scale:0.92, ranged:false },
-  cultist:{ sprite:'cultist', h:2.6, hp:16, speed:2.6, dmg:[4,8], range:10.5, aggro:15, atkCd:1900, xp:11, gold:[3,7], color:0x6a5a86, cloak:0x241c33, accent:0x9a7bf0, scale:0.98, ranged:true },
-  brute:{ sprite:'brute', h:3.3, hp:46, speed:2.1, dmg:[7,12], range:2.4, aggro:12, atkCd:1500, xp:20, gold:[6,12], color:0x8a6a4a, cloak:0x33261c, accent:0xd9843a, scale:1.35, ranged:false }
+  skeleton:{ sprite:'skeleton', h:2.5, rows:46, hp:20, speed:3.4, dmg:[3,5], range:1.9, aggro:13, atkCd:1100, xp:8, gold:[2,6], color:0xcac2ad, cloak:0x3a2b2b, accent:0xb3212f, scale:0.92, ranged:false },
+  cultist:{ sprite:'cultist', h:2.6, rows:46, hp:16, speed:2.6, dmg:[4,8], range:10.5, aggro:15, atkCd:1900, xp:11, gold:[3,7], color:0x6a5a86, cloak:0x241c33, accent:0x9a7bf0, scale:0.98, ranged:true },
+  brute:{ sprite:'brute', h:3.3, rows:50, hp:46, speed:2.1, dmg:[7,12], range:2.4, aggro:12, atkCd:1500, xp:20, gold:[6,12], color:0x8a6a4a, cloak:0x33261c, accent:0xd9843a, scale:1.35, ranged:false }
 };
-var BOSS_TYPE = { sprite:'guardian', h:5.4, hp:240, speed:1.7, dmg:[8,13], range:3.0, aggro:30, atkCd:1500, xp:140, gold:[60,90], color:0x5a3350, cloak:0x1c1420, accent:0xe2483f, scale:2.4, ranged:false };
+var BOSS_TYPE = { sprite:'guardian', h:5.4, rows:64, hp:240, speed:1.7, dmg:[8,13], range:3.0, aggro:30, atkCd:1500, xp:140, gold:[60,90], color:0x5a3350, cloak:0x1c1420, accent:0xe2483f, scale:2.4, ranged:false };
 
 function makeHpBarEl(isBoss){
   var wrap=document.createElement('div');
@@ -554,7 +661,7 @@ function spawnMonster(typeKey, isBoss){
   var ang = Math.random()*Math.PI*2;
   var rad = isBoss ? 20 : (18+Math.random()*7);
   var x = Math.cos(ang)*rad, z = Math.sin(ang)*rad;
-  var mesh = buildSpriteChar(t.sprite, t.h);
+  var mesh = buildVoxelChar(t.sprite, t.h, t.rows);
   mesh.position.set(x,0,z);
   scene.add(mesh);
   var blob = addBlobShadow(isBoss?1.9:(t.h>3?1.15:0.8));
@@ -771,7 +878,7 @@ function onPointerDown(e){
       var d = Math.sqrt(p.x*p.x+p.z*p.z);
       if(d>ARENA_R-1){ var sc=(ARENA_R-1)/d; p.x*=sc; p.z*=sc; }
       moveTarget = p; attackTarget=null;
-      marker.position.set(p.x,0.04,p.z); marker.visible=true;
+      marker.position.set(p.x,heightAt(p.x,p.z)+0.05,p.z); marker.visible=true;
       marker.scale.set(1,1,1);
     }
   }
@@ -884,21 +991,21 @@ function updatePlayer(dt){
     if(r>ARENA_R-0.6){ var sc=(ARENA_R-0.6)/r; player.position.x*=sc; player.position.z*=sc; }
     collideObstacles(player.position, 0.5);
     faceTowards(player.position.clone().add(moveVec));
-    setFlipByDir(player, moveVec);
     walkPhase += dt*11;
-    player.userData.plane.position.y = player.userData.h/2 + Math.abs(Math.sin(walkPhase))*0.14;
-    player.userData.plane.rotation.z = Math.sin(walkPhase)*0.06;
+    player.userData.pivot.position.y = Math.abs(Math.sin(walkPhase))*0.15;
+    player.userData.pivot.rotation.z = Math.sin(walkPhase)*0.08;
   } else {
-    player.userData.plane.position.y += (player.userData.h/2 - player.userData.plane.position.y)*0.3;
-    player.userData.plane.rotation.z *= 0.8;
+    player.userData.pivot.position.y *= 0.7;
+    player.userData.pivot.rotation.z *= 0.8;
   }
-  faceCamera(player);
+  player.position.y = heightAt(player.position.x, player.position.z);
+  turnTo(player, playerFacing, dt, 14);
 
   if(attackAnimT>=0){
     attackAnimT += dt;
     var tt = attackAnimT/0.28;
-    if(tt>=1){ attackAnimT=-1; player.userData.plane.rotation.z = 0; }
-    else { player.userData.plane.rotation.z = -Math.sin(tt*Math.PI)*0.35*player.userData.flip; }
+    if(tt>=1){ attackAnimT=-1; player.userData.pivot.rotation.x = 0; }
+    else { player.userData.pivot.rotation.x = Math.sin(tt*Math.PI)*0.45; }
   }
   checkPortal();
 
@@ -926,7 +1033,6 @@ function updatePlayer(dt){
 function performMeleeAttack(m){
   attackAnimT = 0;
   var sd = m.mesh.position.clone().sub(player.position); sd.y=0; sd.normalize();
-  setFlipByDir(player, sd);
   slashEffect(player.position, sd);
   var isCrit = Math.random()<0.16;
   var dmg = randInt(state.atkMin, state.atkMax) * (isCrit?2:1);
@@ -941,9 +1047,9 @@ function updateMonsters(dt){
       if(m.deathT>=0){
         m.deathT += dt;
         var s = Math.max(0, 1-m.deathT/0.6);
-        m.mesh.userData.mat.opacity = s;
-        m.mesh.userData.plane.rotation.z = (1-s)*1.2*m.mesh.userData.flip;
-        m.mesh.position.y = -m.deathT*0.5;
+        m.mesh.userData.mat.transparent = true; m.mesh.userData.mat.opacity = s;
+        m.mesh.userData.pivot.rotation.x = -(1-s)*1.4;
+        m.mesh.position.y = heightAt(m.mesh.position.x, m.mesh.position.z) - m.deathT*0.5;
         if(m.blob) m.blob.material.opacity = s;
         if(m.deathT>0.6){
           scene.remove(m.mesh);
@@ -974,13 +1080,13 @@ function updateMonsters(dt){
           var dd=Math.sqrt(dx*dx+dz*dz);
           if(dd<0.9 && dd>0.001){ m.mesh.position.x += dx/dd*0.02; m.mesh.position.z += dz/dd*0.02; }
         });
-        setFlipByDir(m.mesh, dir);
-        var wp = (m.mesh.userData.walk += dt*(m.isBoss?5:8));
-        m.mesh.userData.plane.position.y = m.h/2 + Math.abs(Math.sin(wp))*(m.isBoss?0.12:0.1);
-        m.mesh.userData.plane.rotation.z = Math.sin(wp)*0.05;
+        turnTo(m.mesh, Math.atan2(dir.x, dir.z), dt, 8);
+        var wp = (m.mesh.userData.walk = (m.mesh.userData.walk||0) + dt*(m.isBoss?5:8));
+        m.mesh.userData.pivot.position.y = Math.abs(Math.sin(wp))*(m.isBoss?0.14:0.12);
+        m.mesh.userData.pivot.rotation.z = Math.sin(wp)*0.07;
       } else {
         m.aiState='attack';
-        setFlipByDir(m.mesh, toP);
+        turnTo(m.mesh, Math.atan2(toP.x, toP.z), dt, 10);
         var now = performance.now();
         if(now - m.lastAtk > m.atkCd){
           m.lastAtk = now;
@@ -995,11 +1101,11 @@ function updateMonsters(dt){
       }
     }
 
-    if(m.hitFlashT>0){ m.mesh.userData.mat.color.setRGB(2.2,1.4,1.3); }
-    else { m.mesh.userData.mat.color.setRGB(0.92,0.9,0.95); }
+    if(m.hitFlashT>0){ m.mesh.userData.mat.emissive.setRGB(0.85,0.3,0.25); }
+    else { m.mesh.userData.mat.emissive.setHex(0x1a1622); }
+    m.mesh.position.y = heightAt(m.mesh.position.x, m.mesh.position.z);
     var lg = m.mesh.userData.lunge||0;
-    if(lg>0){ m.mesh.userData.lunge = Math.max(0,lg-dt); m.mesh.userData.plane.rotation.z = -Math.sin((0.25-lg)/0.25*Math.PI)*0.25*m.mesh.userData.flip; }
-    faceCamera(m.mesh);
+    if(lg>0){ m.mesh.userData.lunge = Math.max(0,lg-dt); m.mesh.userData.pivot.rotation.x = Math.sin((0.25-lg)/0.25*Math.PI)*0.4; }
   });
 
   // spawn logic (층마다 다르게)
@@ -1033,6 +1139,7 @@ function openPortal(){
   var beam = new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.25,7,24,1,true), beamMat); beam.position.y=3.5;
   var light = new THREE.PointLight(0xffd98a, 2.4, 12, 2); light.position.y = 1.5;
   g.add(ring, beam, light);
+  g.position.y = DAIS_H;
   scene.add(g);
   portal = { group:g, ring:ring, beam:beam };
   bossBanner('아래층으로 가는 계단 빛이 열렸다');
@@ -1056,7 +1163,7 @@ function setFloor(n){
   if(portal){ scene.remove(portal.group); portal=null; }
   var F = FLOORS[n];
   scene.background.setHex(F.bg); scene.fog.color.setHex(F.fog);
-  groundMat.color.setHex(F.ground);
+  slabMat.color.setHex(F.ground);
   rune.material.color.setHex(F.rune); rune2.material.color.setHex(F.rune);
   spawnTimer = 1.2;
   refreshFloorHud();
@@ -1162,11 +1269,11 @@ function animateAtmosphere(t){
 
 var lastTime = performance.now();
 function updateBlobs(){
-  playerBlob.position.x = player.position.x; playerBlob.position.z = player.position.z;
+  playerBlob.position.set(player.position.x, player.position.y+0.03, player.position.z);
   monsters.forEach(function(m){
     if(!m.blob) return;
     if(m.dead){ return; }
-    m.blob.position.x = m.mesh.position.x; m.blob.position.z = m.mesh.position.z;
+    m.blob.position.set(m.mesh.position.x, heightAt(m.mesh.position.x, m.mesh.position.z)+0.03, m.mesh.position.z);
   });
 }
 
@@ -1242,7 +1349,7 @@ $('againbtn').addEventListener('click', function(){
 $('slotfire').addEventListener('click', function(e){ e.stopPropagation(); tryFireball(); });
 $('slotpotion').addEventListener('click', function(e){ e.stopPropagation(); usePotion(); });
 
-if(/[?&]debug/.test(location.search)) window.__ah = { state:state, monsters:monsters, player:player, camera:camera, killMonster:killMonster, descend:descend, spawnMonster:function(a,b){ return spawnMonster(a,b); }, damagePlayer:damagePlayer };
+if(/[?&]debug/.test(location.search)) window.__ah = { camOffset:camOffset, state:state, monsters:monsters, player:player, camera:camera, killMonster:killMonster, descend:descend, spawnMonster:function(a,b){ return spawnMonster(a,b); }, damagePlayer:damagePlayer };
 resize();
 setFloor(1);
 loop();
