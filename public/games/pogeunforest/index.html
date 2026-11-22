@@ -160,7 +160,12 @@
   #alarm.show{ display:block; }
   @keyframes alarmPulse{ 0%,100%{ transform:translateX(-50%) scale(1); } 50%{ transform:translateX(-50%) scale(1.06); background:#ff8a6a; } }
   #cv{ image-rendering:pixelated; }
-  #namerow{ font-family:'Jua',sans-serif; font-size:15px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+  #namerow{ display:flex; align-items:center; gap:8px; font-family:'Jua',sans-serif; color:var(--ink); max-width:230px; }
+  #namerow .meface{ position:relative; overflow:hidden; width:48px; height:48px; flex:none; border:2px solid var(--ink); border-radius:12px; background:linear-gradient(#cfeaff,#fff6e0); display:flex; align-items:center; justify-content:center; font-size:24px; }
+  #namerow .meface img{ position:absolute; width:190%; max-width:none; left:-45%; top:-4%; image-rendering:pixelated; }
+  #namerow .mename{ display:flex; flex-direction:column; line-height:1.15; min-width:0; }
+  #namerow .mename b{ font-weight:normal; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #namerow .mename small{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
   #skycv{ width:96px; height:42px; border:2px solid var(--ink); border-radius:10px; display:block; image-rendering:auto; flex:none; }
   .skyrow{ display:flex; align-items:center; gap:8px; }
   .skyrow .daycol{ display:flex; flex-direction:column; gap:2px; font-family:'Jua',sans-serif; font-size:14px; }
@@ -184,7 +189,7 @@
   #chatlog .cl{ background:rgba(255,253,246,.92); border:2px solid var(--line); border-radius:10px; padding:3px 9px; font-size:12.5px; color:var(--ink); }
   #chatlog .cl b{ font-family:'Jua',sans-serif; font-weight:normal; color:#2e5f8c; margin-right:3px; }
   #chatlog .cl.me b{ color:#b07a12; }
-  @media (max-width:640px){ #weaponbar{ right:8px; bottom:76px; gap:5px; } .wbtn{ width:50px; height:50px; } .wbtn .wi{ font-size:19px; } #chatlog{ bottom:76px; } #namerow{ font-size:13px; max-width:150px; } #skycv{ width:78px; height:34px; } }
+  @media (max-width:640px){ #weaponbar{ right:8px; bottom:76px; gap:5px; } .wbtn{ width:50px; height:50px; } .wbtn .wi{ font-size:19px; } #chatlog{ bottom:76px; } #namerow{ max-width:160px; } #namerow .meface{ width:38px; height:38px; } #namerow .mename b{ font-size:15px; } #skycv{ width:78px; height:34px; } }
   @media (max-width:640px){
     .title-xl{ font-size:40px; }
     .starlbl{ display:none; }
@@ -2565,15 +2570,22 @@ function closeChat(){ chatOpen=false; $('chatbar').classList.remove('show'); $('
    ===================================================================== */
 var lastLookKey=null, lastToastLook=null;
 function readMyLook(){
+  /* 타자팡 '내 계정' 옷장과 똑같이: 선생님 → taja_master_outfit, 타자팡 회원 → taja_member_dress, 모아팡 학생 → moa_session */
   function J(k){ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } }
   var cur=J('typang_current_user'), mem=J('taja_member_dress'), ses=J('moa_session'), look=null, nm=null, src='';
-  var m=cur && cur.id && /^m_([A-Za-z0-9]+)_(n_.+)$/.exec(String(cur.id));
-  if(m){ if(m[1]==='tajapang' && mem && mem.key===m[2]){ look=mem.outfit; nm=mem.name; src='member'; } else if(ses && ses.cid===m[1] && ses.key===m[2]){ look=ses.outfit; nm=ses.name; src='moa'; } }
-  if(!src){ if(mem && mem.outfit){ look=mem.outfit; nm=mem.name; src='member'; } else if(ses && ses.outfit){ look=ses.outfit; nm=ses.name; src='moa'; } }
-  if(!nm) nm=(cur && cur.role!=='master' && cur.name) || (mem && mem.name) || (ses && ses.name) || null;
-  return { look: look && typeof look==='object' ? look : null, name: nm ? String(nm).slice(0,10) : null, src: src || (mem?'member':'moa') };
+  var master = cur && (cur.role==='master' || cur.id==='master_admin');
+  var m = cur && cur.id && /^m_([A-Za-z0-9]+)_(.+)$/.exec(String(cur.id));
+  if(master){ look=J('taja_master_outfit'); nm=cur.name||'선생님'; src='master'; }
+  else if(m && m[1]==='tajapang'){ if(mem && (!mem.key || mem.key===m[2])){ look=mem.outfit; } nm=cur.name||(mem&&mem.name); src='member'; }
+  else if(m){ if(ses && (!ses.cid || ses.cid===m[1])){ look=ses.outfit; } nm=cur.name||(ses&&ses.name); src='moa'; }
+  else if(ses && (ses.outfit || ses.name)){ look=ses.outfit; nm=ses.name; src='moa'; }
+  else if(mem && (mem.outfit || mem.name)){ look=mem.outfit; nm=mem.name; src='member'; }
+  return { look: look && typeof look==='object' ? look : null, name: nm ? String(nm).slice(0,10) : null, src: src||'moa' };
 }
-function refreshName(){ var el=$('namerow'); if(el) el.textContent='🙂 '+(NET.name&&NET.name!=='친구'?NET.name+'의 농장':'나의 농장'); }
+function refreshName(){
+  var el=$('namerow'); if(!el) return; var has=NET.name && NET.name!=='친구';
+  el.innerHTML=(PORTRAIT.me?'<span class="meface"><img src="'+PORTRAIT.me+'" alt=""></span>':'<span class="meface empty">🙂</span>')+'<span class="mename"><b>'+esc(has?NET.name:'나')+'</b><small>'+(has?'의 포근숲 농장':'의 포근숲 농장')+'</small></span>';
+}
 function applyMyLook(announce){
   var r=readMyLook(), key=JSON.stringify(r.look||null);
   if(r.name && r.name!==NET.name){ NET.name=r.name; refreshName(); if(NET.room && NET.fb){ var F0=NET.fb; F0.D.update(F0.D.ref(F0.db, NET.base+'/players/'+NET.uid), { name:NET.name }).catch(function(){}); } }
@@ -2582,7 +2594,7 @@ function applyMyLook(announce){
   MY_LOOK=r.look;
   if(!MOA || !player) return;
   MOA.ensureMany([r.look]).then(function(){
-    try{ player.av.sheet=MOA.sheet(r.look); player.av.look=r.look; PORTRAIT.me=MOA.thumb(r.look,200).toDataURL('image/png'); }catch(e){}
+    try{ player.av.sheet=MOA.sheet(r.look); player.av.look=r.look; PORTRAIT.me=MOA.thumb(r.look,200).toDataURL('image/png'); refreshName(); }catch(e){}
     if((!first || announce) && lastToastLook!==key){ lastToastLook=key; toast('👕 새 옷으로 갈아입었어요!', true); puff(inHome?{ x:home.x, y:home.y }:player, 14, 1); playerAct('cheer'); }
     if(NET.room && NET.fb){ var F=NET.fb; F.D.update(F.D.ref(F.db, NET.base+'/players/'+NET.uid), { look:r.look, name:NET.name }).catch(function(){}); }
   });
@@ -2592,7 +2604,7 @@ function openDressPage(){
   window.open(url, '_blank');
   toast('👕 새 창에서 옷을 바꾸고 「다 꾸몄어요」를 누르면 여기 캐릭터도 바로 바뀌어요');
 }
-window.addEventListener('storage', function(e){ if(!e.key || e.key==='moa_session' || e.key==='taja_member_dress' || e.key==='typang_current_user') applyMyLook(); });
+window.addEventListener('storage', function(e){ if(!e.key || e.key==='moa_session' || e.key==='taja_member_dress' || e.key==='typang_current_user' || e.key==='taja_master_outfit') applyMyLook(); });
 window.addEventListener('moa-outfit-changed', function(){ applyMyLook(); });
 window.addEventListener('focus', function(){ applyMyLook(); });
 document.addEventListener('visibilitychange', function(){ if(!document.hidden) applyMyLook(); });
