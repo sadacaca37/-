@@ -963,7 +963,7 @@ export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
       <div className="flex flex-col items-center sm:items-start gap-2.5">
         <img src="./assets/brand/tajapang_word.webp" alt="타자팡" className="tp-footer-word" draggable={false} />
         <div className="tp-footer-credit">
-          <span className="tp-footer-faint">김은경</span>
+          <span className="tp-footer-faint">Created by Eunkyung Kim</span>
           <span className="tp-footer-faint" aria-hidden="true">·</span>
           <a className="tp-footer-faint" href="mailto:sadacaca@naver.com">sadacaca@naver.com</a>
           {isMaster && onOpenMaster && (
@@ -974,7 +974,7 @@ export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
             </>
           )}
         </div>
-        <div className="tp-footer-copy">© 2026 TAPANG · INSERT COIN TO CONTINUE</div>
+        <div className="tp-footer-copy">© 2026 MOAPANG STUDIO · ALL RIGHTS RESERVED</div>
       </div>
     </div>
   </footer>
