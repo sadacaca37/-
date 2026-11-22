@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -189,6 +189,15 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     icon: '⚔️',
     description: '졸라맨 제다이와 시스의 광선검 대결 · 컴퓨터 대결 · 한 컴퓨터 2인 · 👥 2인 대결(각자 컴퓨터)',
     component: LightsaberDuelGame,
+  },
+  {
+    id: 'app-flamesquad',
+    title: '불꽃 특공대',
+    category: '펀펀',
+    icon: '🔥',
+    thumb: './assets/playground/thumb-flamesquad.webp',
+    description: '총·수류탄·메카로 싸우며 나아가는 옆으로 가는 액션 슈팅 · 스테이지 5개 · 보스전 (사격 E · 점프 X · 수류탄 C)',
+    component: FlameSquadGame,
   },
 ];
 

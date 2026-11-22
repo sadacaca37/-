@@ -20,3 +20,8 @@ export const BaramIslandGame: React.FC<{ onBack?: () => void }> = () => (
 export const LightsaberDuelGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/lightsaber/index.html" title="광선검 결투" icon="⚔️" />
 );
+
+/** 불꽃 특공대 – 옆으로 가는 액션 슈팅, 스테이지 5개 (public/games/flamesquad, 한 파일에 모두 들어 있음) */
+export const FlameSquadGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/flamesquad/index.html" title="불꽃 특공대" icon="🔥" />
+);
