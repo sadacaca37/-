@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MoaCharacter, MoaWalker, dressUrl } from './MoaCharacter';
+import { MoaCharacter, MoaWalker } from './MoaCharacter';
+import { CharacterDresser } from './CharacterDresser';
 import { TvBot } from './views/TapangHome';
 import {
   X,
@@ -238,8 +239,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
               )}
 
+              {/* 모아팡과 같은 캐릭터 꾸미기 (옷장) */}
+              <section className="pf-card bg-white rounded-3xl p-4 sm:p-5 border-2 border-slate-200 shadow-sm" data-testid="dress-section">
+                <h3 className="text-lg font-black text-slate-900 mb-3">👕 캐릭터 꾸미기 <span className="text-xs font-bold text-slate-400">모아팡과 같은 옷장이에요</span></h3>
+                <CharacterDresser user={currentUser} />
+              </section>
+
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
-                {/* 왼쪽: 내 캐릭터 + 캐릭터 꾸미기 */}
+                {/* 왼쪽: 내 캐릭터 */}
                 <div className="pf-card pf-card--id md:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-sm flex flex-col items-center text-center gap-3">
                   <div className="pf-avatar relative w-36 h-36 rounded-2xl bg-gradient-to-b from-sky-100 to-indigo-100 border-2 border-sky-200 flex items-center justify-center shadow-inner">
                     {currentUser.role === 'master' ? (
@@ -254,16 +261,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       {currentUser.role === 'master' ? '선생님(마스터) 계정' : `${currentUser.grade || editGrade}학년 · ${currentUser.studentId || '타자팡 회원'}`}
                     </p>
                   </div>
-                  {currentUser.role !== 'master' && (
-                    <a
-                      href={dressUrl()}
-                      data-testid="go-dress"
-                      className="w-full py-3 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white text-base font-black shadow-sm border-2 border-pink-600 no-underline"
-                      title="모아팡 캐릭터 꾸미기에서 옷을 입혀요. 다 꾸미면 타자팡으로 돌아와요"
-                    >
-                      👕 모아팡 캐릭터 꾸미기
-                    </a>
-                  )}
                   <div className="w-full grid grid-cols-3 gap-2">
                     <div className="pf-stat pf-stat--sky p-2.5 bg-sky-50 rounded-2xl border border-sky-200">
                       <span className="text-[10px] font-extrabold text-sky-600 block">최고 타수</span>

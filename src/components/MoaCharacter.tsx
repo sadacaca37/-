@@ -9,7 +9,7 @@ import { getMemberDress, getMoaSession, MEMBER_CID } from '../utils/moaFirebase'
 const MOA_ROOT = '../';
 let loader: Promise<any> | null = null;
 
-function loadAvatarLib(): Promise<any> {
+export function loadAvatarLib(): Promise<any> {
   const w = window as any;
   if (w.MoaAvatar) return Promise.resolve(w.MoaAvatar);
   if (!loader)
@@ -39,7 +39,23 @@ function isMemberNow(): boolean {
 }
 
 /** 지금 학생의 옷차림 (타자팡 회원이면 회원 옷, 모아팡 방번호로 들어왔으면 모아팡 옷) */
+export const MASTER_OUTFIT_KEY = 'taja_master_outfit';
+function isMasterUser(): boolean {
+  try {
+    const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+    return !!u && (u.role === 'master' || u.id === 'master_admin');
+  } catch {
+    return false;
+  }
+}
 export function currentOutfit(): any | null {
+  if (isMasterUser()) {
+    try {
+      return JSON.parse(localStorage.getItem(MASTER_OUTFIT_KEY) || 'null');
+    } catch {
+      return null;
+    }
+  }
   if (isMemberNow()) return getMemberDress()?.outfit || null;
   return getMoaSession()?.outfit || null;
 }
