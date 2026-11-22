@@ -26,6 +26,8 @@ import {
 import { AppMode, UserSession } from '../types';
 import { pointsManager, MASTER_POINTS } from '../utils/pointsManager';
 import { longUnlocked, SHORT_TO_LONG_CPM } from '../utils/longGate';
+import { myTier } from '../utils/speedTier';
+import { PixelIcon } from './views/TapangHome';
 import { soundManager } from '../utils/sound';
 import { MoaCharacter } from './MoaCharacter';
 
@@ -126,6 +128,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, [currentUser]);
 
+  // 계정 버튼 앞 그림: 내 타자 등급 (선생님은 왕관, 로그인 전은 웃는 얼굴)
+  const tier = currentUser?.role === 'master' ? { emoji: '👑', title: '선생님' } : currentUser ? myTier(currentUser.id) : { emoji: '🙂', title: '' };
+
   const navItems = [
     { mode: 'key-practice' as AppMode, label: '자리 연습', icon: Keyboard, color: 'sky' },
     { mode: 'word-practice' as AppMode, label: '낱말 연습', icon: BookOpen, color: 'mint' },
@@ -187,8 +192,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="내 계정 (캐릭터 꾸미기 · 내 정보 · 타자 기록 · 성적표)"
                 data-testid="nav-records"
               >
-                <User className="w-3.5 h-3.5 text-purple-600" />
-                <span>계정</span>
+                <span className="tp-tier-badge" title={tier.title} aria-hidden="true">{tier.emoji}</span>
+                <span className="flex flex-col items-start leading-none">
+                  <span>계정</span>
+                  {currentUser && <span className="tp-tier-name">{tier.title}</span>}
+                </span>
               </button>
             )}
 
@@ -232,7 +240,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="tp-nbtn tp-nbtn--neon relative px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm border-2 cursor-pointer bg-pink-500 text-white border-pink-600 arcade-btn-pink"
                 title="마스터(선생님) 관리실 - 학생 승인 & 비밀번호 조회"
               >
-                <Crown className="w-4 h-4 text-amber-400" />
+                <PixelIcon name="crown" size={24} />
                 <span className="hidden sm:inline">마스터 관리실</span>
                 {pendingStudentsCount > 0 && (
                   <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[10px] font-black animate-bounce shadow-xs">
@@ -253,9 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="tp-nbtn tp-nbtn--coin px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-100 hover:from-yellow-100 hover:to-amber-200 text-amber-950 border-2 border-yellow-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 group"
               title="내 포인트 (클릭하여 내 프로필 확인)"
             >
-              <div className="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-500 flex items-center justify-center text-xs shadow-2xs group-hover:rotate-12 transition-transform">
-                🪙
-              </div>
+              <PixelIcon name="coin" size={26} className="group-hover:rotate-12 transition-transform" />
               <div className="flex flex-col text-left">
                 <span className="text-[9px] sm:text-[10px] font-black text-amber-800 leading-none">
                   포인트
@@ -305,24 +311,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* User Profile / Login */}
             {currentUser ? (
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => onOpenProfile('account')}
-                  className="tp-nbtn tp-nbtn--wood flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-200 transition-all text-xs font-bold cursor-pointer"
-                  title="내 계정 정보(이름/전화번호) & 4자리 비밀번호 확인/수정"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-white border border-sky-200 shadow-2xs flex items-center justify-center text-lg leading-none">
-                    {currentUser.role === 'master' ? '👑' : <MoaCharacter size={30} fallback={currentUser.avatar || '🙂'} />}
-                  </div>
-                  <div className="text-left hidden sm:block">
-                    <span className="font-extrabold text-slate-800 block leading-tight">
-                      {currentUser.name}
-                    </span>
-                    <span className="text-[10px] text-sky-600 font-bold">
-                      {currentUser.role === 'master' ? '👑 마스터' : (currentUser.levelTitle || '타자 꿈나무')}
-                    </span>
-                  </div>
-                </button>
-
                 <button
                   onClick={onLogout}
                   className="tp-nbtn tp-nbtn--red p-2 sm:p-2.5 rounded-2xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border-2 border-slate-200 hover:border-rose-200 transition-all text-xs font-bold cursor-pointer"

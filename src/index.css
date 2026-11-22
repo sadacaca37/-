@@ -4209,3 +4209,7 @@ body:has(.tp-typing-screen) .tp-result-big * {
 .cd-sw { width: 34px; height: 34px; border: 3px solid #1b2340; border-radius: 6px; cursor: pointer; padding: 0; }
 .cd-sw.is-on { box-shadow: 0 0 0 3px #fff, 0 0 0 6px #38b6ff; }
 .cd-sw.orig { background: conic-gradient(#d24b4b, #e6c34a, #4caf6e, #3f7fd1, #9a5bd0, #d24b4b); }
+
+/* 위쪽 '계정' 버튼: 앞에 내 타자 등급 그림 */
+.tp-tier-badge { display: inline-grid; place-items: center; width: 30px; height: 30px; font-size: 20px; line-height: 1; border-radius: 8px; background: #e9f7ff; border: 2px solid #1b2340; box-shadow: 0 2px 0 #1b2340; }
+.tp-nbtn .tp-tier-name, .tp-tier-name { font-size: 10px; font-weight: 800; color: #e8559a !important; margin-top: 2px; white-space: nowrap; }
