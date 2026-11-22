@@ -215,3 +215,93 @@ export function errText(e: any): string {
 
 /** 한국 시간 기준 달 '2026-11' */
 export const kstMonth = (ts: number = Date.now()) => new Date(ts + 9 * 3600 * 1000).toISOString().slice(0, 7);
+
+/* ---------------- 타자팡 회원 (이름 + 전화번호, 선생님 승인) ----------------
+ * - 모아팡 방번호로 들어오면 연습만 하고(저장 안 함), 미니게임·놀이터·기록 저장은 타자팡 회원 로그인 뒤에
+ * - 회원 기록은 모아팡 학생 기록과 같은 모양으로 classes/tajapang/students/{key} 에 둠 (지금 규칙 그대로 씀)
+ *   · key = 이름+전화번호를 섞어 만든 값 → 이름과 전화번호를 아는 사람만 찾을 수 있음
+ * - 선생님이 승인(config/taja_approved)해야 로그인 가능
+ */
+export const MEMBER_CID = 'tajapang';
+export const MEMBER_CLASS = '타자팡 회원';
+export const phoneDigits = (s: string) => {
+  let d = String(s || '').replace(/[^0-9]/g, '');
+  if (/^1[0-9]{9}$/.test(d)) d = '0' + d;
+  return d;
+};
+export const prettyPhone = (s: string) => {
+  const d = phoneDigits(s);
+  return d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : d;
+};
+export async function memberKey(name: string, phone: string): Promise<string> {
+  const text = `${cleanName(name).replace(/\s+/g, '')}|${phoneDigits(phone)}`;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  const hex = Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return 'n_t' + hex.slice(0, 30);
+}
+const memberRef = (key: string) => doc(fs, 'classes', MEMBER_CID, 'students', key);
+const memberSession = (key: string, v: any, approved: boolean): UserSession => {
+  const taja = v?.taja || {};
+  const s: MoaSession = { cid: MEMBER_CID, room: '', className: taja.className || MEMBER_CLASS, name: String(v?.name || ''), key };
+  return { ...studentSession(s, taja, approved), parentPhone: taja.phone ? prettyPhone(taja.phone) : undefined };
+};
+const checkInput = (name: string, phone: string) => {
+  if (!cleanName(name)) return '이름을 써 주세요.';
+  if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits(phone))) return '전화번호를 010-0000-0000 처럼 써 주세요.';
+  return '';
+};
+
+/** 새로 가입하기: 승인 대기로 만듦 */
+export async function signupMember(rawName: string, phone: string, grade = 0): Promise<{ ok: boolean; message: string }> {
+  const bad = checkInput(rawName, phone);
+  if (bad) return { ok: false, message: bad };
+  const name = cleanName(rawName);
+  const u = await ensureUser();
+  const key = await memberKey(name, phone);
+  const snap = await getDoc(memberRef(key));
+  if (snap.exists()) {
+    const ok = await approvedByTeacher(userIdOf(MEMBER_CID, key));
+    return { ok: false, message: ok ? '이미 가입했어요. [로그인]에서 이름과 전화번호로 들어오세요.' : '이미 가입 신청을 했어요. 선생님이 승인하면 로그인할 수 있어요.' };
+  }
+  const taja: Record<string, any> = { phone: phoneDigits(phone), className: MEMBER_CLASS };
+  if (grade >= 1 && grade <= 6) {
+    taja.grade = grade;
+    taja.levelTitle = `${grade}학년 타자 꿈나무`;
+  }
+  await setDoc(memberRef(key), { name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), taja });
+  return { ok: true, message: `가입 신청 완료! 선생님이 승인하면 '${name}' 이름과 전화번호로 로그인할 수 있어요.` };
+}
+
+/** 로그인: 이름 + 전화번호, 승인된 회원만 */
+export async function loginMember(rawName: string, phone: string): Promise<{ ok: boolean; message?: string; user?: UserSession }> {
+  const bad = checkInput(rawName, phone);
+  if (bad) return { ok: false, message: bad };
+  const u = await ensureUser();
+  const key = await memberKey(rawName, phone);
+  const snap = await getDoc(memberRef(key));
+  if (!snap.exists()) return { ok: false, message: '가입한 기록이 없어요. 이름과 전화번호를 확인하거나 [새로 가입하기]를 해 주세요.' };
+  if (!(await approvedByTeacher(userIdOf(MEMBER_CID, key)))) return { ok: false, message: '아직 선생님 승인 전이에요. 선생님께 승인해 달라고 말씀드려 주세요.' };
+  const v = snap.data() as any;
+  // 이 컴퓨터를 '지금 쓰는 기기'로 (그래야 내 연습 자료를 읽고 저장할 수 있음)
+  if (v.uid !== u.uid) await setDoc(memberRef(key), { name: v.name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
+  else await setDoc(memberRef(key), { name: v.name, seen: serverTimestamp() }, { merge: true });
+  return { ok: true, user: memberSession(key, v, true) };
+}
+
+/** 저장된 로그인으로 다시 들어오기 (승인이 풀렸으면 null) */
+export async function reloadMember(userId: string): Promise<UserSession | null> {
+  const p = parseUserId(userId);
+  if (!p || p.cid !== MEMBER_CID) return null;
+  try {
+    const u = await ensureUser();
+    const snap = await getDoc(memberRef(p.key));
+    if (!snap.exists() || !(await approvedByTeacher(userId))) return null;
+    const v = snap.data() as any;
+    if (v.uid !== u.uid) await setDoc(memberRef(p.key), { name: v.name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
+    return memberSession(p.key, v, true);
+  } catch {
+    return null;
+  }
+}

@@ -80,8 +80,8 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   }, [selectedCatId, isRandomOrder, currentCategory]);
 
   const activeWords = isRandomOrder && shuffledWords.length > 0 ? shuffledWords : currentCategory.words;
-  // 한 세트 = 낱말 20개 (선생님 요청)
-  const TOTAL_TRIALS = 20;
+  // 한 세트 = 낱말 40개 (선생님 요청)
+  const TOTAL_TRIALS = 40;
 
   const trialWords = useMemo(() => {
     const list = [...activeWords];
@@ -499,9 +499,9 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
         {/* Course, Language & Reset Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* 한 세트 = 낱말 20개 */}
+          {/* 한 세트 = 낱말 40개 */}
           <div className="pr-wood-group flex items-center gap-0.5">
-            <span className="pr-wood-tab pr-wood-tab--green px-2.5 py-1 text-xs sm:text-sm whitespace-nowrap">한 세트 20개</span>
+            <span className="pr-wood-tab pr-wood-tab--green px-2.5 py-1 text-xs sm:text-sm whitespace-nowrap">한 세트 40개</span>
           </div>
 
           <div className="pr-wood-group flex items-center gap-0.5">

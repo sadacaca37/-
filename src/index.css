@@ -4031,3 +4031,12 @@ body:has(.tp-typing-screen) .tp-result-big * {
 }
 .rp-woodbar h2, .rp-woodbar h2 span { color: #ffd700 !important; text-shadow: 2px 2px 0 #3a1a0c; }
 .rp-woodbar p { color: #fdf0c8 !important; }
+
+/* ---------- 대표 로고: 타자팡 · 모아팡 나란히 ---------- */
+.tp-brand-icon { width: 46px; height: 46px; border-radius: 12px; image-rendering: pixelated; box-shadow: 0 4px 0 rgba(26, 14, 6, 0.55); transition: transform 0.15s; }
+@media (max-width: 639px) { .tp-brand-icon { width: 36px; height: 36px; } }
+.tp-brand:hover .tp-brand-icon { transform: translateY(-2px) rotate(-3deg); }
+.tp-brand-sep { color: #ffd700; font-size: 18px; text-shadow: 1px 1px 0 #3a1a0c; }
+.tp-brand-moa .tp-moa-a { color: #1f7a4d; }
+.tp-brand-moa .tp-moa-b { color: #f97316; }
+.tp-brand--moa:hover .tp-brand-moa { filter: brightness(1.1); }

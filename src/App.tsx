@@ -10,7 +10,8 @@ import { refreshMyApproval } from './utils/tajaApproval';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
-import { authReady, getMoaSession, isTeacherUser, loadStudent, parseUserId, pickTaja, teacherSession } from './utils/moaFirebase';
+import { ReportArrivalToasts } from './components/ReportArrivalToasts';
+import { authReady, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
@@ -162,10 +163,14 @@ const readInitialUser = (): UserSession | null => {
   }
 };
 
+const LOGIN_MODES = new Set<string>(['mini-games', 'tamagotchi', 'mole-game', 'rain-game', 'word-crush', 'shortcut-quiz', 'playground']);
+
 export default function App() {
   const [currentMode, setCurrentMode] = useState<AppMode>(getInitialMode);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(readInitialUser);
   const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
+  // 미니게임·놀이터는 타자팡 회원 로그인 뒤에만
+  const loginGate = !currentUser && LOGIN_MODES.has(currentMode);
 
   // 오늘의 연습 보고 상태: 학생 = 보냈는지/선생님이 확인했는지, 선생님 = 새 보고 수 (팝업 연습 창에서는 생략)
   useEffect(() => {
@@ -275,7 +280,8 @@ export default function App() {
         setIsAuthOpen(true);
       });
 
-      // 2. 지금 사용자: 모아팡에서 들어온 학생 / 모아팡 선생님 계정이면 저절로 로그인
+      // 2. 지금 사용자: 선생님 계정 / 이 컴퓨터에 로그인해 둔 타자팡 회원(이름+전화번호)
+      //    모아팡 방번호로만 들어온 학생은 로그인 없이 연습만 (저장 안 함, 미니게임·놀이터는 로그인 뒤에)
       const startSession = (u: UserSession) => {
         setCurrentUser(u);
         localStorage.setItem('typang_current_user', JSON.stringify(u));
@@ -289,8 +295,9 @@ export default function App() {
       try {
         savedUser = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
       } catch {}
-      // 예전(전화번호) 방식으로 저장된 로그인은 버림
-      if (savedUser && savedUser.id !== 'master_admin' && !parseUserId(savedUser.id)) {
+      const p0 = savedUser && savedUser.id !== 'master_admin' ? parseUserId(savedUser.id) : null;
+      // 타자팡 회원이 아닌 예전 로그인(모아팡 방번호 학생 등)은 버림
+      if (savedUser && savedUser.id !== 'master_admin' && (!p0 || p0.cid !== MEMBER_CID)) {
         localStorage.removeItem('typang_current_user');
         savedUser = null;
       }
@@ -301,13 +308,14 @@ export default function App() {
           typangApi.getUsers().then((list) => setUsersDb(list)).catch(() => {});
           return;
         }
-        const moa = getMoaSession();
-        const noAuto = sessionStorage.getItem('taja_no_auto') === '1';
         if (savedUser && savedUser.role !== 'master') {
-          const p = parseUserId(savedUser.id);
-          // 같은 컴퓨터에서 모아팡에 다른 이름으로 들어왔으면 그 학생으로 바꿈
-          if (moa && p && (moa.cid !== p.cid || moa.key !== p.key) && !noAuto) startSession(await loadStudent(moa));
-          else startSession(await loadStudent(moa && p && moa.cid === p.cid && moa.key === p.key ? moa : { cid: p!.cid, key: p!.key, name: savedUser.name, className: savedUser.studentId || '', room: '' }));
+          const u = await reloadMember(savedUser.id);
+          if (u) startSession(u);
+          else {
+            // 승인이 풀렸거나 지워진 회원
+            localStorage.removeItem('typang_current_user');
+            setCurrentUser(null);
+          }
           return;
         }
         if (savedUser?.role === 'master') {
@@ -315,7 +323,6 @@ export default function App() {
           localStorage.removeItem('typang_current_user');
           setCurrentUser(null);
         }
-        if (moa && !noAuto && !isPopup) startSession(await loadStudent(moa));
       });
 
       // 3. 서버 되살리기 + 접속 유지 (연습 팝업 창은 화면을 먼저 그린 뒤 가볍게 시작)
@@ -373,6 +380,15 @@ export default function App() {
       window.removeEventListener('focus', tick);
     };
   }, [currentUser?.id, currentUser?.isApproved, currentUser?.role]);
+
+  // 연습 단계에 들어가면(연습 창 포함) 이 컴퓨터에 기억 → 홈 지도 로봇이 그 단계로 감 (로그인 안 해도)
+  useEffect(() => {
+    if (!['key-practice', 'word-practice', 'sentence-practice', 'long-practice', 'transcription-challenge', 'knowledge-hub', 'leaderboard'].includes(currentMode)) return;
+    try {
+      localStorage.setItem('taja_last_mode', currentMode);
+    } catch {}
+    window.dispatchEvent(new Event('last-practice-updated'));
+  }, [currentMode]);
 
   const handleToggleSound = () => {
     const next = soundManager.toggleMute();
@@ -726,14 +742,14 @@ export default function App() {
           />
         )}
 
-        {currentMode === 'mini-games' && (
+        {currentMode === 'mini-games' && !loginGate && (
           <MiniGamesHubView
             onSelectMode={(mode) => setCurrentMode(mode)}
             currentUser={currentUser}
           />
         )}
 
-        {currentMode === 'tamagotchi' && (
+        {currentMode === 'tamagotchi' && !loginGate && (
           <GameFitStage title="다마고치 키우기" icon="🐣" onExit={() => setCurrentMode('mini-games')}>
             <TamagotchiView
               currentUser={currentUser}
@@ -743,46 +759,49 @@ export default function App() {
           </GameFitStage>
         )}
 
-        {currentMode === 'playground' && (
-          currentUser ? (
-            <PlaygroundHome
-              currentUser={currentUser}
-              onSelectMode={(mode) => setCurrentMode(mode)}
-              onOpenProfile={() => setIsProfileOpen(true)}
-            />
-          ) : (
-            <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-2 border-pink-300 shadow-xl text-center space-y-5 animate-fade-in">
-              <div className="w-16 h-16 rounded-3xl bg-pink-100 text-pink-500 mx-auto flex items-center justify-center text-3xl shadow-inner">
-                🎡
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-slate-900 font-arcade">
-                  놀이터는 로그인 후 이용 가능합니다!
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                  자리 연습, 낱말 연습, 짧은 글, 긴 글, 지식 타자, 미니게임은 로그인 없이도 바로 즐길 수 있습니다.<br />
-                  <strong>놀이터(기본 플레이 &amp; 펀펀 플레이)</strong>는 내 포인트와 기록 관리를 위해 로그인이 필요합니다.
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <button
-                  onClick={() => setIsAuthOpen(true)}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
-                >
-                  ✨ 방번호·이름으로 들어가기
-                </button>
-                <button
-                  onClick={() => setCurrentMode('home')}
-                  className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all cursor-pointer"
-                >
-                  홈으로 돌아가기
-                </button>
-              </div>
-            </div>
-          )
+        {currentMode === 'playground' && currentUser && (
+          <PlaygroundHome
+            currentUser={currentUser}
+            onSelectMode={(mode) => setCurrentMode(mode)}
+            onOpenProfile={() => setIsProfileOpen(true)}
+          />
         )}
 
-        {currentMode === 'word-crush' && (
+        {/* 미니게임·놀이터는 타자팡 로그인 뒤에 (모아팡 방번호로만 들어오면 연습만) */}
+        {loginGate && (
+          <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-4 border-[#5a3417] shadow-xl text-center space-y-5 animate-fade-in" data-testid="login-gate">
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 mx-auto flex items-center justify-center text-3xl shadow-inner">🔒</div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-900 font-arcade">미니게임과 놀이터는 로그인하고 할 수 있어요!</h3>
+              <p className="text-sm text-slate-600 leading-relaxed font-bold">
+                자리·낱말·짧은 글·긴 글·지식 타자 연습은 로그인 없이도 할 수 있어요.
+                <br />
+                <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button onClick={() => setIsAuthOpen(true)} className="px-6 py-3 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm shadow-md cursor-pointer">
+                🔑 로그인
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem('taja_open_signup', '1');
+                  } catch {}
+                  setIsAuthOpen(true);
+                }}
+                className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md cursor-pointer"
+              >
+                ✨ 새로 가입하기
+              </button>
+              <button onClick={() => setCurrentMode('home')} className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer">
+                홈으로
+              </button>
+            </div>
+          </div>
+        )}
+
+        {currentMode === 'word-crush' && !loginGate && (
           <GameFitStage title="워드 크러쉬" icon="🍬" onExit={() => setCurrentMode('mini-games')}>
             <WordCrushView
               currentUser={currentUser}
@@ -792,7 +811,7 @@ export default function App() {
           </GameFitStage>
         )}
 
-        {currentMode === 'mole-game' && (
+        {currentMode === 'mole-game' && !loginGate && (
           <GameFitStage title="두더지 타자 잡기" icon="🔨" onExit={() => setCurrentMode('mini-games')}>
             <MoleGameView
               currentUser={currentUser}
@@ -802,7 +821,7 @@ export default function App() {
           </GameFitStage>
         )}
 
-        {currentMode === 'rain-game' && (
+        {currentMode === 'rain-game' && !loginGate && (
           <GameFitStage title="산성비 (단어 소나기)" icon="🌧️" onExit={() => setCurrentMode('mini-games')}>
             <RainGameView
               currentUser={currentUser}
@@ -812,7 +831,7 @@ export default function App() {
           </GameFitStage>
         )}
 
-        {currentMode === 'shortcut-quiz' && (
+        {currentMode === 'shortcut-quiz' && !loginGate && (
           <GameFitStage title="단축키 디펜스" icon="⚡" onExit={() => setCurrentMode('mini-games')}>
             <ShortcutQuizView
               currentUser={currentUser}
@@ -857,6 +876,9 @@ export default function App() {
         onOpenAuth={() => setIsAuthOpen(true)}
         initialTab={profileInitialTab}
       />}
+
+      {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
+      {!isPopupMode && <ReportArrivalToasts active={currentUser?.role === 'master'} onOpen={() => setIsMasterOpen(true)} />}
 
       {/* Master / Teacher Console Modal */}
       {isMasterOpen && <MasterModal

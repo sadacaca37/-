@@ -4,12 +4,12 @@
  *  - 이제는 모아팡과 같은 Firebase에 저장: 학생 = 모아팡 반 + 이름, 선생님 = 모아팡 선생님 계정
  */
 import { isApprovedNow } from './session';
-import { readApprovals } from './tajaApproval';
+import { readApprovals, setApprovals } from './tajaApproval';
 import { readParentPhones } from './moaStudentImport';
-import { collection, collectionGroup, deleteField, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, collectionGroup, deleteField, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { get, ref, set } from 'firebase/database';
 import { UserSession, LeaderboardEntry } from '../types';
-import { fs, rt, ensureUser, isTeacherUser, teacherSignIn, signOutTeacher, parseUserId, pickTaja, userIdOf, kstMonth, errText } from './moaFirebase';
+import { fs, rt, ensureUser, isTeacherUser, teacherSignIn, signOutTeacher, parseUserId, pickTaja, userIdOf, kstMonth, errText, MEMBER_CID, MEMBER_CLASS, memberKey, phoneDigits, prettyPhone } from './moaFirebase';
 
 export interface BatchRegisterResult {
   success: boolean;
@@ -126,29 +126,33 @@ class TypangApiClient {
     }
   }
 
-  /* ---------------- 학생 명단 = 모아팡 반의 학생들 ---------------- */
+  /* ---------------- 학생 명단 = 타자팡 회원 (이름 + 전화번호, 선생님 승인) ---------------- */
   public async getUsers(): Promise<UserSession[]> {
     if (!isTeacherUser()) return [];
     try {
-      const [cls, sts, approved, phones] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collectionGroup(fs, 'students')), readApprovals(true), readParentPhones()]);
-      const names = new Map(cls.docs.map((d) => [d.id, String((d.data() as any).name || '')]));
+      let [sts, approved] = await Promise.all([getDocs(collectionGroup(fs, 'students')), readApprovals(true)]);
+      // 예전에 엑셀로 모아팡 반에 올린 학생(학부모 전화번호 있음)을 타자팡 회원으로 옮김 (한 번만, 승인 그대로)
+      if (await this.migrateRoomStudents(sts.docs, approved)) {
+        [sts, approved] = await Promise.all([getDocs(collectionGroup(fs, 'students')), readApprovals(true)]);
+      }
       const users: UserSession[] = [];
       for (const d of sts.docs) {
         const cid = d.ref.parent.parent?.id;
-        if (!cid || !names.has(cid)) continue;
+        if (cid !== MEMBER_CID) continue;
         const v = d.data() as any;
         const t = v.taja || {};
         const grade = Number(t.grade) || undefined;
+        const id = userIdOf(cid, d.id);
         users.push({
-          id: userIdOf(cid, d.id),
+          id,
           name: String(v.name || ''),
-          studentId: names.get(cid),
+          studentId: t.className || MEMBER_CLASS,
           grade,
           avatar: t.avatar || '⭐',
           avatarBg: t.avatarBg || 'bg-yellow-100',
           levelTitle: t.levelTitle || (grade ? `${grade}학년 타자 꿈나무` : '타자 꿈나무'),
-          isApproved: !!approved[userIdOf(cid, d.id)],
-          parentPhone: phones[userIdOf(cid, d.id)] || undefined,
+          isApproved: !!approved[id],
+          parentPhone: t.phone ? prettyPhone(t.phone) : undefined,
           role: 'student',
           createdAt: Number(v.created?.toMillis?.() || 0),
           lastLoginAt: Number(v.seen?.toMillis?.() || 0),
@@ -156,7 +160,7 @@ class TypangApiClient {
           highestCpm: Number(t.highestCpm) || 0,
         } as UserSession);
       }
-      users.sort((a, b) => String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));
+      users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));
       try {
         localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
       } catch {}
@@ -164,6 +168,39 @@ class TypangApiClient {
     } catch {
       return this.getCachedUsers();
     }
+  }
+
+  /** 모아팡 반에 있던(엑셀로 올린) 학생 중 학부모 전화번호가 있는 학생 → 타자팡 회원으로 (이미 있으면 건너뜀) */
+  private async migrateRoomStudents(docs: any[], approved: Record<string, number>): Promise<boolean> {
+    const phones = await readParentPhones();
+    if (!Object.keys(phones).length) return false;
+    const members = new Set(docs.filter((d) => d.ref.parent.parent?.id === MEMBER_CID).map((d) => d.id));
+    const classNames = new Map<string, string>();
+    try {
+      (await getDocs(collection(fs, 'classes'))).docs.forEach((c) => classNames.set(c.id, String((c.data() as any).name || '')));
+    } catch {}
+    const newIds: string[] = [];
+    let created = 0;
+    for (const d of docs) {
+      const cid = d.ref.parent.parent?.id;
+      if (!cid || cid === MEMBER_CID) continue;
+      const oldId = userIdOf(cid, d.id);
+      const phone = phones[oldId];
+      if (!phone) continue;
+      const v = d.data() as any;
+      const key = await memberKey(String(v.name || ''), phone);
+      if (members.has(key)) continue;
+      const t = v.taja || {};
+      const taja: Record<string, any> = { ...t, phone: phoneDigits(phone), className: classNames.get(cid) || MEMBER_CLASS };
+      try {
+        await setDoc(doc(fs, 'classes', MEMBER_CID, 'students', key), { name: String(v.name || ''), uid: '', score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), taja });
+        members.add(key);
+        created++;
+        if (approved[oldId]) newIds.push(userIdOf(MEMBER_CID, key));
+      } catch {}
+    }
+    if (newIds.length) await setApprovals(newIds, true);
+    return created > 0;
   }
 
   public async syncUsers(_users: UserSession[]): Promise<boolean> {
@@ -210,7 +247,30 @@ class TypangApiClient {
     if (!p || !isTeacherUser()) return false;
     try {
       await deleteDoc(doc(fs, 'classes', p.cid, 'students', p.key, 'taja', 'progress'));
-      await updateDoc(doc(fs, 'classes', p.cid, 'students', p.key), { taja: deleteField() }).catch(() => {});
+      // 타자팡 회원은 로그인에 쓰는 전화번호·반은 남기고 연습 기록만 지움
+      const keep: Record<string, any> = {};
+      if (p.cid === MEMBER_CID) {
+        const snap = await getDoc(doc(fs, 'classes', p.cid, 'students', p.key)).catch(() => null);
+        const t = ((snap?.exists() && snap.data()) as any)?.taja || {};
+        if (t.phone) keep.phone = t.phone;
+        if (t.className) keep.className = t.className;
+        if (t.grade) keep.grade = t.grade;
+      }
+      await updateDoc(doc(fs, 'classes', p.cid, 'students', p.key), { taja: Object.keys(keep).length ? keep : deleteField() }).catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** 선생님: 가입 신청 거절 / 회원 삭제 (회원 기록과 승인 모두 지움) */
+  public async removeMember(id: string): Promise<boolean> {
+    const p = parseUserId(id);
+    if (!p || p.cid !== MEMBER_CID || !isTeacherUser()) return false;
+    try {
+      await deleteDoc(doc(fs, 'classes', p.cid, 'students', p.key, 'taja', 'progress')).catch(() => {});
+      await deleteDoc(doc(fs, 'classes', p.cid, 'students', p.key));
+      await setApprovals([id], false);
       return true;
     } catch {
       return false;

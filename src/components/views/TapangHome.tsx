@@ -359,6 +359,14 @@ interface Props {
   onOpenProfile?: (tab?: 'avatar' | 'account') => void;
 }
 
+const readLocalLastMode = (): string => {
+  try {
+    return localStorage.getItem('taja_last_mode') || '';
+  } catch {
+    return '';
+  }
+};
+
 export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode, onOpenAuth, onOpenProfile }) => {
   const [points, setPoints] = useState<number>(() => {
     try {
@@ -409,7 +417,21 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       window.removeEventListener('focus', refresh);
     };
   }, [currentUser]);
-  const lastMode = lastPractice?.mode === 'transcription-challenge' ? 'long-practice' : lastPractice?.mode;
+  // 로그인 안 했어도(모아팡에서 바로 들어와도) 이 컴퓨터에서 마지막으로 친 단계를 기억해 로봇이 그곳으로 감
+  const [localLast, setLocalLast] = useState(() => readLocalLastMode());
+  useEffect(() => {
+    const r = () => setLocalLast(readLocalLastMode());
+    window.addEventListener('last-practice-updated', r);
+    window.addEventListener('storage', r);
+    window.addEventListener('focus', r);
+    return () => {
+      window.removeEventListener('last-practice-updated', r);
+      window.removeEventListener('storage', r);
+      window.removeEventListener('focus', r);
+    };
+  }, []);
+  const rawLast = lastPractice?.mode || localLast;
+  const lastMode = rawLast === 'transcription-challenge' ? 'long-practice' : rawLast;
 
   const stats = useMemo(() => {
     const byMode: Record<string, number> = {};
@@ -444,7 +466,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
   // 로그인한 학생(마스터/선생님 제외)의 로봇 위치 계산:
   // 마지막으로 치던/방금 친 단계("▶ 여기까지 쳤어요 · 이어서"와 같은 단계)로 이동하고,
   // 마지막 연습 기록이 없으면 아직 안 끝낸 첫 단계에 배치
-  const isStudent = !!currentUser && currentUser.role !== 'master';
+  const isStudent = currentUser?.role !== 'master'; // 로그인 안 한 학생도 로봇이 따라감
   const targetStageIdx = useMemo(() => {
     if (!isStudent) return -1;
     if (lastMode) {
@@ -469,7 +491,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
 
   useEffect(() => {
     // 비로그인 또는 선생님 계정: 왼쪽 출발점 고정
-    if (!isStudent || !currentUser?.id || targetStageIdx < 0) {
+    if (!isStudent || targetStageIdx < 0) {
       setBotPos(ROAD_WAYPOINTS[0]);
       setIsWalking(false);
       setArrivedStageIdx(null);
@@ -480,7 +502,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       return;
     }
 
-    const storageKey = BOT_STAGE_KEY(currentUser.id);
+    const storageKey = BOT_STAGE_KEY(currentUser?.id || 'guest');
     let prevIdx: number | null = null;
     try {
       const raw = localStorage.getItem(storageKey);

@@ -5,7 +5,7 @@
  *  - 학부모 전화번호는 선생님만 볼 수 있는 곳(taja_private)에 저장 → 성적표 문자 보낼 때 씀
  */
 import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
-import { fs, nameKey, cleanName, userIdOf } from './moaFirebase';
+import { fs, cleanName, userIdOf, MEMBER_CID, MEMBER_CLASS, memberKey, phoneDigits } from './moaFirebase';
 import { setApprovals } from './tajaApproval';
 import { fixPhoneDigits, formatKoreanPhone } from './excelStudentManager';
 
@@ -23,7 +23,7 @@ const COLS = {
   cls: ['반', '방번호', '학급', 'class'],
   name: ['이름', '학생이름', '성명', 'name'],
   grade: ['학년', 'grade'],
-  phone: ['학부모', '부모님', '전화', '연락처', '휴대폰', 'phone'],
+  phone: ['전화', '학부모', '부모님', '연락처', '휴대폰', 'phone'],
 };
 
 /** 양식 내려받기 */
@@ -31,19 +31,19 @@ export async function downloadMoaTemplate(classNames: string[]) {
   const XLSX = await loadXlsx();
   const cls = classNames[0] || '우리 반';
   const rows = [
-    { 반: cls, 이름: '김타자', 학년: 3, '학부모 전화번호': '010-1234-5678' },
-    { 반: cls, 이름: '이모아', 학년: 3, '학부모 전화번호': '010-2345-6789' },
-    { 반: cls, 이름: '박팡팡', 학년: 4, '학부모 전화번호': '' },
+    { 반: cls, 이름: '김타자', 학년: 3, '전화번호': '010-1234-5678' },
+    { 반: cls, 이름: '이모아', 학년: 3, '전화번호': '010-2345-6789' },
+    { 반: cls, 이름: '박팡팡', 학년: 4, '전화번호': '010-3456-7890' },
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 20 }];
   XLSX.utils.book_append_sheet(wb, ws, '학생명단');
   const help = XLSX.utils.json_to_sheet([
-    { 안내: "'반'에는 모아팡에서 만든 반 이름(또는 방번호 5자리)을 그대로 써 주세요." },
-    { 안내: '같은 반에 같은 이름이 이미 있으면 새로 만들지 않고 학년·전화번호만 고쳐요.' },
-    { 안내: '올린 학생은 바로 승인되어 포인트·기록이 저장돼요.' },
-    { 안내: '학부모 전화번호는 선생님만 볼 수 있고, 성적표 문자 보낼 때 쓰여요. (비워도 돼요)' },
+    { 안내: '학생은 이름 + 전화번호로 타자팡에 로그인해요. 전화번호는 꼭 써 주세요. (학부모 번호 그대로 써도 돼요)' },
+    { 안내: "'반'은 명단을 반별로 보기 위한 것이에요. (비워도 돼요)" },
+    { 안내: '이름과 전화번호가 같은 학생이 이미 있으면 새로 만들지 않고 반·학년만 고쳐요.' },
+    { 안내: '올린 학생은 바로 승인되어 로그인할 수 있어요. 전화번호는 성적표 문자 보낼 때도 쓰여요.' },
   ]);
   help['!cols'] = [{ wch: 80 }];
   XLSX.utils.book_append_sheet(wb, help, '안내');
@@ -77,35 +77,23 @@ export async function readImportFile(file: File): Promise<ImportRow[]> {
   return [];
 }
 
-/** 선생님: 올리기. 만든/고친 학생 수와 못 넣은 줄 */
-export async function importStudents(rows: ImportRow[], defaultClass = ''): Promise<{ created: number; updated: number; skipped: string[] }> {
-  const [cls, rooms] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collection(fs, 'rooms'))]);
-  const byName = new Map<string, string>();
-  cls.docs.forEach((d) => byName.set(norm((d.data() as any).name || ''), d.id));
-  const byRoom = new Map<string, string>();
-  rooms.docs.forEach((d) => byRoom.set(d.id, String((d.data() as any).cid || '')));
-  const findCid = (c: string) => {
-    const k = c || defaultClass;
-    if (/^\d{5}$/.test(k)) return byRoom.get(k) || '';
-    return byName.get(norm(k)) || (cls.docs.some((d) => d.id === k) ? k : '');
-  };
-
+/** 선생님: 올리기 → 타자팡 회원(이름 + 전화번호)으로 만들고 바로 승인. 만든/고친 학생 수와 못 넣은 줄 */
+export async function importStudents(rows: ImportRow[], _defaultClass = ''): Promise<{ created: number; updated: number; skipped: string[] }> {
   let created = 0;
   let updated = 0;
   const skipped: string[] = [];
   const approved: string[] = [];
   for (const r of rows) {
-    const cid = findCid(r.cls);
-    if (!cid) {
-      skipped.push(`${r.name} (반 '${r.cls || defaultClass || '없음'}'을 찾지 못함)`);
+    if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits(r.phone))) {
+      skipped.push(`${r.name} (전화번호 없음·틀림)`);
       continue;
     }
-    const key = nameKey(r.name);
-    const id = userIdOf(cid, key);
-    const ref = doc(fs, 'classes', cid, 'students', key);
+    const key = await memberKey(r.name, r.phone);
+    const id = userIdOf(MEMBER_CID, key);
+    const ref = doc(fs, 'classes', MEMBER_CID, 'students', key);
     try {
       const snap = await getDoc(ref);
-      const taja = { ...((snap.exists() && (snap.data() as any).taja) || {}) };
+      const taja = { ...((snap.exists() && (snap.data() as any).taja) || {}), phone: phoneDigits(r.phone), className: r.cls || (snap.exists() && (snap.data() as any).taja?.className) || MEMBER_CLASS };
       if (r.grade) {
         taja.grade = r.grade;
         taja.levelTitle = `${r.grade}학년 타자 꿈나무`;
@@ -117,7 +105,6 @@ export async function importStudents(rows: ImportRow[], defaultClass = ''): Prom
         await setDoc(ref, { name: r.name, uid: '', score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), taja });
         created++;
       }
-      if (r.phone) await setDoc(doc(fs, 'taja_private', id), { parentPhone: formatKoreanPhone(r.phone), updatedAt: Date.now() }, { merge: true });
       approved.push(id);
     } catch {
       skipped.push(`${r.name} (저장 실패)`);

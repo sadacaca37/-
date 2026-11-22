@@ -883,7 +883,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                 ? 'bg-[#3d220d]/15 text-[#2a1204]'
                 : 'bg-[#2c1507]/12 text-[#3d220d]'
             }`}>
-              {cat.sentences.length}문장
+              {Math.min(SET_SENTENCES, cat.sentences.length)}문장
             </span>
           </button>
         ))}

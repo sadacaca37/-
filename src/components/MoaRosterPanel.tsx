@@ -8,7 +8,7 @@ import { typangApi } from '../utils/apiClient';
 import { askConfirm } from '../utils/dialog';
 import { FunfunFreePanel } from './FunfunFreePanel';
 import { setApprovals } from '../utils/tajaApproval';
-import { downloadMoaTemplate, readImportFile, importStudents, saveParentPhone } from '../utils/moaStudentImport';
+import { downloadMoaTemplate, readImportFile, importStudents } from '../utils/moaStudentImport';
 
 interface Props {
   users: UserSession[];
@@ -55,11 +55,8 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
     <div className="flex-1 flex flex-col space-y-3 overflow-hidden" data-testid="moa-roster">
       <div className="px-3.5 py-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-xs font-bold shrink-0 space-y-2">
         <div>
-          🏫 학생은 모아팡 반 학생 그대로예요. 학생이 모아팡 첫 화면에서 <b>방번호 + 이름</b>으로 들어오면 여기에 저절로 생겨요. 반 만들기·이름 고치기는{' '}
-          <a href="../teacher.html" className="underline text-sky-700">
-            모아팡 선생님 화면
-          </a>
-          에서 해 주세요.
+          🏫 타자팡 회원은 <b>이름 + 전화번호</b>로 로그인해요. 학생이 [새로 가입하기]를 하면 아래에 <b>승인 대기</b>로 생기고, 선생님이 승인해야 로그인할 수 있어요. 엑셀로 올린 학생은 바로 승인돼요.
+          <br />모아팡 방번호로 들어온 학생은 연습만 할 수 있고(저장 안 됨), 미니게임·놀이터는 회원 로그인 뒤에 할 수 있어요.
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -155,21 +152,21 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
 
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 찾기" className="shrink-0 w-full max-w-xs px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold" />
 
-      <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+      <div className="flex-1 min-h-0 max-h-[56vh] overflow-y-auto space-y-4 pr-1 rounded-xl bg-white/95">
         {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">아직 학생이 없어요. 학생이 모아팡에 들어오면 생겨요.</div>}
         {groups.map(([cls, list]) => (
           <section key={cls}>
             <h3 className="text-sm font-black text-slate-800 mb-1.5">
               {cls} <span className="text-slate-400">({list.length}명)</span>
             </h3>
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-xs">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full text-xs bg-white">
                 <thead className="bg-slate-50 text-slate-500 font-black">
                   <tr>
                     <th className="px-3 py-2">승인</th>
                     <th className="px-3 py-2 text-left">이름</th>
                     <th className="px-3 py-2">학년</th>
-                    <th className="px-3 py-2">학부모 전화</th>
+                    <th className="px-3 py-2">전화번호</th>
                     <th className="px-3 py-2">최고 타수</th>
                     <th className="px-3 py-2">연습</th>
                     <th className="px-3 py-2">마지막</th>
@@ -194,9 +191,23 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                             ✅ 승인됨
                           </button>
                         ) : (
-                          <button type="button" disabled={busy} className={`${btn} bg-amber-500 text-white hover:bg-amber-400`} onClick={() => void approve([u.id], true)} data-testid="approve-one">
-                            승인하기
-                          </button>
+                          <span className="inline-flex gap-1">
+                            <button type="button" disabled={busy} className={`${btn} bg-amber-500 text-white hover:bg-amber-400`} onClick={() => void approve([u.id], true)} data-testid="approve-one">
+                              승인하기
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              className={`${btn} bg-white border border-rose-200 text-rose-600 hover:bg-rose-50`}
+                              onClick={async () => {
+                                if (!(await askConfirm(`'${u.name}' 학생의 가입 신청을 거절(삭제)할까요?`, '거절'))) return;
+                                say((await typangApi.removeMember(u.id)) ? `🗑️ ${u.name} 학생의 가입 신청을 지웠어요.` : '❌ 지우지 못했어요.');
+                                void onRefresh();
+                              }}
+                            >
+                              거절
+                            </button>
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-1.5">
@@ -204,19 +215,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
                       <td className="px-3 py-1.5 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          className="underline decoration-dotted text-slate-600 hover:text-indigo-700 cursor-pointer"
-                          title="눌러서 학부모 전화번호 고치기 (선생님만 볼 수 있어요)"
-                          onClick={async () => {
-                            const v = window.prompt(`'${u.name}' 학생의 학부모 전화번호`, u.parentPhone || '');
-                            if (v === null) return;
-                            say((await saveParentPhone(u.id, v)) ? `📞 ${u.name} 학생 학부모 전화번호를 저장했어요.` : '❌ 저장하지 못했어요.');
-                            void onRefresh();
-                          }}
-                        >
-                          {u.parentPhone || '입력'}
-                        </button>
+                        <span className="text-slate-600">{u.parentPhone || '-'}</span>
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.highestCpm || '-'}</td>
                       <td className="px-3 py-1.5 text-center">{u.totalPracticeCount || 0}번</td>
