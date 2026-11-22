@@ -145,7 +145,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="tp-nav sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-[#B2EBF2] shadow-xs">
       {/* Topmost Cute Announcement Strip */}
-      <div className="tp-nav-strip bg-gradient-to-r from-[#4DD0E1] via-[#29B6F6] to-[#AB47BC] text-white text-[11px] sm:text-xs font-black py-1 px-3 text-center flex items-center justify-center gap-2 shadow-xs">
+      <div className="tp-nav-strip relative bg-gradient-to-r from-[#4DD0E1] via-[#29B6F6] to-[#AB47BC] text-white text-[11px] sm:text-xs font-black py-1 px-3 text-center flex items-center justify-center gap-2 shadow-xs">
+        {/* 모아팡 첫 화면으로 바로가기 (타자팡은 모아팡 안 taja/ 에 있음) */}
+        <a
+          href="../"
+          data-testid="nav-go-moapang"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 px-3 py-0.5 rounded-full bg-white text-emerald-700 hover:bg-emerald-50 border-2 border-emerald-500 text-xs sm:text-sm font-black shadow-sm no-underline whitespace-nowrap"
+          title="모아팡 첫 화면으로 가기"
+        >
+          <span aria-hidden="true">◀ 🏠</span>
+          <span>모아팡으로 가기</span>
+        </a>
         <span className="animate-bounce">✨</span>
         <span className="tp-nav-strip-chip bg-white/20 px-2.5 py-0.5 rounded-full border border-white/40 font-black">
           🐾 타자팡 랜드
@@ -171,9 +181,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="tp-nav-title font-arcade text-lg sm:text-2xl font-black text-slate-800 tracking-tight group-hover:text-pink-600 transition-colors">
                   <span className="tp-nav-title-a">타자</span><span className="tp-nav-title-b text-pink-500">팡</span>
                 </span>
-                <span className="tp-nav-badge hidden md:inline-block px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[10px] font-black border border-pink-300">
-                  PASTEL ARCADE
-                </span>
               </div>
               <p className="tp-nav-sub text-[10px] sm:text-xs text-slate-400 font-bold hidden sm:block">
                 손가락이 춤추는 알록달록 타자 모험 🐾
@@ -183,17 +190,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Tools: Master Portal, Sound, Profile/Login */}
           <div className="flex items-center gap-1.5 sm:gap-2.5">
-            {/* 모아팡 첫 화면으로 바로가기 (타자팡은 모아팡 안 taja/ 에 있음) */}
-            <a
-              href="../"
-              data-testid="nav-go-moapang"
-              className="tp-nbtn tp-nbtn--wood px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 no-underline"
-              title="모아팡 첫 화면으로 가기"
-              aria-label="모아팡으로 가기"
-            >
-              <span aria-hidden="true">🏠</span>
-              <span className={currentUser ? 'hidden 2xl:inline' : 'hidden sm:inline'}>모아팡</span>
-            </a>
 
             {/* Typing History Modal Button */}
             {onOpenHistory && (
