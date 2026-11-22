@@ -166,16 +166,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="타자팡 홈"
             >
               <img src="./assets/brand/tajapang.webp" alt="" aria-hidden="true" className="tp-brand-icon" draggable={false} />
-              <span className="tp-nav-title font-arcade text-lg sm:text-2xl font-black text-slate-800 tracking-tight">
-                <span className="tp-nav-title-a">타자</span><span className="tp-nav-title-b text-pink-500">팡</span>
-              </span>
+              <img src="./assets/brand/tajapang_word.webp" alt="타자팡" className="tp-brand-word" draggable={false} />
             </button>
             <span className="tp-brand-sep" aria-hidden="true">✦</span>
             <a href="../" className="tp-brand tp-brand--moa flex items-center gap-2 group no-underline" title="모아팡 첫 화면으로 가기" data-testid="nav-go-moapang">
               <img src="./assets/brand/moapang.webp" alt="" aria-hidden="true" className="tp-brand-icon" draggable={false} />
-              <span className="tp-nav-title tp-brand-moa font-arcade text-lg sm:text-2xl font-black tracking-tight">
-                <span className="tp-moa-a">모아</span><span className="tp-moa-b">팡</span>
-              </span>
+              <img src="./assets/brand/moapang_word.webp" alt="모아팡" className="tp-brand-word" draggable={false} />
             </a>
           </div>
 
