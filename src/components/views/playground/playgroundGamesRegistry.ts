@@ -86,6 +86,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
 
   // --- 펀펀 플레이 (이름은 우리말로 새로 지음) ---
+  // 새 게임은 이 목록 맨 끝에 넣기 → 화면에서는 최신순(맨 끝에 넣은 게임이 맨 위)으로 보임
   {
     id: 'app-lastwar',
     title: '다리 돌파 작전',
@@ -164,7 +165,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '펀펀',
     icon: '🌳',
     thumb: './assets/playground/thumb-pogeunforest.webp',
-    description: '숲속 마을을 돌아다니며 재료를 모으고 요리·낚시를 하는 힐링 오픈월드 RPG',
+    description: '잠든 숲의 정령 새숨이를 깨우는 힐링 마을 RPG · 편지 심부름·채집·낚시·요리·꾸미기 · 이어하기 저장',
     component: PogeunForestGame,
   },
   {
@@ -173,7 +174,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '펀펀',
     icon: '🕯️',
     thumb: './assets/playground/thumb-ashenhollow.webp',
-    description: '어둠의 지하 던전을 내려가며 싸우는 쿼터뷰 액션 RPG · 화염구·치유 물약',
+    description: '지하 3층까지 내려가 고대의 파수꾼을 쓰러뜨리는 쿼터뷰 액션 RPG · 화염구·치유 물약 · 보스전',
     component: AshenHollowGame,
   },
   {

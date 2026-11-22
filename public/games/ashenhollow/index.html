@@ -63,7 +63,7 @@
   .hpbar-wrap.boss .name{ font-size:12px; color:var(--gold-bright); }
   .hpbar-wrap.boss .hpbar-track{ height:9px; }
 
-  #toasts{ position:absolute; top:18px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center; z-index:40; pointer-events:none; }
+  #toasts{ position:absolute; top:58px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center; z-index:40; pointer-events:none; }
   .toast{
     background:linear-gradient(180deg, rgba(22,18,26,.92), rgba(10,9,12,.92));
     border:1px solid var(--line); border-radius:6px; padding:6px 16px;
@@ -132,6 +132,21 @@
   .overlay{ position:absolute; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; flex-direction:column;
     background:radial-gradient(ellipse at center, rgba(10,8,12,.72), rgba(6,5,7,.96)); text-align:center; padding:24px; }
   .overlay.hidden{ display:none; }
+  .castrow{ display:flex; align-items:flex-end; justify-content:center; gap:10px; margin-bottom:10px; }
+  .castrow img{ height:clamp(56px,11vh,92px); filter:drop-shadow(0 6px 10px rgba(0,0,0,.7)); animation:castBob 2.6s ease-in-out infinite; }
+  .castrow img.hero{ height:clamp(70px,14vh,118px); } .castrow img.boss{ height:clamp(84px,17vh,140px); }
+  .castrow img:nth-child(2){animation-delay:.3s}.castrow img:nth-child(3){animation-delay:.6s}.castrow img:nth-child(4){animation-delay:.9s}.castrow img:nth-child(5){animation-delay:1.2s}
+  @keyframes castBob{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .howto{ max-width:520px; color:var(--ink); font-size:15px; margin:-10px 0 24px; line-height:1.5; }
+  .howto b{ color:var(--gold-bright); }
+  .statrow{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin:0 0 26px; }
+  .statrow div{ background:rgba(0,0,0,.45); border:1px solid var(--line); border-radius:10px; padding:10px 16px; color:var(--ink); font-size:13px; }
+  .statrow b{ display:block; color:var(--gold-bright); font-size:22px; font-family:'Cinzel',serif; }
+  #floorhud{ position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:34; background:rgba(10,9,12,.72); border:1px solid var(--line);
+    border-radius:999px; padding:6px 16px; font-family:'Cinzel',serif; font-size:14px; color:var(--bone); white-space:nowrap; }
+  #floorhud .sep{ margin:0 8px; color:var(--gold); }
+  #floorgoal{ color:var(--gold-bright); }
+  .slot{ cursor:pointer; }
   .title-xl{ font-size:clamp(38px,7vw,74px); font-weight:900; color:var(--gold-bright); letter-spacing:.08em;
     text-shadow:0 0 24px rgba(239,201,76,.45), 0 4px 14px rgba(0,0,0,.8); margin:0; }
   .title-sub{ margin:10px 0 26px; color:var(--ink); font-size:16px; letter-spacing:.12em; text-transform:uppercase; font-family:'Cinzel',serif; }
@@ -207,6 +222,7 @@
   </div>
 
   <div id="minimap"><canvas id="mmcanvas" width="132" height="132"></canvas></div>
+  <div id="floorhud"><span id="floorname">지하 1층</span><span class="sep">·</span><span id="floorgoal">처치 0/8</span></div>
 
   <div id="bottomhud">
     <div class="orb orb-hp" id="orbhp"><div class="orb-fill" id="hpfill" style="height:100%"></div><div class="orb-sheen"></div>
@@ -214,24 +230,34 @@
     <div class="skillrow">
       <div class="slot active-basic" title="근접 공격 (좌클릭)">&#9876;<span class="key">클릭</span></div>
       <div class="slot ready-fire" id="slotfire" title="화염구 (1)">&#128293;<span class="key">1</span><div class="cd" id="cdfire" style="display:none"></div></div>
-      <div class="slot" id="slotpotion" title="치유 물약 (H)">&#127860;<span class="key">H</span><span class="count" id="potioncount">2</span></div>
+      <div class="slot" id="slotpotion" title="치유 물약 (H)">&#129514;<span class="key">H</span><span class="count" id="potioncount">2</span></div>
     </div>
     <div class="orb orb-mp" id="orbmp"><div class="orb-fill" id="mpfill" style="height:100%"></div><div class="orb-sheen"></div>
       <div class="orb-label"><span id="mptext">22</span><small>마나</small></div></div>
   </div>
 
   <div class="overlay" id="startoverlay">
+    <div class="castrow"><img src="sprites/skeleton.webp" alt=""><img src="sprites/cultist.webp" alt=""><img src="sprites/knight.webp" alt="" class="hero"><img src="sprites/brute.webp" alt=""><img src="sprites/guardian.webp" alt="" class="boss"></div>
     <h1 class="title-xl display">ASHEN HOLLOW</h1>
-    <div class="title-sub">쿼터뷰 액션 RPG &middot; 프로토타입</div>
+    <div class="title-sub">지하 3층의 고대 파수꾼을 쓰러뜨려라</div>
     <div class="rule"></div>
     <div class="controls">
-      <div><b>좌클릭 (바닥)</b>이동</div>
-      <div><b>좌클릭 (적)</b>이동 후 근접 공격</div>
+      <div><b>바닥 클릭·터치</b>이동</div>
+      <div><b>적 클릭</b>다가가서 칼 공격</div>
       <div><b>WASD</b>직접 이동</div>
-      <div><b>1</b>화염구 스킬</div>
-      <div><b>H</b>치유 물약 사용</div>
+      <div><b>1 / 🔥 버튼</b>화염구</div>
+      <div><b>H / 🧪 버튼</b>치유 물약</div>
     </div>
+    <div class="howto">층마다 정해진 수만큼 괴물을 물리치면 가운데에 <b>계단 빛</b>이 열려요. 지하 3층에서 보스를 쓰러뜨리면 승리!</div>
     <button class="btn" id="startbtn">지하로 내려가기</button>
+  </div>
+
+  <div class="overlay hidden" id="winoverlay">
+    <div class="castrow"><img src="sprites/knight.webp" alt="" class="hero"></div>
+    <h1 class="title-xl display">던전 정화!</h1>
+    <div class="title-sub">고대의 파수꾼이 잠들고 홀로우에 빛이 돌아왔다</div>
+    <div id="winstats" class="statrow"></div>
+    <button class="btn" id="againbtn">처음부터 다시 도전</button>
   </div>
 
   <div class="overlay hidden" id="deathoverlay">
@@ -242,7 +268,10 @@
       <div><div class="v" id="d-kills">0</div><div class="k">처치</div></div>
       <div><div class="v" id="d-gold">0</div><div class="k">골드</div></div>
     </div>
-    <button class="btn" id="restartbtn">다시 도전하기</button>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <button class="btn" id="retryfloorbtn">이 층부터 다시</button>
+      <button class="btn" id="restartbtn" style="opacity:.8">처음부터</button>
+    </div>
   </div>
 </div>
 
@@ -262,7 +291,14 @@ var state = {
   fireCd:0, fireCdMax:3400, fireCost:9, fireDmg:[11,17], fireRadius:3.2,
   atkCd:0, atkCdMax:640, atkRange:2.15,
   regenTimer:0, hpRegenTick:0,
-  bossSpawned:false, bossAlive:false, bossKillMilestone:14
+  bossSpawned:false, bossAlive:false, bossKillMilestone:14,
+  floor:1, floorKills:0, portalOpen:false, won:false, startedAt:0
+};
+/* 층마다 나오는 괴물, 잡아야 하는 수, 분위기 색 */
+var FLOORS = {
+  1:{ name:'지하 1층', goal:8,  types:['skeleton','skeleton','skeleton','cultist'], max:5, bg:0x1c1726, fog:0x231e30, ground:0x9e9ab2, rune:0x6f4fc9 },
+  2:{ name:'지하 2층', goal:12, types:['skeleton','cultist','cultist','brute'],     max:6, bg:0x0f1c17, fog:0x15261f, ground:0x7f9a8a, rune:0x3fbf8f },
+  3:{ name:'지하 3층', goal:10, types:['skeleton','cultist','brute','brute'],       max:6, bg:0x1d0f0c, fog:0x2a1512, ground:0xa07a6a, rune:0xe2483f }
 };
 
 function snapshotState(){
@@ -308,7 +344,7 @@ scene.background = new THREE.Color(0x1c1726);
 scene.fog = new THREE.FogExp2(0x231e30, 0.017);
 
 var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
-var camOffset = new THREE.Vector3(13, 16, 13);
+var camOffset = new THREE.Vector3(11.5, 14, 11.5);
 var camTarget = new THREE.Vector3();
 
 function resize(){
@@ -422,47 +458,39 @@ function spawnFloatText(worldPos, text, cls){
   setTimeout(function(){ d.remove(); }, 950);
 }
 
-/* ===================== player ===================== */
-function buildHumanoid(bodyColor, cloakColor, accentColor, scale){
-  scale = scale || 1;
+/* ===================== characters: 제미나이가 그린 픽셀 그림 판 (빌보드) ===================== */
+var SPRITE_INFO = { knight:[227,256], skeleton:[260,256], cultist:[129,256], brute:[211,256], guardian:[214,256] };
+var texLoader = new THREE.TextureLoader();
+var camRight = new THREE.Vector3(1,0,-1).normalize();
+function buildSpriteChar(name, height){
+  var info = SPRITE_INFO[name];
+  var tex = texLoader.load('sprites/'+name+'.webp');
+  tex.anisotropy = 4;
+  var mat = new THREE.MeshBasicMaterial({ map:tex, transparent:true, alphaTest:0.35, side:THREE.DoubleSide, toneMapped:false });
+  mat.color.setRGB(0.92,0.9,0.95);
+  var w = height*info[0]/info[1];
+  var plane = new THREE.Mesh(new THREE.PlaneGeometry(w, height), mat);
+  plane.position.y = height/2;
   var g = new THREE.Group();
-  var bodyMat = new THREE.MeshStandardMaterial({ color:bodyColor, roughness:0.6, metalness:0.25 });
-  var cloakMat = new THREE.MeshStandardMaterial({ color:cloakColor, roughness:0.85, metalness:0.05 });
-  var accentMat = new THREE.MeshStandardMaterial({ color:accentColor, roughness:0.35, metalness:0.6, emissive:accentColor, emissiveIntensity:0.25 });
-
-  var torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.42,0.85,8), bodyMat);
-  torso.position.y=1.05;
-  var cloak = new THREE.Mesh(new THREE.ConeGeometry(0.56,1.15,8,1,true), cloakMat);
-  cloak.position.y=0.78;
-  var head = new THREE.Mesh(new THREE.SphereGeometry(0.27,10,10), bodyMat);
-  head.position.y=1.66;
-  var visor = new THREE.Mesh(new THREE.BoxGeometry(0.34,0.08,0.06), accentMat);
-  visor.position.set(0,1.68,0.24);
-
-  var armGeo = new THREE.CylinderGeometry(0.09,0.09,0.62,6);
-  var armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.44,1.1,0); armL.rotation.z=0.25;
-  var armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set(0.44,1.1,0); armR.rotation.z=-0.25;
-
-  var weaponGrp = new THREE.Group();
-  var blade = new THREE.Mesh(new THREE.BoxGeometry(0.07,0.9,0.03), accentMat);
-  blade.position.y=0.55;
-  var hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.22,6), new THREE.MeshStandardMaterial({color:0x2a2018}));
-  hilt.position.y=0.02;
-  weaponGrp.add(blade,hilt);
-  weaponGrp.position.set(0.58,1.05,0.12);
-  weaponGrp.rotation.z=-0.35;
-
-  var legGeo = new THREE.CylinderGeometry(0.12,0.1,0.55,6);
-  var legL = new THREE.Mesh(legGeo, cloakMat); legL.position.set(-0.16,0.32,0);
-  var legR = new THREE.Mesh(legGeo, cloakMat); legR.position.set(0.16,0.32,0);
-
-  g.add(cloak, torso, head, visor, armL, armR, weaponGrp, legL, legR);
-  g.scale.setScalar(scale);
-  g.userData.weapon = weaponGrp;
-  g.userData.armR = armR;
-  g.userData.legL = legL; g.userData.legR = legR;
-  g.userData.head = head;
+  g.add(plane);
+  g.userData = { plane:plane, mat:mat, h:height, flip:1, walk:0 };
   return g;
+}
+function faceCamera(g){
+  g.rotation.y = Math.atan2(camera.position.x - g.position.x, camera.position.z - g.position.z);
+  g.userData.plane.scale.x = g.userData.flip;
+}
+function setFlipByDir(g, dir){ var side = dir.x*camRight.x + dir.z*camRight.z; if(Math.abs(side)>0.15) g.userData.flip = side<0 ? -1 : 1; }
+/* 칼을 휘두를 때 보이는 반달 빛 */
+function slashEffect(pos, dir){
+  var mat = new THREE.MeshBasicMaterial({ color:0xfff2c0, transparent:true, opacity:0.85, side:THREE.DoubleSide, toneMapped:false, depthWrite:false });
+  var arc = new THREE.Mesh(new THREE.RingGeometry(0.9,1.35,20,1,-Math.PI/2.4,Math.PI/1.2), mat);
+  arc.rotation.x = -Math.PI/2;
+  arc.position.set(pos.x+dir.x*0.6, 1.0, pos.z+dir.z*0.6);
+  arc.rotation.z = Math.atan2(dir.x, dir.z) - Math.PI/2;
+  scene.add(arc);
+  var t0 = performance.now();
+  (function anim(){ var t=(performance.now()-t0)/220; if(t>=1){ scene.remove(arc); arc.geometry.dispose(); mat.dispose(); return; } mat.opacity=0.85*(1-t); arc.scale.setScalar(1+t*0.35); requestAnimationFrame(anim); })();
 }
 
 /* cheap blob shadow (shared texture) instead of per-mesh dynamic shadow casting,
@@ -485,10 +513,10 @@ function addBlobShadow(radius){
   return mesh;
 }
 
-var player = buildHumanoid(0xcfc3ab, 0x2f2a3a, 0xefc94c, 1.0);
+var player = buildSpriteChar('knight', 2.6);
 player.position.set(0,0,4);
 scene.add(player);
-var playerBlob = addBlobShadow(0.62);
+var playerBlob = addBlobShadow(0.8);
 var playerVel = new THREE.Vector3();
 var playerFacing = 0;
 var walkPhase = 0;
@@ -504,11 +532,11 @@ scene.add(marker);
 /* ===================== monsters ===================== */
 var monsters = [];
 var MTYPES = {
-  skeleton:{ hp:20, speed:3.4, dmg:[3,5], range:1.9, aggro:13, atkCd:1100, xp:8, gold:[2,6], color:0xcac2ad, cloak:0x3a2b2b, accent:0xb3212f, scale:0.92, ranged:false },
-  cultist:{ hp:16, speed:2.6, dmg:[4,8], range:10.5, aggro:15, atkCd:1900, xp:11, gold:[3,7], color:0x6a5a86, cloak:0x241c33, accent:0x9a7bf0, scale:0.98, ranged:true },
-  brute:{ hp:46, speed:2.1, dmg:[7,12], range:2.4, aggro:12, atkCd:1500, xp:20, gold:[6,12], color:0x8a6a4a, cloak:0x33261c, accent:0xd9843a, scale:1.35, ranged:false }
+  skeleton:{ sprite:'skeleton', h:2.5, hp:20, speed:3.4, dmg:[3,5], range:1.9, aggro:13, atkCd:1100, xp:8, gold:[2,6], color:0xcac2ad, cloak:0x3a2b2b, accent:0xb3212f, scale:0.92, ranged:false },
+  cultist:{ sprite:'cultist', h:2.6, hp:16, speed:2.6, dmg:[4,8], range:10.5, aggro:15, atkCd:1900, xp:11, gold:[3,7], color:0x6a5a86, cloak:0x241c33, accent:0x9a7bf0, scale:0.98, ranged:true },
+  brute:{ sprite:'brute', h:3.3, hp:46, speed:2.1, dmg:[7,12], range:2.4, aggro:12, atkCd:1500, xp:20, gold:[6,12], color:0x8a6a4a, cloak:0x33261c, accent:0xd9843a, scale:1.35, ranged:false }
 };
-var BOSS_TYPE = { hp:260, speed:1.7, dmg:[12,20], range:3.0, aggro:30, atkCd:1300, xp:140, gold:[60,90], color:0x5a3350, cloak:0x1c1420, accent:0xe2483f, scale:2.4, ranged:false };
+var BOSS_TYPE = { sprite:'guardian', h:5.4, hp:240, speed:1.7, dmg:[8,13], range:3.0, aggro:30, atkCd:1500, xp:140, gold:[60,90], color:0x5a3350, cloak:0x1c1420, accent:0xe2483f, scale:2.4, ranged:false };
 
 function makeHpBarEl(isBoss){
   var wrap=document.createElement('div');
@@ -526,16 +554,17 @@ function spawnMonster(typeKey, isBoss){
   var ang = Math.random()*Math.PI*2;
   var rad = isBoss ? 20 : (18+Math.random()*7);
   var x = Math.cos(ang)*rad, z = Math.sin(ang)*rad;
-  var mesh = buildHumanoid(t.color, t.cloak, t.accent, t.scale);
+  var mesh = buildSpriteChar(t.sprite, t.h);
   mesh.position.set(x,0,z);
   scene.add(mesh);
-  var blob = addBlobShadow(0.6*t.scale);
+  var blob = addBlobShadow(isBoss?1.9:(t.h>3?1.15:0.8));
+  var fs = 1 + 0.35*(state.floor-1), fd = 1 + 0.25*(state.floor-1);
   blob.position.set(x,0.025,z);
   var hpUi = makeHpBarEl(isBoss);
   hpUi.name.textContent = isBoss ? '고대의 파수꾼' : (typeKey==='skeleton'?'해골 전사':typeKey==='cultist'?'어둠의 사도':'둔중한 야수');
   var m = {
     mesh:mesh, type:isBoss?'boss':typeKey, isBoss:!!isBoss,
-    hp:t.hp, maxHp:t.hp, speed:t.speed, dmg:t.dmg, range:t.range, aggro:t.aggro,
+    hp:Math.round(t.hp*(isBoss?1:fs)), maxHp:Math.round(t.hp*(isBoss?1:fs)), speed:t.speed, dmg:[Math.round(t.dmg[0]*(isBoss?1:fd)), Math.round(t.dmg[1]*(isBoss?1:fd))], range:t.range, aggro:t.aggro, h:t.h,
     atkCd:t.atkCd, lastAtk:-9999, xp:t.xp, goldRange:t.gold, ranged:t.ranged,
     aiState:'idle', hpUi:hpUi, dead:false, deathT:-1, hitFlashT:-1, lastRangedAt:-9999, blob:blob
   };
@@ -601,7 +630,7 @@ function distXZ(a,b){ var dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx+dz*dz);
 function updateHpBarPos(){
   monsters.forEach(function(m){
     if(m.dead){ m.hpUi.wrap.style.display='none'; return; }
-    var s = worldToScreen(m.mesh.position.clone().add(new THREE.Vector3(0, m.isBoss?2.9:2.0,0)));
+    var s = worldToScreen(m.mesh.position.clone().add(new THREE.Vector3(0, m.h+0.25,0)));
     if(s.behind){ m.hpUi.wrap.style.display='none'; return; }
     m.hpUi.wrap.style.display='block';
     m.hpUi.wrap.style.left=s.x+'px'; m.hpUi.wrap.style.top=s.y+'px';
@@ -635,7 +664,13 @@ function killMonster(m){
   if(m.isBoss){
     state.bossAlive=false;
     setTimeout(function(){ bossBanner('던전이 정화되었다'); toast('고대의 파수꾼을 처치했다!'); }, 300);
+    setTimeout(showVictory, 2600);
+  } else {
+    state.floorKills++;
+    var F = FLOORS[state.floor];
+    if(state.floorKills>=F.goal && !state.portalOpen && state.floor<3){ openPortal(); }
   }
+  refreshFloorHud();
 }
 
 function gainXp(v){
@@ -849,24 +884,23 @@ function updatePlayer(dt){
     if(r>ARENA_R-0.6){ var sc=(ARENA_R-0.6)/r; player.position.x*=sc; player.position.z*=sc; }
     collideObstacles(player.position, 0.5);
     faceTowards(player.position.clone().add(moveVec));
-    walkPhase += dt*9;
-    player.userData.legL.rotation.x = Math.sin(walkPhase)*0.55;
-    player.userData.legR.rotation.x = Math.sin(walkPhase+Math.PI)*0.55;
+    setFlipByDir(player, moveVec);
+    walkPhase += dt*11;
+    player.userData.plane.position.y = player.userData.h/2 + Math.abs(Math.sin(walkPhase))*0.14;
+    player.userData.plane.rotation.z = Math.sin(walkPhase)*0.06;
   } else {
-    player.userData.legL.rotation.x *= 0.8; player.userData.legR.rotation.x *= 0.8;
+    player.userData.plane.position.y += (player.userData.h/2 - player.userData.plane.position.y)*0.3;
+    player.userData.plane.rotation.z *= 0.8;
   }
-  player.rotation.y = playerFacing;
+  faceCamera(player);
 
   if(attackAnimT>=0){
     attackAnimT += dt;
     var tt = attackAnimT/0.28;
-    if(tt>=1){ attackAnimT=-1; player.userData.weapon.rotation.z=-0.35; player.userData.armR.rotation.z=-0.25; }
-    else {
-      var swing = Math.sin(tt*Math.PI);
-      player.userData.weapon.rotation.z = -0.35 - swing*1.9;
-      player.userData.armR.rotation.z = -0.25 - swing*1.1;
-    }
+    if(tt>=1){ attackAnimT=-1; player.userData.plane.rotation.z = 0; }
+    else { player.userData.plane.rotation.z = -Math.sin(tt*Math.PI)*0.35*player.userData.flip; }
   }
+  checkPortal();
 
   if(state.atkCd>0) state.atkCd -= dt*1000;
   if(state.fireCd>0){
@@ -891,6 +925,9 @@ function updatePlayer(dt){
 
 function performMeleeAttack(m){
   attackAnimT = 0;
+  var sd = m.mesh.position.clone().sub(player.position); sd.y=0; sd.normalize();
+  setFlipByDir(player, sd);
+  slashEffect(player.position, sd);
   var isCrit = Math.random()<0.16;
   var dmg = randInt(state.atkMin, state.atkMax) * (isCrit?2:1);
   setTimeout(function(){
@@ -904,8 +941,9 @@ function updateMonsters(dt){
       if(m.deathT>=0){
         m.deathT += dt;
         var s = Math.max(0, 1-m.deathT/0.6);
-        m.mesh.scale.setScalar(s*(m.isBoss?2.4:(m.type==='brute'?1.35:1)));
-        m.mesh.position.y = -m.deathT*0.3;
+        m.mesh.userData.mat.opacity = s;
+        m.mesh.userData.plane.rotation.z = (1-s)*1.2*m.mesh.userData.flip;
+        m.mesh.position.y = -m.deathT*0.5;
         if(m.blob) m.blob.material.opacity = s;
         if(m.deathT>0.6){
           scene.remove(m.mesh);
@@ -936,16 +974,17 @@ function updateMonsters(dt){
           var dd=Math.sqrt(dx*dx+dz*dz);
           if(dd<0.9 && dd>0.001){ m.mesh.position.x += dx/dd*0.02; m.mesh.position.z += dz/dd*0.02; }
         });
-        m.mesh.rotation.y = Math.atan2(dir.x, dir.z);
-        var wp = (m.mesh.userData.__walk = (m.mesh.userData.__walk||0) + dt*8);
-        m.mesh.userData.legL.rotation.x = Math.sin(wp)*0.5;
-        m.mesh.userData.legR.rotation.x = Math.sin(wp+Math.PI)*0.5;
+        setFlipByDir(m.mesh, dir);
+        var wp = (m.mesh.userData.walk += dt*(m.isBoss?5:8));
+        m.mesh.userData.plane.position.y = m.h/2 + Math.abs(Math.sin(wp))*(m.isBoss?0.12:0.1);
+        m.mesh.userData.plane.rotation.z = Math.sin(wp)*0.05;
       } else {
         m.aiState='attack';
-        m.mesh.rotation.y = Math.atan2(toP.x, toP.z);
+        setFlipByDir(m.mesh, toP);
         var now = performance.now();
         if(now - m.lastAtk > m.atkCd){
           m.lastAtk = now;
+          m.mesh.userData.lunge = 0.25;
           if(m.ranged){
             var dir2 = toP.clone().normalize();
             spawnEnemyBolt(m.mesh.position.clone().add(new THREE.Vector3(0,1.1,0)), dir2, randInt(m.dmg[0],m.dmg[1]));
@@ -956,28 +995,97 @@ function updateMonsters(dt){
       }
     }
 
-    if(m.hitFlashT>0){
-      m.mesh.traverse(function(c){ if(c.material && c.material.emissive){ c.material.emissiveIntensity = 1.6; } });
-    } else if(m.mesh.userData.__flashReset!==false){
-      m.mesh.traverse(function(c){ if(c.material && c.material.emissive){ c.material.emissiveIntensity = 0.25; } });
-      m.mesh.userData.__flashReset = false;
-    }
-    if(m.hitFlashT>0){ m.mesh.userData.__flashReset = true; }
+    if(m.hitFlashT>0){ m.mesh.userData.mat.color.setRGB(2.2,1.4,1.3); }
+    else { m.mesh.userData.mat.color.setRGB(0.92,0.9,0.95); }
+    var lg = m.mesh.userData.lunge||0;
+    if(lg>0){ m.mesh.userData.lunge = Math.max(0,lg-dt); m.mesh.userData.plane.rotation.z = -Math.sin((0.25-lg)/0.25*Math.PI)*0.25*m.mesh.userData.flip; }
+    faceCamera(m.mesh);
   });
 
-  // spawn logic
+  // spawn logic (층마다 다르게)
+  var F = FLOORS[state.floor];
   var aliveCount = monsters.filter(function(m){ return !m.dead; }).length;
   spawnTimer -= dt;
-  if(state.kills>=state.bossKillMilestone && !state.bossSpawned){
+  if(state.floor===3 && state.floorKills>=F.goal && !state.bossSpawned){
     state.bossSpawned = true; state.bossAlive = true;
     spawnMonster(null, true);
     bossBanner('고대의 파수꾼이 깨어난다...');
+    refreshFloorHud();
   }
-  if(aliveCount < MAX_MONSTERS && spawnTimer<=0){
-    spawnTimer = 2.6 + Math.random()*2.2;
-    var tk = typeKeys[Math.floor(Math.random()*typeKeys.length)];
+  var remaining = F.goal - state.floorKills;
+  var cap = Math.min(F.max, Math.max(0, remaining));
+  if(state.floor===3 && state.bossSpawned) cap = 2;
+  if(!state.portalOpen && aliveCount < cap && spawnTimer<=0){
+    spawnTimer = (state.floor===3 && state.bossSpawned ? 5 : 2.2) + Math.random()*2.0;
+    var tk = F.types[Math.floor(Math.random()*F.types.length)];
     spawnMonster(tk, false);
   }
+}
+
+/* ===================== 층 이동: 계단 빛 ===================== */
+var portal = null;
+function openPortal(){
+  state.portalOpen = true;
+  var g = new THREE.Group();
+  var ringMat = new THREE.MeshBasicMaterial({ color:0xefc94c, transparent:true, opacity:0.9, side:THREE.DoubleSide, toneMapped:false });
+  var ring = new THREE.Mesh(new THREE.RingGeometry(1.2,1.6,40), ringMat); ring.rotation.x=-Math.PI/2; ring.position.y=0.05;
+  var beamMat = new THREE.MeshBasicMaterial({ color:0xffe7a0, transparent:true, opacity:0.28, side:THREE.DoubleSide, depthWrite:false, toneMapped:false });
+  var beam = new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.25,7,24,1,true), beamMat); beam.position.y=3.5;
+  var light = new THREE.PointLight(0xffd98a, 2.4, 12, 2); light.position.y = 1.5;
+  g.add(ring, beam, light);
+  scene.add(g);
+  portal = { group:g, ring:ring, beam:beam };
+  bossBanner('아래층으로 가는 계단 빛이 열렸다');
+  toast('가운데 빛 기둥 안으로 들어가면 '+FLOORS[state.floor+1].name+'로 내려가요');
+  refreshFloorHud();
+}
+function checkPortal(){
+  if(!portal) return;
+  var t = performance.now()/1000;
+  portal.ring.rotation.z = t*0.8; portal.beam.material.opacity = 0.22+Math.sin(t*3)*0.08;
+  if(Math.sqrt(player.position.x*player.position.x+player.position.z*player.position.z) < 1.4){ descend(); }
+}
+function clearMonsters(){
+  monsters.forEach(function(m){ if(m.hpUi) m.hpUi.wrap.remove(); scene.remove(m.mesh); if(m.blob) scene.remove(m.blob); });
+  monsters.length = 0;
+  enemyBolts.forEach(function(b){ scene.remove(b.mesh); }); enemyBolts.length=0;
+  fireballs.forEach(function(f){ scene.remove(f.mesh); }); fireballs.length=0;
+}
+function setFloor(n){
+  state.floor = n; state.floorKills = 0; state.portalOpen = false; state.bossSpawned=false; state.bossAlive=false;
+  if(portal){ scene.remove(portal.group); portal=null; }
+  var F = FLOORS[n];
+  scene.background.setHex(F.bg); scene.fog.color.setHex(F.fog);
+  groundMat.color.setHex(F.ground);
+  rune.material.color.setHex(F.rune); rune2.material.color.setHex(F.rune);
+  spawnTimer = 1.2;
+  refreshFloorHud();
+}
+function descend(){
+  if(state.floor>=3) return;
+  clearMonsters();
+  setFloor(state.floor+1);
+  player.position.set(0,0,4); moveTarget=null; attackTarget=null; marker.visible=false;
+  state.hp = state.maxHp; state.mp = state.maxMp; state.potions++; elPotionCount.textContent = state.potions;
+  refreshOrbs();
+  bossBanner(FLOORS[state.floor].name+'에 내려왔다');
+  toast('체력과 마나가 회복되고 물약을 1개 얻었다');
+}
+function refreshFloorHud(){
+  var F = FLOORS[state.floor];
+  $('floorname').textContent = F.name;
+  var g = $('floorgoal');
+  if(state.floor===3 && state.bossSpawned) g.textContent = state.bossAlive ? '보스: 고대의 파수꾼' : '승리!';
+  else if(state.portalOpen) g.textContent = '가운데 계단 빛으로!';
+  else g.textContent = '처치 '+Math.min(state.floorKills,F.goal)+'/'+F.goal+(state.floor===3?' → 보스':'');
+}
+function showVictory(){
+  if(state.won) return;
+  state.won = true; state.alive = true;
+  var secs = Math.round((performance.now()-state.startedAt)/1000);
+  $('winstats').innerHTML = '<div><b>'+state.level+'</b>레벨</div><div><b>'+state.kills+'</b>처치</div><div><b>'+state.gold+'</b>골드</div><div><b>'+Math.floor(secs/60)+'분 '+(secs%60)+'초</b>걸린 시간</div>';
+  $('winoverlay').classList.remove('hidden');
+  state.started = false;
 }
 
 function updateProjectiles(dt){
@@ -1089,10 +1197,7 @@ spawnMonster = function(typeKey, isBoss){
 
 /* ===================== boot / start / restart ===================== */
 function resetWorld(){
-  monsters.forEach(function(m){ if(m.hpUi) m.hpUi.wrap.remove(); scene.remove(m.mesh); if(m.blob) scene.remove(m.blob); });
-  monsters.length = 0;
-  enemyBolts.forEach(function(b){ scene.remove(b.mesh); }); enemyBolts.length=0;
-  fireballs.forEach(function(f){ scene.remove(f.mesh); }); fireballs.length=0;
+  clearMonsters();
   player.position.set(0,0,4);
   playerFacing = 0;
   moveTarget=null; attackTarget=null; marker.visible=false;
@@ -1101,9 +1206,12 @@ function resetWorld(){
 }
 
 function startGame(){
-  state.started = true; state.alive = true;
+  state.started = true; state.alive = true; state.won = false;
+  if(!state.startedAt) state.startedAt = performance.now();
   elStart.classList.add('hidden');
   elDeath.classList.add('hidden');
+  $('winoverlay').classList.add('hidden');
+  setFloor(state.floor||1);
   refreshOrbs();
   elXpFill.style.width = Math.min(100, state.xp/state.xpNext*100)+'%';
   elLvlBadge.textContent = state.level; elLvlText.textContent = '레벨 '+state.level;
@@ -1115,10 +1223,28 @@ $('startbtn').addEventListener('click', function(){ startGame(); });
 $('restartbtn').addEventListener('click', function(){
   applySnapshot(DEFAULT_PROGRESS);
   resetWorld();
+  state.floor = 1; state.startedAt = performance.now();
   startGame();
 });
+/* 쓰러져도 레벨은 그대로, 지금 층을 처음부터 */
+$('retryfloorbtn').addEventListener('click', function(){
+  resetWorld();
+  state.hp = state.maxHp; state.mp = state.maxMp;
+  if(state.potions<2){ state.potions = 2; }
+  startGame();
+});
+$('againbtn').addEventListener('click', function(){
+  applySnapshot(DEFAULT_PROGRESS);
+  resetWorld();
+  state.floor = 1; state.startedAt = performance.now();
+  startGame();
+});
+$('slotfire').addEventListener('click', function(e){ e.stopPropagation(); tryFireball(); });
+$('slotpotion').addEventListener('click', function(e){ e.stopPropagation(); usePotion(); });
 
+if(/[?&]debug/.test(location.search)) window.__ah = { state:state, monsters:monsters, player:player, camera:camera, killMonster:killMonster, descend:descend, spawnMonster:function(a,b){ return spawnMonster(a,b); }, damagePlayer:damagePlayer };
 resize();
+setFloor(1);
 loop();
 
 /* hot-reload continuity (only relevant if the artifact is republished while open) */
