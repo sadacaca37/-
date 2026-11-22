@@ -219,7 +219,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="상반기/하반기 월별 타수 성장 & 진도표 학부모 알림 발송"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-yellow-300" />
-                <span className="hidden md:inline">상·하반기 성적표</span>
+                <span className="hidden md:inline"><span className="whitespace-nowrap">상·하반기</span> 성적표</span>
                 <span className="md:hidden">성적표</span>
               </button>
             )}
@@ -259,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[9px] sm:text-[10px] font-black text-amber-800 leading-none">
                   포인트
                 </span>
-                <span className="font-extrabold text-xs sm:text-sm font-arcade tracking-tight text-amber-950 leading-tight">
+                <span className="font-extrabold text-xs sm:text-sm font-arcade tracking-tight text-amber-950 leading-tight whitespace-nowrap">
                   {userPoints >= MASTER_POINTS ? (
                     <>
                       ∞ <span className="text-[10px] font-black text-amber-700">무제한</span>
