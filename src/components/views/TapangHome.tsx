@@ -939,18 +939,14 @@ export const TapangFooter: React.FC<{ isMaster?: boolean; onOpenMaster?: () => v
     <div className="relative z-10 max-w-7xl mx-auto px-4 py-9 sm:py-11 flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-7">
       <TvBot size={78} bubble="또 만나요!" bubbleSide="top" className="tp-wave" />
       <div className="flex flex-col items-center sm:items-start gap-2.5">
-        <div className="tp-footer-logo">
-          <span className="tp-footer-logo-a">타자</span>
-          <span className="tp-footer-logo-b">팡</span>
-        </div>
+        <img src="./assets/brand/tajapang_word.webp" alt="타자팡" className="tp-footer-word" draggable={false} />
         <div className="tp-footer-credit">
-          <span>김은경</span>
-          <span className="opacity-45" aria-hidden="true">|</span>
-          <a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a>
+          <span className="tp-footer-faint">김은경</span>
+          <span className="tp-footer-faint" aria-hidden="true">·</span>
+          <a className="tp-footer-faint" href="mailto:sadacaca@naver.com">sadacaca@naver.com</a>
           {isMaster && onOpenMaster && (
             <>
-              <span className="opacity-45" aria-hidden="true">|</span>
-              <button type="button" onClick={onOpenMaster}>
+              <button type="button" className="tp-footer-master" onClick={onOpenMaster}>
                 👑 마스터 관리실
               </button>
             </>
