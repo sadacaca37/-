@@ -143,11 +143,19 @@
   .endstats b{ display:block; font-size:20px; color:var(--pink-deep); }
   #fade{ position:absolute; inset:0; background:#1d1d3a; opacity:0; pointer-events:none; transition:opacity 700ms ease; z-index:58; }
   #fade.on{ opacity:.92; }
+  #flash{ position:absolute; inset:0; background:#eef4ff; opacity:0; pointer-events:none; transition:opacity 140ms ease; z-index:29; }
+  .wxrow{ display:flex; align-items:center; gap:6px; font-family:'Jua',sans-serif; font-size:13px; }
+  .wxrow.warn{ color:#d0453a; animation:warnPulse 1.2s ease-in-out infinite; }
+  @keyframes warnPulse{ 0%,100%{ opacity:1 } 50%{ opacity:.55 } }
+  #questline .qi.warn{ color:#d0453a; font-family:'Jua',sans-serif; }
+  .lbl.bubble.pest{ background:#ffe0dc; border-color:#d0453a; }
 
   @media (max-width:640px){
     .title-xl{ font-size:40px; }
     .starlbl{ display:none; }
     #questline{ font-size:11.5px; padding:7px 10px; max-width:56vw; }
+    #actionhud{ gap:6px; max-width:97vw; bottom:12px; }
+    #actionhud .btn{ padding:8px 10px; font-size:12.5px; white-space:nowrap; }
     #questline .qi{ font-size:11px; }
     .controls{ gap:10px; font-size:12px; }
     #bagpanel{ width:200px; }
@@ -163,7 +171,8 @@
   <div id="toasts"></div>
 
   <div id="topleft" class="panel">
-    <div class="dayrow"><div class="timeicon" id="timeicon"></div><span id="daytext">1일차</span> · <span id="timelabel">아침</span></div>
+    <div class="dayrow"><div class="timeicon" id="timeicon"></div><span id="daytext">1일차</span> · <span id="clock">오전 8:00</span></div>
+    <div class="wxrow" id="wxrow"><span id="wxicon">☀️</span><span id="wxtext">맑음</span></div>
     <div class="coinrow">🪙 <b id="coins">0</b></div>
     <div class="starrow"><span id="stars">★☆☆☆☆</span><span class="starlbl">농장 별점</span></div>
     <div class="vibetrack"><div class="vibefill" id="scorefill"></div></div>
@@ -215,6 +224,7 @@
   </div>
 
   <div id="fade"></div>
+  <div id="flash"></div>
 
   <div class="overlay" id="startoverlay">
     <div class="castrow" id="castrow"></div>
@@ -225,6 +235,7 @@
       <div><b>밭·주민 클릭</b>심기·물주기·수확·대화</div>
       <div><b>🐷 가게 · 🦫 게시판</b>팔고 사고, 농장 넓히기</div>
       <div><b>W A S D</b>직접 걷기 · 휠로 확대</div>
+      <div><b>👀 1인칭 (V키)</b>내 눈으로 보기 · 끌어서 둘러보기</div>
     </div>
     <div class="startbtns">
       <button class="btn mint" id="continuebtn" hidden>이어서 하기</button>
@@ -315,13 +326,24 @@ var VILLAGERS = [
 ];
 var LOTS = [ {x:7.5,z:-11.5}, {x:14.5,z:-6}, {x:17.5,z:2.5}, {x:0.5,z:-17.5}, {x:10,z:-18} ];
 
+/* 날씨: 하루에 하나. 태풍·폭염은 재해 */
+var WX = {
+  sun:   { icon:'☀️', name:'맑음' },
+  cloud: { icon:'☁️', name:'흐림' },
+  rain:  { icon:'🌧️', name:'비 (물 안 줘도 돼요)' },
+  storm: { icon:'⛈️', name:'태풍 주의보!', warn:true },
+  heat:  { icon:'🔥', name:'폭염·가뭄 (물이 빨리 말라요)', warn:true }
+};
+var TIME_SPEED = 1/22; // 게임 1시간 = 22초 → 하루 약 9분
 /* 별점: 농장 점수가 문턱을 넘을 때마다 별이 하나씩 */
 var STAR_AT = [0, 30, 75, 125, 180];
 
 /* ===================== 상태 ===================== */
 function freshState(){
   return {
-    started:false, day:1, timeHours:8.0, timeSpeed:1/50,
+    started:false, day:1, timeHours:8.0,
+    wx:{ day:0, today:'sun', tomorrow:'sun', peak:14, peakDone:false, forecastShown:false },
+    scarecrow:false, bugguard:false, windbreak:false, lost:0, saved:0,
     coins:60, inv:{}, selSeed:'wheat',
     fieldLv:0, homeLv:0, coop:false, barn:false, bigcan:false, sprinkler:false, lotsBuilt:0,
     plots:[], decor:[],
@@ -456,7 +478,7 @@ function addBlob(r){ var m=new THREE.Mesh(new THREE.PlaneGeometry(r*2,r*2), new 
 
 /* ===================== 모델 불러오기 ===================== */
 var loader = new THREE.GLTFLoader();
-var KIT = null, PETG = {};
+var KIT = null, PETG = {}, windowMats = [], nightGlow = 0, swayers = [];
 function loadGLB(url){ return new Promise(function(res){ loader.load(url, res, undefined, function(e){ console.warn('모델을 못 불러옴', url, e); res(null); }); }); }
 /* Kenney 모델 색은 그대로 쓰고(이 게임은 색을 그대로 내보냄), 반짝임만 줄인다 */
 function fixKitMaterial(m){
@@ -476,7 +498,8 @@ function kit(name, s, colors){
   o.traverse(function(c){
     if(!c.isMesh) return;
     c.castShadow=true; c.receiveShadow=true;
-    if(colors){ var mm=c.material.clone(); if(colors[mm.name]!==undefined) mm.color.setHex(colors[mm.name]); mm.userData.base=mm.color.clone(); c.material=mm; }
+    if(colors){ var mm=c.material.clone(); if(colors.__all!==undefined) mm.color.setHex(colors.__all); else if(colors[mm.name]!==undefined) mm.color.setHex(colors[mm.name]); mm.userData.base=mm.color.clone(); c.material=mm;
+      if(mm.name==='window' && mm.emissive){ mm.emissive.setHex(0xffc870); mm.emissiveIntensity=nightGlow; windowMats.push(mm); } }
   });
   g.add(o); g.scale.setScalar(s||1);
   return g;
@@ -619,7 +642,7 @@ function buildWorld(){
   for(var t=0;t<70;t++){
     var ang=sr()*Math.PI*2, r=23.5+sr()*9, x=Math.cos(ang)*r, z=Math.sin(ang)*r;
     var tn=treeNames[Math.floor(sr()*treeNames.length)], s=2.3+sr()*0.9;
-    place(kit(tn,s), x, z, sr()*6);
+    swayers.push(place(kit(tn,s), x, z, sr()*6));
   }
   [[-5,-12],[-21,-8],[-19.5,6],[21,-9],[4.5,17.5],[-3.5,18.5],[20,11],[-14,17]].forEach(function(p){ place(kit(pick(['tree_oak','tree_default','tree_detailed']),2.4),p[0],p[1],Math.random()*6); addObstacle(p[0],p[1],0.8); });
   for(var b=0;b<46;b++){
@@ -760,16 +783,16 @@ function makePlotTile(g){
   tile.position.y=0.04; tile.receiveShadow=true; tile.castShadow=false; g.add(tile);
   return [top,side];
 }
-function plotData(i){ if(!state.plots[i]) state.plots[i]={ crop:null, stage:0, wet:false, t:0 }; return state.plots[i]; }
-function needsWater(d){ return d.crop && d.stage<2 && !d.wet && !state.sprinkler; }
-function plotLabel(p){ var d=plotData(p.i); if(!d.crop) return '씨앗 심기'; if(d.stage>=3) return '수확하기'; if(needsWater(d)) return '물 주기'; return CROPS[d.crop].name+' 자라는 중'; }
+function plotData(i){ if(!state.plots[i]) state.plots[i]={ crop:null, stage:0, wet:false, t:0 }; var d=state.plots[i]; if(d.dry===undefined){ d.dry=0; d.wetT=0; d.withered=false; } return d; }
+function needsWater(d){ return d.crop && !d.withered && d.stage<3 && !d.wet && !state.sprinkler && (d.stage<2 || state.wx.today==='heat'); }
+function plotLabel(p){ var d=plotData(p.i), pe=pestOn(p.i); if(pe) return pe.type==='bird'?'🐦 새 쫓기!':'🐛 벌레 잡기!'; if(!d.crop) return '씨앗 심기'; if(d.withered) return '🥀 시든 작물 치우기'; if(d.stage>=3) return '수확하기'; if(needsWater(d)) return '물 주기'; return CROPS[d.crop].name+' 자라는 중'; }
 function refreshPlots(){
   plots.forEach(function(p){
     var unlocked = p.i<plotCount(); p.g.visible = unlocked;
     if(!unlocked) return;
     var d=plotData(p.i), wet = d.crop && (d.wet || state.sprinkler);
     p.mats.forEach(function(m){ m.color.copy(m.userData.base).multiplyScalar(wet?0.62:1); });
-    var key = d.crop ? d.crop+':'+d.stage : '';
+    var key = d.crop ? d.crop+':'+d.stage+(d.withered?':w'+d.withered:'') : '';
     if(key!==p.shownKey){
       if(p.cropObj){ p.g.remove(p.cropObj); p.cropObj=null; }
       if(d.crop){
@@ -777,19 +800,24 @@ function refreshPlots(){
         if(d.stage===0){ name='crops_leafsStageA'; h=0.2; } else { name=c.stages[d.stage-1]; h=c.h[d.stage-1]; }
         var src=KIT.getObjectByName(name), nh=0.5;
         if(src){ var bb=new THREE.Box3().setFromObject(src); nh=Math.max(0.05,bb.max.y); }
-        var gold = d.crop==='wheat' && d.stage>=2 ? { _defaultMat:0xe7c35a, woodInner:0xf2b134 } : null;
+        var gold = d.withered ? { __all:(d.withered==='dry'?0xb59a6a:0x8a6a45) } : d.crop==='wheat' && d.stage>=2 ? { _defaultMat:0xe7c35a, woodInner:0xf2b134 } : null;
+        if(d.withered && d.stage===0){ name='crops_leafsStageA'; h=0.25; }
         var o=kit(name, h/nh, gold); o.position.y=0.13; o.rotation.y=(p.i*1.7)%6.28;
         if(d.crop==='wheat' && d.stage>=2){ o.scale.x*=1.45; o.scale.z*=1.45; }
+        if(d.withered){ o.scale.y*=0.65; if(d.withered==='storm'){ o.children[0].rotation.z=1.1; o.position.y=0.18; } else o.children[0].rotation.z=0.35; }
         p.g.add(o); p.cropObj=o;
         if(p.shownKey!=='' || d.stage>0){ var t0=performance.now(), tg=o.scale.x; o.scale.setScalar(tg*0.3); (function a(){ var t=Math.min(1,(performance.now()-t0)/300); o.scale.setScalar(tg*(0.3+0.7*(1-Math.pow(1-t,3)))); if(t<1) requestAnimationFrame(a); })(); }
       }
       p.shownKey=key;
     }
   });
+  if(state.started) refreshQuest();
 }
 function usePlot(p){
   if(state.tut<1){ toast('먼저 광장의 토리에게 인사해 보세요 🐰'); return; }
-  var d=plotData(p.i);
+  var d=plotData(p.i), pe=pestOn(p.i);
+  if(pe){ shooPest(pe); return; }
+  if(d.crop && d.withered){ d.crop=null; d.stage=0; d.wet=false; d.t=0; d.withered=false; d.dry=0; playOnce(player,'act'); spawnFloat(p.g.position,'🧹 치웠어요','item'); refreshPlots(); saveSoon(); return; }
   if(!d.crop){
     var key=state.selSeed;
     if(!key || !hasItem(CROPS[key].name+' 씨앗')){ var any=CROP_KEYS.filter(function(k){ return hasItem(CROPS[k].name+' 씨앗'); }); if(any.length===1) key=any[0]; else if(any.length>1){ openSeedPicker(p); return; } else { toast('씨앗이 없어요! 핑키네 가게에서 사 오세요 🐷'); playOnce(player,'no'); return; } }
@@ -803,7 +831,7 @@ function usePlot(p){
 function plantPlot(p,key){
   var d=plotData(p.i), c=CROPS[key];
   takeItem(c.name+' 씨앗',1); state.selSeed=key;
-  d.crop=key; d.stage=0; d.wet=false; d.t=0;
+  d.crop=key; d.stage=0; d.wet=(state.wx.today==='rain'||state.wx.today==='storm'); d.t=0; d.withered=false; d.dry=0; d.wetT=0;
   playOnce(player,'act'); spawnFloat(p.g.position, '🌱 '+c.name+' 심기', 'item');
   if(state.tut===1) setTut(2);
   refreshPlots(); refreshActionHud(); saveSoon();
@@ -811,7 +839,7 @@ function plantPlot(p,key){
 function waterPlot(p){
   var targets=[p];
   if(state.bigcan){ plots.forEach(function(q){ if(q!==p && q.i<plotCount() && Math.abs(q.z-p.z)<0.1 && Math.abs(q.x-p.x)<FIELD.gap*1.1) targets.push(q); }); }
-  targets.forEach(function(q){ var d=plotData(q.i); if(d.crop && d.stage<2) d.wet=true; splash(q.g.position); });
+  targets.forEach(function(q){ var d=plotData(q.i); if(d.crop && !d.withered && d.stage<3){ d.wet=true; d.dry=0; d.wetT=0; } splash(q.g.position); });
   playOnce(player,'act');
   spawnFloat(p.g.position, targets.length>1?'💧 x'+targets.length:'💧 촉촉!', 'item');
   if(state.tut===2) setTut(3);
@@ -823,20 +851,30 @@ function harvestPlot(p){
   if(Math.random()<0.25){ addItem(c.name,1); spawnFloat(p.g.position, c.icon+' 대풍! +2', 'coin'); } else spawnFloat(p.g.position, '+'+c.icon+' '+c.name, 'item');
   if(!state.harvested[d.crop]){ state.harvested[d.crop]=0; toast(c.icon+' 처음 수확한 '+c.name+'! 농장 점수가 올랐어요'); }
   state.harvested[d.crop]++;
-  d.crop=null; d.stage=0; d.wet=false; d.t=0;
+  d.crop=null; d.stage=0; d.wet=false; d.t=0; d.withered=false; d.dry=0;
   playOnce(player,'cheer');
   if(state.tut===3) setTut(4);
   refreshPlots(); updateScore(); saveSoon();
 }
+var dryToastT=0;
 function updateCrops(dt){
-  var changed=false;
+  var changed=false, wx=state.wx.today, rain=(wx==='rain'||wx==='storm'), heat=(wx==='heat'), dried=0;
+  dryToastT-=dt;
   for(var i=0;i<plotCount();i++){
-    var d=plotData(i); if(!d.crop || d.stage>=3) continue;
-    if(d.stage>=2 || d.wet || state.sprinkler){
-      d.t+=dt; var c=CROPS[d.crop];
-      if(d.t >= c.grow/3){ d.t=0; d.stage++; d.wet = false; changed=true; if(d.stage>=3) sparkle(plots[i].g.position); }
+    var d=plotData(i); if(!d.crop || d.withered || d.stage>=3) continue;
+    var c=CROPS[d.crop];
+    if(rain && !d.wet){ d.wet=true; changed=true; }
+    /* 폭염: 물이 금방 마르고, 오래 마른 작물은 시든다 (스프링클러가 있으면 괜찮음) */
+    if(heat && !state.sprinkler){
+      if(d.wet){ d.wetT+=dt; if(d.wetT>16){ d.wet=false; d.wetT=0; changed=true; } }
+      else { d.dry+=dt; if(d.dry>30){ d.withered='dry'; d.dry=0; state.lost++; dried++; changed=true; continue; } }
+    }
+    if(d.wet || state.sprinkler || (d.stage>=2 && !heat)){
+      d.t+=dt;
+      if(d.t >= c.grow/3){ d.t=0; d.stage++; d.wet=rain; d.wetT=0; d.dry=0; changed=true; if(d.stage>=3) sparkle(plots[i].g.position); }
     }
   }
+  if(dried && dryToastT<=0){ dryToastT=8; toast('🔥 너무 더워서 작물이 말라 시들었어요 🥀 물을 자주 주세요!'); }
   if(changed) refreshPlots();
 }
 var splashes=[];
@@ -940,6 +978,8 @@ function useHome(){
 function sleep(){
   var f=$('fade'); f.classList.add('on');
   setTimeout(function(){
+    if(state.wx.today==='storm' && !state.wx.peakDone){ state.wx.peakDone=true; stormDamage(true); }
+    clearPests();
     state.day++; state.timeHours=6.5;
     /* 자는 동안 물 준 작물은 조금 더 자란다 */
     for(var i=0;i<plotCount();i++){ var d=plotData(i); if(d.crop && d.stage<3 && (d.wet||d.stage>=2||state.sprinkler)){ d.t+=CROPS[d.crop].grow/3; if(d.t>=CROPS[d.crop].grow/3){ d.t=0; d.stage++; d.wet=false; } } }
@@ -1072,6 +1112,12 @@ function spawnAnimals(pet, count, box, s){
 function updateNpcs(dt){
   npcs.forEach(function(n){
     var p=n.mesh.position, moving=false;
+    if(n.villager && !n.festival && !n.arriving){
+      var hh=state.timeHours, sleepy=(hh>=22 || hh<6);
+      if(sleepy && !n.asleep && !n.goingHome && !n.talking){ n.goingHome=true; n.target={ x:n.home.x, z:n.home.z }; n.walkT=0; }
+      if(!sleepy && n.asleep){ n.asleep=false; n.mesh.visible=true; p.set(n.home.x,0,n.home.z); n.wait=rnd(1,3); }
+    }
+    if(n.asleep){ return; }
     if(n.festival){
       var dx=n.festival.x-p.x, dz=n.festival.z-p.z, d=Math.sqrt(dx*dx+dz*dz);
       if(d>0.2){ p.x+=dx/d*Math.min(d,2.6*dt); p.z+=dz/d*Math.min(d,2.6*dt); n.face=Math.atan2(dx,dz); moving=true; n.mesh.userData.dancing=false; }
@@ -1084,8 +1130,9 @@ function updateNpcs(dt){
     } else if(n.target){
       var tx=n.target.x-p.x, tz=n.target.z-p.z, td=Math.sqrt(tx*tx+tz*tz);
       n.walkT+=dt;
-      if(td<0.2 || n.walkT>(n.arriving?30:7)){
+      if(td<0.2 || n.walkT>(n.arriving?30:(n.goingHome?14:7))){
         n.target=null; n.wait=rnd(2,6); n.walkT=0;
+        if(n.goingHome){ n.goingHome=false; n.asleep=true; n.mesh.visible=false; }
         if(n.arriving){ n.arriving=false; spawnFloat(p,'❗','sparkle'); }
       } else {
         var sp=(n.arriving?2.0:n.speed)*dt; p.x+=tx/td*sp; p.z+=tz/td*sp; collide(p,0.42);
@@ -1193,6 +1240,8 @@ function talkTori(n){
   var star=currentStar(), sc=farmScore(), next=STAR_AT[star]||null, lines=[];
   if(star>=5) lines.push('우리 마을이 별 다섯 개 마을이 됐어! 다 네 덕분이야 🌟');
   else lines.push('지금 우리 농장은 별 '+star+'개! 점수 '+sc+'점이야. 별 '+(star+1)+'개까지 '+(next-sc)+'점 남았어!');
+  if(state.tut>=6){ var Wt=WX[state.wx.today], Wn=WX[state.wx.tomorrow]; lines.push('오늘 날씨는 '+Wt.icon+' '+Wt.name.replace(/ \(.*/,'')+', 내일은 '+Wn.icon+' '+Wn.name.replace(/ \(.*/,'')+'(이)래!'+(state.wx.tomorrow==='storm'?' 태풍 오기 전에 꼭 수확해 둬!':'')); }
+  if(isNightNow) lines.push('밤이 깊었네~ 주민들은 다들 자러 갔어. 밤에는 벌레가 많이 나오니까 밭을 잘 봐 줘!');
   lines.push(pick(['밭을 넓히거나 건물을 지으면 점수가 많이 올라!','이웃이 이사 오면 마을이 훨씬 북적북적해져!','꾸미기 가구를 놓아도 점수가 조금씩 올라 🌼','주민들 부탁을 들어주면 점수랑 코인을 둘 다 받아!','새로운 작물을 처음 수확해도 점수가 올라!']));
   var rl=reqLine(n); if(rl) lines.push(rl);
   openDialogue(n, lines, { choices:requestChoices(n) });
@@ -1334,6 +1383,11 @@ function upgrades(){
     U.push({ id:'lot'+i, icon:'🏘️', name:V.name+'('+V.species+') 집 지어 주기', desc:'새 이웃 '+V.name+'가 이사 와요', cost:V.cost, star:V.star,
       avail:function(){ return state.lotsBuilt===i; }, done:function(){ return state.lotsBuilt>i; }, apply:function(){ buildVillagerHouse(i); } });
   });
+  U.push(
+    { id:'scarecrow', icon:'👒', name:'허수아비 세우기', desc:'새가 밭에 잘 안 와요 (새 피해 70% 줄어요)', cost:180, star:1, avail:function(){ return !state.scarecrow; }, done:function(){ return state.scarecrow; }, apply:function(){ state.scarecrow=true; buildScarecrow(false); } },
+    { id:'bugguard', icon:'🐞', name:'무당벌레 집 달기', desc:'무당벌레가 벌레를 잡아 줘요 (벌레 피해 70% 줄어요)', cost:260, star:2, avail:function(){ return !state.bugguard; }, done:function(){ return state.bugguard; }, apply:function(){ state.bugguard=true; buildBugHouse(false); } },
+    { id:'windbreak', icon:'🌳', name:'방풍 나무 심기', desc:'태풍 때 쓰러지는 작물이 확 줄어요', cost:400, star:2, avail:function(){ return !state.windbreak; }, done:function(){ return state.windbreak; }, apply:function(){ state.windbreak=true; buildWindbreak(false); } }
+  );
   return U;
 }
 function openBoard(){
@@ -1438,7 +1492,7 @@ function pickupDecor(g){
 
 /* ===================== 점수 · 별 ===================== */
 function farmScore(){
-  var s = state.fieldLv*12 + state.homeLv*12 + (state.coop?12:0) + (state.barn?12:0) + (state.bigcan?4:0) + (state.sprinkler?8:0);
+  var s = state.fieldLv*12 + state.homeLv*12 + (state.coop?12:0) + (state.barn?12:0) + (state.bigcan?4:0) + (state.sprinkler?8:0) + (state.scarecrow?4:0) + (state.bugguard?4:0) + (state.windbreak?4:0);
   VILLAGERS.forEach(function(V){ var v=state.v[V.id]; if(v && v.moved) s+=14; });
   s += Math.min(30, state.decor.length*2);
   s += Math.min(24, state.reqDone*3);
@@ -1463,7 +1517,8 @@ function updateScore(){
 }
 
 /* ===================== 할 일 쪽지 ===================== */
-function setTut(n){ if(state.tut<n){ state.tut=n; refreshQuest(); saveSoon(); } }
+function setTut(n){ if(state.tut<n){ state.tut=n; refreshQuest(); saveSoon();
+  if(n===6) setTimeout(function(){ toast('🌦️ 이제부터 날씨가 바뀌고, 새·벌레가 밭에 찾아와요! 밭을 잘 지켜 주세요', true); }, 3500); } }
 function refreshQuest(){
   var el=$('questline'); if(!state.started){ el.classList.remove('show'); return; }
   var steps=[ '광장의 토리에게 말 걸기 🐰', '밭을 눌러 씨앗 심기 🌱', '씨앗에 물 주기 💧', '다 자란 작물 수확하기 ✨', '핑키네 가게에서 작물 팔기 🐷', '뚝딱이 게시판 보기 🦫' ];
@@ -1480,9 +1535,18 @@ function refreshQuest(){
     if(state.decor.length<15) tips.push('🏡 가구 놓기 ('+state.decor.length+'/15)');
     tips.forEach(function(t){ html+='<div class="qi">· '+t+'</div>'; });
   }
+  var alerts=[];
+  pests.forEach(function(pe){ if(pe.phase!=='leave') alerts.push(pe.type==='bird'?'🐦 새가 밭에 왔어요! 밭을 눌러 쫓기':'🐛 벌레가 붙었어요! 밭을 눌러 잡기'); });
+  if(state.tut>=6){
+    if(state.wx.today==='storm' && !state.wx.peakDone) alerts.push('⛈️ 태풍: 오후 '+(state.wx.peak-12)+'시쯤 강풍 — 미리 수확!');
+    if(state.wx.today==='heat' && !state.sprinkler) alerts.push('🔥 폭염: 물이 빨리 말라요');
+  }
+  var wc=0; for(var wi=0;wi<plotCount();wi++){ var wd=plotData(wi); if(wd.crop && wd.withered) wc++; } if(wc) alerts.push('🥀 시든 작물 '+wc+'개 치우기');
+  html = alerts.map(function(a){ return '<div class="qi warn">⚠️ '+a+'</div>'; }).join('') + html;
   var reqs=npcs.filter(function(n){ return vs(n.id).req && (!n.villager || vs(n.id).greeted); }).slice(0,4);
   reqs.forEach(function(n){ var r=vs(n.id).req, have=state.inv[r.item]||0; html+='<div class="qi req">❗ '+n.name+': '+ITEMS[r.item].icon+r.item+' '+Math.min(have,r.qty)+'/'+r.qty+'</div>'; });
   el.innerHTML=html; el.classList.add('show');
+  var tl=$('topleft'); el.style.top=(tl.offsetTop+tl.offsetHeight+8)+'px';
 }
 
 /* ===================== 축제 (★5) ===================== */
@@ -1500,7 +1564,7 @@ function startFestival(){
 }
 function showEnding(){
   var vcount=VILLAGERS.filter(function(V){ return vs(V.id).moved; }).length;
-  $('endstats').innerHTML='<div><b>'+state.day+'일</b>걸린 날</div><div><b>'+(3+vcount)+'명</b>마을 주민</div><div><b>'+plotCount()+'칸</b>밭</div><div><b>'+state.decor.length+'개</b>놓은 가구</div>';
+  $('endstats').innerHTML='<div><b>'+state.day+'일</b>걸린 날</div><div><b>'+(3+vcount)+'명</b>마을 주민</div><div><b>'+plotCount()+'칸</b>밭</div><div><b>'+state.decor.length+'개</b>놓은 가구</div><div><b>'+state.saved+'번</b>새·벌레 막기</div>';
   var cast=['nabi','tori','mouse','pinky','ddak'].map(function(k){ return PORTRAIT[k]?'<img src="'+PORTRAIT[k]+'" class="'+(k==='mouse'?'big':'')+'" alt="">':''; }).join('');
   $('endcast').innerHTML=cast; $('endoverlay').style.display='flex';
 }
@@ -1518,7 +1582,9 @@ function refreshActionHud(){
   var sk=state.selSeed, sc=sk&&CROPS[sk], cnt=sc?(state.inv[sc.name+' 씨앗']||0):0;
   if(state.tut>=1) html+='<button class="btn yellow" id="seedbtn">'+(sc?sc.icon+' '+sc.name+' 씨앗 x'+cnt:'🌱 씨앗')+'</button>';
   html+='<button class="btn '+(decorateMode?'mint':'ghost')+'" id="decobtn">'+(decorateMode?'✔ 꾸미기 끝':'🏡 꾸미기')+'</button>';
+  html+='<button class="btn ghost" id="cambtn">'+(camMode==='fp'?'🗺️ 위에서':'👀 1인칭')+'</button>';
   el.innerHTML=html;
+  $('cambtn').addEventListener('click', function(){ setCamMode(camMode==='fp'?'top':'fp'); });
   var sb=$('seedbtn'); if(sb) sb.addEventListener('click', function(){ openSeedPicker(null); });
   $('decobtn').addEventListener('click', toggleDecorate);
 }
@@ -1571,9 +1637,12 @@ function updateLabels(){
     var px=player.position.x, pz=player.position.z;
     for(var i=0;i<plotCount();i++){
       var p=plots[i], d=plotData(i), ic=null;
-      if(d.crop){ if(d.stage>=3) ic='✨'; else if(needsWater(d)) ic='💧'; }
-      if(ic) label('p_'+i, 'plot', ic, tmpV.set(p.x, p.g.position.y+(d.stage>=3?CROPS[d.crop].h[2]+0.5:1.0), p.z));
+      var pe=pestOn(i);
+      if(pe && pe.phase==='eat'){ label('p_'+i, 'bubble pest', (pe.type==='bird'?'🐦':'🐛')+'❗'+Math.ceil(pe.t), tmpV.set(p.x, p.g.position.y+1.5, p.z)); continue; }
+      if(d.crop){ if(d.withered) ic='🥀'; else if(d.stage>=3) ic='✨'; else if(needsWater(d)) ic='💧'; }
+      if(ic) label('p_'+i, 'plot', ic, tmpV.set(p.x, p.g.position.y+(d.stage>=3&&!d.withered?CROPS[d.crop].h[2]+0.5:1.0), p.z));
     }
+    npcs.forEach(function(n){ if(n.asleep && n.villager){ var L=LOTS[VILLAGERS.indexOf(n.villager)]; label('z_'+n.id,'bubble','💤', tmpV.set(L.x, heightAt(L.x,L.z)+3.6, L.z)); } });
     if(state.coop && state.eggs>=3) label('coop','bubble','🥚'+state.eggs, tmpV.set(COOP.x-1.6,heightAt(COOP.x,COOP.z)+3.4,COOP.z-1.2));
     if(state.barn && state.milk>=2) label('barn','bubble','🥛'+state.milk, tmpV.set(BARN.x,heightAt(BARN.x,BARN.z)+4.0,BARN.z-1.6));
     if(!activeDialogue && !decorateMode && !moveTarget && !interactTarget){
@@ -1618,11 +1687,21 @@ function onDown(cx,cy){
   if(g){ var d=Math.sqrt(g.x*g.x+g.z*g.z); if(d>ARENA_R-1){ var sc=(ARENA_R-1)/d; g.x*=sc; g.z*=sc; }
     moveTarget=g; interactTarget=null; marker.position.set(g.x,heightAt(g.x,g.z)+0.07,g.z); marker.visible=true; }
 }
-canvas.addEventListener('mousedown', function(e){ if(e.button===0) onDown(e.clientX,e.clientY); });
-canvas.addEventListener('touchstart', function(e){ if(e.touches && e.touches.length===1) onDown(e.touches[0].clientX,e.touches[0].clientY); }, { passive:true });
+/* 위에서 보기: 누르는 즉시 이동. 1인칭: 끌면 둘러보기, 짧게 누르면 이동·사용 */
+var drag=null;
+function dragStart(x,y){ drag={ x0:x, y0:y, x:x, y:y, moved:false }; }
+function dragMove(x,y){ if(!drag) return; var dx=x-drag.x, dy=y-drag.y; drag.x=x; drag.y=y; if(Math.abs(x-drag.x0)+Math.abs(y-drag.y0)>7) drag.moved=true; if(drag.moved){ fpYaw-=dx*0.006; fpPitch=Math.max(-1.0,Math.min(0.55,fpPitch-dy*0.005)); fpFollow=false; } }
+function dragEnd(){ if(!drag) return; var d=drag; drag=null; if(!d.moved) onDown(d.x0,d.y0); }
+canvas.addEventListener('mousedown', function(e){ if(e.button!==0) return; if(camMode==='fp') dragStart(e.clientX,e.clientY); else onDown(e.clientX,e.clientY); });
+window.addEventListener('mousemove', function(e){ if(camMode==='fp' && drag) dragMove(e.clientX,e.clientY); });
+window.addEventListener('mouseup', function(){ if(camMode==='fp') dragEnd(); });
+canvas.addEventListener('touchstart', function(e){ if(!e.touches || e.touches.length!==1) return; var t=e.touches[0]; if(camMode==='fp') dragStart(t.clientX,t.clientY); else onDown(t.clientX,t.clientY); }, { passive:true });
+canvas.addEventListener('touchmove', function(e){ if(camMode==='fp' && drag && e.touches.length===1){ dragMove(e.touches[0].clientX,e.touches[0].clientY); } }, { passive:true });
+canvas.addEventListener('touchend', function(){ if(camMode==='fp') dragEnd(); }, { passive:true });
 canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 canvas.addEventListener('wheel', function(e){ camZoom=Math.max(0.6,Math.min(1.45,camZoom*(e.deltaY>0?1.08:0.93))); }, { passive:true });
-window.addEventListener('keydown', function(e){ var k=e.key.toLowerCase(); keys[k]=true; if('wasd'.indexOf(k)>=0 && k.length===1){ moveTarget=null; interactTarget=null; marker.visible=false; } if(k==='escape'){ closePanels(); if(decorateMode) toggleDecorate(); } });
+window.addEventListener('keydown', function(e){ var k=e.key.toLowerCase(); keys[k]=true; if('wasd'.indexOf(k)>=0 && k.length===1){ moveTarget=null; interactTarget=null; marker.visible=false; } if(k==='escape'){ closePanels(); if(decorateMode) toggleDecorate(); }
+  if(k==='v' && state.started && !activeDialogue) setCamMode(camMode==='fp'?'top':'fp'); });
 window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()]=false; });
 
 /* ===================== 플레이어 ===================== */
@@ -1630,7 +1709,12 @@ var playerFace=0;
 function updatePlayer(dt){
   var mv=new THREE.Vector3(), moved=false;
   var wasd=keys['w']||keys['a']||keys['s']||keys['d'];
-  if(wasd && !activeDialogue){
+  if(camMode==='fp' && !activeDialogue){ if(keys['arrowleft']) fpYaw+=dt*2.2; if(keys['arrowright']) fpYaw-=dt*2.2; if(keys['arrowup']) fpPitch=Math.min(0.55,fpPitch+dt*1.2); if(keys['arrowdown']) fpPitch=Math.max(-1,fpPitch-dt*1.2); }
+  if(wasd && !activeDialogue && camMode==='fp'){
+    /* 1인칭: W 앞 · S 뒤 · A/D 옆걸음 (바라보는 방향 기준) */
+    var sy=Math.sin(fpYaw), cy=Math.cos(fpYaw), f=(keys['w']?1:0)-(keys['s']?1:0), r=(keys['d']?1:0)-(keys['a']?1:0);
+    mv.set(sy*f - cy*r, 0, cy*f + sy*r); if(mv.lengthSq()>0){ mv.normalize(); moved=true; } fpFollow=false;
+  } else if(wasd && !activeDialogue){
     /* 카메라가 비스듬히 보므로 화면 위쪽 = 월드의 (-1,-1) 방향 */
     var fx=0,fz=0; if(keys['w']){ fx-=1; fz-=1; } if(keys['s']){ fx+=1; fz+=1; } if(keys['a']){ fx-=1; fz+=1; } if(keys['d']){ fx+=1; fz-=1; }
     mv.set(fx,0,fz); if(mv.lengthSq()>0){ mv.normalize(); moved=true; }
@@ -1638,7 +1722,7 @@ function updatePlayer(dt){
     var tx=interactTarget.x-player.position.x, tz=interactTarget.z-player.position.z, d=Math.sqrt(tx*tx+tz*tz);
     var reach = interactTarget.kind==='plot' ? 1.25 : Math.max(1.3, interactTarget.r-0.4);
     if(d>reach){ mv.set(tx,0,tz).normalize(); moved=true; }
-    else { playerFace=Math.atan2(tx,tz); var ia=interactTarget; interactTarget=null; if(ia.kind==='npc') ia.npc.talking=true; ia.use(); }
+    else { playerFace=Math.atan2(tx,tz); if(camMode==='fp') fpFollow=true; var ia=interactTarget; interactTarget=null; if(ia.kind==='npc') ia.npc.talking=true; ia.use(); }
   } else if(moveTarget){
     var mx=moveTarget.x-player.position.x, mz=moveTarget.z-player.position.z, dm=Math.sqrt(mx*mx+mz*mz);
     if(dm>0.2){ mv.set(mx,0,mz).normalize(); moved=true; } else { moveTarget=null; marker.visible=false; }
@@ -1646,7 +1730,7 @@ function updatePlayer(dt){
   if(moved){
     var before=player.position.clone();
     player.position.addScaledVector(mv, 5.4*dt); collide(player.position,0.45);
-    playerFace=Math.atan2(mv.x,mv.z);
+    if(camMode==='fp' && wasd) playerFace=fpYaw; else { playerFace=Math.atan2(mv.x,mv.z); if(camMode==='fp' && !wasd) fpFollow=true; }
     if(interactTarget || moveTarget){ var prog=before.distanceTo(player.position); player.userData.stuck=(prog<0.5*5.4*dt)?(player.userData.stuck||0)+dt:0; if(player.userData.stuck>0.6){ player.userData.stuck=0; moveTarget=null; marker.visible=false; if(interactTarget){ var ia2=interactTarget; interactTarget=null; var dd=Math.hypot(ia2.x-player.position.x, ia2.z-player.position.z); if(dd<ia2.r+0.9){ if(ia2.kind==='npc') ia2.npc.talking=true; ia2.use(); } } } }
   }
   player.position.y=heightAt(player.position.x,player.position.z);
@@ -1655,10 +1739,28 @@ function updatePlayer(dt){
   if(marker.visible) marker.rotation.z+=dt*2;
 }
 function updateBlobs(){
+  playerBlob.visible = camMode!=='fp';
   playerBlob.position.set(player.position.x, player.position.y+0.04, player.position.z);
   npcs.forEach(function(n){ n.blob.visible=n.mesh.visible; n.blob.position.set(n.mesh.position.x, n.mesh.position.y+0.04, n.mesh.position.z); });
 }
+var camMode='top', fpYaw=0, fpPitch=-0.12, fpFollow=false;
+function setCamMode(m){
+  camMode=m; player.visible=(m!=='fp');
+  camera.fov = m==='fp' ? 68 : 40; camera.updateProjectionMatrix();
+  if(m==='fp'){ fpYaw=player.rotation.y; fpPitch=-0.12; scene.fog.near=20; scene.fog.far=62; toast('👀 1인칭 시점! 화면을 끌어서 둘러보고, 바닥·밭·주민을 누르면 가요 (W·S 앞뒤, A·D 옆, V키로 돌아가기)', true); }
+  else { scene.fog.near=46; scene.fog.far=90; }
+  refreshActionHud();
+}
 function updateCamera(dt){
+  if(camMode==='fp'){
+    if(fpFollow){ var d=playerFace-fpYaw; while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2; fpYaw+=d*Math.min(1,dt*5); }
+    camTarget.copy(player.position);
+    var fwd=new THREE.Vector3(Math.sin(fpYaw),0,Math.cos(fpYaw));
+    camera.position.copy(player.position).addScaledVector(fwd,0.18); camera.position.y+=0.95;
+    var look=camera.position.clone().add(new THREE.Vector3(Math.sin(fpYaw)*Math.cos(fpPitch), Math.sin(fpPitch), Math.cos(fpYaw)*Math.cos(fpPitch)));
+    camera.lookAt(look);
+    return;
+  }
   camOffset.copy(CAM_BASE).multiplyScalar(camZoom);
   camTarget.lerp(player.position, Math.min(1,dt*6));
   camera.position.lerp(camTarget.clone().add(camOffset), Math.min(1,dt*6));
@@ -1667,21 +1769,222 @@ function updateCamera(dt){
 
 /* ===================== 하루 ===================== */
 function tickTime(dt){
-  state.timeHours+=dt*state.timeSpeed;
+  state.timeHours+=dt*TIME_SPEED;
   if(state.timeHours>=24){ state.timeHours-=24; state.day++; }
   var h=state.timeHours;
+  if(state.wx.day!==state.day && h>=5) newDayWeather();
+  if(state.started && h>=18 && h<23 && !state.wx.forecastShown && state.tut>=6){
+    state.wx.forecastShown=true; var T=WX[state.wx.tomorrow];
+    toast('📻 내일 날씨: '+T.icon+' '+T.name.replace(/ \(.*/,'')+(state.wx.tomorrow==='storm'?' — 다 자란 작물은 미리 수확해 두세요!':state.wx.tomorrow==='heat'?' — 물을 넉넉히 주세요!':''), state.wx.tomorrow==='storm'||state.wx.tomorrow==='heat');
+  }
   $('daytext').textContent=state.day+'일차';
-  $('timelabel').textContent = h<5?'깊은 밤':h<11?'아침':h<15?'낮':h<18?'오후':h<20?'노을':'밤';
+  var hh=Math.floor(h), mm=Math.floor((h-hh)*6)*10;
+  $('clock').textContent=(hh<12?'오전 ':'오후 ')+((hh%12)||12)+':'+(mm<10?'0':'')+mm;
   var ang=(h/24)*Math.PI*2-Math.PI/2, sh=Math.sin(ang);
   sun.position.set(camTarget.x+Math.cos(ang)*22, Math.max(4,sh*24), camTarget.z+12); sun.target.position.copy(camTarget);
   var day=Math.max(0,sh), dusk=Math.max(0,1-Math.abs(sh)*3), night=sh<-0.05;
   var col=new THREE.Color(); if(night) col.copy(skyNight).lerp(skySunset, Math.max(0,0.25-Math.abs(sh+0.05))*2); else col.copy(skyDay).lerp(skySunset,Math.min(1,dusk));
+  /* 날씨에 따라 하늘색·빛 */
+  var wx=state.wx.today, lightMul=1;
+  if(wx==='cloud'){ col.lerp(new THREE.Color(0x9aa6b2),0.45); lightMul=0.85; }
+  else if(wx==='rain'){ col.lerp(new THREE.Color(0x7c8796),0.62); lightMul=0.68; }
+  else if(wx==='storm'){ col.lerp(new THREE.Color(0x4a5260),0.78); lightMul=0.5; }
+  else if(wx==='heat' && !night){ col.lerp(new THREE.Color(0xffd29a),0.4); lightMul=1.08; }
   scene.background.copy(col); scene.fog.color.copy(col);
-  sun.intensity = night?0.12:(0.45+day*0.3);
-  hemi.intensity = night?0.3:(0.48+day*0.2);
-  fill.intensity = night?0.14:0.16;
-  $('timeicon').style.background = night?'#c9b8e8':(dusk>0.5?'#f5a9a8':'#f6d186');
-  lampLights.forEach(function(l){ l.light.intensity=night?1.3:0; l.mat.emissiveIntensity=night?1.0:0.3; });
+  sun.intensity = (night?0.16:(0.45+day*0.3))*lightMul + flashBoost;
+  hemi.intensity = (night?0.24:(0.48+day*0.2))*(0.6+0.4*lightMul) + flashBoost*0.8;
+  fill.intensity = night?0.1:0.16;
+  sun.color.setHex(night?0x9db2ff:(wx==='heat'?0xffe2b0:0xfff4dc));
+  hemi.color.setHex(night?0x7183d6:0xf4fbff);
+  var ti=$('timeicon'); ti.style.background = night?'#c9b8e8':(dusk>0.5?'#f5a9a8':'#f6d186');
+  var tic = night?'🌙':(dusk>0.5?'🌇':'🌞'); if(ti.textContent!==tic){ ti.textContent=tic; ti.style.fontSize='13px'; ti.style.lineHeight='20px'; ti.style.textAlign='center'; }
+  lampLights.forEach(function(l){ l.light.intensity=night?1.4:0; l.mat.emissiveIntensity=night?1.0:0.3; });
+  var glow = night?0.95:(dusk>0.6?0.4:0);
+  if(glow!==nightGlow){ nightGlow=glow; windowMats.forEach(function(m){ m.emissiveIntensity=glow; }); }
+  isNightNow = night;
+}
+
+/* =====================================================================
+   날씨 · 재해(태풍·폭염) · 새와 벌레 · 밤 반딧불
+   ===================================================================== */
+var flashBoost=0, lightningT=6, isNightNow=false;
+function rollWeather(prev){
+  if(state.tut<6 || state.day<=2) return pick(['sun','sun','cloud','rain']);
+  var r=Math.random(), w = r<0.38?'sun' : r<0.56?'cloud' : r<0.78?'rain' : r<0.89?'storm' : 'heat';
+  if((w==='storm'||w==='heat') && (prev==='storm'||prev==='heat')) w='sun';
+  return w;
+}
+function newDayWeather(){
+  var wx=state.wx; wx.day=state.day; wx.today=wx.tomorrow||'sun';
+  if(state.tut<6 && (wx.today==='storm'||wx.today==='heat')) wx.today='sun';
+  wx.tomorrow=rollWeather(wx.today); wx.peak=12+Math.floor(Math.random()*4); wx.peakDone=false; wx.forecastShown=false;
+  refreshWxHud();
+  if(state.started){
+    var W=WX[wx.today]; toast(W.icon+' 오늘 날씨: '+W.name, !!W.warn);
+    if(wx.today==='storm') setTimeout(function(){ toast('🌪️ 오후 '+(wx.peak-12)+'시쯤 강한 바람이 불어요! 다 자란 작물은 미리 수확하세요'); }, 1200);
+    if(wx.today==='heat' && !state.sprinkler) setTimeout(function(){ toast('💧 물이 금방 말라요. 💧 표시가 뜨면 바로 물을 주세요'); }, 1200);
+    if(wx.today==='rain') setTimeout(function(){ toast('🌧️ 비가 와서 오늘은 물을 안 줘도 돼요'); }, 1200);
+    refreshQuest(); saveSoon();
+  }
+}
+function refreshWxHud(){
+  var W=WX[state.wx.today]||WX.sun; $('wxicon').textContent=W.icon; $('wxtext').textContent=W.name;
+  $('wxrow').classList.toggle('warn', !!W.warn);
+}
+function stormDamage(overnight){
+  var lost=0, ch=state.windbreak?0.1:0.38;
+  for(var i=0;i<plotCount();i++){ var d=plotData(i); if(d.crop && !d.withered && d.stage>=1){ if(Math.random()<ch+(d.stage>=3?0.15:0)){ d.withered='storm'; lost++; } } }
+  state.lost+=lost; lightning(true); swayKick=1;
+  toast((overnight?'🌪️ 밤사이 태풍이 지나갔어요!':'🌪️ 강한 바람이 휩쓸고 갔어요!')+(lost?' 작물 '+lost+'개가 쓰러졌어요 🥀':' 다행히 피해가 없어요!'), true);
+  if(lost && !state.windbreak) setTimeout(function(){ toast('🦫 뚝딱이 게시판의 「방풍 나무 심기」를 하면 바람 피해가 줄어요'); }, 2600);
+  refreshPlots(); saveSoon();
+}
+function lightning(big){
+  var f=$('flash'); f.style.opacity=big?0.85:0.55; flashBoost=big?1.6:1.0;
+  setTimeout(function(){ f.style.opacity=0; }, big?160:100);
+  if(big || Math.random()<0.5) setTimeout(function(){ spawnFloat(player.position.clone().add(new THREE.Vector3(rnd(-3,3),1.5,rnd(-3,3))), '⚡ 우르릉!', 'sparkle'); }, 250);
+}
+/* 비 */
+var RAIN_N=1400, rainGeo=new THREE.BufferGeometry(), rainLines;
+(function(){ var a=new Float32Array(RAIN_N*6); for(var i=0;i<RAIN_N;i++){ var x=rnd(-24,24), y=rnd(0,18), z=rnd(-24,24); a.set([x,y,z,x,y+0.6,z], i*6); } rainGeo.setAttribute('position', new THREE.BufferAttribute(a,3));
+  var m=new THREE.LineBasicMaterial({ color:0xd6e8ff, transparent:true, opacity:0.55 }); m.toneMapped=false; rainLines=new THREE.LineSegments(rainGeo,m); rainLines.frustumCulled=false; rainLines.visible=false; scene.add(rainLines); })();
+/* 반딧불 (맑은 밤) */
+var FF_N=70, ffGeo=new THREE.BufferGeometry(), ffSeed=[], fireflies;
+(function(){ var a=new Float32Array(FF_N*3); for(var i=0;i<FF_N;i++){ ffSeed.push([rnd(-18,18),rnd(-18,18),rnd(0.4,2.2),rnd(0,6.28),rnd(0.3,0.9)]); } ffGeo.setAttribute('position', new THREE.BufferAttribute(a,3));
+  var m=new THREE.PointsMaterial({ color:0xf6ff9a, size:0.2, transparent:true, opacity:0.95, depthWrite:false, blending:THREE.AdditiveBlending }); m.toneMapped=false; fireflies=new THREE.Points(ffGeo,m); fireflies.frustumCulled=false; fireflies.visible=false; scene.add(fireflies); })();
+/* 하늘: 구름 · 해와 달 · 별 (1인칭으로 올려다볼 때 보임) */
+var skyGroup=new THREE.Group(); scene.add(skyGroup);
+var cloudMat=new THREE.MeshLambertMaterial({ color:0xffffff, emissive:0x8090a0, emissiveIntensity:0.35, fog:false }); cloudMat.toneMapped=false;
+var clouds=[];
+(function(){ for(var i=0;i<14;i++){ var c=new THREE.Group(); var n=4+Math.floor(Math.random()*3); for(var k=0;k<n;k++){ var big=(k===Math.floor(n/2)); var m=new THREE.Mesh(new THREE.SphereGeometry(big?rnd(2.8,3.4):rnd(1.5,2.4),10,8), cloudMat); m.position.set((k-n/2)*1.7+rnd(-0.4,0.4), big?0.9:rnd(-0.2,0.5), rnd(-1.6,1.6)); c.add(m); }
+  var a=Math.random()*6.28, r=rnd(25,85); c.position.set(Math.cos(a)*r, rnd(20,30), Math.sin(a)*r); c.scale.set(1,0.62,1); c.rotation.y=Math.random()*3; skyGroup.add(c); clouds.push(c); } })();
+var sunDisc=new THREE.Mesh(new THREE.SphereGeometry(5,20,14), new THREE.MeshBasicMaterial({ color:0xfff1b0, fog:false })); sunDisc.material.toneMapped=false; scene.add(sunDisc);
+var starGeo=new THREE.BufferGeometry(); (function(){ var a=new Float32Array(500*3); for(var i=0;i<500;i++){ var th=Math.random()*6.28, ph=Math.acos(rnd(0.08,1)), r=150; a[i*3]=Math.cos(th)*Math.sin(ph)*r; a[i*3+1]=Math.cos(ph)*r; a[i*3+2]=Math.sin(th)*Math.sin(ph)*r; } starGeo.setAttribute('position', new THREE.BufferAttribute(a,3)); })();
+var stars=new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xffffff, size:1.2, sizeAttenuation:false, fog:false, transparent:true, opacity:0.9 })); stars.material.toneMapped=false; stars.frustumCulled=false; stars.visible=false; scene.add(stars);
+var swayKick=0, wxClock=0;
+function updateWeather(dt){
+  wxClock+=dt; flashBoost=Math.max(0,flashBoost-dt*6); swayKick=Math.max(0,swayKick-dt*0.4);
+  var wx=state.wx.today, wet=(wx==='rain'||wx==='storm'), storm=(wx==='storm');
+  rainLines.visible=wet;
+  if(wet){
+    var a=rainGeo.attributes.position.array, sp=storm?26:17, sl=storm?0.45:0.05, len=storm?0.9:0.6, cx=camTarget.x, cz=camTarget.z;
+    for(var i=0;i<RAIN_N;i++){ var k=i*6, x=a[k]+sl*sp*dt, y=a[k+1]-sp*dt, z=a[k+2];
+      if(y<-0.3 || Math.abs(x-cx)>25 || Math.abs(z-cz)>25){ y=rnd(10,18); x=cx+rnd(-24,24); z=cz+rnd(-24,24); }
+      a[k]=x; a[k+1]=y; a[k+2]=z; a[k+3]=x-sl*len; a[k+4]=y+len; a[k+5]=z; }
+    rainGeo.attributes.position.needsUpdate=true;
+  }
+  if(storm){ lightningT-=dt; if(lightningT<=0){ lightningT=rnd(4,10); lightning(false); }
+    if(state.started && !state.wx.peakDone && state.timeHours>=state.wx.peak && state.timeHours<21){ state.wx.peakDone=true; stormDamage(false); refreshQuest(); } }
+  /* 하늘 */
+  var dark=(wx==='rain'?0.55:storm?0.32:wx==='cloud'?0.82:1)*(isNightNow?0.35:1);
+  if(isNightNow) cloudMat.color.setRGB(dark*0.95,dark*1.05,dark*1.6); else cloudMat.color.setRGB(dark,dark,dark*1.02); cloudMat.emissiveIntensity=0.35*dark;
+  clouds.forEach(function(c,i){ c.position.x+=dt*(storm?3.5:0.6)*(1+i%3*0.3); if(c.position.x>95) c.position.x=-95; });
+  skyGroup.position.set(camTarget.x*0.6,0,camTarget.z*0.6);
+  var sd=sun.position.clone().sub(sun.target.position).normalize(), hrs=state.timeHours, nightSky=isNightNow;
+  if(nightSky){ var ma=((hrs+12)/24)*Math.PI*2-Math.PI/2; sd.set(Math.cos(ma),Math.max(0.25,Math.sin(ma)),0.45).normalize(); sunDisc.material.color.setHex(0xe8eeff); sunDisc.scale.setScalar(0.7); }
+  else { sunDisc.material.color.setHex(wx==='heat'?0xffd27a:0xfff1b0); sunDisc.scale.setScalar(wx==='heat'?1.25:1); }
+  sunDisc.position.copy(camTarget).addScaledVector(sd,140); sunDisc.visible = !(wet);
+  stars.visible = nightSky && !wet; stars.position.copy(camTarget);
+  /* 바람에 흔들리는 나무 */
+  var amp = (storm?0.075:wx==='rain'?0.025:0.01) + swayKick*0.1;
+  for(var j=0;j<swayers.length;j++){ var t=swayers[j]; t.rotation.z=Math.sin(wxClock*(storm?3.2:1.4)+j)*amp; t.rotation.x=Math.cos(wxClock*(storm?2.7:1.1)+j*1.7)*amp*0.6; }
+  /* 반딧불 */
+  fireflies.visible = isNightNow && !wet;
+  if(fireflies.visible){ var fa=ffGeo.attributes.position.array; for(var f=0;f<FF_N;f++){ var sd=ffSeed[f], tt=wxClock*sd[4]+sd[3];
+    var fx=camTarget.x+sd[0]+Math.sin(tt)*1.2, fz=camTarget.z+sd[1]+Math.cos(tt*0.8)*1.2; fa[f*3]=fx; fa[f*3+1]=heightAt(fx,fz)+sd[2]+Math.sin(tt*1.7)*0.3; fa[f*3+2]=fz; }
+    ffGeo.attributes.position.needsUpdate=true; fireflies.material.opacity=0.55+0.4*Math.abs(Math.sin(wxClock*2.3)); }
+}
+/* ---------- 새 · 벌레 ---------- */
+var pests=[], birdT=rnd(40,70), bugT=rnd(35,60);
+function pestOn(i){ for(var k=0;k<pests.length;k++){ if(pests[k].plot===i && pests[k].phase!=='leave') return pests[k]; } return null; }
+function spawnPest(type){
+  var cands=[];
+  for(var i=0;i<plotCount();i++){ var d=plotData(i); if(!d.crop || d.withered || pestOn(i)) continue; if(type==='bird' ? d.stage<=1 : d.stage>=1) cands.push(i); }
+  if(!cands.length || !PETG[type==='bird'?'parrot':'caterpillar']) return;
+  var i=pick(cands), p=plots[i];
+  var mesh=buildPet(type==='bird'?'parrot':'caterpillar', type==='bird'?0.5:0.4); mesh.userData.idle2=[]; scene.add(mesh);
+  var pe={ type:type, plot:i, mesh:mesh, t:type==='bird'?13:16, phase:'arrive', k:0 };
+  if(type==='bird'){ var a=Math.random()*6.28; pe.from=new THREE.Vector3(p.x+Math.cos(a)*10, p.g.position.y+8, p.z+Math.sin(a)*10); pe.to=new THREE.Vector3(p.x+rnd(-0.3,0.3), p.g.position.y+0.15, p.z+rnd(-0.3,0.3)); mesh.position.copy(pe.from); toast('🐦 새가 밭에 날아왔어요! 밭을 눌러 쫓아내세요'); }
+  else { mesh.position.set(p.x+0.45, p.g.position.y+0.15, p.z); mesh.scale.setScalar(0.01); toast('🐛 벌레가 작물에 붙었어요! 밭을 눌러 잡아 주세요'); }
+  pests.push(pe); refreshQuest();
+}
+function leavePest(pe){ pe.phase='leave'; pe.k=0; var a=Math.random()*6.28; pe.dir=new THREE.Vector3(Math.cos(a),0,Math.sin(a)); if(pe.type==='bird') pe.mesh.rotation.y=Math.atan2(pe.dir.x,pe.dir.z); refreshQuest(); }
+function clearPests(){ pests.forEach(function(pe){ scene.remove(pe.mesh); }); pests=[]; refreshQuest(); }
+function pestDamage(pe){
+  var d=plotData(pe.plot), p=plots[pe.plot], nm=d.crop?CROPS[d.crop].name:'작물';
+  if(pe.type==='bird'){ d.crop=null; d.stage=0; d.wet=false; d.t=0; d.withered=false; toast('🐦 새가 '+nm+' 싹을 먹어 버렸어요!'+(state.scarecrow?'':' (허수아비를 세우면 새가 덜 와요)')); }
+  else { d.withered='bug'; toast('🐛 벌레가 '+nm+'을(를) 갉아먹어 시들었어요 🥀'+(state.bugguard?'':' (무당벌레 집을 달면 벌레가 줄어요)')); }
+  state.lost++; spawnFloat(p.g.position, pe.type==='bird'?'꿀꺽!':'갉작갉작…', 'heart'); leavePest(pe); refreshPlots(); saveSoon();
+}
+function shooPest(pe){
+  var p=plots[pe.plot]; state.saved++;
+  if(pe.type==='bird'){ spawnFloat(p.g.position,'훠이~! 🐦💨','sparkle'); playOnce(player,'cheer'); }
+  else { addCoins(2); spawnFloat(p.g.position,'🐛 잡았다! +2🪙','coin'); playOnce(player,'act'); }
+  leavePest(pe); saveSoon();
+}
+function updatePests(dt){
+  if(state.tut>=6 && state.started){
+    var night=isNightNow, wx=state.wx.today;
+    if(!night && wx!=='rain' && wx!=='storm'){ birdT-=dt*(state.scarecrow?0.3:1); if(birdT<=0){ birdT=rnd(45,80); if(pests.filter(function(q){ return q.type==='bird'; }).length<2) spawnPest('bird'); } }
+    bugT-=dt*(night?2.2:0.8)*(state.bugguard?0.3:1)*(wx==='rain'?0.5:1);
+    if(bugT<=0){ bugT=rnd(40,70); if(pests.filter(function(q){ return q.type==='bug'; }).length<2) spawnPest('bug'); }
+  }
+  for(var i=pests.length-1;i>=0;i--){
+    var pe=pests[i], m=pe.mesh, d=plotData(pe.plot), pl=plots[pe.plot]; pe.k+=dt;
+    if(pe.phase==='arrive'){
+      if(pe.type==='bird'){ var t=Math.min(1,pe.k/1.8); m.position.lerpVectors(pe.from,pe.to,t); m.position.y+=Math.sin(t*Math.PI)*1.2; m.rotation.y=Math.atan2(pe.to.x-pe.from.x,pe.to.z-pe.from.z); animPet(m,dt,true); if(t>=1){ pe.phase='eat'; pe.k=0; } }
+      else { var g=Math.min(1,pe.k/0.6); m.scale.setScalar(Math.max(0.01,g)); animPet(m,dt,false); if(g>=1){ pe.phase='eat'; pe.k=0; } }
+    } else if(pe.phase==='eat'){
+      if(!d.crop || d.withered){ leavePest(pe); continue; }
+      pe.t-=dt;
+      if(pe.type==='bird'){ if(!m.userData.oneShot) playOnce(m,'act',1.4); animPet(m,dt,false); }
+      else { var aa=pe.k*0.9; m.position.x=pl.x+Math.cos(aa)*0.45; m.position.z=pl.z+Math.sin(aa)*0.45; m.rotation.y=-aa; animPet(m,dt,true); }
+      if(pe.t<=0) pestDamage(pe);
+    } else {
+      animPet(m,dt,true);
+      if(pe.type==='bird'){ m.position.addScaledVector(pe.dir,dt*7); m.position.y+=dt*4.5; }
+      else m.scale.multiplyScalar(Math.max(0,1-dt*4));
+      if(pe.k>1.6){ scene.remove(m); pests.splice(i,1); }
+    }
+  }
+}
+/* ---------- 지킴이: 허수아비 · 무당벌레 집 · 방풍 나무 ---------- */
+function matc(c){ var m=new THREE.MeshStandardMaterial({ color:c, roughness:0.85 }); m.toneMapped=false; return m; }
+function buildScarecrow(instant){
+  var g=new THREE.Group(), wood=matc(0x9a6a43), straw=matc(0xf2cf63);
+  var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,2.2,8), wood); pole.position.y=1.1; g.add(pole);
+  var arm=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1.6,8), wood); arm.rotation.z=Math.PI/2; arm.position.y=1.5; g.add(arm);
+  var shirt=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.62,0.3), matc(0x5b8fd6)); shirt.position.y=1.35; g.add(shirt);
+  var patch=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.02), matc(0xf28b82)); patch.position.set(0.15,1.25,0.16); g.add(patch);
+  var head=new THREE.Mesh(new THREE.SphereGeometry(0.27,14,12), matc(0xf3dcb0)); head.position.y=1.92; g.add(head);
+  [-0.09,0.09].forEach(function(x){ var e=new THREE.Mesh(new THREE.SphereGeometry(0.035,8,6), matc(0x3a2e28)); e.position.set(x,1.96,0.25); g.add(e); });
+  var mouth=new THREE.Mesh(new THREE.TorusGeometry(0.07,0.015,6,12,Math.PI), matc(0x3a2e28)); mouth.position.set(0,1.87,0.25); mouth.rotation.z=Math.PI; g.add(mouth);
+  var brim=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.44,0.04,18), straw); brim.position.y=2.12; g.add(brim);
+  var crown=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.26,0.24,14), straw); crown.position.y=2.25; g.add(crown);
+  [-0.82,0.82].forEach(function(x){ var hnd=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.26,6), straw); hnd.rotation.z=x>0?-Math.PI/2:Math.PI/2; hnd.position.set(x,1.5,0); g.add(hnd); });
+  g.traverse(function(c){ if(c.isMesh) c.castShadow=true; });
+  place(g, FIELD.x0-2.25, FIELD.z0-2.2, Math.PI*0.25); addObstacle(FIELD.x0-2.25, FIELD.z0-2.2, 0.35);
+  if(!instant) popIn(g);
+}
+function buildBugHouse(instant){
+  var g=new THREE.Group(), wood=matc(0xc98b57);
+  var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.07,1.4,8), wood); pole.position.y=0.7; g.add(pole);
+  var box=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.55,0.5), wood); box.position.y=1.65; g.add(box);
+  var hole=new THREE.Mesh(new THREE.CircleGeometry(0.1,12), matc(0x4a3424)); hole.position.set(0,1.7,0.26); g.add(hole);
+  var roof=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.38,4), matc(0xe2463e)); roof.rotation.y=Math.PI/4; roof.position.y=2.1; g.add(roof);
+  for(var k=0;k<4;k++){ var a=k/4*Math.PI*2+0.4; var dot=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,6), matc(0x1d1d1d)); dot.position.set(Math.cos(a)*0.25,2.02,Math.sin(a)*0.25); g.add(dot); }
+  for(var b=0;b<3;b++){ var lb=new THREE.Group(); var shell=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8,0,Math.PI*2,0,Math.PI/2), matc(0xe2463e)); var hd=new THREE.Mesh(new THREE.SphereGeometry(0.035,8,6), matc(0x1d1d1d)); hd.position.set(0,0.01,0.07); lb.add(shell,hd); lb.position.set(-0.2+b*0.2, 1.38+b*0.13, 0.26); lb.rotation.x=Math.PI/2; g.add(lb); }
+  g.traverse(function(c){ if(c.isMesh) c.castShadow=true; });
+  place(g, FIELD.x0+3*FIELD.gap+2.2, FIELD.z0+3*FIELD.gap+1.6, Math.PI*0.25); addObstacle(FIELD.x0+3*FIELD.gap+2.2, FIELD.z0+3*FIELD.gap+1.6, 0.3);
+  if(!instant) popIn(g);
+}
+function buildWindbreak(instant){
+  var x0=FIELD.x0-2.3, x1=FIELD.x0+3*FIELD.gap+1.0, z0=FIELD.z0-2.3, z1=FIELD.z0+3*FIELD.gap+1.3;
+  var spots=[]; for(var x=x0+1.2;x<=x1;x+=1.45) spots.push([x,z0]); for(var z=z0+1.4;z<=z1;z+=1.45) spots.push([x0,z]);
+  spots.forEach(function(sp,i){
+    var b=kit(i%3===2?'tree_small':'plant_bushDetailed', i%3===2?2.4:2.5); place(b,sp[0],sp[1],i*1.3); swayers.push(b);
+    if(!instant){ var tg=b.scale.x; b.scale.setScalar(0.01); (function(o,tg,dl){ setTimeout(function(){ var t0=performance.now(); (function a(){ var t=Math.min(1,(performance.now()-t0)/350); o.scale.setScalar(Math.max(0.01,tg*t)); if(t<1) requestAnimationFrame(a); })(); }, dl); })(b,tg,i*60); }
+  });
 }
 
 /* ===================== 저장 ===================== */
@@ -1700,9 +2003,10 @@ function loop(){
   var dt=Math.min(0.05, clock.getDelta());
   if(world){
     if(state.started){
-      updatePlayer(dt); updateNpcs(dt); updateCrops(dt); updateProducers(dt); updateTrees(dt); updateRequests(dt); updateFishing(dt); tickTime(dt);
+      updatePlayer(dt); updateNpcs(dt); updateCrops(dt); updateProducers(dt); updateTrees(dt); updateRequests(dt); updateFishing(dt); tickTime(dt); updatePests(dt);
     } else { animPet(player, dt, false); npcs.forEach(function(n){ animPet(n.mesh,dt,false); }); }
     updateBlobs();
+    updateWeather(dt);
     updateSplashes(dt);
     updateCamera(dt);
   }
@@ -1713,7 +2017,7 @@ function loop(){
 /* ===================== 시작 ===================== */
 var world=false;
 function boot(){
-  var pets=['koala','bunny','beaver','pig','cat','dog','panda','penguin','monkey','chick','cow'];
+  var pets=['koala','bunny','beaver','pig','cat','dog','panda','penguin','monkey','chick','cow','parrot','caterpillar'];
   Promise.all([loadGLB('models/kit.glb')].concat(pets.map(function(p){ return loadGLB('models/pets/'+p+'.glb'); }))).then(function(res){
     var kitG=res[0]; KIT = kitG ? kitG.scene : new THREE.Group();
     KIT.traverse(function(c){ if(c.isMesh){ fixKitMaterial(c.material); } });
@@ -1726,6 +2030,8 @@ function boot(){
     if(sv && typeof sv.px==='number'){ player.position.set(sv.px,0,sv.pz); }
     state.decor.forEach(function(d){ if(DECOR[d.key]) addDecorObj(d); });
     applyStarVisuals(state.starSeen||1, true); if(state.sprinkler) buildSprinklers();
+    if(state.scarecrow) buildScarecrow(true); if(state.bugguard) buildBugHouse(true); if(state.windbreak) buildWindbreak(true);
+    refreshWxHud();
     camTarget.copy(player.position); camera.position.copy(player.position).add(camOffset);
     world=true;
     $('castrow').innerHTML=['tori','nabi','mouse','badug','pinky'].map(function(k){ return PORTRAIT[k]?'<img src="'+PORTRAIT[k]+'" class="'+(k==='mouse'?'big':'')+'" alt="">':''; }).join('');
@@ -1756,7 +2062,7 @@ if(/[?&]debug/.test(location.search)) window.__pf = { state:state, addCoins:addC
   camera:camera, camTarget:camTarget, setZoom:function(z){ camZoom=z; }, score:farmScore, star:currentStar, updateScore:updateScore, upgrades:upgrades, openBoard:openBoard, openShop:openShop,
   usePlot:usePlot, growAll:function(){ for(var i=0;i<plotCount();i++){ var d=plotData(i); if(d.crop){ d.stage=3; } } refreshPlots(); }, setTut:setTut, saveGame:saveGame,
   buildVillagerHouse:buildVillagerHouse, refreshHome:refreshHome, refreshCoop:refreshCoop, refreshBarn:refreshBarn, refreshPlots:refreshPlots, applyStarVisuals:applyStarVisuals,
-  startFestival:startFestival, PORTRAIT:PORTRAIT, tickTime:tickTime, get world(){ return world; }, interactables:interactables, toggleDecorate:toggleDecorate, placeDecor:placeDecor, get selDecor(){ return selDecor; }, set selDecor(v){ selDecor=v; } };
+  startFestival:startFestival, PORTRAIT:PORTRAIT, setWeather:function(w){ state.wx.today=w; state.wx.peakDone=false; refreshWxHud(); refreshQuest(); }, spawnPest:spawnPest, get pests(){ return pests; }, stormDamage:stormDamage, setCamMode:setCamMode, get fp(){ return {yaw:fpYaw,pitch:fpPitch,mode:camMode}; }, newDayWeather:newDayWeather, get timeHours(){ return state.timeHours; }, tickTime:tickTime, get world(){ return world; }, interactables:interactables, toggleDecorate:toggleDecorate, placeDecor:placeDecor, get selDecor(){ return selDecor; }, set selDecor(v){ selDecor=v; } };
 resize();
 boot();
 loop();
