@@ -69,7 +69,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
   return (
     <BodyPortal>
     <div 
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 tp-result-big"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 tp-result-big tp-modal"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -92,9 +92,10 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
           <span>{title} 한 세트 완주 결과</span>
         </div>
 
-        {/* Big Icon */}
-        <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-300 via-yellow-200 to-pink-200 mx-auto flex items-center justify-center text-5xl shadow-md ring-4 ring-amber-100">
-          {modeType === 'key_word' ? (currentStars >= 10 ? '🎉' : '⭐') : (isRecordBeat ? '🍬' : '📊')}
+        {/* 축하 그림 (제미나이): 보물상자·트로피 */}
+        <div className="rp-hero mx-auto">
+          <img src="./assets/report/victory.webp" alt="" aria-hidden="true" draggable={false} />
+          <span className="rp-hero-badge">{modeType === 'key_word' ? (currentStars >= 10 ? '🎉' : '⭐') : isRecordBeat ? '🍬' : '🏆'}</span>
         </div>
 
         <div>
@@ -134,6 +135,11 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* 거의 다 틀렸으면 한/영 키 안내 (영어로 치면 모두 오타가 됨) */}
+        {cpm === 0 && errorCount > 20 && (
+          <div className="rp-note rp-note--warn">⌨️ 글자가 모두 틀렸어요. 혹시 <b>영어</b>로 치고 있었나요? 키보드의 <b>한/영</b> 키를 눌러 한글로 바꾼 뒤 다시 쳐 보세요.</div>
+        )}
 
         {/* 다 쳤으면 선생님께 보내기 (크게) */}
         <SendReportCTA kind={practiceKind} keyStage={keyStage} stageLabel={keyStageLabel} />

@@ -195,7 +195,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
   return (
     <div className="space-y-5">
       {/* Top Header & Range Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-purple-50 via-pink-50 to-indigo-50 p-4 sm:p-5 rounded-3xl border-2 border-purple-200 shadow-xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-gradient-to-r from-purple-50 via-pink-50 to-indigo-50 p-4 sm:p-5 rounded-3xl border-2 border-purple-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
@@ -204,7 +204,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
             <div>
               <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
                 <span>{userName} 학생의 주간 타수(CPM) 성장 그래프</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-600 text-white font-black">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-600 text-white font-black whitespace-nowrap">
                   실시간 통계
                 </span>
               </h3>
@@ -216,12 +216,12 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-1.5 self-end lg:self-auto">
           {/* Range pills */}
           <div className="flex items-center p-1 bg-white rounded-2xl border border-purple-200 shadow-2xs">
             <button
               onClick={() => setTimeRange(7)}
-              className={`px-3 py-1 text-xs font-black rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 timeRange === 7 
                   ? 'bg-purple-600 text-white shadow-2xs' 
                   : 'text-slate-500 hover:text-slate-800'
@@ -231,7 +231,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
             </button>
             <button
               onClick={() => setTimeRange(14)}
-              className={`px-3 py-1 text-xs font-black rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 timeRange === 14 
                   ? 'bg-purple-600 text-white shadow-2xs' 
                   : 'text-slate-500 hover:text-slate-800'
@@ -241,7 +241,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
             </button>
             <button
               onClick={() => setTimeRange(30)}
-              className={`px-3 py-1 text-xs font-black rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 timeRange === 30 
                   ? 'bg-purple-600 text-white shadow-2xs' 
                   : 'text-slate-500 hover:text-slate-800'
@@ -255,7 +255,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
           <div className="flex items-center p-1 bg-white rounded-2xl border border-purple-200 shadow-2xs">
             <button
               onClick={() => setMetricMode('both')}
-              className={`px-2.5 py-1 text-[11px] font-black rounded-xl transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-[11px] font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 metricMode === 'both' ? 'bg-indigo-600 text-white' : 'text-slate-500'
               }`}
               title="타수와 정확도 함께 보기"
@@ -264,7 +264,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
             </button>
             <button
               onClick={() => setMetricMode('cpm')}
-              className={`px-2.5 py-1 text-[11px] font-black rounded-xl transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-[11px] font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 metricMode === 'cpm' ? 'bg-indigo-600 text-white' : 'text-slate-500'
               }`}
               title="타수(CPM)만 보기"
@@ -273,7 +273,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
             </button>
             <button
               onClick={() => setMetricMode('accuracy')}
-              className={`px-2.5 py-1 text-[11px] font-black rounded-xl transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-[11px] font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 metricMode === 'accuracy' ? 'bg-indigo-600 text-white' : 'text-slate-500'
               }`}
               title="정확도만 보기"

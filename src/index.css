@@ -4007,3 +4007,27 @@ body:has(.tp-typing-screen) .tp-result-big * {
   }
 }
 
+
+/* ---------- 기록장 · 성적표 · 세트 결과 (제미나이 그림) ---------- */
+.rp-hero { position: relative; width: min(100%, 420px); aspect-ratio: 16 / 9; border: 4px solid #3d220d; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 3px #e5be76, 0 6px 0 rgba(44, 21, 7, 0.55); }
+.rp-hero img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+.rp-hero-badge { position: absolute; right: 10px; bottom: 8px; font-size: 34px; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); animation: tpBob 1.4s ease-in-out infinite; }
+.rp-banner { position: relative; width: 100%; aspect-ratio: 1024 / 300; max-height: 210px; border: 4px solid #3d220d; border-radius: 12px; overflow: hidden; flex-shrink: 0; box-shadow: inset 0 0 0 3px #e5be76, 0 6px 0 rgba(44, 21, 7, 0.55); }
+.rp-banner img { width: 100%; height: 100%; object-fit: cover; object-position: center 60%; image-rendering: pixelated; display: block; }
+.rp-banner-title {
+  position: absolute; left: 50%; top: 10px; translate: -50% 0; white-space: nowrap;
+  padding: 6px 18px; font-family: 'Jua', sans-serif; font-size: clamp(1rem, 2.6vw, 1.6rem); color: #ffd700;
+  text-shadow: 2px 2px 0 #3a1a0c, -2px -2px 0 #3a1a0c, 2px -2px 0 #3a1a0c, -2px 2px 0 #3a1a0c;
+  background: linear-gradient(180deg, #a86b33, #784e3d); border: 4px solid #2e160b; border-radius: 8px; box-shadow: inset 0 0 0 3px #c98a4b, 0 5px 0 #1e0e06;
+}
+.rp-note { padding: 10px 14px; border-radius: 10px; font-weight: 800; font-size: 15px; text-align: left; border: 3px solid #3d220d; }
+.rp-note--warn { background: #fff4c2; color: #6b3a07; box-shadow: 0 4px 0 rgba(44, 21, 7, 0.45); }
+.tp-modal .rp-journal [class*='bg-white'],
+.tp-modal .rp-journal [class*='bg-slate-50'] { background-color: rgba(255, 252, 242, 0.92) !important; }
+.tp-modal .rp-journal .font-arcade, .rp-report .font-arcade { font-family: 'Jua', 'Pretendard', sans-serif !important; }
+.rp-woodbar {
+  background: repeating-linear-gradient(180deg, transparent 0 20px, rgba(30, 14, 6, 0.25) 20px 23px), linear-gradient(180deg, #a86b33, #784e3d) !important;
+  border-bottom: 4px solid #2e160b; box-shadow: inset 0 -3px 0 #c98a4b !important;
+}
+.rp-woodbar h2, .rp-woodbar h2 span { color: #ffd700 !important; text-shadow: 2px 2px 0 #3a1a0c; }
+.rp-woodbar p { color: #fdf0c8 !important; }

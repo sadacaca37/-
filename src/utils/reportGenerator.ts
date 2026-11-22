@@ -279,44 +279,27 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas context not available');
 
-  // Background Gradient (Cute Pastel Retro Arcade Theme)
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, 1320);
-  bgGrad.addColorStop(0, '#FFF5F8');
-  bgGrad.addColorStop(0.25, '#F0F9FF');
-  bgGrad.addColorStop(0.8, '#FAF5FF');
-  bgGrad.addColorStop(1, '#FFF1F2');
-  ctx.fillStyle = bgGrad;
+  // 바탕: 제미나이로 그린 성적표 상장 테두리 (금빛 나무 액자 + 양피지)
+  ctx.fillStyle = '#fdf3dc';
   ctx.fillRect(0, 0, 960, 1320);
+  const frame = await loadImage('./assets/report/certificate.webp');
+  if (frame) ctx.drawImage(frame, 0, 0, 960, 1320);
 
-  // Outer Decorative Borders
-  ctx.strokeStyle = '#F472B6';
-  ctx.lineWidth = 14;
-  ctx.strokeRect(20, 20, 920, 1280);
-
-  ctx.strokeStyle = '#38BDF8';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(32, 32, 896, 1256);
-
-  // Header Banner Ribbon
-  const ribbonGrad = ctx.createLinearGradient(80, 50, 880, 50);
-  ribbonGrad.addColorStop(0, '#EC4899');
-  ribbonGrad.addColorStop(0.5, '#8B5CF6');
-  ribbonGrad.addColorStop(1, '#3B82F6');
-  ctx.fillStyle = ribbonGrad;
-  roundRect(ctx, 60, 55, 840, 135, 24);
-  ctx.fill();
-
-  // Header Text
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 22px "Malgun Gothic", sans-serif';
+  // 위쪽 금색 리본 위 제목
   ctx.textAlign = 'center';
-  ctx.fillText('✨ 타자팡 타자 성적표 ✨', 480, 100);
+  ctx.fillStyle = '#5a3417';
+  ctx.font = '900 32px "Jua", "Malgun Gothic", sans-serif';
+  ctx.fillText('타자팡 타자 성적표', 480, 158);
+  ctx.font = 'bold 18px "Jua", "Malgun Gothic", sans-serif';
+  ctx.fillStyle = '#7a4a1e';
+  ctx.fillText(`${report.periodTitle}`, 480, 192);
 
-  ctx.font = '900 36px "Malgun Gothic", sans-serif';
-  ctx.fillText(`${report.periodTitle}`, 480, 150);
+  // 양피지 안쪽에 맞춰 내용 전체를 줄여서 그림 (x 60→165, y 210→262, 0.8배)
+  ctx.save();
+  ctx.setTransform(0.8, 0, 0, 0.8, 165 - 60 * 0.8, 262 - 210 * 0.8);
 
   // Student Profile Card Box
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = 'rgba(255, 252, 242, 0.94)';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
   ctx.shadowBlur = 15;
   ctx.shadowOffsetY = 6;
@@ -324,7 +307,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   ctx.fill();
   ctx.shadowColor = 'transparent';
 
-  ctx.strokeStyle = '#E2E8F0';
+  ctx.strokeStyle = '#D6B98C';
   ctx.lineWidth = 2;
   roundRect(ctx, 60, 210, 840, 145, 20);
   ctx.stroke();
@@ -372,16 +355,16 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   // SECTION 1: 4-MONTH MONTH-BY-MONTH SPEED GROWTH (4개월간 월별 타수 성장 추이)
   // =========================================================================
   const growthY = 375;
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = 'rgba(255, 252, 242, 0.94)';
   roundRect(ctx, 60, growthY, 840, 315, 22);
   ctx.fill();
-  ctx.strokeStyle = '#38BDF8';
+  ctx.strokeStyle = '#8B5A2B';
   ctx.lineWidth = 2.5;
   roundRect(ctx, 60, growthY, 840, 315, 22);
   ctx.stroke();
 
   // Growth Section Header Title
-  ctx.fillStyle = '#0369A1';
+  ctx.fillStyle = '#5A3417';
   ctx.font = '900 20px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(`📈 4개월간 월별 타자 속도 (${report.startMonth}월 ~ ${report.endMonth}월)`, 85, growthY + 36);
@@ -408,7 +391,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
     const cy = startCardY;
 
     // Card background
-    const bgColors = ['#F8FAFC', '#F0FDF4', '#EFF6FF', '#FAF5FF'];
+    const bgColors = ['#F8FAFC', 'rgba(240, 253, 244, 0.9)', '#EFF6FF', '#FAF5FF'];
     const borderColors = ['#CBD5E1', '#86EFAC', '#93C5FD', '#D8B4FE'];
     ctx.fillStyle = bgColors[idx];
     roundRect(ctx, cx, cy, cardW, cardH, 14);
@@ -459,7 +442,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
     ctx.fillStyle = '#FFFFFF';
     roundRect(ctx, cx + 8, cy + 130, cardW - 16, 32, 6);
     ctx.fill();
-    ctx.strokeStyle = '#E2E8F0';
+    ctx.strokeStyle = '#D6B98C';
     ctx.lineWidth = 1;
     roundRect(ctx, cx + 8, cy + 130, cardW - 16, 32, 6);
     ctx.stroke();
@@ -481,7 +464,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   }
 
   // Growth Summary Text Bar inside Section 1
-  ctx.fillStyle = '#F0FDF4';
+  ctx.fillStyle = 'rgba(240, 253, 244, 0.9)';
   roundRect(ctx, 82, growthY + 242, 796, 56, 12);
   ctx.fill();
   ctx.strokeStyle = '#86EFAC';
@@ -506,15 +489,15 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   // SECTION 2: 4-AREA CURRICULUM PROGRESS TABLE (4대 영역 학습 진도표)
   // =========================================================================
   const progY = 710;
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = 'rgba(255, 252, 242, 0.94)';
   roundRect(ctx, 60, progY, 840, 245, 22);
   ctx.fill();
-  ctx.strokeStyle = '#F472B6';
+  ctx.strokeStyle = '#B7791F';
   ctx.lineWidth = 2.5;
   roundRect(ctx, 60, progY, 840, 245, 22);
   ctx.stroke();
 
-  ctx.fillStyle = '#BE185D';
+  ctx.fillStyle = '#7A3E12';
   ctx.font = '900 20px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(`📋 4대 영역별 학습 진도표 (전체 진도율 ${report.curriculum.overallProgressPercent}%)`, 85, progY + 36);
@@ -551,7 +534,7 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
     ctx.fill();
 
     // Percentage & Status
-    ctx.fillStyle = st.progressPercent >= 100 ? '#059669' : '#BE185D';
+    ctx.fillStyle = st.progressPercent >= 100 ? '#059669' : '#7A3E12';
     ctx.font = '900 14px "Malgun Gothic", sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(`${st.progressPercent}% [${st.status}]`, 855, sy + 18);
@@ -562,10 +545,10 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   // SECTION 3: TEACHER 4-MONTH ASSESSMENT
   // =========================================================================
   const commentY = 975;
-  ctx.fillStyle = '#FFFBEB';
+  ctx.fillStyle = 'rgba(255, 248, 225, 0.92)';
   roundRect(ctx, 60, commentY, 840, 205, 22);
   ctx.fill();
-  ctx.strokeStyle = '#FDE68A';
+  ctx.strokeStyle = '#C9A227';
   ctx.lineWidth = 2.5;
   roundRect(ctx, 60, commentY, 840, 205, 22);
   ctx.stroke();
@@ -580,10 +563,12 @@ export async function generateReportCardImage(report: FourMonthStudentReport): P
   wrapText(ctx, report.teacherComment, 85, commentY + 74, 790, 26);
 
   // Footer Signature & Slogan
-  ctx.fillStyle = '#94A3B8';
-  ctx.font = 'bold 15px "Malgun Gothic", sans-serif';
+  ctx.fillStyle = '#7a4a1e';
+  ctx.font = 'bold 15px "Jua", "Malgun Gothic", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('타자팡 • 4개월간의 꾸준한 타자 훈련이 평생 가는 올바른 컴퓨터 습관을 만듭니다!', 480, 1245);
+
+  ctx.restore();
 
   // Convert to Blob & Data URL
   return new Promise((resolve) => {
@@ -634,4 +619,14 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
     }
   }
   ctx.fillText(line, x, curY);
+}
+
+/** 그림 불러오기 (못 불러오면 null → 그림 없이 그림) */
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src;
+  });
 }

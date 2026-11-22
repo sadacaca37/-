@@ -80,9 +80,8 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
   }, [selectedCatId, isRandomOrder, currentCategory]);
 
   const activeWords = isRandomOrder && shuffledWords.length > 0 ? shuffledWords : currentCategory.words;
-  // Practice volume: 1회 약 5분 분량(50단어) 기본 탑재
-  const [practiceCourse, setPracticeCourse] = useState<'5min' | '3min' | '10min'>('5min');
-  const TOTAL_TRIALS = practiceCourse === '5min' ? 50 : practiceCourse === '3min' ? 30 : 100;
+  // 한 세트 = 낱말 20개 (선생님 요청)
+  const TOTAL_TRIALS = 20;
 
   const trialWords = useMemo(() => {
     const list = [...activeWords];
@@ -500,35 +499,9 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
 
         {/* Course, Language & Reset Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* 코스 선택 */}
+          {/* 한 세트 = 낱말 20개 */}
           <div className="pr-wood-group flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('3min'); handleReset(); }}
-              className={`pr-wood-tab px-2.5 py-1 text-xs sm:text-sm cursor-pointer whitespace-nowrap ${
-                practiceCourse === '3min' ? 'pr-wood-tab--active' : ''
-              }`}
-            >
-              3분
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('5min'); handleReset(); }}
-              className={`pr-wood-tab px-2.5 py-1 text-xs sm:text-sm cursor-pointer whitespace-nowrap ${
-                practiceCourse === '5min' ? 'pr-wood-tab--green' : ''
-              }`}
-            >
-              5분
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPracticeCourse('10min'); handleReset(); }}
-              className={`pr-wood-tab px-2.5 py-1 text-xs sm:text-sm cursor-pointer whitespace-nowrap ${
-                practiceCourse === '10min' ? 'pr-wood-tab--blue' : ''
-              }`}
-            >
-              10분
-            </button>
+            <span className="pr-wood-tab pr-wood-tab--green px-2.5 py-1 text-xs sm:text-sm whitespace-nowrap">한 세트 20개</span>
           </div>
 
           <div className="pr-wood-group flex items-center gap-0.5">

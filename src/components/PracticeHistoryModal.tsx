@@ -231,8 +231,8 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-4xl w-full p-4 sm:p-7 shadow-2xl border-4 border-sky-300 relative my-6 arcade-card-glow max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto tp-modal">
+      <div className="bg-white rounded-3xl max-w-4xl w-full p-4 sm:p-7 shadow-2xl border-4 border-sky-300 relative my-6 arcade-card-glow max-h-[92vh] flex flex-col overflow-y-auto rp-journal">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -275,6 +275,12 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
           )}
         </div>
 
+        {/* 기록장 그림 (제미나이) */}
+        <div className="rp-banner mt-3" aria-hidden="true">
+          <img src="./assets/report/journal.webp" alt="" draggable={false} />
+          <span className="rp-banner-title">📖 {currentUser?.name || '나'}의 모험 기록장</span>
+        </div>
+
         {/* Success Message Banner */}
         {resetSuccessMsg && (
           <div className="mt-3 p-3 bg-teal-50 border-2 border-teal-200 text-teal-800 rounded-2xl text-xs font-black flex items-center gap-2 animate-in fade-in">
@@ -312,8 +318,8 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
 
           {/* Right: Next Tier Level Up Progress */}
           {nextTier && (
-            <div className="w-full md:w-64 bg-white/90 p-3 rounded-2xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center justify-between text-xs font-black text-slate-700 mb-1.5">
+            <div className="w-full md:w-80 bg-white/90 p-3 rounded-2xl border border-slate-200 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 text-xs font-black text-slate-700 mb-1.5 whitespace-nowrap">
                 <span className="flex items-center gap-1">
                   <span>다음 목표:</span>
                   <span className="text-sm">{nextTier.emoji}</span>

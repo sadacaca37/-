@@ -84,30 +84,38 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   // Prepare SMS Text Summary for the Growth Report
   const getSmsText = () => {
     if (!reportData) return '';
-    const breakdownLines = reportData.monthlyBreakdown
-      .map(
-        (m) =>
-          m.practiceCount > 0
-            ? `• ${m.monthNumber}월: 평균 ${m.avgCpm}타${m.improvement ? ` (${improvementText(m.improvement)})` : ''} / 최고 ${m.highestCpm}타 / ${m.activeDays || 0}일 · ${m.practiceCount}세트 연습`
-            : `• ${m.monthNumber}월: 연습 기록 없음`
+    const line = '━━━━━━━━━━━━━━';
+    const months = reportData.monthlyBreakdown
+      .map((m) =>
+        m.practiceCount > 0
+          ? `  ${m.monthNumber}월 │ 평균 ${m.avgCpm}타${m.improvement ? ` (${m.improvement > 0 ? '▲' : '▼'}${Math.abs(m.improvement)})` : ''} · ${m.activeDays || 0}일 연습`
+          : `  ${m.monthNumber}월 │ 연습 기록 없음`,
       )
       .join('\n');
-
-    return `[타자팡] 💌 ${reportData.studentName} 학생 ${reportData.year}년 ${reportData.halfTerm}(${reportData.startMonth}월~${reportData.endMonth}월) 타자 성적표
-
-📈 월별 타자 기록:
-${breakdownLines}
-
-${
-  reportData.hasData
-    ? `🏆 평균 타수: ${reportData.startCpm}타 ➔ ${reportData.finalAvgCpm}타 (${improvementText(reportData.totalImprovement)})
-🎯 최고 기록: ${reportData.highestCpm}타 (평균 정확도 ${reportData.avgAccuracy}%)
-⌨️ 연습량: ${reportData.totalActiveDays}일 · ${reportData.totalPracticeCount}세트 · ${reportData.totalKeystrokes.toLocaleString()}타
-`
-    : ''
-}📋 진도율: ${reportData.curriculum.overallProgressPercent}% (${reportData.curriculum.currentStageTitle})
-
-선생님 총평: ${reportData.teacherComment}`;
+    const summary = reportData.hasData
+      ? [
+          `⌨️ 평균 타수  ${reportData.startCpm}타 → ${reportData.finalAvgCpm}타 (${improvementText(reportData.totalImprovement)})`,
+          `🏆 최고 기록  ${reportData.highestCpm}타`,
+          `🎯 평균 정확도  ${reportData.avgAccuracy}%`,
+          `📅 연습량  ${reportData.totalActiveDays}일 · ${reportData.totalPracticeCount}세트`,
+        ].join('\n')
+      : '아직 이 기간에 끝까지 친 연습 기록이 없어요.';
+    return [
+      `[타자팡 성적표] ✨ ${reportData.studentName}`,
+      `${reportData.year}년 ${reportData.halfTerm} (${reportData.startMonth}월~${reportData.endMonth}월)`,
+      line,
+      summary,
+      line,
+      '📈 월별 기록',
+      months,
+      line,
+      `📋 진도  ${reportData.curriculum.overallProgressPercent}% (${reportData.curriculum.currentStageTitle})`,
+      '',
+      '💌 선생님 한마디',
+      reportData.teacherComment,
+      '',
+      '- 타자팡 (moapang.kr/taja)',
+    ].join('\n');
   };
 
   // 1. Download image to phone / PC
@@ -181,11 +189,11 @@ ${
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 tp-modal rp-report">
       <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl border-4 border-pink-300 overflow-hidden flex flex-col max-h-[96vh] h-[860px]">
         
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-sky-500 p-4 text-white flex items-center justify-between shadow-md shrink-0">
+        <div className="rp-woodbar p-4 text-white flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center border border-white/40 shadow-xs shrink-0">
               <TrendingUp className="w-5 h-5 text-yellow-300" />
