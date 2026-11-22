@@ -1,0 +1,4 @@
+3D 캐릭터 모델 출처 (모두 CC0 — 무료, 출처 표시 안 해도 됨)
+- KayKit Character Pack: Adventures / Skeletons — Kay Lousberg (https://kaylousberg.com), https://github.com/KayKit-Game-Assets
+- Ultimate Animated Animal Pack — Quaternius (https://quaternius.com)
+필요한 동작만 남기고 줄여서 씀 (glTF-Transform).
