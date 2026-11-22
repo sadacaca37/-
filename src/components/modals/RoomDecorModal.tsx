@@ -21,6 +21,7 @@ import {
   X,
   Crown
 } from 'lucide-react';
+import { DECOR_IMG } from '../TamagotchiRoomItems';
 
 export interface DecorItemMeta {
   id: string;
@@ -482,7 +483,11 @@ export const RoomDecorModal: React.FC<RoomDecorModalProps> = ({
                     item.previewBg || 'bg-amber-50 border-amber-200'
                   }`}
                 >
-                  {item.icon}
+                  {item.id !== 'none' && !ROOM_PICTURE_PARTS.includes(currentTab) ? (
+                    <img src={DECOR_IMG(item.id)} alt="" aria-hidden="true" className="w-11 h-11 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
+                  ) : (
+                    item.icon
+                  )}
                   {!unlocked && (
                     <div className="absolute inset-0 bg-slate-950/40 rounded-2xl flex items-center justify-center backdrop-blur-2xs">
                       <Lock className="w-4 h-4 text-amber-300" />

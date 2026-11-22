@@ -11,7 +11,7 @@ import {
   RoomDecorState,
   TamagotchiPetId,
 } from '../../types';
-import { TamagotchiThemeBackground } from '../TamagotchiThemeBackground';
+import { TamagotchiRoomItems } from '../TamagotchiRoomItems';
 import { ThemeShopModal } from '../modals/ThemeShopModal';
 import { RoomDecorModal } from '../modals/RoomDecorModal';
 import { pointsManager } from '../../utils/pointsManager';
@@ -1067,7 +1067,7 @@ export const TamagotchiView: React.FC<TamagotchiViewProps> = ({
               style={{ imageRendering: 'pixelated' }}
               draggable={false}
             />
-            <TamagotchiThemeBackground theme={pet.homeTheme} decor={pet.roomDecor} itemsOnly />
+            <TamagotchiRoomItems decor={pet.roomDecor} />
 
             {/* ================= TOP HUD (Pet Stats, Stage, Info) ================= */}
             <div className="relative z-10 p-3.5 sm:p-5 flex flex-wrap items-center justify-between gap-3 bg-[#fdf5dd]/92 border-b-3 border-[#4a2810] shadow-xs">
