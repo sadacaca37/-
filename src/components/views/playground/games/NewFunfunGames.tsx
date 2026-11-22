@@ -1,9 +1,9 @@
 import React from 'react';
 import { IframeGame } from './IframeGame';
 
-/** 포근숲 이야기 – 힐링 오픈월드 RPG (public/games/pogeunforest, 3D 라이브러리는 같은 폴더에 들어 있음) */
+/** 포근숲 이야기 – 생쥐 농부의 3D 농장·동물 마을 게임 (public/games/pogeunforest, 3D 라이브러리·모델은 같은 폴더에 들어 있음) */
 export const PogeunForestGame: React.FC<{ onBack?: () => void }> = () => (
-  <IframeGame src="games/pogeunforest/index.html" title="포근숲 이야기" icon="🌳" />
+  <IframeGame src="games/pogeunforest/index.html" title="포근숲 이야기" icon="🐭" />
 );
 
 /** Ashen Hollow – 쿼터뷰 액션 RPG (public/games/ashenhollow) */

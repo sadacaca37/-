@@ -163,9 +163,9 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     id: 'app-pogeunforest',
     title: '포근숲 이야기',
     category: '펀펀',
-    icon: '🌳',
+    icon: '🐭',
     thumb: './assets/playground/thumb-pogeunforest.webp',
-    description: '잠든 숲의 정령 새숨이를 깨우는 힐링 마을 RPG · 편지 심부름·채집·낚시·요리·꾸미기 · 이어하기 저장',
+    description: '생쥐 농부의 작은 농장이 동물 마을로 자라는 3D 농장 게임 · 심기·물주기·수확·팔기 · 밭 넓히기·집 고치기·이웃 이사 · ★5 수확 축제 · 이어하기 저장',
     component: PogeunForestGame,
   },
   {

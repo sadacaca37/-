@@ -1,4 +1,5 @@
-3D 캐릭터 모델 출처 (모두 CC0 — 무료, 출처 표시 안 해도 됨)
-- KayKit Character Pack: Adventures / Skeletons — Kay Lousberg (https://kaylousberg.com), https://github.com/KayKit-Game-Assets
-- Ultimate Animated Animal Pack — Quaternius (https://quaternius.com)
-필요한 동작만 남기고 줄여서 씀 (glTF-Transform).
+포근숲 이야기 — 3D 모델 출처 (모두 CC0, 무료 공개)
+- 동물 캐릭터: Kenney "Cube Pets" (www.kenney.nl) — 생쥐는 코알라 모델을 고쳐 만듦
+- 작물·나무·울타리·꽃: Kenney "Nature Kit" (www.kenney.nl)
+- 집: Kenney "City Kit (Suburban)" (www.kenney.nl) — 색을 바꿔 씀
+License: Creative Commons Zero (CC0) http://creativecommons.org/publicdomain/zero/1.0/
