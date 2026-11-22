@@ -27,6 +27,7 @@ export interface PlaygroundGameDef {
   description?: string;
   date?: string;
   externalUrl?: string;
+  players?: number; // 한 번에 같이 할 수 있는 사람 수 (카드에 👥 표시)
   component: React.ComponentType<any>;
 }
 
@@ -89,6 +90,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   // 새 게임은 이 목록 맨 끝에 넣기 → 화면에서는 최신순(맨 끝에 넣은 게임이 맨 위)으로 보임
   {
     id: 'app-lastwar',
+    players: 2,
     title: '다리 돌파 작전',
     category: '펀펀',
     icon: '⚔️',
@@ -98,6 +100,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-ponpoko',
+    players: 2,
     title: '숲속 사다리 모험',
     category: '펀펀',
     icon: '🦝',
@@ -107,6 +110,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-bubble-bobble',
+    players: 2,
     title: '방울 용 대작전',
     category: '펀펀',
     icon: '🫧',
@@ -116,6 +120,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-super-mario',
+    players: 2,
     title: '버섯 숲 점프 모험',
     category: '펀펀',
     icon: '🍄',
@@ -125,6 +130,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-airplane-shooting',
+    players: 2,
     title: '하늘 비행 대작전',
     category: '펀펀',
     icon: '✈️',
@@ -134,6 +140,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-pocket-kart',
+    players: 2,
     title: '타자팡 카트 레이싱',
     category: '펀펀',
     icon: '🏎️',
@@ -143,6 +150,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-cookie-run',
+    players: 2,
     title: '과자 왕국 런',
     category: '펀펀',
     icon: '🍪',
@@ -152,6 +160,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-blockcraft',
+    players: 1,
     title: '블록 쌓기 월드',
     category: '펀펀',
     icon: '⛏️',
@@ -161,15 +170,17 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-pogeunforest',
+    players: 10,
     title: '포근숲 이야기',
     category: '펀펀',
     icon: '🐭',
     thumb: './assets/playground/thumb-pogeunforest.webp',
-    description: '모아팡 내 캐릭터로 하는 스타듀밸리풍 2D 농장 · 친구 10명까지 함께 · 산에서 벌목·몬스터 사냥·마을 습격 · 알·아기 동물 키우기 · 날씨·밤낮 · 이웃 이사 · 이어하기 저장',
+    description: '모아팡 내 캐릭터로 하는 스타듀밸리풍 2D 농장 · 👥 친구 10명까지 함께(대화·밭 10곳) · 칼·도끼·활로 큰 몬스터 사냥·마을 습격 · 벌목 · 집 안 꾸미기 · 알·새끼 농장 동물과 반려동물 · 사계절·날씨·해와 달 · 이어하기 저장',
     component: PogeunForestGame,
   },
   {
     id: 'app-ashenhollow',
+    players: 1,
     title: 'Ashen Hollow',
     category: '펀펀',
     icon: '🕯️',
@@ -179,6 +190,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-baramisland',
+    players: 1,
     title: '바람의 섬',
     category: '펀펀',
     icon: '🏝️',
@@ -188,6 +200,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-lightsaber',
+    players: 2,
     title: '광선검 결투',
     category: '펀펀',
     icon: '⚔️',
@@ -197,6 +210,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-flamesquad',
+    players: 1,
     title: '불꽃 특공대',
     category: '펀펀',
     icon: '🔥',

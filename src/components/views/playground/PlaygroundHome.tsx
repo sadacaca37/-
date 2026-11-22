@@ -560,25 +560,20 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
                             <span>즉시실행</span>
                             <span>↗</span>
                           </span>
+                          {game.players ? (
+                            <span
+                              className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-[#15803d] border border-[#0b3d1d] text-[#f0fff4] text-[10px] font-black shadow flex items-center gap-0.5"
+                              title={game.players > 1 ? `한 번에 ${game.players}명까지 같이 해요` : '혼자 하는 게임이에요'}
+                            >
+                              <span>{game.players > 1 ? '👥' : '👤'}</span>
+                              <span>{game.players > 1 ? `최대 ${game.players}명` : '1명'}</span>
+                            </span>
+                          ) : null}
                         </div>
                         <h3 className="mt-2.5 font-black text-xs sm:text-sm text-[#2c1507] font-arcade group-hover:text-[#9e2a12] leading-tight">
                           {displayTitle}
                         </h3>
-                        <span className="mt-1 text-[11px] text-[#15803d] font-extrabold flex items-center gap-0.5">
-                          <span>바로 플레이</span>
-                          <span>⚡</span>
-                        </span>
                       </button>
-
-                      <div className="mt-2 pt-2 border-t border-[#d8ae63] w-full flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => handleLaunchGame(game.id)}
-                          className="pr-stone-btn px-2.5 py-0.5 text-[10px] font-black cursor-pointer"
-                        >
-                          콘솔 모드
-                        </button>
-                      </div>
                     </div>
                   );
                 })}
