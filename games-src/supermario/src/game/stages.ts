@@ -165,7 +165,7 @@ function getStage1(): StageData {
   return {
     id: 1,
     title: 'Stage 1: Green Plains',
-    subtitle: '초원 지대: 반응형 점프 & 슈퍼 버섯 / 파이어 플라워',
+    subtitle: '초원 지대: 반응형 점프 & 딸기 / 불꽃 고추',
     theme: 'grassland',
     width: 2500,
     height: 480,
@@ -272,7 +272,7 @@ function getStage2(): StageData {
   return {
     id: 2,
     title: 'Stage 2: Underground Cavern',
-    subtitle: '지하 동굴: 파이어 플라워 & 껍질 콤보 킥',
+    subtitle: '지하 동굴: 불꽃 고추 & 달팽이 껍질 콤보 킥',
     theme: 'underground',
     width: 2550,
     height: 480,
@@ -432,7 +432,7 @@ function getStage4(): StageData {
   return {
     id: 4,
     title: 'Stage 4: Propeller Skyway',
-    subtitle: '프로펠러 버섯 활공 & 찌르기 헬멧',
+    subtitle: '바람개비 모자 활공 & 가시 투구',
     theme: 'sky',
     width: 2400,
     height: 480,
@@ -501,8 +501,8 @@ function getStage5(): StageData {
 
   return {
     id: 5,
-    title: "Stage 5: Yoshi's Forest Valley",
-    subtitle: '요시 탑승: 혓바닥 삼키기 & 플러터 2단 점프',
+    title: 'Stage 5: Chameleon Forest Valley',
+    subtitle: '카멜레온 타기: 혀로 삼키기 & 버둥 점프',
     theme: 'grassland',
     width: 2400,
     height: 480,
@@ -557,7 +557,7 @@ function getStage6(): StageData {
   return {
     id: 6,
     title: 'Stage 6: Acorn Canyon',
-    subtitle: '날다람쥐 도토리 슈트: 공중 활공 & 에어 팝 점프',
+    subtitle: '나뭇잎 망토: 공중 활공 & 에어 팝 점프',
     theme: 'canyon',
     width: 2400,
     height: 480,
@@ -611,7 +611,7 @@ function getStage7(): StageData {
   return {
     id: 7,
     title: 'Stage 7: Spiny Fortress',
-    subtitle: '요새 공방전: 해머브러스 & 가시돌이 방어',
+    subtitle: '요새 공방전: 망치 고블린 & 가시 딱정벌레 방어',
     theme: 'mountain',
     width: 2400,
     height: 480,
@@ -736,7 +736,7 @@ function getStage8(): StageData {
   return {
     id: 8,
     title: 'Stage 8: Dark Land Lava Fortress',
-    subtitle: '다크랜드 용암 요새: 2단 루트 & 해머브러스 방어선',
+    subtitle: '다크랜드 용암 요새: 2단 루트 & 망치 고블린 방어선',
     theme: 'lava',
     width: 3200,
     height: 480,
@@ -853,8 +853,8 @@ function getStage9(): StageData {
 
   return {
     id: 9,
-    title: "Stage 9: Bowser's Doom Airship Armada",
-    subtitle: '쿠파 비행선 대함대: 클라운 카 공중전 & 탄막 포격',
+    title: 'Stage 9: Lava King Airship Armada',
+    subtitle: '용암 대왕 비행선 대함대: 불꽃 찻잔 공중전 & 탄막 포격',
     theme: 'boss_castle',
     width: 3500,
     height: 480,
@@ -934,8 +934,8 @@ function getStage10(): StageData {
 
   return {
     id: 10,
-    title: "Stage 10: Bowser's Infernal Throne Keep",
-    subtitle: '최종 결전: 대마왕 쿠파 3단계 격전 & 스위치 도끼 낙하',
+    title: 'Stage 10: Lava King Throne Keep',
+    subtitle: '최종 결전: 용암 대왕 3단계 격전 & 레버 스위치',
     theme: 'boss_castle',
     width: 2150,
     height: 480,

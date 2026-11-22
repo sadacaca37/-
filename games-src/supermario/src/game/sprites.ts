@@ -1,6 +1,7 @@
 // Retro Pixel Art & Super Mario All-Stars Sprite Rendering Engine for Canvas
 
 import { Player, Enemy, Block, ItemEntity, Projectile, YoshiTongue, Particle } from '../types';
+import { drawPlayerArt, drawDeadPlayerArt, drawBlockArt, drawEnemyArt, drawItemArt, drawProjectileArt } from './artDraw';
 
 export class SpriteRenderer {
   // Helper to draw a pixelated rectangle
@@ -20,6 +21,9 @@ export class SpriteRenderer {
     if (player.invincibleTimer > 0 && Math.floor(now / 50) % 2 === 0) {
       if (player.starmanTimer <= 0) return; // Flash invisible briefly on damage
     }
+
+    // 제미나이 그림이 준비됐으면 그림으로 그림
+    if (drawPlayerArt(ctx, player, now)) return;
 
     ctx.save();
     const x = Math.floor(player.x);
@@ -869,6 +873,7 @@ export class SpriteRenderer {
   }
 
   static drawDeadPlayer(ctx: CanvasRenderingContext2D, player: Player) {
+    if (drawDeadPlayerArt(ctx, player)) return;
     ctx.save();
     ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
     const dScale =
@@ -1015,6 +1020,7 @@ export class SpriteRenderer {
   // Draw Blocks with Dynamic Stage Theming
   static drawBlock(ctx: CanvasRenderingContext2D, block: Block, now: number, theme: string = 'grassland') {
     if (block.isDestroyed) return;
+    if (drawBlockArt(ctx, block, now, theme)) return;
     ctx.save();
     const x = Math.floor(block.x);
     const y = Math.floor(block.y + block.bumpOffset);
@@ -1586,6 +1592,7 @@ export class SpriteRenderer {
   // Draw Enemies
   static drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy, now: number) {
     if (enemy.isDead && enemy.deathTimer <= 0) return;
+    if (drawEnemyArt(ctx, enemy, now)) return;
     ctx.save();
     const x = Math.floor(enemy.x);
     const y = Math.floor(enemy.y);
@@ -2017,6 +2024,7 @@ export class SpriteRenderer {
 
   // Draw Items (Super Mushroom, Fire Flower, Propeller, Starman, Yoshi Egg, etc.)
   static drawItem(ctx: CanvasRenderingContext2D, item: ItemEntity, now: number) {
+    if (drawItemArt(ctx, item, now)) return;
     ctx.save();
     const x = Math.floor(item.x);
     const y = Math.floor(item.y);
@@ -2182,6 +2190,7 @@ export class SpriteRenderer {
 
   // Draw Projectiles
   static drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, now: number) {
+    if (drawProjectileArt(ctx, p, now)) return;
     ctx.save();
     const x = Math.floor(p.x);
     const y = Math.floor(p.y);

@@ -3,6 +3,12 @@ import { GameEngine } from '../game/engine';
 import { SpriteRenderer } from '../game/sprites';
 import { KeyControls } from '../types';
 import { duo } from '../duo';
+import { Art } from '../game/art';
+
+// 캔버스를 2배 해상도로 그려서 제미나이 그림이 또렷하게 보이게 함 (게임 좌표는 그대로 800×480)
+const RES = 2;
+const VIEW_W = 800;
+const VIEW_H = 480;
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -25,8 +31,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, keys }) => {
 
     const render = () => {
       const now = performance.now();
-      const width = canvas.width;
-      const height = canvas.height;
+      const width = VIEW_W;
+      const height = VIEW_H;
 
       // Update engine physics and game loop
       engine.update(keys);
@@ -44,6 +50,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, keys }) => {
       }
 
       // Clear canvas
+      ctx.setTransform(RES, 0, 0, RES, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
       // 0. Draw Parallax Background based on stage theme & environment
@@ -144,8 +151,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, keys }) => {
     <canvas
       ref={canvasRef}
       id="mario-game-canvas"
-      width={800}
-      height={480}
+      width={VIEW_W * RES}
+      height={VIEW_H * RES}
       className="w-full h-auto max-h-[75vh] object-contain rounded-2xl shadow-xl border-4 border-gray-900 bg-black block mx-auto select-none ring-2 ring-black/10"
     />
   );
@@ -161,6 +168,35 @@ function drawBackground(
 ) {
   const theme = engine.stageData.theme;
   const camX = engine.cameraX;
+
+  // 제미나이 배경 그림 (천천히 따라 움직이고, 이음매가 안 보이게 한 장씩 좌우로 뒤집어 이어 붙임)
+  const bgImg = Art.bg(theme);
+  if (bgImg) {
+    const bw = (bgImg.width * height) / bgImg.height;
+    const scroll = camX * 0.35;
+    const first = Math.floor(scroll / bw);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    for (let i = 0; ; i++) {
+      const bx = (first + i) * bw - scroll;
+      if (bx >= width) break;
+      if ((first + i) % 2 === 0) {
+        ctx.drawImage(bgImg, Math.floor(bx), 0, Math.ceil(bw) + 1, height);
+      } else {
+        ctx.save();
+        ctx.translate(Math.floor(bx) + Math.ceil(bw), 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(bgImg, 0, 0, Math.ceil(bw) + 1, height);
+        ctx.restore();
+      }
+    }
+    // 배경을 살짝 흐리게 덮어서 주인공·적·블록이 더 잘 보이게
+    const dark = theme === 'underground' || theme === 'lava' || theme === 'boss_castle';
+    ctx.fillStyle = dark ? 'rgba(0, 0, 0, 0.18)' : 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+    return;
+  }
 
   // Base background fill or gradient
   if (theme === 'underground') {
@@ -378,14 +414,14 @@ function drawHUD(
   ctx.shadowBlur = 4;
 
   const charNames: Record<string, string> = {
-    mario: 'MARIO',
-    luigi: 'LUIGI',
-    toad: 'TOAD',
-    peach: 'PEACH',
-    yoshi: 'YOSHI',
+    mario: 'TORI',
+    luigi: 'PONGI',
+    toad: 'TOTO',
+    peach: 'LALA',
+    yoshi: 'YONGI',
   };
 
-  const p1Name = p1 ? (charNames[p1.character] || 'MARIO') : 'MARIO';
+  const p1Name = p1 ? (charNames[p1.character] || 'TORI') : 'TORI';
 
   // Row 1: P1 Character & SCORE
   ctx.fillText(p1Name, 30, 24);
@@ -413,11 +449,11 @@ function drawHUD(
   // Power-up / Vehicle Badges
   if (p1 && p1.powerUp !== 'none') {
     const powerMap: Record<string, string> = {
-      super: '🍄 SUPER',
-      fire: '🔥 FIRE',
-      propeller: '🚁 PROPELLER',
-      squirrel: '🐿️ SQUIRREL',
-      spiny_helmet: '🪖 SPINY',
+      super: '🍓 SUPER',
+      fire: '🌶️ FIRE',
+      propeller: '🎐 PINWHEEL',
+      squirrel: '🍃 LEAF CAPE',
+      spiny_helmet: '🪖 SPIKE HAT',
     };
     ctx.fillStyle = '#ffdd44';
     ctx.fillText(powerMap[p1.powerUp] || '', 230, 40);
@@ -425,10 +461,10 @@ function drawHUD(
 
   if (p1 && p1.vehicle !== 'none') {
     const vehMap: Record<string, string> = {
-      yoshi: '🦖 YOSHI',
-      clown_car: '🤡 CLOWN CAR',
-      fire_clown_car: '🔥 FIRE CLOWN',
-      dry_bones_shell: '💀 DRY BONES',
+      yoshi: '🦎 CHAMELEON',
+      clown_car: '☕ FLYING CUP',
+      fire_clown_car: '🔥 FIRE CUP',
+      dry_bones_shell: '🪨 STONE SHELL',
     };
     ctx.fillStyle = '#55ff55';
     ctx.fillText(vehMap[p1.vehicle] || '', 360, 40);
@@ -447,7 +483,7 @@ function drawHUD(
 
   // 2P HUD
   if (p2) {
-    const p2Name = charNames[p2.character] || 'LUIGI';
+    const p2Name = charNames[p2.character] || 'PONGI';
     ctx.fillStyle = '#33cc33';
     ctx.fillText(p2Name, 360, 24);
   }
@@ -467,7 +503,7 @@ function drawHUD(
       ctx.fillStyle = '#ff3333';
       ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('👑 KING BOWSER', width / 2, by - 4);
+      ctx.fillText('👑 LAVA KING', width / 2, by - 4);
 
       // HP Bar background
       ctx.fillStyle = '#550000';
@@ -554,7 +590,7 @@ function drawBossAlertCutscene(
   // Subtitle
   ctx.font = 'bold 12px monospace';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('대마왕 쿠파 출현! (KING BOWSER APPEARS)', width / 2, centerY + 22);
+  ctx.fillText('용암 대왕 출현! (LAVA KING APPEARS)', width / 2, centerY + 22);
 
   ctx.restore();
 }

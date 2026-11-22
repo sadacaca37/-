@@ -37,7 +37,7 @@ export const ScoreSubmitModal: React.FC<ScoreSubmitModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalName = nickname.trim() || 'MARIO_PLAYER';
+    const finalName = nickname.trim() || 'FOREST_PLAYER';
     LeaderboardManager.addScore({
       name: finalName.toUpperCase(),
       score,
@@ -84,7 +84,7 @@ export const ScoreSubmitModal: React.FC<ScoreSubmitModalProps> = ({
             </h2>
             <p className="text-xs text-gray-500 font-medium">
               {isVictory
-                ? '대마왕 쿠파를 격파하고 피치 공주를 구출했습니다!'
+                ? '용암 대왕을 물리치고 버섯 숲을 지켜 냈어요!'
                 : '3개의 생명을 모두 소진했습니다. 랭킹을 확인하거나 다시 시작하세요!'}
             </p>
           </div>
@@ -122,7 +122,7 @@ export const ScoreSubmitModal: React.FC<ScoreSubmitModalProps> = ({
                 maxLength={12}
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="예: MARIO_PRO"
+                placeholder="예: TORI_PRO"
                 required
                 autoFocus
                 className="w-full px-4 py-3 bg-white border-2 border-gray-200 focus:border-red-500 rounded-xl text-gray-900 font-mono text-center font-black tracking-widest placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all text-base shadow-sm"
