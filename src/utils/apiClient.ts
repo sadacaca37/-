@@ -3,6 +3,8 @@
  *  - 예전에는 AI 스튜디오 서버의 파일에 저장해서, 서버가 잠들었다 깨면 기록이 사라졌음
  *  - 이제는 모아팡과 같은 Firebase에 저장: 학생 = 모아팡 반 + 이름, 선생님 = 모아팡 선생님 계정
  */
+import { isApprovedNow } from './session';
+import { readApprovals } from './tajaApproval';
 import { collection, collectionGroup, deleteField, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { get, ref, set } from 'firebase/database';
 import { UserSession, LeaderboardEntry } from '../types';
@@ -127,7 +129,7 @@ class TypangApiClient {
   public async getUsers(): Promise<UserSession[]> {
     if (!isTeacherUser()) return [];
     try {
-      const [cls, sts] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collectionGroup(fs, 'students'))]);
+      const [cls, sts, approved] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collectionGroup(fs, 'students')), readApprovals(true)]);
       const names = new Map(cls.docs.map((d) => [d.id, String((d.data() as any).name || '')]));
       const users: UserSession[] = [];
       for (const d of sts.docs) {
@@ -144,7 +146,7 @@ class TypangApiClient {
           avatar: t.avatar || '⭐',
           avatarBg: t.avatarBg || 'bg-yellow-100',
           levelTitle: t.levelTitle || (grade ? `${grade}학년 타자 꿈나무` : '타자 꿈나무'),
-          isApproved: true,
+          isApproved: !!approved[userIdOf(cid, d.id)],
           role: 'student',
           createdAt: Number(v.created?.toMillis?.() || 0),
           lastLoginAt: Number(v.seen?.toMillis?.() || 0),
@@ -182,6 +184,7 @@ class TypangApiClient {
   public async updateUser(id: string, updates: Partial<UserSession>): Promise<boolean> {
     const p = parseUserId(id);
     if (!p) return id === 'master_admin';
+    if (!isTeacherUser() && !isApprovedNow()) return true; // 선생님 승인 전 학생: 학생 정보는 저장하지 않음
     const taja = pickTaja(updates as any);
     if (!Object.keys(taja).length) return true;
     try {
@@ -377,6 +380,7 @@ class TypangApiClient {
   public async recordScore(entry: Omit<LeaderboardEntry, 'id' | 'date'> & { ts?: number; id?: string }): Promise<LeaderboardEntry[]> {
     const e = cleanLeaderboardEntry(entry);
     if (!e) return this.getLeaderboard();
+    if (!isTeacherUser() && !isApprovedNow()) return this.getLeaderboard(); // 승인 전: 명예의 전당에 저장 안 함
     const month = kstMonth(e.ts);
     const who = safeKey(lbWho(e));
     try {

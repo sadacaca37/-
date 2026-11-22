@@ -5,6 +5,8 @@ import { progressSync } from './utils/progressSync';
 import { activityTracker } from './utils/activityLog';
 import { buildTodaySummary, fetchMyReports, fetchUncheckedCount } from './utils/dailyReport';
 import { backupKeeper } from './utils/backupKeeper';
+import { isApprovedNow } from './utils/session';
+import { refreshMyApproval } from './utils/tajaApproval';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
@@ -348,6 +350,30 @@ export default function App() {
     };
   }, [isPopupMode]);
 
+  // 승인 전 학생: 선생님이 승인하면 저절로 저장이 시작되도록 30초마다·창으로 돌아올 때 확인
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'master' || currentUser.isApproved === true) return;
+    let alive = true;
+    const tick = async () => {
+      if (!(await refreshMyApproval()) || !alive) return;
+      try {
+        const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+        if (u && u.id === currentUser.id) {
+          setCurrentUser(u);
+          if (u.isApproved) progressSync.resync();
+        }
+      } catch {}
+    };
+    void tick();
+    const t = window.setInterval(() => void tick(), 30000);
+    window.addEventListener('focus', tick);
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+      window.removeEventListener('focus', tick);
+    };
+  }, [currentUser?.id, currentUser?.isApproved, currentUser?.role]);
+
   const handleToggleSound = () => {
     const next = soundManager.toggleMute();
     setIsMuted(next);
@@ -397,8 +423,8 @@ export default function App() {
   const handleUpdateProfile = (updatedUser: UserSession) => {
     setCurrentUser(updatedUser);
     localStorage.setItem('typang_current_user', JSON.stringify(updatedUser));
-    // 학년·아바타는 모아팡 학생 기록에도 저장 (다른 컴퓨터에서도 그대로)
-    if (parseUserId(updatedUser.id)) void typangApi.updateUser(updatedUser.id, pickTaja(updatedUser as any) as Partial<UserSession>);
+    // 학년·아바타는 모아팡 학생 기록에도 저장 (다른 컴퓨터에서도 그대로) — 선생님 승인 후에만
+    if (parseUserId(updatedUser.id) && isApprovedNow()) void typangApi.updateUser(updatedUser.id, pickTaja(updatedUser as any) as Partial<UserSession>);
 
     const updatedDb = usersDb.map((u) => (u.id === updatedUser.id ? updatedUser : u));
     setUsersDb(updatedDb);
@@ -409,6 +435,8 @@ export default function App() {
   const handleRecordScore = (entry: Omit<LeaderboardEntry, 'id' | 'date'>) => {
     // Only logged in members can have records permanently placed on the leaderboard
     if (!currentUser) return;
+    // 선생님 승인 전 학생은 명예의 전당에 저장하지 않음
+    if (!isApprovedNow()) return;
 
     // Only sentence practice goes to Hall of Fame
     if (entry.mode !== 'sentence') return;
@@ -546,6 +574,16 @@ export default function App() {
           onToggleSound={handleToggleSound}
           pendingStudentsCount={pendingStudentsCount}
         />
+      )}
+
+      {/* 선생님 승인 전 학생: 타자는 칠 수 있지만 저장은 안 된다는 안내 */}
+      {currentUser && currentUser.role !== 'master' && currentUser.isApproved !== true && (
+        <div
+          data-testid="approval-banner"
+          className="mx-auto mt-2 w-[min(96%,1100px)] rounded-2xl border-2 border-amber-400 bg-amber-50 px-4 py-2.5 text-center text-sm sm:text-base font-black text-amber-900 shadow-sm"
+        >
+          ⏳ 선생님 승인을 기다리고 있어요. 타자 연습은 할 수 있지만, <u>포인트와 기록은 선생님이 승인한 뒤부터 저장</u>돼요.
+        </div>
       )}
 
       {/* Main Content Area */}

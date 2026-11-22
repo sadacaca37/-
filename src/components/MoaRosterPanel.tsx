@@ -7,6 +7,7 @@ import { UserSession } from '../types';
 import { typangApi } from '../utils/apiClient';
 import { askConfirm } from '../utils/dialog';
 import { FunfunFreePanel } from './FunfunFreePanel';
+import { setApprovals } from '../utils/tajaApproval';
 
 interface Props {
   users: UserSession[];
@@ -18,6 +19,16 @@ interface Props {
 export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, onReport }) => {
   const [msg, setMsg] = useState('');
   const [q, setQ] = useState('');
+  const [onlyPending, setOnlyPending] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pendingCount = users.filter((u) => u.role !== 'master' && !u.isApproved).length;
+  const approve = async (ids: string[], on: boolean) => {
+    setBusy(true);
+    const ok = await setApprovals(ids, on);
+    setBusy(false);
+    say(ok ? (on ? `✅ ${ids.length}명을 승인했어요. 이제 포인트·기록이 저장돼요.` : '승인을 풀었어요. 이 학생은 이제 저장되지 않아요.') : '❌ 저장하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+    void onRefresh();
+  };
   const say = (m: string) => {
     setMsg(m);
     window.setTimeout(() => setMsg(''), 9000);
@@ -28,12 +39,13 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
     for (const u of users) {
       if (u.role === 'master') continue;
       if (q && !u.name.includes(q.trim())) continue;
+      if (onlyPending && u.isApproved) continue;
       const k = u.studentId || '반 없음';
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(u);
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [users, q]);
+  }, [users, q, onlyPending]);
 
   const btn = 'px-3 py-1.5 rounded-lg text-[12px] font-black cursor-pointer';
 
@@ -86,6 +98,29 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
 
       <FunfunFreePanel />
 
+      {/* 승인: 승인한 학생만 아이디·포인트·기록이 저장됨 (Firebase 에 남아 업데이트해도 그대로) */}
+      <div className="shrink-0 px-3.5 py-2.5 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-900 text-xs font-bold flex flex-wrap items-center gap-2" data-testid="approval-bar">
+        <span>
+          ✅ 승인한 학생만 아이디·포인트·기록이 저장돼요. 승인 전 학생도 타자는 칠 수 있어요. 지금 <b>승인 대기 {pendingCount}명</b>
+        </span>
+        <button
+          type="button"
+          className={`${btn} bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-40`}
+          disabled={!pendingCount || busy}
+          onClick={async () => {
+            const ids = users.filter((u) => u.role !== 'master' && !u.isApproved).map((u) => u.id);
+            if (!(await askConfirm(`승인 대기 학생 ${ids.length}명을 모두 승인할까요?`, '모두 승인'))) return;
+            await approve(ids, true);
+          }}
+        >
+          대기 학생 모두 승인
+        </button>
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />
+          승인 대기만 보기
+        </label>
+      </div>
+
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 찾기" className="shrink-0 w-full max-w-xs px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold" />
 
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
@@ -99,6 +134,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 text-slate-500 font-black">
                   <tr>
+                    <th className="px-3 py-2">승인</th>
                     <th className="px-3 py-2 text-left">이름</th>
                     <th className="px-3 py-2">학년</th>
                     <th className="px-3 py-2">최고 타수</th>
@@ -109,7 +145,27 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                 </thead>
                 <tbody>
                   {list.map((u) => (
-                    <tr key={u.id} className="border-t border-slate-100 font-bold text-slate-700">
+                    <tr key={u.id} className={`border-t border-slate-100 font-bold text-slate-700 ${u.isApproved ? '' : 'bg-amber-50/70'}`}>
+                      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                        {u.isApproved ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            title="누르면 승인을 풀어요"
+                            className={`${btn} bg-emerald-100 text-emerald-800 hover:bg-emerald-200`}
+                            onClick={async () => {
+                              if (!(await askConfirm(`'${u.name}' 학생의 승인을 풀까요?\n풀면 이 학생의 포인트·기록이 더 이상 저장되지 않아요. (지금까지 저장된 것은 그대로)`, '승인 풀기'))) return;
+                              await approve([u.id], false);
+                            }}
+                          >
+                            ✅ 승인됨
+                          </button>
+                        ) : (
+                          <button type="button" disabled={busy} className={`${btn} bg-amber-500 text-white hover:bg-amber-400`} onClick={() => void approve([u.id], true)} data-testid="approve-one">
+                            승인하기
+                          </button>
+                        )}
+                      </td>
                       <td className="px-3 py-1.5">
                         {u.avatar} {u.name}
                       </td>

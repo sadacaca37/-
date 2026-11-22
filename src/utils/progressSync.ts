@@ -7,6 +7,7 @@
  * - 보관 자리: classes/{반}/students/{학생}/taja/progress  (서버가 꺼져도 지워지지 않음)
  */
 
+import { isApprovedNow } from './session';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { activityTracker } from './activityLog';
 import { fs, parseUserId } from './moaFirebase';
@@ -178,6 +179,7 @@ class ProgressSync {
 
   private async push(): Promise<void> {
     if (!this.userId || this.busy) return;
+    if (!isApprovedNow()) return; // 선생님 승인 전에는 Firebase 에 올리지 않음
     const r = progressRef(this.userId);
     if (!r) return;
     const json = fit(collect(this.userId));

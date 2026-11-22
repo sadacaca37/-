@@ -106,7 +106,7 @@ export function pickTaja(u: Partial<UserSession> & Record<string, any>) {
   return out;
 }
 
-export function studentSession(s: MoaSession, taja: Record<string, any> = {}): UserSession {
+export function studentSession(s: MoaSession, taja: Record<string, any> = {}, approved = false): UserSession {
   const grade = Number(taja.grade) || undefined;
   return {
     id: userIdOf(s.cid, s.key),
@@ -118,7 +118,7 @@ export function studentSession(s: MoaSession, taja: Record<string, any> = {}): U
     avatarConfig: taja.avatarConfig,
     nickname: taja.nickname,
     levelTitle: taja.levelTitle || (grade ? `${grade}학년 타자 꿈나무` : '타자 꿈나무'),
-    isApproved: true,
+    isApproved: approved,
     role: 'student',
     createdAt: Date.now(),
     lastLoginAt: Date.now(),
@@ -169,7 +169,17 @@ export async function loadStudent(s: MoaSession): Promise<UserSession> {
       await setDoc(sref, { name: s.name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp() });
     }
   } catch {}
-  return studentSession(s, taja);
+  return studentSession(s, taja, await approvedByTeacher(userIdOf(s.cid, s.key)));
+}
+
+/** 선생님이 타자팡 저장을 승인한 학생인지 (config/taja_approved, 선생님만 씀) */
+export async function approvedByTeacher(userId: string): Promise<boolean> {
+  try {
+    const snap = await getDoc(doc(fs, 'config', 'taja_approved'));
+    return !!(snap.exists() && (snap.data() as any).ok?.[userId]);
+  } catch {
+    return false;
+  }
 }
 
 /** 방번호 + 이름으로 들어오기 (모아팡 첫 화면과 같은 방식) */
@@ -188,7 +198,7 @@ export async function enterByRoom(room: string, rawName: string): Promise<{ ok: 
   else await setDoc(sref, { name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp() });
   const s: MoaSession = { cid: rd.cid, room, className: rd.name || '우리 반', color: rd.color, name, key, outfit: snap.exists() ? (snap.data() as any).outfit || null : null };
   setMoaSession(s);
-  return { ok: true, user: studentSession(s, snap.exists() ? (snap.data() as any).taja || {} : {}) };
+  return { ok: true, user: studentSession(s, snap.exists() ? (snap.data() as any).taja || {} : {}, await approvedByTeacher(userIdOf(s.cid, s.key))) };
 }
 
 export function errText(e: any): string {

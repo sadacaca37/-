@@ -13,5 +13,18 @@ export function currentUserId(): string | undefined {
 /** 저장해도 되는 학생 id 인지 (로그인한 학생 본인만) */
 export function isSavableUser(userId?: string | null): boolean {
   if (!userId || userId === 'guest') return false;
-  return currentUserId() === String(userId);
+  if (currentUserId() !== String(userId)) return false;
+  return isApprovedNow();
+}
+
+/** 지금 들어온 사람이 저장해도 되는지: 선생님이거나, 선생님이 승인한 학생 (승인 전에는 타자만 치고 저장 안 함) */
+export function isApprovedNow(): boolean {
+  try {
+    const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+    if (!u || !u.id) return false;
+    if (u.role === 'master' || u.id === 'master_admin') return true;
+    return u.isApproved === true;
+  } catch {
+    return false;
+  }
 }
