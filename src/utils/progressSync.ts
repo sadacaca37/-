@@ -116,6 +116,12 @@ class ProgressSync {
   private timer: number | null = null;
   private lastSent = '';
   private busy = false;
+  private readyUser = '';
+
+  /** 보관된 자료를 다 받아 깐 뒤인지 (선물 포인트 받기 등은 이 뒤에) */
+  public isReady(userId: string) {
+    return !!userId && this.readyUser === userId;
+  }
 
   /** 들어온 직후: 보관된 자료를 받아 이 브라우저에 깔고, 이후 자동 보관 시작 */
   public async start(userId: string): Promise<{ restored: boolean }> {
@@ -140,6 +146,7 @@ class ProgressSync {
       }
     } catch {}
     if (this.userId !== userId) return { restored };
+    this.readyUser = userId;
 
     this.push();
     this.timer = window.setInterval(() => this.push(), SYNC_INTERVAL_MS);
@@ -156,6 +163,7 @@ class ProgressSync {
     window.removeEventListener('pagehide', this.flush);
     document.removeEventListener('visibilitychange', this.onHide);
     this.userId = '';
+    this.readyUser = '';
     this.lastSent = '';
   }
 

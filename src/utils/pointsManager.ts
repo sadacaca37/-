@@ -26,6 +26,17 @@ function resolveCurrentUserId(): string | undefined {
   return undefined;
 }
 
+/** 선생님(마스터) 계정은 포인트 무제한: 잔액은 늘 이 값, 써도 줄지 않음 */
+export const MASTER_POINTS = 999999;
+export function isMasterNow(): boolean {
+  try {
+    const u = JSON.parse(localStorage.getItem('typang_current_user') || 'null');
+    return !!u && (u.role === 'master' || u.id === 'master_admin');
+  } catch {
+    return false;
+  }
+}
+
 // Default free avatar items
 export const DEFAULT_UNLOCKED_AVATAR_ITEMS: string[] = [
   // Basic hairs
@@ -171,6 +182,7 @@ export class PointsManager {
   }
 
   public getPoints(userId?: string): number {
+    if (isMasterNow()) return MASTER_POINTS;
     if (!isSavableUser(userId || resolveCurrentUserId())) return 0;
     try {
       const key = this.getStorageKey(userId);
@@ -191,6 +203,7 @@ export class PointsManager {
   }
 
   public addPoints(amount: number, reason: string, userId?: string): number {
+    if (isMasterNow()) return MASTER_POINTS; // 마스터는 이미 무제한
     if (!isSavableUser(userId || resolveCurrentUserId())) return 0; // 로그아웃 상태: 저장 안 함
     const rawAmount = Math.max(0, Math.round(Number(amount) || 0));
     if (rawAmount <= 0 || !Number.isFinite(rawAmount)) {
@@ -249,6 +262,13 @@ export class PointsManager {
   }
 
   public spendPoints(amount: number, reason: string, userId?: string): boolean {
+    if (isMasterNow()) {
+      // 마스터는 무제한: 깎지 않고 바로 통과
+      try {
+        soundManager.play('achievement');
+      } catch {}
+      return true;
+    }
     if (!isSavableUser(userId || resolveCurrentUserId())) return false;
     const safeAmount = Math.max(0, Math.round(Number(amount) || 0));
     if (safeAmount <= 0) return true;

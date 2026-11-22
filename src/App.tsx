@@ -11,6 +11,7 @@ import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
+import { GiftReceiver } from './components/GiftReceiver';
 import { authReady, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
@@ -879,6 +880,7 @@ export default function App() {
 
       {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
       {!isPopupMode && <ReportArrivalToasts active={currentUser?.role === 'master'} onOpen={() => setIsMasterOpen(true)} />}
+      {!isPopupMode && <GiftReceiver user={currentUser} />}
 
       {/* Master / Teacher Console Modal */}
       {isMasterOpen && <MasterModal

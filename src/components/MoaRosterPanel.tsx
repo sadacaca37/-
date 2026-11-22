@@ -2,13 +2,15 @@
  * 선생님: 모아팡 반 학생 명단 (타자팡 기록 보기 · 백업)
  *  - 학생 추가·이름 고치기는 모아팡 선생님 화면에서 (여기서는 보기만)
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserSession } from '../types';
 import { typangApi } from '../utils/apiClient';
 import { askConfirm } from '../utils/dialog';
 import { FunfunFreePanel } from './FunfunFreePanel';
 import { setApprovals } from '../utils/tajaApproval';
 import { downloadMoaTemplate, readImportFile, importStudents } from '../utils/moaStudentImport';
+import { fetchStudentFree, saveStudentFree, formatKDate } from '../utils/funfunFree';
+import { readGiftTotals, sendGift } from '../utils/tajaGifts';
 
 interface Props {
   users: UserSession[];
@@ -22,6 +24,51 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
   const [q, setQ] = useState('');
   const [onlyPending, setOnlyPending] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [freeMap, setFreeMap] = useState<Record<string, number>>({});
+  const [giftTotals, setGiftTotals] = useState<Record<string, number>>({});
+  const [giftP, setGiftP] = useState(500);
+  const [giftNote, setGiftNote] = useState('');
+  const [showPw, setShowPw] = useState(true);
+  const loadExtras = useCallback(() => {
+    void fetchStudentFree().then(setFreeMap);
+    void readGiftTotals().then(setGiftTotals);
+  }, []);
+  useEffect(() => loadExtras(), [loadExtras]);
+  const toggle = (ids: string[], on: boolean) =>
+    setSel((old) => {
+      const n = new Set(old);
+      ids.forEach((id) => (on ? n.add(id) : n.delete(id)));
+      return n;
+    });
+  const selUsers = users.filter((u) => sel.has(u.id));
+  const selNames = selUsers.map((u) => u.name).slice(0, 6).join(', ') + (selUsers.length > 6 ? ` 외 ${selUsers.length - 6}명` : '');
+  const todayEnd = () => {
+    const d = new Date();
+    d.setHours(23, 59, 0, 0);
+    return d.getTime();
+  };
+  const freeFor = async (until: number, label: string) => {
+    if (!selUsers.length) return;
+    if (until && !(await askConfirm(`${selNames}\n이 학생들에게 펀펀 플레이를 ${label} 무료로 열어 줄까요?`, '무료 개방'))) return;
+    setBusy(true);
+    const r = await saveStudentFree(selUsers.map((u) => u.id), until);
+    setBusy(false);
+    say(r.success ? (until ? `🎡 ${selUsers.length}명에게 ${label} 무료 개방! (${formatKDate(until)}까지)` : `🎡 ${selUsers.length}명의 무료 개방을 껐어요.`) : `❌ ${r.message}`);
+    loadExtras();
+  };
+  const gift = async () => {
+    if (!selUsers.length) return;
+    const p = Math.round(giftP);
+    if (!(await askConfirm(`${selNames}\n이 학생들에게 ${p.toLocaleString()}P씩 선물할까요?${giftNote ? `\n한마디: ${giftNote}` : ''}`, '선물 보내기'))) return;
+    setBusy(true);
+    const r = await sendGift(selUsers.map((u) => u.id), p, giftNote);
+    setBusy(false);
+    const pending = selUsers.filter((u) => !u.isApproved).length;
+    say(r.success ? `🎁 ${selUsers.length}명에게 ${p.toLocaleString()}P씩 보냈어요. 학생 화면에 '선물 도착' 창이 떠요.${pending ? ` (승인 대기 ${pending}명은 승인된 뒤에 받아요)` : ''}` : `❌ ${r.message}`);
+    if (r.success) setGiftNote('');
+    loadExtras();
+  };
   const pendingCount = users.filter((u) => u.role !== 'master' && !u.isApproved).length;
   const classNames = useMemo(() => [...new Set(users.filter((u) => u.role !== 'master').map((u) => u.studentId || '').filter(Boolean))], [users]);
   const approve = async (ids: string[], on: boolean) => {
@@ -150,23 +197,68 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
         </label>
       </div>
 
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 찾기" className="shrink-0 w-full max-w-xs px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold" />
+      <div className="shrink-0 flex flex-wrap items-center gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 찾기" className="w-full max-w-xs px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold" />
+        <label className="flex items-center gap-1 text-xs font-bold text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} data-testid="show-pw" />
+          🔑 비밀번호 보이기
+        </label>
+      </div>
+
+      {/* 학생을 골라서: 포인트 선물 · 펀펀 플레이 무료 개방 */}
+      <div className={`shrink-0 px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold flex flex-wrap items-center gap-2 ${sel.size ? 'bg-violet-50 border-violet-300 text-violet-950' : 'bg-slate-50 border-slate-200 text-slate-500'}`} data-testid="select-bar">
+        <span className="font-black">☑️ 고른 학생 {sel.size}명</span>
+        {!sel.size && <span>아래 명단에서 학생 앞 네모 칸을 눌러 고르면 포인트 선물·무료 개방을 할 수 있어요.</span>}
+        {sel.size > 0 && (
+          <>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-amber-200">
+              🎁
+              <input type="number" min={1} max={100000} step={100} value={giftP} onChange={(e) => setGiftP(Number(e.target.value))} className="w-20 px-1.5 py-1 rounded border border-amber-200 text-right" data-testid="gift-points" />
+              P
+              <input value={giftNote} onChange={(e) => setGiftNote(e.target.value.slice(0, 40))} placeholder="한마디 (선택)" className="w-32 px-1.5 py-1 rounded border border-amber-200" />
+              <button type="button" disabled={busy || giftP <= 0} className={`${btn} bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-40`} onClick={() => void gift()} data-testid="gift-send">
+                포인트 선물
+              </button>
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-pink-200">
+              🎡 무료 개방
+              <button type="button" disabled={busy} className={`${btn} bg-pink-500 text-white hover:bg-pink-400`} onClick={() => void freeFor(todayEnd(), '오늘 하루')} data-testid="free-today">
+                오늘 하루
+              </button>
+              <button type="button" disabled={busy} className={`${btn} bg-fuchsia-500 text-white hover:bg-fuchsia-400`} onClick={() => void freeFor(Date.now() + 3600000, '지금부터 1시간')}>
+                1시간
+              </button>
+              <button type="button" disabled={busy} className={`${btn} bg-white border border-pink-300 text-pink-700 hover:bg-pink-50`} onClick={() => void freeFor(0, '')}>
+                끄기
+              </button>
+            </span>
+            <button type="button" className={`${btn} bg-white border border-slate-300 text-slate-600 hover:bg-slate-100`} onClick={() => setSel(new Set())}>
+              고르기 풀기
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="flex-1 min-h-0 max-h-[56vh] overflow-y-auto space-y-4 pr-1 rounded-xl bg-white/95">
         {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">아직 학생이 없어요. 학생이 모아팡에 들어오면 생겨요.</div>}
         {groups.map(([cls, list]) => (
           <section key={cls}>
-            <h3 className="text-sm font-black text-slate-800 mb-1.5">
-              {cls} <span className="text-slate-400">({list.length}명)</span>
+            <h3 className="text-sm font-black text-slate-800 mb-1.5 flex items-center gap-2">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4" checked={list.every((u) => sel.has(u.id))} onChange={(e) => toggle(list.map((u) => u.id), e.target.checked)} title="이 반 모두 고르기" />
+                {cls}
+              </label>
+              <span className="text-slate-400">({list.length}명)</span>
             </h3>
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
               <table className="w-full text-xs bg-white">
                 <thead className="bg-slate-50 text-slate-500 font-black">
                   <tr>
+                    <th className="px-2 py-2 w-8"></th>
                     <th className="px-3 py-2">승인</th>
                     <th className="px-3 py-2 text-left">이름</th>
                     <th className="px-3 py-2">학년</th>
-                    <th className="px-3 py-2">전화번호</th>
+                    <th className="px-3 py-2">🔑 비밀번호(전화번호)</th>
                     <th className="px-3 py-2">최고 타수</th>
                     <th className="px-3 py-2">연습</th>
                     <th className="px-3 py-2">마지막</th>
@@ -175,7 +267,10 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                 </thead>
                 <tbody>
                   {list.map((u) => (
-                    <tr key={u.id} className={`border-t border-slate-100 font-bold text-slate-700 ${u.isApproved ? '' : 'bg-amber-50/70'}`}>
+                    <tr key={u.id} className={`border-t border-slate-100 font-bold text-slate-700 ${sel.has(u.id) ? 'bg-violet-50' : u.isApproved ? '' : 'bg-amber-50/70'}`}>
+                      <td className="px-2 py-1.5 text-center">
+                        <input type="checkbox" className="w-4 h-4 cursor-pointer" checked={sel.has(u.id)} onChange={(e) => toggle([u.id], e.target.checked)} data-testid="pick-one" aria-label={`${u.name} 고르기`} />
+                      </td>
                       <td className="px-3 py-1.5 text-center whitespace-nowrap">
                         {u.isApproved ? (
                           <button
@@ -212,10 +307,20 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                       </td>
                       <td className="px-3 py-1.5">
                         {u.avatar} {u.name}
+                        {freeMap[u.id] > Date.now() && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded bg-pink-100 text-pink-700 text-[10px] whitespace-nowrap" title={`${formatKDate(freeMap[u.id])}까지`}>
+                            🎡 무료
+                          </span>
+                        )}
+                        {giftTotals[u.id] > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] whitespace-nowrap" title="최근 넉 달 동안 선물한 포인트">
+                            🎁 {giftTotals[u.id].toLocaleString()}P
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
                       <td className="px-3 py-1.5 text-center whitespace-nowrap">
-                        <span className="text-slate-600">{u.parentPhone || '-'}</span>
+                        <span className="text-slate-700 font-mono tracking-wide select-all" data-testid="pw-cell">{u.parentPhone ? (showPw ? u.parentPhone : '•••-••••-••••') : '-'}</span>
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.highestCpm || '-'}</td>
                       <td className="px-3 py-1.5 text-center">{u.totalPracticeCount || 0}번</td>

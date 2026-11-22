@@ -24,7 +24,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { AppMode, UserSession } from '../types';
-import { pointsManager } from '../utils/pointsManager';
+import { pointsManager, MASTER_POINTS } from '../utils/pointsManager';
 import { soundManager } from '../utils/sound';
 import { MoaCharacter } from './MoaCharacter';
 
@@ -264,7 +264,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   전체 보유 포인트
                 </span>
                 <span className="font-extrabold text-xs sm:text-sm font-arcade tracking-tight text-amber-950 leading-tight">
-                  {userPoints.toLocaleString()} <span className="text-[10px] font-black text-amber-700">P</span>
+                  {userPoints >= MASTER_POINTS ? (
+                    <>
+                      ∞ <span className="text-[10px] font-black text-amber-700">무제한</span>
+                    </>
+                  ) : (
+                    <>
+                      {userPoints.toLocaleString()} <span className="text-[10px] font-black text-amber-700">P</span>
+                    </>
+                  )}
                 </span>
               </div>
             </button>
