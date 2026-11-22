@@ -34,12 +34,17 @@ export interface PracticeSetResultModalProps {
   review?: React.ReactNode;
   /** 자리 연습이면 'key' (같은 자리 3번 = 1세트) */
   practiceKind?: 'key' | 'other';
+  /** 자리 연습: 하루 세트를 채우려고 친 횟수 / 필요한 횟수(3) */
+  runsInSet?: number;
+  runsPerSet?: number;
   /** 자리 연습 단계 구분값과 이름 (같은 자리를 몇 번 쳤는지 세기) */
   keyStage?: string;
   keyStageLabel?: string;
 }
 
 export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
+  runsInSet = 0,
+  runsPerSet = 0,
   isOpen,
   onClose,
   title,
@@ -149,10 +154,10 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-200 space-y-2 text-left">
             <div className="flex items-center justify-between">
               <span className="text-base font-black text-amber-900 flex items-center gap-1">
-                <span>별 적립 현황 ({practiceKind === 'key' ? '별 10개' : '10세트 완주'} 시 다음 단계 & 마이쮸)</span>
+                <span>{runsPerSet ? '하루 세트 현황 (10세트 모이면 마이쮸 & 다음 단계)' : '세트 현황 (10세트 완주 시 다음 단계 & 운지법 검사 → 마이쮸)'}</span>
               </span>
               <span className="text-base font-black text-amber-700 font-mono">
-                {currentStars} / 10 {practiceKind === 'key' ? '개' : '세트'}
+                {currentStars} / 10 세트
               </span>
             </div>
 
@@ -175,7 +180,14 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
                 starsEarned ? (
                   <div className="text-emerald-700 font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>정확도 95% 이상 통과! 별 1개가 성공적으로 적립되었습니다.</span>
+                    <span>{runsPerSet ? `${runsPerSet}번 완주! 하루 세트 1개(별 1개)를 모았어요.` : '정확도 95% 이상 통과! 1세트(별 1개)가 적립되었어요.'}</span>
+                  </div>
+                ) : runsPerSet && currentStars < 10 ? (
+                  <div className="text-sky-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0" />
+                    <span>
+                      잘했어요! 이번 하루 세트 {runsInSet}/{runsPerSet}번. {runsPerSet - runsInSet}번 더 치면 별 1개!
+                    </span>
                   </div>
                 ) : (
                   <div className="text-amber-800 font-bold flex items-center gap-1">
@@ -193,7 +205,9 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
 
             {currentStars < 10 && (
               <p className="text-sm text-stone-500 font-medium">
-                💡 10세트(별 10개)가 모이면 다음 단계로 갈 수 있고 마이쮸를 받습니다! (앞으로 {10 - currentStars}세트 남음)
+                {runsPerSet
+                  ? `💡 ${runsPerSet}번 치면 하루 세트 1개! 하루 세트 10개가 모이면 마이쮸를 받고 다음 단계로 가요. (앞으로 ${10 - currentStars}세트 남음)`
+                  : `💡 10세트를 치면 다음 단계로 가요. 선생님께 운지법 검사를 받으면 마이쮸! (앞으로 ${10 - currentStars}세트 남음)`}
               </p>
             )}
           </div>
@@ -239,7 +253,7 @@ export const PracticeSetResultModal: React.FC<PracticeSetResultModalProps> = ({
             }}
             className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-sm shadow-lg transition-all hover:scale-102 active:scale-98 flex items-center justify-center gap-2 cursor-pointer ring-2 ring-pink-300 animate-pulse"
           >
-            <span>🍬 마이쮸 받으러 가기! (선생님 검사)</span>
+            <span>{modeType === 'key_word' && !runsPerSet ? '🍬 운지법 검사 받고 마이쮸 받기!' : '🍬 마이쮸 받으러 가기! (선생님 검사)'}</span>
             <Sparkles className="w-4 h-4" />
           </button>
         )}

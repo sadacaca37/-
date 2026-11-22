@@ -49,8 +49,12 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
   // 별은 단계마다 따로 10개 (1단계 1번 + 2단계 1번 ≠ 별 2개)
   const starScope = `key_${language}_${stage.id}`;
   const [currentStarsCount, setCurrentStarsCount] = useState(() => starMissionManager.getState(currentUser?.id, starScope).stars);
+  // 하루 세트: 3번 완주하면 별(하루 세트) 1개
+  const [runsCount, setRunsCount] = useState(() => starMissionManager.getState(currentUser?.id, starScope).runs);
   useEffect(() => {
-    setCurrentStarsCount(starMissionManager.getState(currentUser?.id, starScope).stars);
+    const st = starMissionManager.getState(currentUser?.id, starScope);
+    setCurrentStarsCount(st.stars);
+    setRunsCount(st.runs);
   }, [currentUser?.id, starScope]);
   const currentStageNum = stage.id;
 
@@ -162,16 +166,20 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
     let earnedStar = false;
     let newStars = currentStarsCount;
 
+    let justFilled = false;
     if (isAccPassed) {
-      const starRes = starMissionManager.addStar(`${language === 'ko' ? '한글' : '영어'} 자리 (${stage.title}) 완주`, currentUser?.id, starScope);
-      earnedStar = true;
-      newStars = starRes.stars;
+      // 3번 완주할 때마다 하루 세트(별) 1개
+      const r = starMissionManager.addRun(`${language === 'ko' ? '한글' : '영어'} 자리 (${stage.title}) 하루 세트`, currentUser?.id, starScope, 3);
+      earnedStar = r.starEarned;
+      justFilled = r.justFilled;
+      newStars = r.stars;
       setCurrentStarsCount(newStars);
+      setRunsCount(r.runs);
     }
     setStarEarnedThisSet(earnedStar);
 
-    // If 10 sets (10 stars) completed, student advances to next level and gets Mychew!
-    if (newStars >= 10 && isAccPassed) {
+    // 하루 세트 10개가 모이면 마이쮸 + 다음 단계
+    if (justFilled) {
       setShowRewardModal(true);
     } else {
       // Show set result modal displaying CPM, error count, accuracy, and star accumulation
@@ -727,11 +735,16 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
                 })}
               </div>
               {/* 이 단계에서 모은 별 (단계마다 10번씩 완주해야 별 10개) */}
-              <div className="flex items-center gap-0.5 text-xs sm:text-sm font-black text-[#8a4b08]" data-testid="stage-stars" title="정확도 95% 이상으로 이 단계를 완주할 때마다 별 1개">
+              <div className="flex items-center gap-0.5 text-xs sm:text-sm font-black text-[#8a4b08]" data-testid="stage-stars" title="정확도 95% 이상으로 3번 완주하면 하루 세트(별) 1개 · 10개 모이면 마이쮸 + 다음 단계">
                 {Array.from({ length: 10 }, (_, i) => (
                   <span key={i} className={i < currentStarsCount ? 'text-[#f59e0b]' : 'text-[#cbb893]'}>★</span>
                 ))}
                 <span className="ml-1 text-[#4a2a12] font-mono tabular-nums">{currentStarsCount}/10</span>
+                {currentStarsCount < 10 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded bg-[#fff3c4] border border-[#d9a441] text-[10px] sm:text-xs text-[#7a4a1e] whitespace-nowrap" data-testid="key-runs">
+                    이번 세트 {runsCount}/3번
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -811,6 +824,8 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
         modeType="key_word"
         currentStars={currentStarsCount}
         starsEarned={starEarnedThisSet}
+        runsInSet={runsCount}
+        runsPerSet={3}
         onRetry={() => {
           setShowSetResultModal(false);
           handleReset();
@@ -835,7 +850,7 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
         onClose={() => setShowRewardModal(false)}
         type="key_word_ten_stars"
         accuracy={stats.accuracy}
-        isSuccess={stats.accuracy >= 95}
+        isSuccess={currentStarsCount >= 10 || stats.accuracy >= 95}
         cpm={stats.cpm}
         title={`자리연습 (${stage.title})`}
         onRetry={() => {

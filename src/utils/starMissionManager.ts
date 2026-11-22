@@ -8,6 +8,8 @@ export interface StarMissionState {
   isApproved: boolean; // Teacher inspection approved
   approvedAt?: string;
   historyCount: number;
+  /** 자리 연습: 하루 세트(별 1개)를 채우려고 지금까지 친 횟수 (3번이면 별 1개) */
+  runs: number;
 }
 
 export class StarMissionManager {
@@ -48,6 +50,7 @@ export class StarMissionManager {
           isApproved: Boolean(parsed.isApproved),
           approvedAt: parsed.approvedAt,
           historyCount: Number(parsed.historyCount) || 0,
+          runs: Math.max(0, Number(parsed.runs) || 0),
         };
       }
     } catch {}
@@ -55,7 +58,41 @@ export class StarMissionManager {
       stars: 0,
       isApproved: false,
       historyCount: 0,
+      runs: 0,
     };
+  }
+
+  /**
+   * 자리 연습: 한 번 완주할 때마다 호출. per(3)번을 채우면 '하루 세트' 별 1개.
+   * 별이 이미 10개면 더 세지 않음.
+   */
+  public addRun(missionTitle: string, userId?: string, scope?: string, per = 3): { stars: number; runs: number; starEarned: boolean; justFilled: boolean } {
+    if (!isSavableUser(userId || this.resolveCurrentUserId())) return { stars: 0, runs: 0, starEarned: false, justFilled: false };
+    const cur = this.getState(userId, scope);
+    if (cur.stars >= 10) return { stars: cur.stars, runs: 0, starEarned: false, justFilled: false };
+    const runs = cur.runs + 1;
+    if (runs < per) {
+      try {
+        localStorage.setItem(this.getStorageKey(userId, scope), JSON.stringify({ ...cur, runs, historyCount: cur.historyCount + 1 }));
+      } catch {}
+      window.dispatchEvent(new CustomEvent('star-mission-updated', { detail: { ...cur, runs, scope, userId: userId || this.resolveCurrentUserId() } }));
+      return { stars: cur.stars, runs, starEarned: false, justFilled: false };
+    }
+    try {
+      localStorage.setItem(this.getStorageKey(userId, scope), JSON.stringify({ ...cur, runs: 0 }));
+    } catch {}
+    const r = this.addStar(missionTitle, userId, scope);
+    return { stars: r.stars, runs: 0, starEarned: true, justFilled: r.justFilled };
+  }
+
+  /** 선생님 검사(운지법 등) 통과 표시 — 별은 그대로 둠 */
+  public markApproved(userId?: string, scope?: string): void {
+    if (!isSavableUser(userId || this.resolveCurrentUserId())) return;
+    const cur = this.getState(userId, scope);
+    try {
+      localStorage.setItem(this.getStorageKey(userId, scope), JSON.stringify({ ...cur, isApproved: true, approvedAt: new Date().toISOString() }));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('star-mission-updated', { detail: { ...cur, isApproved: true, scope, userId: userId || this.resolveCurrentUserId() } }));
   }
 
   /**
@@ -79,6 +116,7 @@ export class StarMissionManager {
       isApproved: justFilled ? false : current.isApproved,
       approvedAt: justFilled ? undefined : current.approvedAt,
       historyCount: current.historyCount + 1,
+      runs: 0,
     };
 
     try {
@@ -117,6 +155,7 @@ export class StarMissionManager {
       isApproved: true,
       approvedAt,
       historyCount: (this.getState(userId).historyCount || 0),
+      runs: 0,
     };
 
     try {
@@ -144,6 +183,7 @@ export class StarMissionManager {
       stars: 0,
       isApproved: false,
       historyCount: 0,
+      runs: 0,
     };
     try {
       localStorage.setItem(key, JSON.stringify(updated));

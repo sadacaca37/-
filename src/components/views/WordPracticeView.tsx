@@ -179,18 +179,19 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
     
     const isAccPassed = stats.accuracy >= 95;
     let earnedStar = false;
-    let newStars = currentStarsCount;
+    let justFilled = false;
 
     if (isAccPassed) {
+      const before = starMissionManager.getState(currentUser?.id, starScope).stars;
       const starRes = starMissionManager.addStar(`${language === 'ko' ? '한글' : '영어'} 낱말 (${currentCategory.name}) 완주`, currentUser?.id, starScope);
-      earnedStar = true;
-      newStars = starRes.stars;
-      setCurrentStarsCount(newStars);
+      earnedStar = starRes.stars > before;
+      justFilled = starRes.justFilled;
+      setCurrentStarsCount(starRes.stars);
     }
     setStarEarnedThisSet(earnedStar);
 
-    // If 10 sets (10 stars) completed, student advances to next level and gets Mychew!
-    if (newStars >= 10 && isAccPassed) {
+    // 10세트를 다 치면 → 선생님 운지법 검사(확인 번호) → 마이쮸 + 다음 단계
+    if (justFilled) {
       setShowRewardModal(true);
     } else {
       // Show set result modal displaying CPM, error count, accuracy, and star accumulation
@@ -913,9 +914,12 @@ export const WordPracticeView: React.FC<WordPracticeViewProps> = ({
         onClose={() => setShowRewardModal(false)}
         type="key_word_ten_stars"
         accuracy={stats.accuracy}
-        isSuccess={stats.accuracy >= 95}
+        isSuccess={currentStarsCount >= 10 || stats.accuracy >= 95}
         cpm={stats.cpm}
         title={`낱말연습 (${currentCategory.name})`}
+        requirePin
+        pinTitle="운지법 검사"
+        onApproved={() => starMissionManager.markApproved(currentUser?.id, starScope)}
         onRetry={() => {
           setShowRewardModal(false);
           handleReset();

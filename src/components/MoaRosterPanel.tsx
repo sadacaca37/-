@@ -11,6 +11,7 @@ import { setApprovals } from '../utils/tajaApproval';
 import { downloadMoaTemplate, readImportFile, importStudents } from '../utils/moaStudentImport';
 import { fetchStudentFree, saveStudentFree, formatKDate } from '../utils/funfunFree';
 import { readGiftTotals, sendGift } from '../utils/tajaGifts';
+import { hasCheckPin, setCheckPin } from '../utils/teacherCheck';
 
 interface Props {
   users: UserSession[];
@@ -30,6 +31,11 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
   const [giftP, setGiftP] = useState(500);
   const [giftNote, setGiftNote] = useState('');
   const [showPw, setShowPw] = useState(true);
+  const [pinSet, setPinSet] = useState<boolean | null>(null);
+  const [newPin, setNewPin] = useState('');
+  useEffect(() => {
+    void hasCheckPin().then(setPinSet);
+  }, []);
   const loadExtras = useCallback(() => {
     void fetchStudentFree().then(setFreeMap);
     void readGiftTotals().then(setGiftTotals);
@@ -196,6 +202,36 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
           승인 대기만 보기
         </label>
       </div>
+
+      {/* 낱말 연습 운지법 검사: 학생 화면에 선생님이 넣는 확인 번호 */}
+      <form
+        className="shrink-0 px-3.5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-200 text-rose-950 text-xs font-bold flex flex-wrap items-center gap-2"
+        data-testid="check-pin"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const r = await setCheckPin(newPin);
+          if (r.success) {
+            setPinSet(true);
+            setNewPin('');
+            say('🔢 선생님 확인 번호를 저장했어요. 학생 화면 운지법 검사 때 이 번호를 넣어 주세요.');
+          } else say(`❌ ${r.message}`);
+        }}
+      >
+        <span>🔢 선생님 확인 번호 (낱말 연습 운지법 검사 → 마이쮸):</span>
+        <span className={pinSet ? 'text-emerald-700' : 'text-rose-600'}>{pinSet === null ? '' : pinSet ? '✅ 정해 둠' : '⚠️ 아직 없음 — 꼭 정해 주세요'}</span>
+        <input
+          type="password"
+          inputMode="numeric"
+          autoComplete="new-password"
+          value={newPin}
+          onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+          placeholder="숫자 4~6자리"
+          className="w-28 px-2 py-1 rounded border border-rose-300 text-center tracking-widest"
+        />
+        <button type="submit" disabled={newPin.length < 4} className={`${btn} bg-rose-500 text-white hover:bg-rose-400 disabled:opacity-40`}>
+          {pinSet ? '번호 바꾸기' : '번호 정하기'}
+        </button>
+      </form>
 
       <div className="shrink-0 flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 찾기" className="w-full max-w-xs px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold" />

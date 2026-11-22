@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { LeaderboardEntry } from '../../types';
 import { Pixel, TvBot } from './TapangHome';
 import { typangApi } from '../../utils/apiClient';
+import { readLastRankWinners, RANK_POINTS } from '../../utils/rankRewards';
+import { weekLabel } from '../../utils/weekBest';
 
 interface LeaderboardViewProps {
   entries: LeaderboardEntry[];
@@ -55,6 +57,14 @@ const thisMonth = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().sli
 
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onStartSentencePractice }) => {
   const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
+  const [lastWin, setLastWin] = useState<Awaited<ReturnType<typeof readLastRankWinners>>>(null);
+  useEffect(() => {
+    let alive = true;
+    void readLastRankWinners().then((r) => alive && setLastWin(r));
+    return () => {
+      alive = false;
+    };
+  }, []);
   // 지난달 순위는 보관함에서 볼 수 있음 ('' = 이번 달)
   const [month, setMonth] = useState<string>('');
   const [months, setMonths] = useState<string[]>([]);
@@ -147,6 +157,23 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
               </option>
             ))}
           </select>
+        )}
+      </div>
+
+      {/* 주간 랭킹 보상 안내 + 지난주 학년별 1~3등 */}
+      <div className="mx-auto mb-3 max-w-3xl px-3 py-2 rounded-xl text-[12px] font-black text-center" style={{ position: 'relative', zIndex: 2, background: 'rgba(15,23,42,0.75)', border: '1px solid rgba(253,224,71,0.6)', color: '#fde68a' }} data-testid="rank-reward-info">
+        🏆 매주 학년별 짧은 글 최고 타수 1등 {RANK_POINTS[0]}P · 2등 {RANK_POINTS[1]}P · 3등 {RANK_POINTS[2]}P (월요일에 자동으로 선물이 와요)
+        {lastWin && lastWin.winners.length > 0 && (
+          <div className="mt-1 text-[11px] font-bold" style={{ color: '#cffafe' }}>
+            지난 주({weekLabel(lastWin.week)}):{' '}
+            {[1, 2, 3, 4, 5, 6]
+              .map((g) => {
+                const w = lastWin.winners.filter((x) => x.grade === g).sort((a, b) => a.place - b.place);
+                return w.length ? `${g}학년 ${w.map((x) => `${x.place}등 ${x.name}`).join('·')}` : '';
+              })
+              .filter(Boolean)
+              .join('  |  ')}
+          </div>
         )}
       </div>
 

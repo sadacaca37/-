@@ -12,6 +12,8 @@ import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
+import { payWeeklyRankRewards } from './utils/rankRewards';
+import { weekLabel } from './utils/weekBest';
 import { authReady, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
@@ -381,6 +383,20 @@ export default function App() {
       window.removeEventListener('focus', tick);
     };
   }, [currentUser?.id, currentUser?.isApproved, currentUser?.role]);
+
+  // 선생님(마스터)이 들어오면: 지난주 학년별 랭킹 1~3등에게 포인트(500·200·100P)를 아직 안 줬으면 자동으로 줌
+  const [rankMsg, setRankMsg] = useState('');
+  useEffect(() => {
+    if (currentUser?.role !== 'master' || isPopupMode) return;
+    const t = window.setTimeout(() => {
+      void payWeeklyRankRewards()
+        .then((r) => {
+          if (r.weeks.length) setRankMsg(`🏆 ${r.weeks.map(weekLabel).join(', ')} 주간 랭킹 보상을 학년별 1~3등 ${r.count}명에게 보냈어요. (1등 500P · 2등 200P · 3등 100P)`);
+        })
+        .catch(() => {});
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [currentUser?.role, isPopupMode]);
 
   // 연습 단계에 들어가면(연습 창 포함) 이 컴퓨터에 기억 → 홈 지도 로봇이 그 단계로 감 (로그인 안 해도)
   useEffect(() => {
@@ -881,6 +897,14 @@ export default function App() {
       {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
       {!isPopupMode && <ReportArrivalToasts active={currentUser?.role === 'master'} onOpen={() => setIsMasterOpen(true)} />}
       {!isPopupMode && <GiftReceiver user={currentUser} />}
+      {rankMsg && (
+        <div className="fixed left-1/2 -translate-x-1/2 top-4 z-[96] max-w-[92vw] px-4 py-3 rounded-2xl border-4 border-[#5a3417] bg-[#fdf5dd] shadow-[0_6px_0_rgba(44,21,7,0.55)] text-sm font-black text-[#3d220d] flex items-center gap-3" data-testid="rank-paid">
+          <span>{rankMsg}</span>
+          <button type="button" className="px-2 text-[#7a4a1e] cursor-pointer" aria-label="닫기" onClick={() => setRankMsg('')}>
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Master / Teacher Console Modal */}
       {isMasterOpen && <MasterModal

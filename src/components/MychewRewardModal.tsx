@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Sparkles, CheckCircle2, RotateCcw, ArrowRight, Award, Heart, X } from 'lucide-react';
 import { soundManager } from '../utils/sound';
+import { verifyCheckPin } from '../utils/teacherCheck';
 
 export interface MychewRewardModalProps {
   isOpen: boolean;
@@ -14,6 +15,11 @@ export interface MychewRewardModalProps {
   title?: string;
   onRetry?: () => void;
   onNext?: () => void;
+  /** 선생님 확인 번호를 넣어야 통과 (낱말 연습 운지법 검사) */
+  requirePin?: boolean;
+  pinTitle?: string;
+  /** 선생님 번호가 맞았을 때 (통과 기록 남기기) */
+  onApproved?: () => void;
 }
 
 export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
@@ -27,7 +33,13 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
   title,
   onRetry,
   onNext,
+  requirePin = false,
+  pinTitle = '운지법 검사',
+  onApproved,
 }) => {
+  const [pin, setPin] = useState('');
+  const [pinMsg, setPinMsg] = useState('');
+  const [pinBusy, setPinBusy] = useState(false);
   const [isTeacherApproved, setIsTeacherApproved] = useState(false);
   const [teacherStampTime, setTeacherStampTime] = useState<string | null>(null);
   const [autoCloseSeconds, setAutoCloseSeconds] = useState<number | null>(null);
@@ -35,6 +47,8 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
   // Reset state whenever modal opens
   React.useEffect(() => {
     if (isOpen) {
+      setPin('');
+      setPinMsg('');
       setIsTeacherApproved(false);
       setTeacherStampTime(null);
       setAutoCloseSeconds(null);
@@ -71,10 +85,37 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
       });
     } catch {}
 
-    // Auto-close automatically after 1 second as requested by user
-    setTimeout(() => {
-      onClose();
-    }, 1000);
+    // 번호 검사가 없는 마이쮸는 1초 뒤 저절로 닫힘 (번호 검사는 [다음 단계로]를 누를 수 있게 그대로 둠)
+    if (!requirePin) {
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    }
+  };
+
+  const checkPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinBusy || !pin.trim()) return;
+    setPinBusy(true);
+    setPinMsg('');
+    const r = await verifyCheckPin(pin);
+    setPinBusy(false);
+    if (r === 'ok') {
+      onApproved?.();
+      handleTeacherApprove();
+    } else {
+      setPin('');
+      setPinMsg(
+        r === 'wrong'
+          ? '번호가 맞지 않아요. 선생님께 다시 부탁해요.'
+          : r === 'unset'
+            ? '선생님이 아직 확인 번호를 정하지 않았어요. (마스터 관리실 → 선생님 확인 번호)'
+            : '인터넷 연결을 확인해 주세요.',
+      );
+      try {
+        soundManager.play('error');
+      } catch {}
+    }
   };
 
   return (
@@ -115,7 +156,7 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-black">
                 <Sparkles className="w-3.5 h-3.5 text-pink-500" />
                 <span>
-                  {type === 'key_word_ten_stars' ? '10회 완성 미션 달성!' : '최고 타수 신기록 경신!'}
+                  {type === 'key_word_ten_stars' ? '10세트 완성 미션 달성!' : '최고 타수 신기록 경신!'}
                 </span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">
@@ -123,7 +164,9 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
               </h3>
               <p className="text-xs text-stone-600 font-medium">
                 {type === 'key_word_ten_stars'
-                  ? '총 10세트 타자를 모두 완료하고 정확도 95% 이상을 통과했습니다!'
+                  ? requirePin
+                    ? `10세트를 모두 쳤어요! 선생님께 ${pinTitle}를 받고 통과하면 마이쮸 + 다음 단계!`
+                    : '10세트를 모두 완료했습니다! 마이쮸 받고 다음 단계로 가요!'
                   : `이전 기록을 뛰어넘어 신기록을 세우고 정확도 95% 이상을 달성했습니다!`}
               </p>
             </div>
@@ -193,6 +236,29 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
                   </div>
                 </div>
               ) : (
+                requirePin ? (
+                <form className="space-y-2" onSubmit={checkPin} data-testid="pin-check">
+                  <div className="text-xs font-bold text-pink-900">
+                    👩‍🏫 <strong>선생님께 {pinTitle}를 받아요!</strong> 통과하면 선생님이 확인 번호를 넣어 주세요.
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      placeholder="선생님 확인 번호"
+                      className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 border-pink-300 text-center text-lg font-black tracking-[0.4em] bg-white"
+                      data-testid="pin-input"
+                    />
+                    <button type="submit" disabled={pinBusy || pin.length < 4} className="px-4 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 disabled:opacity-40 text-white font-black text-sm cursor-pointer">
+                      {pinBusy ? '확인 중…' : '통과 확인'}
+                    </button>
+                  </div>
+                  {pinMsg && <div className="text-xs font-bold text-rose-600">{pinMsg}</div>}
+                </form>
+                ) : (
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-pink-900">
                     👩‍🏫 <strong>선생님께 화면을 보여드리고 아래 [마이쮸 받기]를 눌러주세요!</strong>
@@ -205,6 +271,7 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
                     <CheckCircle2 className="w-4 h-4" />
                   </button>
                 </div>
+                )
               )}
             </div>
 
@@ -222,7 +289,7 @@ export const MychewRewardModal: React.FC<MychewRewardModalProps> = ({
                   <span>다시 도전하기</span>
                 </button>
               )}
-              {onNext && (
+              {onNext && (!requirePin || isTeacherApproved) && (
                 <button
                   onClick={() => {
                     onClose();

@@ -4,6 +4,7 @@
  *  - 이제는 모아팡과 같은 Firebase에 저장: 학생 = 모아팡 반 + 이름, 선생님 = 모아팡 선생님 계정
  */
 import { isApprovedNow } from './session';
+import { noteWeekBest } from './weekBest';
 import { readApprovals, setApprovals } from './tajaApproval';
 import { readParentPhones } from './moaStudentImport';
 import { collection, collectionGroup, deleteField, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -443,6 +444,7 @@ class TypangApiClient {
     const e = cleanLeaderboardEntry(entry);
     if (!e) return this.getLeaderboard();
     if (!isTeacherUser() && !isApprovedNow()) return this.getLeaderboard(); // 승인 전: 명예의 전당에 저장 안 함
+    if (!isTeacherUser() && (e.mode === 'sentence' || !e.mode)) noteWeekBest(e.userId, e.cpm, e.accuracy, e.ts); // 주간 랭킹 보상용
     const month = kstMonth(e.ts);
     const who = safeKey(lbWho(e));
     try {
