@@ -96,6 +96,13 @@ export async function sendTodayReport(user: UserSession, note: string): Promise<
   if (!active) return { success: false, message: '오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요.' };
   const p = parseUserId(user.id);
   if (!p) return { success: false, message: '모아팡에서 방번호와 이름으로 들어온 학생만 보낼 수 있어요.' };
+  // 함께 쓰는 선생님(owner가 있는 반)은 아직 보고함을 쓰지 않음 (보고함은 주 선생님만)
+  try {
+    const cls = await getDoc(doc(fs, 'classes', p.cid));
+    if (cls.exists() && cls.data().owner) {
+      return { success: false, message: '우리 반 선생님은 아직 타자팡 보고 받기를 쓰지 않아요. 연습은 그대로 계속할 수 있어요!' };
+    }
+  } catch {}
   const report: DailyReport & { cid: string; key: string } = {
     id: reportId(user.id, day),
     userId: user.id,
