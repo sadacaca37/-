@@ -614,7 +614,7 @@ export default function App() {
               setIsMasterOpen(true);
             }
           }}
-          onOpenHistory={() => openAccount('records')}
+          onOpenHistory={() => openAccount('account')}
           onOpenSendReport={() => setIsSendReportOpen(true)}
           sendReportState={sendReportState}
           newReportsCount={newReportsCount}
@@ -753,7 +753,7 @@ export default function App() {
                 setIsMasterOpen(true);
               }
             }}
-            onOpenHistory={() => openAccount('records')}
+            onOpenHistory={() => openAccount('account')}
           />
         )}
 

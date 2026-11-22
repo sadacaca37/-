@@ -184,12 +184,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onOpenHistory}
                 className="tp-nbtn tp-nbtn--wood px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black bg-purple-50 hover:bg-purple-100 text-purple-700 border-2 border-purple-200 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-                title="내 타자 기록과 성적표 (내 계정에서 한 번에)"
+                title="내 계정 (캐릭터 꾸미기 · 내 정보 · 타자 기록 · 성적표)"
                 data-testid="nav-records"
               >
-                <History className="w-3.5 h-3.5 text-purple-600" />
-                <span className="hidden md:inline">기록·성적표</span>
-                <span className="md:hidden">기록</span>
+                <User className="w-3.5 h-3.5 text-purple-600" />
+                <span>계정</span>
               </button>
             )}
 
