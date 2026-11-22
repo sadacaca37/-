@@ -278,12 +278,6 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
           )}
         </div>
 
-        {/* 기록장 그림 (제미나이) */}
-        <div className="rp-banner mt-3" aria-hidden="true">
-          <img src="./assets/report/journal.webp" alt="" draggable={false} />
-          <span className="rp-banner-title">📖 {currentUser?.name || '나'}의 모험 기록장</span>
-        </div>
-
         {/* Success Message Banner */}
         {resetSuccessMsg && (
           <div className="mt-3 p-3 bg-teal-50 border-2 border-teal-200 text-teal-800 rounded-2xl text-xs font-black flex items-center gap-2 animate-in fade-in">
