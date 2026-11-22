@@ -1,4 +1,5 @@
 import { canAdvanceBySpace, gradeText, netCpm } from '../../utils/typingScore';
+import { KnowledgeWorldHero } from './KnowledgeWorldHero';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import {
@@ -627,8 +628,10 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
     }
   };
 
+  const heroWorld = activeTab === 'capitals' ? 'capitals' : activeTab === 'joseon' ? 'joseon' : activeTab === 'lyrics' ? 'kpop' : null;
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6 animate-fade-in relative pb-16">
+    <div className={`max-w-6xl mx-auto px-4 py-6 space-y-6 animate-fade-in relative pb-16 ${heroWorld ? `kw-studio kw-studio--${heroWorld}` : ''}`}>
+      {heroWorld && <KnowledgeWorldHero world={heroWorld} onBack={onSelectMode ? () => onSelectMode('knowledge-hub') : undefined} />}
       {/* Floating Bonus Points Toast (Moved to bottom-right so it NEVER overlaps text) */}
       {bonusPointsAlert && (
         <div className="fixed bottom-6 right-6 z-50 pointer-events-none bg-gradient-to-r from-amber-500 to-yellow-400 text-white font-black px-4 py-2.5 rounded-full shadow-2xl border-2 border-white flex items-center gap-2 animate-bounce">
@@ -645,7 +648,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
         <div className="flex items-center gap-4">
           <button
             onClick={() => onSelectMode && onSelectMode('knowledge-hub')}
-            className="p-2.5 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-700 transition cursor-pointer flex items-center gap-1.5 text-xs font-black shadow-xs"
+            className="kw-old-back p-2.5 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-700 transition cursor-pointer flex items-center gap-1.5 text-xs font-black shadow-xs"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>허브로</span>
@@ -664,7 +667,7 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                 </span>
               )}
             </div>
-            <h1 className="text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2 mt-0.5">
+            <h1 className="kw-old-title text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2 mt-0.5">
               {activeTab === 'capitals' && (
                 <>
                   <Globe className="w-6 h-6 text-emerald-600" />

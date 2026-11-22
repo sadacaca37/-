@@ -19,6 +19,7 @@ import {
 import { AppMode, UserSession } from '../../types';
 import { soundManager } from '../../utils/sound';
 import { PixelIcon, TvBot } from './TapangHome';
+import { WORLD_ART } from './KnowledgeWorldHero';
 
 interface KnowledgeHubViewProps {
   currentUser: UserSession | null;
@@ -145,12 +146,17 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
     onSelectMode(mode);
   };
 
-  const worldIcon: Record<string, string> = { python: 'code', capitals: 'globe', joseon: 'crown', lyrics: 'music' };
+  const worldArt: Record<string, 'python' | 'capitals' | 'joseon' | 'kpop'> = { python: 'python', capitals: 'capitals', joseon: 'joseon', lyrics: 'kpop' };
   const worldTone: Record<string, string> = { python: '#38b6ff', capitals: '#43c05a', joseon: '#8a6cff', lyrics: '#ff6bb5' };
 
   return (
     <div className="kw space-y-7">
-      <header className="kw-head">
+      <header className="kw-head kw-head--art">
+        <span className="kw-head-strip" aria-hidden="true">
+          {(['python', 'capitals', 'joseon', 'kpop'] as const).map((k) => (
+            <img key={k} src={WORLD_ART[k].img} alt="" draggable={false} />
+          ))}
+        </span>
         <div className="kw-sign">
           <span className="kw-sign-cap kw-sign-cap--l" />
           <span className="kw-sign-cap kw-sign-cap--r" />
@@ -175,10 +181,8 @@ export const KnowledgeHubView: React.FC<KnowledgeHubViewProps> = ({
               style={{ ['--tone' as any]: worldTone[course.id] }}
             >
               <span className="kw-world">WORLD {idx + 1}</span>
-              <span className="kw-screen">
-                <span className="kw-screen-icon">
-                  <PixelIcon name={worldIcon[course.id]} size={64} />
-                </span>
+              <span className="kw-screen kw-screen--art">
+                <img className="kw-screen-img" src={WORLD_ART[worldArt[course.id]].img} alt="" draggable={false} />
                 <span className="kw-badge">{course.badge}</span>
               </span>
               <span className="kw-title">{course.title}</span>

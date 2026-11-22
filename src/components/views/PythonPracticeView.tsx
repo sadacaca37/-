@@ -1,3 +1,4 @@
+import { KnowledgeWorldHero } from './KnowledgeWorldHero';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PRACTICE_SET_POINTS } from '../../utils/pointRules';
 import confetti from 'canvas-confetti';
@@ -265,7 +266,8 @@ export const PythonPracticeView: React.FC<PythonPracticeViewProps> = ({
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-6 space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-6 space-y-6 animate-in fade-in duration-300 kw-studio kw-studio--python">
+      <KnowledgeWorldHero world="python" onBack={onSelectMode ? () => onSelectMode('knowledge-hub') : undefined} />
       {/* 1. Header Toolbar with Python Brand */}
       <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 rounded-3xl p-4 sm:p-6 text-white border-2 border-sky-500/30 shadow-xl flex flex-wrap items-center justify-between gap-4 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-full bg-sky-500/10 blur-3xl pointer-events-none" />
