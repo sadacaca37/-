@@ -2,8 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
-  Area,
-  Line,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -520,7 +519,7 @@ export const PracticePerformanceChart: React.FC<PracticePerformanceChartProps> =
             <YAxis
               yAxisId="accAxis"
               orientation="right"
-              domain={[50, 100]}
+              domain={[0, 100]}
               tick={{ fill: '#10b981', fontSize: 11, fontWeight: 700 }}
               axisLine={{ stroke: '#e2e8f0' }}
               tickLine={false}
@@ -534,47 +533,15 @@ export const PracticePerformanceChart: React.FC<PracticePerformanceChartProps> =
               wrapperStyle={{ paddingBottom: 10, fontSize: 12, fontWeight: 700 }}
             />
 
-            {/* 1. Average CPM Area + Line */}
+            {/* 막대그래프: 평균 속도 · 최고 속도 · 평균 정확도 */}
             {(metricFilter === 'all' || metricFilter === 'cpm') && (
-              <Area
-                yAxisId="cpmAxis"
-                type="monotone"
-                dataKey="avgCpm"
-                name="평균 속도 (CPM)"
-                stroke="#6366f1"
-                strokeWidth={3}
-                fill="url(#cpmAreaGrad)"
-                dot={{ fill: '#6366f1', r: 4, strokeWidth: 2, stroke: '#ffffff' }}
-                activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }}
-              />
+              <Bar yAxisId="cpmAxis" dataKey="avgCpm" name="평균 속도 (CPM)" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={30} />
             )}
-
-            {/* 2. Highest CPM Line */}
             {(metricFilter === 'all' || metricFilter === 'cpm') && (
-              <Line
-                yAxisId="cpmAxis"
-                type="monotone"
-                dataKey="maxCpm"
-                name="최고 속도 (CPM)"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                strokeDasharray="4 4"
-                dot={{ fill: '#f59e0b', r: 3, strokeWidth: 1, stroke: '#ffffff' }}
-              />
+              <Bar yAxisId="cpmAxis" dataKey="maxCpm" name="최고 속도 (CPM)" fill="#f59e0b" radius={[6, 6, 0, 0]} maxBarSize={30} />
             )}
-
-            {/* 3. Accuracy Line */}
             {(metricFilter === 'all' || metricFilter === 'acc') && (
-              <Line
-                yAxisId="accAxis"
-                type="monotone"
-                dataKey="avgAcc"
-                name="평균 정확도 (%)"
-                stroke="#10b981"
-                strokeWidth={3}
-                dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#ffffff' }}
-                activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }}
-              />
+              <Bar yAxisId="accAxis" dataKey="avgAcc" name="평균 정확도 (%)" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={30} />
             )}
           </ComposedChart>
         </ResponsiveContainer>
