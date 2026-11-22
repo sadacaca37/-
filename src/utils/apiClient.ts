@@ -5,6 +5,7 @@
  */
 import { isApprovedNow } from './session';
 import { readApprovals } from './tajaApproval';
+import { readParentPhones } from './moaStudentImport';
 import { collection, collectionGroup, deleteField, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { get, ref, set } from 'firebase/database';
 import { UserSession, LeaderboardEntry } from '../types';
@@ -129,7 +130,7 @@ class TypangApiClient {
   public async getUsers(): Promise<UserSession[]> {
     if (!isTeacherUser()) return [];
     try {
-      const [cls, sts, approved] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collectionGroup(fs, 'students')), readApprovals(true)]);
+      const [cls, sts, approved, phones] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collectionGroup(fs, 'students')), readApprovals(true), readParentPhones()]);
       const names = new Map(cls.docs.map((d) => [d.id, String((d.data() as any).name || '')]));
       const users: UserSession[] = [];
       for (const d of sts.docs) {
@@ -147,6 +148,7 @@ class TypangApiClient {
           avatarBg: t.avatarBg || 'bg-yellow-100',
           levelTitle: t.levelTitle || (grade ? `${grade}학년 타자 꿈나무` : '타자 꿈나무'),
           isApproved: !!approved[userIdOf(cid, d.id)],
+          parentPhone: phones[userIdOf(cid, d.id)] || undefined,
           role: 'student',
           createdAt: Number(v.created?.toMillis?.() || 0),
           lastLoginAt: Number(v.seen?.toMillis?.() || 0),

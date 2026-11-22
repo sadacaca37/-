@@ -8,6 +8,7 @@ import { typangApi } from '../utils/apiClient';
 import { askConfirm } from '../utils/dialog';
 import { FunfunFreePanel } from './FunfunFreePanel';
 import { setApprovals } from '../utils/tajaApproval';
+import { downloadMoaTemplate, readImportFile, importStudents, saveParentPhone } from '../utils/moaStudentImport';
 
 interface Props {
   users: UserSession[];
@@ -22,6 +23,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
   const [onlyPending, setOnlyPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const pendingCount = users.filter((u) => u.role !== 'master' && !u.isApproved).length;
+  const classNames = useMemo(() => [...new Set(users.filter((u) => u.role !== 'master').map((u) => u.studentId || '').filter(Boolean))], [users]);
   const approve = async (ids: string[], on: boolean) => {
     setBusy(true);
     const ok = await setApprovals(ids, on);
@@ -89,6 +91,36 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
               }}
             />
           </label>
+          <label className={`${btn} bg-indigo-600 text-white hover:bg-indigo-500`} data-testid="excel-upload">
+            📥 엑셀로 학생 한꺼번에 올리기
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                try {
+                  const rows = await readImportFile(file);
+                  if (!rows.length) return say("❌ 학생을 찾지 못했어요. 첫 줄에 '반 · 이름 · 학년 · 학부모 전화번호' 제목을 써 주세요. (양식 받기)");
+                  if (!(await askConfirm(`엑셀에서 학생 ${rows.length}명을 읽었어요.\n모아팡 반에 넣고 바로 승인할까요?\n(이미 있는 학생은 학년·전화번호만 고쳐요)`, '올리기'))) return;
+                  setBusy(true);
+                  say('⏳ 올리는 중이에요…');
+                  const r = await importStudents(rows, classNames.length === 1 ? classNames[0] : '');
+                  setBusy(false);
+                  say(`✅ 새 학생 ${r.created}명, 고친 학생 ${r.updated}명 (모두 승인됨)${r.skipped.length ? ` · 못 넣은 줄 ${r.skipped.length}개: ${r.skipped.slice(0, 5).join(', ')}${r.skipped.length > 5 ? ' …' : ''}` : ''}`);
+                  void onRefresh();
+                } catch {
+                  setBusy(false);
+                  say('❌ 엑셀 파일을 읽지 못했어요. 양식을 받아서 채워 주세요.');
+                }
+              }}
+            />
+          </label>
+          <button type="button" className={`${btn} bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50`} onClick={() => void downloadMoaTemplate(classNames)}>
+            📄 엑셀 양식 받기
+          </button>
           <button type="button" className={`${btn} bg-white border border-slate-300 text-slate-700 hover:bg-slate-100`} onClick={() => void onRefresh()}>
             🔄 새로 고침
           </button>
@@ -137,6 +169,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                     <th className="px-3 py-2">승인</th>
                     <th className="px-3 py-2 text-left">이름</th>
                     <th className="px-3 py-2">학년</th>
+                    <th className="px-3 py-2">학부모 전화</th>
                     <th className="px-3 py-2">최고 타수</th>
                     <th className="px-3 py-2">연습</th>
                     <th className="px-3 py-2">마지막</th>
@@ -170,6 +203,21 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                         {u.avatar} {u.name}
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
+                      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          className="underline decoration-dotted text-slate-600 hover:text-indigo-700 cursor-pointer"
+                          title="눌러서 학부모 전화번호 고치기 (선생님만 볼 수 있어요)"
+                          onClick={async () => {
+                            const v = window.prompt(`'${u.name}' 학생의 학부모 전화번호`, u.parentPhone || '');
+                            if (v === null) return;
+                            say((await saveParentPhone(u.id, v)) ? `📞 ${u.name} 학생 학부모 전화번호를 저장했어요.` : '❌ 저장하지 못했어요.');
+                            void onRefresh();
+                          }}
+                        >
+                          {u.parentPhone || '입력'}
+                        </button>
+                      </td>
                       <td className="px-3 py-1.5 text-center">{u.highestCpm || '-'}</td>
                       <td className="px-3 py-1.5 text-center">{u.totalPracticeCount || 0}번</td>
                       <td className="px-3 py-1.5 text-center">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '-'}</td>

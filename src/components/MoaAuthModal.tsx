@@ -21,6 +21,8 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
   const [name, setName] = useState('');
   const [pw, setPw] = useState('');
   const [teacher, setTeacher] = useState(false);
+  const [signup, setSignup] = useState(false);
+  const [grade, setGrade] = useState(0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -33,6 +35,13 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
     setPw('');
     setMsg('');
     setTeacher(false);
+    let wantSignup = false;
+    try {
+      wantSignup = sessionStorage.getItem('taja_open_signup') === '1';
+      sessionStorage.removeItem('taja_open_signup');
+    } catch {}
+    setSignup(wantSignup);
+    setGrade(0);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -59,8 +68,9 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
 
   const student = (e: React.FormEvent) => {
     e.preventDefault();
+    if (signup && !grade) return setMsg('학년을 골라 주세요.');
     run(async () => {
-      const r = await enterByRoom(room.trim(), name);
+      const r = await enterByRoom(room.trim(), name, signup ? grade : 0);
       if (!r.ok || !r.user) return setMsg(r.message || '들어가지 못했어요.');
       done(r.user);
     });
@@ -94,11 +104,22 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
         {!teacher ? (
           <>
             <div className="text-center">
-              <h2 className="text-2xl font-black text-slate-900">⌨️ 타자팡 들어가기</h2>
-              <p className="text-sm font-bold text-slate-500 mt-1">모아팡과 같은 방번호와 이름으로 들어와요.</p>
+              <h2 className="text-2xl font-black text-slate-900">{signup ? '✨ 타자팡 새로 가입하기' : '⌨️ 타자팡 들어가기'}</h2>
+              <p className="text-sm font-bold text-slate-500 mt-1">
+                {signup ? '방번호·이름·학년을 쓰면 가입 신청이 돼요. 선생님이 승인하면 포인트와 기록이 저장돼요.' : '모아팡과 같은 방번호와 이름으로 들어와요.'}
+              </p>
             </div>
 
-            {saved && (
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100" role="tablist">
+              <button type="button" role="tab" aria-selected={!signup} onClick={() => { setSignup(false); setMsg(''); }} className={`py-2 rounded-xl font-black text-sm cursor-pointer ${!signup ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`} data-testid="tab-enter">
+                🔑 들어가기
+              </button>
+              <button type="button" role="tab" aria-selected={signup} onClick={() => { setSignup(true); setMsg(''); }} className={`py-2 rounded-xl font-black text-sm cursor-pointer ${signup ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} data-testid="tab-signup">
+                ✨ 새로 가입하기
+              </button>
+            </div>
+
+            {saved && !signup && (
               <button
                 type="button"
                 onClick={quick}
@@ -112,7 +133,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
             )}
 
             <form onSubmit={student} className="space-y-3">
-              {saved && <div className="text-center text-xs font-bold text-slate-400">다른 이름이면 아래에 써 주세요</div>}
+              {saved && !signup && <div className="text-center text-xs font-bold text-slate-400">다른 이름이면 아래에 써 주세요</div>}
               <input
                 value={room}
                 onChange={(e) => setRoom(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
@@ -123,13 +144,29 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
                 required
               />
               <input value={name} onChange={(e) => setName(e.target.value.slice(0, 10))} placeholder="내 이름" className={field} data-testid="moa-name" required />
+              {signup && (
+                <div className="grid grid-cols-6 gap-1.5" role="radiogroup" aria-label="학년">
+                  {[1, 2, 3, 4, 5, 6].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      role="radio"
+                      aria-checked={grade === g}
+                      onClick={() => setGrade(g)}
+                      className={`py-2.5 rounded-xl border-2 font-black text-sm cursor-pointer ${grade === g ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'}`}
+                    >
+                      {g}학년
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={busy}
                 className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white font-black text-base shadow-md cursor-pointer"
                 data-testid="moa-enter"
               >
-                {busy ? '들어가는 중…' : '들어가기'}
+                {busy ? (signup ? '가입하는 중…' : '들어가는 중…') : signup ? '가입 신청하고 들어가기' : '들어가기'}
               </button>
             </form>
           </>

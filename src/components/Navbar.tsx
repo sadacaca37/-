@@ -336,13 +336,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </div>
             ) : (
-              <button
-                onClick={onOpenAuth}
-                className="tp-nbtn tp-nbtn--start arcade-btn-sky text-white px-3.5 py-2 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>들어가기 (방번호·이름)</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={onOpenAuth}
+                  className="tp-nbtn tp-nbtn--start arcade-btn-sky text-white px-3.5 py-2 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>들어가기</span>
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('taja_open_signup', '1');
+                    } catch {}
+                    onOpenAuth();
+                  }}
+                  data-testid="nav-signup"
+                  className="tp-nbtn tp-nbtn--wood px-3.5 py-2 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap bg-emerald-50 text-emerald-800 border-2 border-emerald-300"
+                >
+                  <span aria-hidden="true">✨</span>
+                  <span>새로 가입하기</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

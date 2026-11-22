@@ -183,7 +183,7 @@ export async function approvedByTeacher(userId: string): Promise<boolean> {
 }
 
 /** 방번호 + 이름으로 들어오기 (모아팡 첫 화면과 같은 방식) */
-export async function enterByRoom(room: string, rawName: string): Promise<{ ok: boolean; message?: string; user?: UserSession }> {
+export async function enterByRoom(room: string, rawName: string, grade = 0): Promise<{ ok: boolean; message?: string; user?: UserSession; isNew?: boolean }> {
   const name = cleanName(rawName);
   if (!/^\d{5}$/.test(room)) return { ok: false, message: '방번호 5자리를 써 주세요.' };
   if (!name) return { ok: false, message: '이름을 써 주세요.' };
@@ -194,11 +194,14 @@ export async function enterByRoom(room: string, rawName: string): Promise<{ ok: 
   const key = nameKey(name);
   const sref = doc(fs, 'classes', rd.cid, 'students', key);
   const snap = await getDoc(sref);
-  if (snap.exists()) await setDoc(sref, { name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
-  else await setDoc(sref, { name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp() });
+  // 새로 가입하면서 학년을 골랐으면 학생 기록(taja)에 함께 남김
+  const prevTaja = (snap.exists() && (snap.data() as any).taja) || {};
+  const taja = grade >= 1 && grade <= 6 ? { ...prevTaja, grade, levelTitle: `${grade}학년 타자 꿈나무` } : null;
+  if (snap.exists()) await setDoc(sref, { name, uid: u.uid, seen: serverTimestamp(), ...(taja ? { taja } : {}) }, { merge: true });
+  else await setDoc(sref, { name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), ...(taja ? { taja } : {}) });
   const s: MoaSession = { cid: rd.cid, room, className: rd.name || '우리 반', color: rd.color, name, key, outfit: snap.exists() ? (snap.data() as any).outfit || null : null };
   setMoaSession(s);
-  return { ok: true, user: studentSession(s, snap.exists() ? (snap.data() as any).taja || {} : {}, await approvedByTeacher(userIdOf(s.cid, s.key))) };
+  return { ok: true, isNew: !snap.exists(), user: studentSession(s, taja || prevTaja, await approvedByTeacher(userIdOf(s.cid, s.key))) };
 }
 
 export function errText(e: any): string {
