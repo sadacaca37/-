@@ -1,16 +1,15 @@
 const fs=require('fs');
 module.exports=function(html,game){
- const edit=(from,to)=>{if(!game.includes(from))throw Error('Missing game anchor: '+from.slice(0,65));game=game.replace(from,to)};
+ const edit=(from,to)=>{if(!game.includes(from))throw Error('Missing game anchor: '+from.slice(0,65));game=game.replace(from,()=>to)};
+ edit('/*CHARACTERS*/',fs.readFileSync('work/sprite-atlas.js','utf8')+'\n'+fs.readFileSync('work/sprites.js','utf8'));
  edit('new Battle()','new CampaignBattle()');
- edit("if(e.type==='boss')toast('거대 지휘관 등장');", "if(e.type==='boss')toast('보스 '+e.value+' / '+battle.config.bossTimes.length+' 출현');if(e.type==='bossdown'){burst(e,85,'#ffda7c');shock(e.x,e.z,'#ffbc62',5);toast('보스 격파 · '+battle.bossKills+' / '+battle.config.bossTimes.length)}if(e.type==='stageclear')toast('스테이지 '+(battle.stageIndex+1)+' 클리어');");
+ edit("if(e.type==='boss')toast('거대 지휘관 등장');", "if(e.type==='boss')toast((BOSS_NAMES[e.kind]||'보스')+' 출현 · '+e.value+' / '+battle.config.bossTimes.length);if(e.type==='bossdown'){burst(e,85,'#ffda7c');shock(e.x,e.z,'#ffbc62',5);toast('보스 격파 · '+battle.bossKills+' / '+battle.config.bossTimes.length)}if(e.type==='stageclear')toast('스테이지 '+(battle.stageIndex+1)+' 클리어');");
  edit("function render(dt){",fs.readFileSync('work/boss-render.js','utf8')+'\n'+fs.readFileSync('work/maps.js','utf8')+'\nfunction render(dt){applyStageTheme(battle.stageIndex);renderMapWeather(dt);');
  const replaceLine=(prefix,replacement)=>{let lines=game.split('\n'),i=lines.findIndex(s=>s.startsWith(prefix));if(i<0)throw Error('Missing line '+prefix);lines[i]=replacement;game=lines.join('\n')};
  replaceLine('bossGroup.position.set','renderBosses(animation);');
  replaceLine(' warningStrip.visible=', ' renderBossWarnings();');
  edit('dummy.scale.set(1.5,.36,.16)','dummy.scale.set(h.width||1.5,.36,.16)');
  edit('Math.sin(waterBase[i]*1.1+clock*.9)*.055+Math.cos(waterBase[i+2]*.7+clock)*.08',"(['ocean','lava'].includes(battle.config.theme)?1:0)*(Math.sin(waterBase[i]*1.1+clock*.9)*.055+Math.cos(waterBase[i+2]*.7+clock)*.08)");
- edit("if(dying){poseRoot.rotation.x", "if(!blue&&!dying){poseRoot.scale.multiplyScalar(a.kind==='armored'?1.15:a.kind==='runner'?.88:1)}if(dying){poseRoot.rotation.x");
- edit('phase=time*(blue?11+(a.phase??0)%3*.18:10)',"phase=time*(blue?11+(a.phase??0)%3*.18:a.kind==='runner'?16:11)");
  replaceLine("$('#troops').textContent=",`$('#troops').textContent=battle.n;$('#kills').textContent=battle.totalKills+battle.kills;$('#level').textContent='LV. '+battle.level;$('#fill').style.width=Math.min(100,battle.time/battle.config.duration*100)+'%';$('#phase').textContent='STAGE '+(battle.stageIndex+1)+' / 5';$('#threat').textContent=battle.difficulty.name+' · 위협도 '+battle.threat()+' · 적 '+battle.enemies.length+' · '+Math.floor(battle.time)+'초';let liveBosses=battle.bosses.filter(b=>b.hp>0);$('#bossHud').hidden=!liveBosses.length;$('#bossText').textContent='보스 '+battle.bossKills+' / '+battle.config.bossTimes.length+' 격파 · 전장 '+liveBosses.length+'마리';let hp=battle.bosses.reduce((s,b)=>s+Math.max(0,b.hp),0),max=battle.bosses.reduce((s,b)=>s+b.max,0);$('#bossFill').style.width=(max?hp/max*100:0)+'%';$('#toast').style.opacity=clock<toastUntil?1:0;document.querySelectorAll('[data-stage]').forEach(b=>b.disabled=battle.mode==='playing');`);
  replaceLine('if(battle.mode!==lastMode)',`if(battle.mode!==lastMode){if(['won','lost','stage_clear'].includes(battle.mode)){$('#menu').hidden=false;$('#menuTitle').textContent=battle.mode==='won'?'5개 전장 완전 정복':battle.mode==='stage_clear'?battle.config.name+' 클리어':'부대를 다시 집결하세요';$('#menuDesc').textContent=(battle.totalKills+battle.kills)+'명 처치 · 보스 '+battle.bossKills+'/'+battle.config.bossTimes.length+' · 남은 병력 '+battle.n;$('#start').textContent=battle.mode==='stage_clear'?'다음 스테이지 →':battle.mode==='won'?'처음부터 다시':'이 스테이지 재도전';}lastMode=battle.mode}`);
  replaceLine("$('#viewport').dataset.state=", "$('#viewport').dataset.state=JSON.stringify({mode:battle.mode,paused,stage:battle.stageIndex+1,map:battle.config.name,time:Math.round(battle.time),troops:battle.n,kills:battle.totalKills+battle.kills,level:battle.level,bosses:battle.bosses.map(b=>({kind:b.kind,hp:Math.ceil(b.hp)})),bossKills:battle.bossKills,threat:battle.threat(),enemies:battle.enemies.length,spawned:battle.spawned,x:+battle.x.toFixed(3),version:'3.3',fps:displayFPS,drawCalls:renderer.info.render.calls});");
@@ -25,8 +24,8 @@ $('#start').onclick=()=>{let index=battle.mode==='stage_clear'?battle.stageIndex
  game=game.replace("battle.totalKills+battle.kills:0;cleanupBattle()","battle.totalKills+battle.kills:battle.mode==='won'?0:battle.totalKills;cleanupBattle()");
  game=game.replace("battle.reset(battle.stageIndex);$('#menu').hidden=true","battle.reset(battle.stageIndex,battle.totalKills);$('#menu').hidden=true");
  game=game.replace("if(e.type==='spark')burst(e,3,'#ffe9a3');","if(e.type==='spark')burst(e,3,'#ffe9a3');if(e.type==='summon'){shock(e.x,e.z,'#c88fff',4);burst(e,28,'#cc9fff')}");
- game=game.replace('function resize(){',fs.readFileSync('work/music.js','utf8')+'\nfunction resize(){');
- game=game.replace("version:'3.3'","version:'3.4'");html=html.replaceAll('CAMPAIGN / 3.3','CAMPAIGN / 3.4');
+ game=game.replace('function resize(){',()=>fs.readFileSync('work/music.js','utf8')+'\n'+fs.readFileSync('work/sfx.js','utf8')+'\nfunction resize(){');
+ game=game.replace("version:'3.3'","version:'4.0'");html=html.replaceAll('CAMPAIGN / 3.3','CAMPAIGN / 4.0');
  return{html,game};
 };
 

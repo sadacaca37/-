@@ -1,10 +1,139 @@
 import { Player, Enemy, Item, Platform, Ladder, Spike, FruitType, Particle, FloatingScoreText } from '../types';
+import { Art } from './art';
 
 export class CanvasRenderer {
+  // -------------------------------------------------------------
+  // 제미나이 그림으로 그리기 (그림이 아직 안 불러와졌으면 false → 예전 코드 그림)
+  // -------------------------------------------------------------
+  private static drawPlayerArt(ctx: CanvasRenderingContext2D, p: Player): boolean {
+    if (!Art.ready()) return false;
+    const pre = p.color === 'blue' ? 'p2_' : 'p1_';
+    let frame = 'idle';
+    let flip = p.facing === 'left';
+    if (p.isOnLadder) {
+      frame = 'climb';
+      flip = Math.floor(p.animFrame) % 2 === 1; // 손발 번갈아
+    } else if (p.isJumping || !p.isGrounded) {
+      frame = 'jump';
+    } else if (p.vx !== 0) {
+      frame = 'run' + (Math.floor(p.animFrame) % 4);
+    }
+    const cx = p.x + p.width / 2;
+    const foot = p.y + p.height + 1;
+    const now = Date.now();
+
+    // 번개 장화(속도): 잔상
+    if (p.speedBoostTimer > 0 && !p.isOnLadder) {
+      const back = p.facing === 'left' ? 1 : -1;
+      Art.draw(ctx, pre + frame, cx + back * 9, foot, { flip, alpha: 0.18 });
+      Art.draw(ctx, pre + frame, cx + back * 5, foot, { flip, alpha: 0.32 });
+    }
+
+    // 무적 깜빡임
+    if (p.invulnerableTimer > 0 && Math.floor(p.invulnerableTimer / 4) % 2 === 0) return true;
+
+    ctx.save();
+    if (p.hammerTimer > 0) {
+      const glow = ['#FFD700', '#FF4500', '#00FFFF', '#FF1493'];
+      ctx.shadowColor = glow[Math.floor(now / 100) % glow.length];
+      ctx.shadowBlur = 10;
+    } else if (p.speedBoostTimer > 0) {
+      ctx.shadowColor = '#38BDF8';
+      ctx.shadowBlur = 8;
+    }
+    Art.draw(ctx, pre + frame, cx, foot, { flip });
+    ctx.restore();
+
+    // 망치를 들고 있을 때
+    if (p.hammerTimer > 0) {
+      const dir = p.facing === 'left' ? -1 : 1;
+      const swing = Math.sin(now / 90) * 0.35;
+      Art.draw(ctx, 'ob_hammer', cx + dir * 10, p.y + 18, { rot: dir * (0.3 + swing), scale: 0.72, flip: dir < 0 });
+    }
+    return true;
+  }
+
+  private static drawEnemyArt(ctx: CanvasRenderingContext2D, e: Enemy): boolean {
+    if (!Art.ready()) return false;
+    const name = 'en_' + e.type;
+    if (!Art.has(name)) return false;
+    const cx = e.x + e.width / 2;
+    const bottom = e.y + e.height + 1;
+    const flip = e.facing === 'left';
+    const step = Math.floor(e.animFrame) % 2;
+    const t = Date.now() / 1000;
+    switch (e.type) {
+      case 'mouse':
+        return Art.draw(ctx, name, cx, bottom - step, { flip, sy: step ? 0.96 : 1 });
+      case 'snake':
+        return Art.draw(ctx, name, cx, bottom, { flip, sx: step ? 1.06 : 0.96, sy: step ? 0.95 : 1.03 });
+      case 'bat':
+        return Art.draw(ctx, name, cx, e.y + e.height / 2, { center: true, sy: step ? 0.72 : 1.05, sx: step ? 1.06 : 0.96 });
+      case 'frog': {
+        const vy = e.vy ?? 0;
+        const air = vy !== 0;
+        return Art.draw(ctx, name, cx, bottom, { flip, sy: air ? (vy < 0 ? 1.12 : 1.04) : 1, sx: air ? 0.92 : 1 });
+      }
+      case 'ghost':
+        return Art.draw(ctx, name, cx, e.y + e.height / 2, { center: true, alpha: 0.82 + Math.sin(t * 4) * 0.12, flip: e.vx < 0 });
+      case 'flame':
+        return Art.draw(ctx, name, cx, bottom, { sx: 1 + Math.sin(t * 19) * 0.05, sy: 1 + Math.cos(t * 23) * 0.07 });
+      default:
+        return Art.draw(ctx, name, cx, bottom, { flip });
+    }
+  }
+
+  private static drawItemArt(ctx: CanvasRenderingContext2D, item: Item): boolean {
+    if (!Art.ready()) return false;
+    const cx = item.x + item.width / 2;
+    const bottom = item.y + item.height + 1;
+    const bob = Math.sin(Date.now() / 150) * 2;
+    const aura = (color: string, r: number) => {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, item.y + item.height / 2 + bob, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    switch (item.type) {
+      case 'power_speed':
+        aura('rgba(56, 189, 248, 0.35)', 13);
+        return Art.draw(ctx, 'ob_boots', cx, item.y + item.height / 2 + bob, { center: true, scale: 0.95 });
+      case 'power_hammer':
+        aura('rgba(239, 68, 68, 0.32)', 14);
+        return Art.draw(ctx, 'ob_hammer', cx, item.y + item.height / 2 + bob, { center: true, scale: 0.78, rot: -0.35 });
+      case 'power_life':
+        aura('rgba(236, 72, 153, 0.32)', 13);
+        return Art.draw(ctx, 'ob_heart', cx, item.y + item.height / 2 + bob, { center: true, scale: 1 });
+      case 'jar':
+        return Art.draw(ctx, 'ob_jar', cx, bottom, {});
+      default:
+        if (!Art.has('it_' + item.type)) return false;
+        return Art.draw(ctx, 'it_' + item.type, cx, bottom, {});
+    }
+  }
+
+  /** 배경·사다리·발판을 한 번에 (그림이 준비되면 true) */
+  public static drawStageLayer(
+    ctx: CanvasRenderingContext2D,
+    stageId: number,
+    width: number,
+    height: number,
+    platforms: Platform[],
+    ladders: Ladder[]
+  ): boolean {
+    const layer = Art.stageLayer(stageId, width, height, platforms, ladders);
+    if (!layer) return false;
+    ctx.drawImage(layer, 0, 0, width, height);
+    return true;
+  }
+
   // -------------------------------------------------------------
   // Draw Classic Arcade Raccoon (Ponpoko / 너구리)
   // -------------------------------------------------------------
   public static drawPlayer(ctx: CanvasRenderingContext2D, p: Player) {
+    if (this.drawPlayerArt(ctx, p)) return;
     ctx.save();
 
     // Speed Boost After-Image Trail
@@ -705,6 +834,7 @@ export class CanvasRenderer {
   // Generic Enemy Dispatcher
   public static drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
     if (e.isDestroyed) return;
+    if (this.drawEnemyArt(ctx, e)) return;
     switch (e.type) {
       case 'mouse':
         this.drawMouse(ctx, e);
@@ -734,6 +864,14 @@ export class CanvasRenderer {
   // -------------------------------------------------------------
   public static drawSpike(ctx: CanvasRenderingContext2D, spike: Spike) {
     if (spike.isDestroyed) return;
+    if (Art.ready()) {
+      if (spike.isMoving) {
+        ctx.fillStyle = 'rgba(255, 183, 3, 0.8)';
+        ctx.fillRect(spike.x - 2, spike.y + spike.height, spike.width + 4, 2);
+      }
+      Art.draw(ctx, 'ob_spike', spike.x + spike.width / 2, spike.y + spike.height + 1, {});
+      return;
+    }
 
     ctx.save();
     ctx.translate(spike.x, spike.y);
@@ -769,6 +907,7 @@ export class CanvasRenderer {
   // -------------------------------------------------------------
   public static drawItem(ctx: CanvasRenderingContext2D, item: Item) {
     if (item.collected) return;
+    if (this.drawItemArt(ctx, item)) return;
 
     ctx.save();
     ctx.translate(item.x, item.y);

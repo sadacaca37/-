@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArtSprite } from './ArtSprite';
 import { DifficultyLevel, DIFFICULTY_CONFIGS } from '../types';
 
 interface RetroHUDProps {
@@ -91,15 +92,7 @@ export const RetroHUD: React.FC<RetroHUDProps> = ({
           </span>
           <div className="flex gap-0.5">
             {Array.from({ length: Math.max(0, lives) }).map((_, i) => (
-              <div
-                key={i}
-                className="w-3.5 h-3.5 rounded-sm border border-black bg-red-600 relative flex items-center justify-center shadow-sm"
-                title="1P Life"
-              >
-                <div className="w-2 h-2 bg-white rounded-full relative">
-                  <div className="absolute top-0.5 left-0.5 w-1 h-0.5 bg-black rounded-xs" />
-                </div>
-              </div>
+              <ArtSprite key={i} name="p1_idle" height={18} title="1P Life" />
             ))}
           </div>
         </div>
@@ -115,15 +108,7 @@ export const RetroHUD: React.FC<RetroHUDProps> = ({
             <span className="text-[11px] font-extrabold text-cyan-400">2P:</span>
             <div className="flex gap-0.5">
               {Array.from({ length: Math.max(0, p2Lives) }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-3.5 h-3.5 rounded-sm border border-black bg-blue-600 relative flex items-center justify-center shadow-sm"
-                  title="2P Life"
-                >
-                  <div className="w-2 h-2 bg-white rounded-full relative">
-                    <div className="absolute top-0.5 left-0.5 w-1 h-0.5 bg-black rounded-xs" />
-                  </div>
-                </div>
+                <ArtSprite key={i} name="p2_idle" height={18} title="2P Life" />
               ))}
             </div>
           </div>

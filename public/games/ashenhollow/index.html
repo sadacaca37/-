@@ -521,65 +521,225 @@ function spawnFloatText(worldPos, text, cls){
   setTimeout(function(){ d.remove(); }, 950);
 }
 
-/* ===================== 블록 입체 캐릭터: 제미나이 픽셀 그림을 작은 블록으로 쌓아 두께 있는 인형으로 ===================== */
-var VOX_CACHE = {};
-var VOX_GEO = new THREE.BoxGeometry(1,1,1);
-function loadVoxData(name, rows){
-  var key = name+'@'+rows;
-  if(VOX_CACHE[key]) return VOX_CACHE[key];
-  VOX_CACHE[key] = new Promise(function(resolve){
-    var img = new Image();
-    img.onload = function(){
-      var H = rows, W = Math.max(4, Math.round(rows*img.width/img.height));
-      var c = document.createElement('canvas'); c.width = W; c.height = H;
-      var ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, W, H);
-      var px = ctx.getImageData(0,0,W,H).data, N = W*H, i, x, y, k, v;
-      var solid = new Uint8Array(N), d = new Float32Array(N);
-      for(i=0;i<N;i++){ solid[i] = px[i*4+3] > 100 ? 1 : 0; d[i] = solid[i] ? 1e6 : 0; }
-      /* 가장자리에서 얼마나 안쪽인지(거리) → 안쪽일수록 두껍게: 통통한 인형 모양 */
-      for(y=0;y<H;y++) for(x=0;x<W;x++){ k=y*W+x; if(!solid[k]) continue; v=d[k];
-        v = Math.min(v, x>0 ? d[k-1]+1 : 1, y>0 ? d[k-W]+1 : 1);
-        if(x>0&&y>0) v=Math.min(v,d[k-W-1]+1.414); if(x<W-1&&y>0) v=Math.min(v,d[k-W+1]+1.414);
-        d[k]=v; }
-      for(y=H-1;y>=0;y--) for(x=W-1;x>=0;x--){ k=y*W+x; if(!solid[k]) continue; v=d[k];
-        v = Math.min(v, x<W-1 ? d[k+1]+1 : 1, y<H-1 ? d[k+W]+1 : 1);
-        if(x<W-1&&y<H-1) v=Math.min(v,d[k+W+1]+1.414); if(x>0&&y<H-1) v=Math.min(v,d[k+W-1]+1.414);
-        d[k]=v; }
-      var maxT = Math.max(3, Math.min(W,H)*0.3), list = [];
-      for(y=0;y<H;y++) for(x=0;x<W;x++){ k=y*W+x; if(!solid[k]) continue;
-        var t = d[k] < 1.5 ? 1.2 : Math.min(maxT, 1.8 + Math.sqrt(d[k]-1)*2.3);
-        list.push(x-(W-1)/2, (H-1-y)+0.5, t, px[k*4]/255, px[k*4+1]/255, px[k*4+2]/255); }
-      resolve({ W:W, H:H, list:list });
-    };
-    img.onerror = function(){ resolve(null); };
-    img.src = 'sprites/'+name+'.webp';
-  });
-  return VOX_CACHE[key];
+var TOON_DIM = 0.6, OUTLINE_COLOR = 0x120d16;
+var RIM_GEO = new THREE.TorusGeometry(1,0.1,8,28);
+/* 칼: 손에서 앞쪽 위로 비스듬히 */
+function swordOn(arm, blade, hilt, len){
+  var g = J(arm, 0, -0.42, 0.04); g.rotation.x = -Math.PI/4;
+  P(g,GEO.box,blade,[0,0,0.12+len/2],[0.08,0.035,len],null,0.1);
+  P(g,GEO.box,blade,[0,0,0.14+len],[0.05,0.03,0.08],[0,Math.PI/4,0]);
+  P(g,GEO.box,hilt,[0,0,0.1],[0.26,0.05,0.05],null,0.1);
+  P(g,GEO.cyl,hilt,[0,0,0],[0.035,0.16,0.035],[Math.PI/2,0,0]);
 }
-function buildVoxelChar(name, height, rows){
-  var g = new THREE.Group(), pivot = new THREE.Group();
-  g.add(pivot);
-  var mat = new THREE.MeshLambertMaterial({ color:0xc4c0cc, emissive:0x1a1622, toneMapped:false });
-  mat.userData = { tint:new THREE.Color(1,1,1) };
-  g.userData = { pivot:pivot, mat:mat, h:height, mesh:null, name:name, face:0 };
-  loadVoxData(name, rows).then(function(data){
-    if(!data) return;
-    var n = data.list.length/6, mesh = new THREE.InstancedMesh(VOX_GEO, mat, n);
-    var m4 = new THREE.Matrix4(), col = new THREE.Color(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-    for(var i=0;i<n;i++){
-      var o = i*6;
-      p.set(data.list[o], data.list[o+1], 0); s.set(1, 1, data.list[o+2]*2);
-      m4.compose(p, q, s); mesh.setMatrixAt(i, m4);
-      col.setRGB(data.list[o+3], data.list[o+4], data.list[o+5]); mesh.setColorAt(i, col);
+/* 둥근 방패: 팔 바깥쪽, 앞을 봄 */
+function shieldOn(arm, wood, rim, r){
+  P(arm,GEO.cyl,wood,[-0.1,-0.3,0.13],[r,0.05,r],[Math.PI/2,0,0],0.06);
+  P(arm,RIM_GEO,rim,[-0.1,-0.3,0.16],[r,r,0.8]);
+  P(arm,GEO.sph,rim,[-0.1,-0.3,0.17],[r*0.3,r*0.3,r*0.2]);
+}
+var CHAR_BUILDERS = {
+  /* 작은 기사: 은빛 투구, 빨간 망토, 칼과 둥근 방패 */
+  knight: function(B, R){
+    var armor=toon(0xc6cdd7), dark=toon(0x5a616d), plume=toon(0xe0483c), cape=toon(0xc0382e), skin=toon(0xf3cfae), wood=toon(0x8a5a32),
+        rim=toon(0xa7adb7), blade=toon(0xeef3f8), hilt=toon(0xa07a30), eyeC=toon(0x241a14), boot=toon(0x5a3a22), white=toon(0xffffff);
+    R.legL=J(B,-0.14,0.44,0); P(R.legL,GEO.cyl,dark,[0,-0.18,0],[0.095,0.36,0.095],null,0.1); P(R.legL,GEO.sph,boot,[0,-0.39,0.04],[0.12,0.08,0.16],null,0.08);
+    R.legR=J(B,0.14,0.44,0); P(R.legR,GEO.cyl,dark,[0,-0.18,0],[0.095,0.36,0.095],null,0.1); P(R.legR,GEO.sph,boot,[0,-0.39,0.04],[0.12,0.08,0.16],null,0.08);
+    P(B,GEO.cone,cape,[0,0.62,-0.1],[0.4,0.78,0.26],null,0.04);
+    R.torso=P(B,GEO.sph,armor,[0,0.72,0],[0.3,0.32,0.26],null,0.05); R.torsoSY=0.32;
+    P(B,GEO.cyl,wood,[0,0.52,0],[0.29,0.06,0.25]);
+    P(B,GEO.sph,cape,[0,0.98,0.02],[0.33,0.1,0.27],null,0.05);
+    R.armL=J(B,-0.34,0.9,0); P(R.armL,GEO.sph,armor,[0,-0.18,0],[0.1,0.22,0.1],null,0.08); P(R.armL,GEO.sph,dark,[0,-0.4,0],[0.08,0.08,0.08]);
+    shieldOn(R.armL, wood, rim, 0.26);
+    R.armR=J(B,0.34,0.9,0); R.armRRest=-0.35; P(R.armR,GEO.sph,armor,[0,-0.18,0],[0.1,0.22,0.1],null,0.08); P(R.armR,GEO.sph,dark,[0,-0.4,0],[0.08,0.08,0.08]);
+    swordOn(R.armR, blade, hilt, 0.75);
+    R.head=J(B,0,1.08,0);
+    P(R.head,GEO.sph,skin,[0,0.34,0.05],[0.33,0.32,0.31]);
+    P(R.head,GEO.hemi,armor,[0,0.36,0],[0.42,0.46,0.41],null,0.04);
+    P(R.head,GEO.sph,armor,[-0.3,0.24,0.04],[0.11,0.2,0.2],null,0.06); P(R.head,GEO.sph,armor,[0.3,0.24,0.04],[0.11,0.2,0.2],null,0.06);
+    P(R.head,GEO.box,dark,[0,0.55,0.34],[0.34,0.05,0.06]); P(R.head,GEO.box,dark,[0,0.62,0.31],[0.3,0.04,0.06]);
+    P(R.head,GEO.sph,plume,[0,0.88,-0.04],[0.1,0.2,0.24],null,0.08); P(R.head,GEO.sph,plume,[0,0.8,-0.24],[0.08,0.15,0.15],null,0.08);
+    R.eyes.push(eye(R.head,eyeC,[-0.11,0.34,0.33],[0.045,0.065,0.03],white), eye(R.head,eyeC,[0.11,0.34,0.33],[0.045,0.065,0.03],white));
+  },
+  /* 해골 전사: 파란 눈빛, 낡은 칼과 작은 방패 */
+  skeleton: function(B, R){
+    var bone=toon(0xeadfc4), dark=toon(0x3e362a), glow=toon(0x5fd8ff,{emissive:0x2aa8ff}), steel=toon(0xb9bec4), wood=toon(0x8a5a32), rim=toon(0x8f8f8f);
+    R.legL=J(B,-0.12,0.5,0); P(R.legL,GEO.cyl,bone,[0,-0.21,0],[0.045,0.42,0.045],null,0.15); P(R.legL,GEO.sph,bone,[0,-0.2,0],[0.065,0.065,0.065]); P(R.legL,GEO.sph,bone,[0,-0.44,0.06],[0.08,0.04,0.13],null,0.1);
+    R.legR=J(B,0.12,0.5,0); P(R.legR,GEO.cyl,bone,[0,-0.21,0],[0.045,0.42,0.045],null,0.15); P(R.legR,GEO.sph,bone,[0,-0.2,0],[0.065,0.065,0.065]); P(R.legR,GEO.sph,bone,[0,-0.44,0.06],[0.08,0.04,0.13],null,0.1);
+    P(B,GEO.sph,bone,[0,0.52,0],[0.2,0.08,0.13],null,0.08);
+    R.torso=P(B,GEO.cyl,bone,[0,0.74,-0.04],[0.04,0.42,0.04]); R.torsoSY=0.42;
+    for(var i=0;i<4;i++) P(B,GEO.tor,bone,[0,0.64+i*0.09,0],[0.19-i*0.01,0.16,0.5],[Math.PI/2,0,0]);
+    P(B,GEO.cyl,bone,[0,0.97,0],[0.27,0.04,0.06],[0,0,Math.PI/2]);
+    R.armL=J(B,-0.27,0.96,0); P(R.armL,GEO.cyl,bone,[0,-0.2,0],[0.035,0.4,0.035],null,0.15); P(R.armL,GEO.sph,bone,[0,-0.42,0],[0.06,0.06,0.06]);
+    shieldOn(R.armL, wood, rim, 0.22);
+    R.armR=J(B,0.27,0.96,0); R.armRRest=-0.3; P(R.armR,GEO.cyl,bone,[0,-0.2,0],[0.035,0.4,0.035],null,0.15); P(R.armR,GEO.sph,bone,[0,-0.42,0],[0.06,0.06,0.06]);
+    swordOn(R.armR, steel, wood, 0.65);
+    R.head=J(B,0,1.06,0);
+    P(R.head,GEO.sph,bone,[0,0.33,0],[0.31,0.29,0.29],null,0.04);
+    P(R.head,GEO.sph,bone,[0,0.14,0.08],[0.19,0.09,0.17],null,0.06);
+    P(R.head,GEO.sph,dark,[-0.11,0.34,0.24],[0.08,0.085,0.05]); P(R.head,GEO.sph,dark,[0.11,0.34,0.24],[0.08,0.085,0.05]);
+    P(R.head,GEO.sph,glow,[-0.11,0.34,0.28],[0.04,0.04,0.03]); P(R.head,GEO.sph,glow,[0.11,0.34,0.28],[0.04,0.04,0.03]);
+    P(R.head,GEO.sph,dark,[0,0.24,0.28],[0.03,0.04,0.02]);
+    P(R.head,GEO.box,dark,[0,0.16,0.235],[0.16,0.012,0.02]);
+  },
+  /* 어둠의 사도: 보라 후드, 빛나는 구슬 */
+  cultist: function(B, R){
+    var robe=toon(0x5d4190), robeD=toon(0x35265c), voidc=toon(0x120e18), orb=toon(0xe7a0ff,{emissive:0xb040ff}), hand=toon(0xbaa8d0), trim=toon(0xc9a227);
+    R.hover = true; R.walkSpeed = 7;
+    R.torso=P(B,GEO.cone,robe,[0,0.62,0],[0.42,1.24,0.38],null,0.03); R.torsoSY=1.24;
+    P(B,GEO.tor,trim,[0,0.05,0],[0.4,0.36,0.25],[Math.PI/2,0,0]);
+    P(B,GEO.cyl,trim,[0,0.62,0.0],[0.26,0.05,0.24]);
+    R.armL=J(B,-0.24,0.95,0.03); R.armLRest=-0.85; P(R.armL,GEO.cone,robeD,[0,-0.17,0],[0.12,0.34,0.12],[Math.PI,0,0],0.06); P(R.armL,GEO.sph,hand,[0,-0.37,0],[0.06,0.06,0.06]);
+    R.armR=J(B,0.24,0.95,0.03); R.armRRest=-0.85; P(R.armR,GEO.cone,robeD,[0,-0.17,0],[0.12,0.34,0.12],[Math.PI,0,0],0.06); P(R.armR,GEO.sph,hand,[0,-0.37,0],[0.06,0.06,0.06]);
+    R.bothArms = true;
+    R.orb = P(B,GEO.sph,orb,[0,0.72,0.4],[0.14,0.14,0.14],null,0.08); R.orbS = 0.14;
+    R.head=J(B,0,1.12,0);
+    P(R.head,GEO.sph,robe,[0,0.27,-0.02],[0.35,0.38,0.35],null,0.04);
+    P(R.head,GEO.cone,robe,[0,0.62,-0.13],[0.15,0.3,0.15],[-0.5,0,0],0.06);
+    P(R.head,GEO.sph,voidc,[0,0.23,0.15],[0.24,0.26,0.2]);
+    R.eyes.push(eye(R.head,orb,[-0.08,0.27,0.33],[0.03,0.018,0.01]), eye(R.head,orb,[0.08,0.27,0.33],[0.03,0.018,0.01]));
+  },
+  /* 둔중한 야수: 뿔 달린 큰 짐승 */
+  brute: function(B, R){
+    var fur=toon(0x9c5c34), furL=toon(0xba7a4c), horn=toon(0xece1c8), snout=toon(0xe9a28e), dark=toon(0x2a1a12), belly=toon(0xb27a4a), white=toon(0xffffff);
+    R.walkSpeed = 7;
+    R.legL=J(B,-0.22,0.36,0); P(R.legL,GEO.cyl,fur,[0,-0.14,0],[0.15,0.3,0.15],null,0.08); P(R.legL,GEO.sph,dark,[0,-0.3,0.04],[0.16,0.07,0.18],null,0.08);
+    R.legR=J(B,0.22,0.36,0); P(R.legR,GEO.cyl,fur,[0,-0.14,0],[0.15,0.3,0.15],null,0.08); P(R.legR,GEO.sph,dark,[0,-0.3,0.04],[0.16,0.07,0.18],null,0.08);
+    R.torso=P(B,GEO.sph,fur,[0,0.8,0],[0.56,0.52,0.46],null,0.04); R.torsoSY=0.52;
+    P(B,GEO.sph,belly,[0,0.7,0.26],[0.38,0.36,0.24]);
+    R.armL=J(B,-0.55,1.08,0); P(R.armL,GEO.sph,fur,[0,-0.27,0],[0.16,0.34,0.16],null,0.06); P(R.armL,GEO.sph,furL,[0,-0.58,0.02],[0.15,0.13,0.15],null,0.06);
+    R.armR=J(B,0.55,1.08,0); P(R.armR,GEO.sph,fur,[0,-0.27,0],[0.16,0.34,0.16],null,0.06); P(R.armR,GEO.sph,furL,[0,-0.58,0.02],[0.15,0.13,0.15],null,0.06);
+    R.bothArms = true;
+    R.head=J(B,0,1.26,0.1);
+    P(R.head,GEO.sph,fur,[0,0.2,0],[0.4,0.32,0.34],null,0.04);
+    P(R.head,GEO.sph,furL,[0,0.45,-0.02],[0.2,0.12,0.18]);
+    P(R.head,GEO.sph,snout,[0,0.12,0.29],[0.18,0.12,0.1],null,0.06);
+    P(R.head,GEO.sph,dark,[-0.06,0.13,0.38],[0.025,0.03,0.015]); P(R.head,GEO.sph,dark,[0.06,0.13,0.38],[0.025,0.03,0.015]);
+    R.eyes.push(eye(R.head,dark,[-0.17,0.28,0.26],[0.04,0.045,0.03],white), eye(R.head,dark,[0.17,0.28,0.26],[0.04,0.045,0.03],white));
+    P(R.head,GEO.sph,fur,[-0.17,0.33,0.27],[0.07,0.025,0.03],[0,0,-0.3]); P(R.head,GEO.sph,fur,[0.17,0.33,0.27],[0.07,0.025,0.03],[0,0,0.3]);
+    P(R.head,GEO.sph,fur,[-0.42,0.18,0],[0.12,0.06,0.08],null,0.08); P(R.head,GEO.sph,fur,[0.42,0.18,0],[0.12,0.06,0.08],null,0.08);
+    P(R.head,GEO.cone,horn,[-0.38,0.4,0],[0.08,0.34,0.08],[0,0,1.0],0.08); P(R.head,GEO.cone,horn,[-0.5,0.62,0],[0.06,0.2,0.06],[0,0,0.1],0.08);
+    P(R.head,GEO.cone,horn,[0.38,0.4,0],[0.08,0.34,0.08],[0,0,-1.0],0.08); P(R.head,GEO.cone,horn,[0.5,0.62,0],[0.06,0.2,0.06],[0,0,-0.1],0.08);
+  },
+  /* 고대의 파수꾼: 룬이 빛나는 돌 골렘 */
+  guardian: function(B, R){
+    var stone=toon(0x7f8e86), stoneD=toon(0x5c6862), rune=toon(0x6ff6e8,{emissive:0x18c8be});
+    R.walkSpeed = 5;
+    R.legL=J(B,-0.24,0.5,0); P(R.legL,GEO.box,stoneD,[0,-0.21,0],[0.26,0.44,0.28],null,0.04); P(R.legL,GEO.box,stone,[0,-0.45,0.04],[0.3,0.1,0.34],null,0.04);
+    R.legR=J(B,0.24,0.5,0); P(R.legR,GEO.box,stoneD,[0,-0.21,0],[0.26,0.44,0.28],null,0.04); P(R.legR,GEO.box,stone,[0,-0.45,0.04],[0.3,0.1,0.34],null,0.04);
+    P(B,GEO.box,stoneD,[0,0.56,0],[0.6,0.2,0.36],null,0.04);
+    R.torso=P(B,GEO.box,stone,[0,0.95,0],[0.9,0.6,0.52],null,0.03); R.torsoSY=0.6;
+    [[-0.25,1.02],[0.25,1.0],[0,0.88],[-0.12,1.12],[0.15,0.8]].forEach(function(p,i){ P(B,GEO.box,rune,[p[0],p[1],0.265],[i%2?0.05:0.14,i%2?0.16:0.04,0.01]); });
+    P(B,GEO.box,rune,[0,0.62,0.185],[0.5,0.035,0.01]);
+    R.armL=J(B,-0.58,1.16,0); P(R.armL,GEO.box,stoneD,[0,-0.24,0],[0.26,0.46,0.28],null,0.04); P(R.armL,GEO.box,stone,[0,-0.6,0.02],[0.32,0.36,0.34],null,0.04); P(R.armL,GEO.box,rune,[0,-0.6,0.175],[0.04,0.2,0.01]);
+    R.armR=J(B,0.58,1.16,0); P(R.armR,GEO.box,stoneD,[0,-0.24,0],[0.26,0.46,0.28],null,0.04); P(R.armR,GEO.box,stone,[0,-0.6,0.02],[0.32,0.36,0.34],null,0.04); P(R.armR,GEO.box,rune,[0,-0.6,0.175],[0.04,0.2,0.01]);
+    R.bothArms = true;
+    R.head=J(B,0,1.27,0.03);
+    P(R.head,GEO.box,stone,[0,0.2,0],[0.42,0.36,0.38],null,0.04);
+    P(R.head,GEO.box,stoneD,[0,0.32,0.2],[0.44,0.08,0.06]);
+    R.eyes.push(eye(R.head,rune,[-0.1,0.22,0.195],[0.09,0.04,0.01]), eye(R.head,rune,[0.1,0.22,0.195],[0.09,0.04,0.01]));
+  }
+};
+
+/* ===================== 둥근 3D 인형 캐릭터: 제미나이 그림의 모양·색을 보고 머리·몸·팔·다리로 빚음 ===================== */
+var TOON_GRAD = (function(){ var d=new Uint8Array([120,195,255]); var t=new THREE.DataTexture(d,3,1,THREE.LuminanceFormat); t.minFilter=THREE.NearestFilter; t.magFilter=THREE.NearestFilter; t.generateMipmaps=false; t.needsUpdate=true; return t; })();
+var GEO = { sph:new THREE.SphereGeometry(1,22,16), cyl:new THREE.CylinderGeometry(1,1,1,18), cone:new THREE.ConeGeometry(1,1,18),
+  box:new THREE.BoxGeometry(1,1,1), tor:new THREE.TorusGeometry(1,0.3,10,28), hemi:new THREE.SphereGeometry(1,22,12,0,Math.PI*2,0,Math.PI/2) };
+var _mats = null, _olMat = null;
+function toon(color, o){
+  o = o||{};
+  var m = new THREE.MeshToonMaterial({ color:color, gradientMap:TOON_GRAD, emissive:o.emissive||0x000000 });
+  if(TOON_DIM!==1) m.color.multiplyScalar(TOON_DIM);
+  m.toneMapped = false;
+  if(o.opacity){ m.transparent = true; m.opacity = o.opacity; m.userData.glassOp = o.opacity; m.depthWrite = false; }
+  m.userData.base = m.color.clone(); m.userData.baseEm = new THREE.Color(o.emissive||0x000000);
+  if(_mats) _mats.push(m);
+  return m;
+}
+/* 부품 하나 붙이기 (ol: 테두리 두께) */
+function P(parent, geo, mat, pos, scl, rot, ol){
+  var m = new THREE.Mesh(geo, mat);
+  m.position.set(pos[0],pos[1],pos[2]);
+  if(scl) m.scale.set(scl[0],scl[1],scl[2]);
+  if(rot) m.rotation.set(rot[0],rot[1],rot[2]);
+  parent.add(m);
+  if(ol){ var o = new THREE.Mesh(geo, _olMat); o.scale.setScalar(1+ol); m.add(o); }
+  return m;
+}
+/* 관절(팔·다리·머리가 돌아가는 자리) */
+function J(parent, x,y,z){ var g = new THREE.Group(); g.position.set(x,y,z); parent.add(g); return g; }
+function eye(parent, mat, pos, scl, shine){
+  var e = P(parent, GEO.sph, mat, pos, scl);
+  e.userData.sy = scl[1];
+  if(shine) P(e, GEO.sph, shine, [0.35,0.35,0.7], [0.32,0.28,0.25]);
+  return e;
+}
+function buildChar(name, h){
+  var root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  _mats = []; _olMat = new THREE.MeshBasicMaterial({ color:OUTLINE_COLOR, side:THREE.BackSide });
+  var R = { body:body, eyes:[] };
+  CHAR_BUILDERS[name](body, R);
+  body.scale.setScalar(h/2);
+  root.userData = { pivot:body, rig:R, mats:_mats, olMat:_olMat, h:h, name:name, walk:0, mv:0, blink:1+Math.random()*3, atk:-1,
+    phase:Math.random()*6, tint:new THREE.Color(1,1,1), speed:R.walkSpeed||10 };
+  _mats = null;
+  return root;
+}
+/* 걷기·숨쉬기·눈 깜빡임·공격 동작 */
+function animChibi(g, dt, moving){
+  var u = g.userData, R = u.rig, t = performance.now()/1000;
+  u.mv += ((moving?1:0) - u.mv)*Math.min(1, dt*8);
+  if(moving) u.walk += dt*u.speed;
+  var sw = Math.sin(u.walk), mv = u.mv, s = u.h/2;
+  if(R.legL){ R.legL.rotation.x = sw*0.8*mv; R.legR.rotation.x = -sw*0.8*mv; }
+  var arm = sw*0.7*mv;
+  if(R.armL) R.armL.rotation.x = -arm + (R.armLRest||0) + Math.sin(t*2+u.phase)*0.04;
+  if(R.armR && u.atk<0) R.armR.rotation.x = arm + (R.armRRest||0) + Math.sin(t*2+u.phase+1)*0.04;
+  var hover = R.hover ? Math.sin(t*2+u.phase)*0.05 : 0;
+  R.body.position.y = (Math.abs(Math.sin(u.walk))*0.08*mv + hover)*s;
+  R.body.rotation.z = Math.sin(u.walk)*0.06*mv;
+  if(u.atk<0) R.body.rotation.x = 0.07*mv;
+  if(R.torso) R.torso.scale.y = R.torsoSY*(1+Math.sin(t*2.4+u.phase)*0.025);
+  if(R.head){
+    R.head.rotation.z = Math.sin(t*1.2+u.phase)*0.06*(1-mv);
+    R.head.rotation.x = Math.sin(u.walk*2)*0.05*mv + Math.sin(t*0.9+u.phase)*0.03;
+  }
+  if(R.tail) R.tail.rotation.y = Math.sin(t*2.6+u.phase)*0.3 + sw*0.25*mv;
+  if(R.tail) R.tail.rotation.x = Math.sin(t*1.7+u.phase)*0.08;
+  if(R.wings) R.wings.forEach(function(w,i){ w.rotation.y = (i?-1:1)*(0.25+Math.sin(t*8+u.phase)*0.35); });
+  if(R.orb){ var k = 1+Math.sin(t*5)*0.12; R.orb.scale.set(R.orbS*k, R.orbS*k, R.orbS*k); }
+  u.blink -= dt;
+  var closed = u.blink < 0.13;
+  if(u.blink < 0) u.blink = 2 + Math.random()*3.5;
+  R.eyes.forEach(function(e){ e.scale.y = closed ? e.userData.sy*0.12 : e.userData.sy; });
+  if(u.atk >= 0){
+    u.atk += dt;
+    var a = u.atk/0.34;
+    if(a >= 1){ u.atk = -1; R.body.rotation.x = 0; }
+    else {
+      var rest = R.armRRest||0;
+      if(R.armR) R.armR.rotation.x = a < 0.38 ? rest + (-2.7-rest)*(a/0.38) : -2.7 + (2.7+rest+0.25)*((a-0.38)/0.62);
+      if(R.armL && R.bothArms) R.armL.rotation.x = R.armR.rotation.x;
+      R.body.rotation.x = Math.sin(a*Math.PI)*0.28;
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if(mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.scale.setScalar(height/data.H);
-    mesh.castShadow = true; mesh.frustumCulled = false;
-    pivot.add(mesh); g.userData.mesh = mesh;
+  }
+}
+function chibiAttack(g){ g.userData.atk = 0; }
+function chibiTint(g, r, gg, b){
+  g.userData.tint.setRGB(r, gg, b);
+  g.userData.mats.forEach(function(m){ m.color.copy(m.userData.base).multiply(g.userData.tint); });
+}
+function chibiOpacity(g, o){
+  g.userData.mats.forEach(function(m){
+    var glass = m.userData.glassOp;
+    m.transparent = o < 1 || !!glass; m.opacity = (glass||1)*o; m.depthWrite = !(glass) && o >= 1;
   });
-  return g;
+  g.userData.olMat.transparent = o < 1; g.userData.olMat.opacity = o;
+}
+function chibiFlash(g, on){
+  if(g.userData.flashOn === on) return;
+  g.userData.flashOn = on;
+  g.userData.mats.forEach(function(m){ if(on) m.emissive.setRGB(0.75,0.22,0.18); else m.emissive.copy(m.userData.baseEm); });
 }
 /* 바라보는 방향을 부드럽게 돌린다 */
 function turnTo(g, target, dt, speed){
@@ -620,7 +780,7 @@ function addBlobShadow(radius){
   return mesh;
 }
 
-var player = buildVoxelChar('knight', 2.6, 46);
+var player = buildChar('knight', 2.5);
 player.position.set(0,0,4);
 scene.add(player);
 var playerBlob = addBlobShadow(0.8);
@@ -661,7 +821,7 @@ function spawnMonster(typeKey, isBoss){
   var ang = Math.random()*Math.PI*2;
   var rad = isBoss ? 20 : (18+Math.random()*7);
   var x = Math.cos(ang)*rad, z = Math.sin(ang)*rad;
-  var mesh = buildVoxelChar(t.sprite, t.h, t.rows);
+  var mesh = buildChar(t.sprite, t.h);
   mesh.position.set(x,0,z);
   scene.add(mesh);
   var blob = addBlobShadow(isBoss?1.9:(t.h>3?1.15:0.8));
@@ -992,21 +1152,10 @@ function updatePlayer(dt){
     collideObstacles(player.position, 0.5);
     faceTowards(player.position.clone().add(moveVec));
     walkPhase += dt*11;
-    player.userData.pivot.position.y = Math.abs(Math.sin(walkPhase))*0.15;
-    player.userData.pivot.rotation.z = Math.sin(walkPhase)*0.08;
-  } else {
-    player.userData.pivot.position.y *= 0.7;
-    player.userData.pivot.rotation.z *= 0.8;
   }
+  animChibi(player, dt, moved);
   player.position.y = heightAt(player.position.x, player.position.z);
   turnTo(player, playerFacing, dt, 14);
-
-  if(attackAnimT>=0){
-    attackAnimT += dt;
-    var tt = attackAnimT/0.28;
-    if(tt>=1){ attackAnimT=-1; player.userData.pivot.rotation.x = 0; }
-    else { player.userData.pivot.rotation.x = Math.sin(tt*Math.PI)*0.45; }
-  }
   checkPortal();
 
   if(state.atkCd>0) state.atkCd -= dt*1000;
@@ -1031,7 +1180,7 @@ function updatePlayer(dt){
 }
 
 function performMeleeAttack(m){
-  attackAnimT = 0;
+  chibiAttack(player);
   var sd = m.mesh.position.clone().sub(player.position); sd.y=0; sd.normalize();
   slashEffect(player.position, sd);
   var isCrit = Math.random()<0.16;
@@ -1047,7 +1196,7 @@ function updateMonsters(dt){
       if(m.deathT>=0){
         m.deathT += dt;
         var s = Math.max(0, 1-m.deathT/0.6);
-        m.mesh.userData.mat.transparent = true; m.mesh.userData.mat.opacity = s;
+        chibiOpacity(m.mesh, s);
         m.mesh.userData.pivot.rotation.x = -(1-s)*1.4;
         m.mesh.position.y = heightAt(m.mesh.position.x, m.mesh.position.z) - m.deathT*0.5;
         if(m.blob) m.blob.material.opacity = s;
@@ -1081,16 +1230,14 @@ function updateMonsters(dt){
           if(dd<0.9 && dd>0.001){ m.mesh.position.x += dx/dd*0.02; m.mesh.position.z += dz/dd*0.02; }
         });
         turnTo(m.mesh, Math.atan2(dir.x, dir.z), dt, 8);
-        var wp = (m.mesh.userData.walk = (m.mesh.userData.walk||0) + dt*(m.isBoss?5:8));
-        m.mesh.userData.pivot.position.y = Math.abs(Math.sin(wp))*(m.isBoss?0.14:0.12);
-        m.mesh.userData.pivot.rotation.z = Math.sin(wp)*0.07;
+        m._mv = true;
       } else {
         m.aiState='attack';
         turnTo(m.mesh, Math.atan2(toP.x, toP.z), dt, 10);
         var now = performance.now();
         if(now - m.lastAtk > m.atkCd){
           m.lastAtk = now;
-          m.mesh.userData.lunge = 0.25;
+          chibiAttack(m.mesh);
           if(m.ranged){
             var dir2 = toP.clone().normalize();
             spawnEnemyBolt(m.mesh.position.clone().add(new THREE.Vector3(0,1.1,0)), dir2, randInt(m.dmg[0],m.dmg[1]));
@@ -1101,11 +1248,9 @@ function updateMonsters(dt){
       }
     }
 
-    if(m.hitFlashT>0){ m.mesh.userData.mat.emissive.setRGB(0.85,0.3,0.25); }
-    else { m.mesh.userData.mat.emissive.setHex(0x1a1622); }
+    chibiFlash(m.mesh, m.hitFlashT>0);
     m.mesh.position.y = heightAt(m.mesh.position.x, m.mesh.position.z);
-    var lg = m.mesh.userData.lunge||0;
-    if(lg>0){ m.mesh.userData.lunge = Math.max(0,lg-dt); m.mesh.userData.pivot.rotation.x = Math.sin((0.25-lg)/0.25*Math.PI)*0.4; }
+    animChibi(m.mesh, dt, !!m._mv); m._mv = false;
   });
 
   // spawn logic (층마다 다르게)

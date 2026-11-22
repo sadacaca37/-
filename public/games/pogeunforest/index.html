@@ -748,65 +748,226 @@ function addBlobShadow(radius){
   return mesh;
 }
 
-/* ===================== 블록 입체 캐릭터: 제미나이 픽셀 그림을 작은 블록으로 쌓아 두께 있는 인형으로 ===================== */
-var VOX_CACHE = {};
-var VOX_GEO = new THREE.BoxGeometry(1,1,1);
-function loadVoxData(name, rows){
-  var key = name+'@'+rows;
-  if(VOX_CACHE[key]) return VOX_CACHE[key];
-  VOX_CACHE[key] = new Promise(function(resolve){
-    var img = new Image();
-    img.onload = function(){
-      var H = rows, W = Math.max(4, Math.round(rows*img.width/img.height));
-      var c = document.createElement('canvas'); c.width = W; c.height = H;
-      var ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, W, H);
-      var px = ctx.getImageData(0,0,W,H).data, N = W*H, i, x, y, k, v;
-      var solid = new Uint8Array(N), d = new Float32Array(N);
-      for(i=0;i<N;i++){ solid[i] = px[i*4+3] > 100 ? 1 : 0; d[i] = solid[i] ? 1e6 : 0; }
-      /* 가장자리에서 얼마나 안쪽인지(거리) → 안쪽일수록 두껍게: 통통한 인형 모양 */
-      for(y=0;y<H;y++) for(x=0;x<W;x++){ k=y*W+x; if(!solid[k]) continue; v=d[k];
-        v = Math.min(v, x>0 ? d[k-1]+1 : 1, y>0 ? d[k-W]+1 : 1);
-        if(x>0&&y>0) v=Math.min(v,d[k-W-1]+1.414); if(x<W-1&&y>0) v=Math.min(v,d[k-W+1]+1.414);
-        d[k]=v; }
-      for(y=H-1;y>=0;y--) for(x=W-1;x>=0;x--){ k=y*W+x; if(!solid[k]) continue; v=d[k];
-        v = Math.min(v, x<W-1 ? d[k+1]+1 : 1, y<H-1 ? d[k+W]+1 : 1);
-        if(x<W-1&&y<H-1) v=Math.min(v,d[k+W+1]+1.414); if(x>0&&y<H-1) v=Math.min(v,d[k+W-1]+1.414);
-        d[k]=v; }
-      var maxT = Math.max(3, Math.min(W,H)*0.3), list = [];
-      for(y=0;y<H;y++) for(x=0;x<W;x++){ k=y*W+x; if(!solid[k]) continue;
-        var t = d[k] < 1.5 ? 1.2 : Math.min(maxT, 1.8 + Math.sqrt(d[k]-1)*2.3);
-        list.push(x-(W-1)/2, (H-1-y)+0.5, t, px[k*4]/255, px[k*4+1]/255, px[k*4+2]/255); }
-      resolve({ W:W, H:H, list:list });
-    };
-    img.onerror = function(){ resolve(null); };
-    img.src = 'sprites/'+name+'.webp';
-  });
-  return VOX_CACHE[key];
-}
-function buildVoxelChar(name, height, rows){
-  var g = new THREE.Group(), pivot = new THREE.Group();
-  g.add(pivot);
-  var mat = new THREE.MeshLambertMaterial({ color:0xffffff });
-  mat.userData = { tint:new THREE.Color(1,1,1) };
-  g.userData = { pivot:pivot, mat:mat, h:height, mesh:null, name:name, face:0 };
-  loadVoxData(name, rows).then(function(data){
-    if(!data) return;
-    var n = data.list.length/6, mesh = new THREE.InstancedMesh(VOX_GEO, mat, n);
-    var m4 = new THREE.Matrix4(), col = new THREE.Color(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-    for(var i=0;i<n;i++){
-      var o = i*6;
-      p.set(data.list[o], data.list[o+1], 0); s.set(1, 1, data.list[o+2]*2);
-      m4.compose(p, q, s); mesh.setMatrixAt(i, m4);
-      col.setRGB(data.list[o+3], data.list[o+4], data.list[o+5]); mesh.setColorAt(i, col);
+var TOON_DIM = 1, OUTLINE_COLOR = 0x4a3426;
+var CHAR_BUILDERS = {
+  /* 밀짚모자를 쓴 아이 */
+  player: function(B, R){
+    var skin=toon(0xf7d4b6), hair=toon(0x6b3f22), hat=toon(0xeac37c), band=toon(0xa0583a), cape=toon(0x5f9a44),
+        shirt=toon(0xf6ecd4), skirt=toon(0x8c7540), boot=toon(0x7a4a2a), dark=toon(0x2a1a12), blush=toon(0xf3a3a0), white=toon(0xffffff), basket=toon(0xc48a4a);
+    R.legL=J(B,-0.13,0.46,0); P(R.legL,GEO.cyl,skin,[0,-0.2,0],[0.085,0.38,0.085],null,0.12); P(R.legL,GEO.sph,boot,[0,-0.4,0.05],[0.11,0.08,0.15],null,0.1);
+    R.legR=J(B,0.13,0.46,0); P(R.legR,GEO.cyl,skin,[0,-0.2,0],[0.085,0.38,0.085],null,0.12); P(R.legR,GEO.sph,boot,[0,-0.4,0.05],[0.11,0.08,0.15],null,0.1);
+    P(B,GEO.cone,skirt,[0,0.56,0],[0.34,0.34,0.3],null,0.06);
+    R.torso=P(B,GEO.sph,shirt,[0,0.76,0],[0.27,0.3,0.23],null,0.06); R.torsoSY=0.3;
+    P(B,GEO.cone,cape,[0,0.68,-0.06],[0.38,0.62,0.3],null,0.04);
+    P(B,GEO.sph,cape,[0,0.98,0.02],[0.3,0.12,0.26],null,0.05);
+    R.armL=J(B,-0.3,0.94,0); P(R.armL,GEO.sph,cape,[0,-0.2,0],[0.085,0.22,0.085],null,0.08); P(R.armL,GEO.sph,skin,[0,-0.42,0],[0.075,0.075,0.075],null,0.08);
+    P(R.armL,GEO.cyl,basket,[0,-0.55,0.06],[0.13,0.14,0.11],null,0.08); P(R.armL,GEO.tor,basket,[0,-0.44,0.06],[0.1,0.12,0.1],[0,Math.PI/2,0]);
+    R.armR=J(B,0.3,0.94,0); P(R.armR,GEO.sph,cape,[0,-0.2,0],[0.085,0.22,0.085],null,0.08); P(R.armR,GEO.sph,skin,[0,-0.42,0],[0.075,0.075,0.075],null,0.08);
+    R.head=J(B,0,1.1,0);
+    P(R.head,GEO.sph,hair,[0,0.38,-0.05],[0.41,0.39,0.38],null,0.04);
+    P(R.head,GEO.sph,skin,[0,0.34,0.05],[0.36,0.35,0.33]);
+    P(R.head,GEO.sph,hair,[0,0.56,0.15],[0.33,0.13,0.2]);
+    P(R.head,GEO.sph,hair,[-0.3,0.2,-0.02],[0.1,0.22,0.14]); P(R.head,GEO.sph,hair,[0.3,0.2,-0.02],[0.1,0.22,0.14]);
+    P(R.head,GEO.cyl,hat,[0,0.68,0],[0.6,0.035,0.6],[0.08,0,0],0.05);
+    P(R.head,GEO.sph,hat,[0,0.76,-0.02],[0.32,0.21,0.32],null,0.05);
+    P(R.head,GEO.cyl,band,[0,0.71,-0.02],[0.325,0.05,0.325]);
+    R.eyes.push(eye(R.head,dark,[-0.13,0.35,0.34],[0.055,0.075,0.04],white), eye(R.head,dark,[0.13,0.35,0.34],[0.055,0.075,0.04],white));
+    P(R.head,GEO.sph,blush,[-0.23,0.25,0.3],[0.07,0.04,0.03]); P(R.head,GEO.sph,blush,[0.23,0.25,0.3],[0.07,0.04,0.03]);
+    P(R.head,GEO.sph,dark,[0,0.22,0.37],[0.04,0.016,0.02]);
+  },
+  /* 보솔이: 주황 다람쥐, 솔방울을 안고 있음 */
+  bosol: function(B, R){
+    var fur=toon(0xf08a3c), belly=toon(0xfde6c4), dark=toon(0x2a1a12), tuft=toon(0x9a4f22), pine=toon(0x7a4a26), white=toon(0xffffff), blush=toon(0xf3a3a0);
+    R.legL=J(B,-0.16,0.3,0); P(R.legL,GEO.sph,fur,[0,-0.12,0.02],[0.13,0.16,0.15],null,0.08); P(R.legL,GEO.sph,belly,[0,-0.27,0.08],[0.11,0.05,0.15],null,0.1);
+    R.legR=J(B,0.16,0.3,0); P(R.legR,GEO.sph,fur,[0,-0.12,0.02],[0.13,0.16,0.15],null,0.08); P(R.legR,GEO.sph,belly,[0,-0.27,0.08],[0.11,0.05,0.15],null,0.1);
+    R.torso=P(B,GEO.sph,fur,[0,0.62,0],[0.34,0.38,0.3],null,0.05); R.torsoSY=0.38;
+    P(B,GEO.sph,belly,[0,0.58,0.15],[0.24,0.29,0.19]);
+    P(B,GEO.sph,pine,[0,0.66,0.33],[0.13,0.17,0.13],null,0.08);
+    P(B,GEO.cone,toon(0x5a3418),[0,0.84,0.33],[0.05,0.08,0.05]);
+    R.armL=J(B,-0.28,0.82,0.06); R.armLRest=-0.95; P(R.armL,GEO.sph,fur,[0,-0.16,0],[0.08,0.18,0.08],null,0.1);
+    R.armR=J(B,0.28,0.82,0.06); R.armRRest=-0.95; P(R.armR,GEO.sph,fur,[0,-0.16,0],[0.08,0.18,0.08],null,0.1);
+    R.head=J(B,0,0.98,0);
+    P(R.head,GEO.sph,fur,[0,0.3,0],[0.37,0.33,0.33],null,0.04);
+    P(R.head,GEO.sph,belly,[0,0.2,0.22],[0.21,0.15,0.14]);
+    P(R.head,GEO.sph,dark,[0,0.27,0.35],[0.05,0.04,0.04]);
+    P(R.head,GEO.cone,fur,[-0.2,0.66,0],[0.11,0.3,0.08],[0,0,0.25],0.08); P(R.head,GEO.cone,fur,[0.2,0.66,0],[0.11,0.3,0.08],[0,0,-0.25],0.08);
+    P(R.head,GEO.cone,tuft,[-0.23,0.85,0],[0.05,0.13,0.05],[0,0,0.3]); P(R.head,GEO.cone,tuft,[0.23,0.85,0],[0.05,0.13,0.05],[0,0,-0.3]);
+    R.eyes.push(eye(R.head,dark,[-0.14,0.36,0.27],[0.05,0.07,0.04],white), eye(R.head,dark,[0.14,0.36,0.27],[0.05,0.07,0.04],white));
+    P(R.head,GEO.sph,blush,[-0.24,0.24,0.22],[0.06,0.035,0.03]); P(R.head,GEO.sph,blush,[0.24,0.24,0.22],[0.06,0.035,0.03]);
+    R.tail=J(B,0,0.38,-0.22);
+    [[0,0,-0.05,0.2],[0,0.24,-0.25,0.24],[0,0.55,-0.36,0.27],[0,0.86,-0.3,0.26],[0,1.06,-0.12,0.22],[0,1.04,0.06,0.17]].forEach(function(p,i){
+      P(R.tail,GEO.sph,i>=4?belly:fur,[p[0],p[1],p[2]],[p[3]*0.85,p[3],p[3]],null,0.05);
+    });
+  },
+  /* 몽글이: 뽀송한 양, 늘 졸린 눈 */
+  mongle: function(B, R){
+    var wool=toon(0xfbf7ef), face=toon(0x34302f), lid=toon(0x9a9a9a), blush=toon(0xe8a0a0);
+    R.legL=J(B,-0.15,0.3,0); P(R.legL,GEO.cyl,face,[0,-0.12,0],[0.075,0.28,0.075],null,0.1); P(R.legL,GEO.sph,face,[0,-0.26,0.03],[0.1,0.06,0.12]);
+    R.legR=J(B,0.15,0.3,0); P(R.legR,GEO.cyl,face,[0,-0.12,0],[0.075,0.28,0.075],null,0.1); P(R.legR,GEO.sph,face,[0,-0.26,0.03],[0.1,0.06,0.12]);
+    R.torso=P(B,GEO.sph,wool,[0,0.74,0],[0.47,0.48,0.42],null,0.04); R.torsoSY=0.48;
+    [[0.32,0.95,0.2],[-0.33,0.92,0.18],[0.38,0.6,0.1],[-0.38,0.58,0.12],[0,0.42,0.3],[0.2,0.4,0.28],[-0.2,0.42,0.28],[0,1.05,-0.2],[0.3,0.8,-0.3],[-0.3,0.78,-0.3],[0,0.62,-0.4]].forEach(function(p){
+      P(B,GEO.sph,wool,p,[0.18,0.18,0.18],null,0.06);
+    });
+    R.armL=J(B,-0.44,0.86,0.05); P(R.armL,GEO.sph,wool,[0,-0.14,0.04],[0.13,0.17,0.13],null,0.06); P(R.armL,GEO.sph,face,[0,-0.3,0.05],[0.07,0.06,0.07]);
+    R.armR=J(B,0.44,0.86,0.05); P(R.armR,GEO.sph,wool,[0,-0.14,0.04],[0.13,0.17,0.13],null,0.06); P(R.armR,GEO.sph,face,[0,-0.3,0.05],[0.07,0.06,0.07]);
+    R.head=J(B,0,1.1,0.06);
+    P(R.head,GEO.sph,face,[0,0.28,0.1],[0.29,0.29,0.26],null,0.04);
+    P(R.head,GEO.sph,wool,[0,0.46,-0.02],[0.38,0.24,0.34],null,0.04);
+    [[-0.22,0.52,0.08],[0.22,0.52,0.08],[0,0.6,0.14],[0,0.55,-0.18]].forEach(function(p){ P(R.head,GEO.sph,wool,p,[0.15,0.15,0.15],null,0.06); });
+    P(R.head,GEO.sph,face,[-0.34,0.3,0.06],[0.16,0.06,0.09],[0,0.2,0.35],0.08); P(R.head,GEO.sph,face,[0.34,0.3,0.06],[0.16,0.06,0.09],[0,-0.2,-0.35],0.08);
+    P(R.head,GEO.sph,lid,[-0.11,0.3,0.34],[0.07,0.014,0.02]); P(R.head,GEO.sph,lid,[0.11,0.3,0.34],[0.07,0.014,0.02]);
+    P(R.head,GEO.sph,lid,[0,0.18,0.35],[0.035,0.018,0.02]);
+    P(R.head,GEO.sph,blush,[-0.19,0.21,0.3],[0.05,0.03,0.02]); P(R.head,GEO.sph,blush,[0.19,0.21,0.3],[0.05,0.03,0.02]);
+  },
+  /* 레티: 회색 고양이, 초록 목도리, 살짝 시무룩 */
+  rita: function(B, R){
+    var fur=toon(0x8f8a95), light=toon(0xb6b1bb), pink=toon(0xe8a3a8), scarf=toon(0x6f8f5c), dark=toon(0x241c1c), eyeY=toon(0xd9d276);
+    R.legL=J(B,-0.13,0.4,0); P(R.legL,GEO.cyl,fur,[0,-0.17,0],[0.08,0.34,0.08],null,0.1); P(R.legL,GEO.sph,light,[0,-0.36,0.05],[0.1,0.06,0.13],null,0.08);
+    R.legR=J(B,0.13,0.4,0); P(R.legR,GEO.cyl,fur,[0,-0.17,0],[0.08,0.34,0.08],null,0.1); P(R.legR,GEO.sph,light,[0,-0.36,0.05],[0.1,0.06,0.13],null,0.08);
+    R.torso=P(B,GEO.sph,fur,[0,0.7,0],[0.27,0.35,0.23],null,0.06); R.torsoSY=0.35;
+    P(B,GEO.sph,light,[0,0.66,0.12],[0.17,0.25,0.14]);
+    P(B,GEO.tor,scarf,[0,0.97,0],[0.22,0.22,0.3],[Math.PI/2,0,0],0.05);
+    P(B,GEO.sph,scarf,[0.1,0.9,0.2],[0.08,0.07,0.06]); P(B,GEO.box,scarf,[0.15,0.78,0.21],[0.08,0.18,0.03],[0,0,0.3]);
+    R.armL=J(B,-0.26,0.9,0); P(R.armL,GEO.sph,fur,[0,-0.2,0],[0.07,0.22,0.07],null,0.1); P(R.armL,GEO.sph,light,[0,-0.42,0],[0.07,0.06,0.07]);
+    R.armR=J(B,0.26,0.9,0); P(R.armR,GEO.sph,fur,[0,-0.2,0],[0.07,0.22,0.07],null,0.1); P(R.armR,GEO.sph,light,[0,-0.42,0],[0.07,0.06,0.07]);
+    R.head=J(B,0,1.04,0);
+    P(R.head,GEO.sph,fur,[0,0.35,0],[0.41,0.35,0.35],null,0.04);
+    P(R.head,GEO.sph,light,[0,0.25,0.26],[0.15,0.1,0.1]);
+    P(R.head,GEO.sph,pink,[0,0.3,0.35],[0.04,0.03,0.03]);
+    P(R.head,GEO.cone,fur,[-0.24,0.7,0],[0.14,0.27,0.1],[0,0,0.35],0.08); P(R.head,GEO.cone,fur,[0.24,0.7,0],[0.14,0.27,0.1],[0,0,-0.35],0.08);
+    P(R.head,GEO.cone,pink,[-0.24,0.68,0.05],[0.08,0.16,0.03],[0,0,0.35]); P(R.head,GEO.cone,pink,[0.24,0.68,0.05],[0.08,0.16,0.03],[0,0,-0.35]);
+    P(R.head,GEO.sph,eyeY,[-0.15,0.4,0.28],[0.075,0.05,0.04]); P(R.head,GEO.sph,eyeY,[0.15,0.4,0.28],[0.075,0.05,0.04]);
+    R.eyes.push(eye(R.head,dark,[-0.15,0.39,0.31],[0.035,0.042,0.02]), eye(R.head,dark,[0.15,0.39,0.31],[0.035,0.042,0.02]));
+    P(R.head,GEO.sph,fur,[-0.15,0.445,0.29],[0.095,0.035,0.05],[0,0,-0.15]); P(R.head,GEO.sph,fur,[0.15,0.445,0.29],[0.095,0.035,0.05],[0,0,0.15]);
+    P(R.head,GEO.sph,dark,[0,0.19,0.33],[0.045,0.012,0.02]);
+    R.tail=J(B,0,0.45,-0.18);
+    [[0,0,-0.05],[0.05,0.12,-0.15],[0.1,0.3,-0.2],[0.12,0.48,-0.18],[0.1,0.63,-0.1],[0.06,0.72,0]].forEach(function(p){ P(R.tail,GEO.sph,fur,p,[0.065,0.065,0.065],null,0.12); });
+  },
+  /* 새숨이: 빛나는 숲의 정령, 나뭇잎 왕관과 날개 */
+  saesum: function(B, R){
+    var glow=toon(0xdaf8b6,{emissive:0x5aa840}), leaf=toon(0x5aa83a), leaf2=toon(0x86cf55), wing=toon(0xeaffd8,{emissive:0x3f7f30, opacity:0.55}),
+        dark=toon(0x2a3a20), blush=toon(0xf5b8a8), white=toon(0xffffff);
+    R.hover = true;
+    R.legL=J(B,-0.1,0.42,0); P(R.legL,GEO.cyl,glow,[0,-0.15,0],[0.065,0.3,0.065],null,0.1);
+    R.legR=J(B,0.1,0.42,0); P(R.legR,GEO.cyl,glow,[0,-0.15,0],[0.065,0.3,0.065],null,0.1);
+    R.torso=P(B,GEO.sph,glow,[0,0.72,0],[0.27,0.36,0.24],null,0.05); R.torsoSY=0.36;
+    R.armL=J(B,-0.26,0.92,0); P(R.armL,GEO.sph,glow,[0,-0.18,0],[0.065,0.2,0.065],null,0.1);
+    R.armR=J(B,0.26,0.92,0); P(R.armR,GEO.sph,glow,[0,-0.18,0],[0.065,0.2,0.065],null,0.1);
+    R.wings = [J(B,-0.1,0.92,-0.18), J(B,0.1,0.92,-0.18)];
+    P(R.wings[0],GEO.sph,wing,[-0.3,0.08,0],[0.3,0.2,0.025],[0,0,0.45]); P(R.wings[0],GEO.sph,wing,[-0.22,-0.18,0],[0.2,0.13,0.025],[0,0,-0.3]);
+    P(R.wings[1],GEO.sph,wing,[0.3,0.08,0],[0.3,0.2,0.025],[0,0,-0.45]); P(R.wings[1],GEO.sph,wing,[0.22,-0.18,0],[0.2,0.13,0.025],[0,0,0.3]);
+    R.head=J(B,0,1.1,0);
+    P(R.head,GEO.sph,glow,[0,0.33,0],[0.35,0.33,0.32],null,0.04);
+    R.eyes.push(eye(R.head,dark,[-0.12,0.35,0.28],[0.045,0.06,0.03],white), eye(R.head,dark,[0.12,0.35,0.28],[0.045,0.06,0.03],white));
+    P(R.head,GEO.sph,blush,[-0.2,0.26,0.26],[0.055,0.03,0.02]); P(R.head,GEO.sph,blush,[0.2,0.26,0.26],[0.055,0.03,0.02]);
+    for(var i=0;i<10;i++){
+      var a=i/10*Math.PI*2, lg=J(R.head, Math.cos(a)*0.27, 0.6, Math.sin(a)*0.27);
+      lg.rotation.y = Math.PI/2 - a;
+      P(lg,GEO.sph,i%2?leaf:leaf2,[0,0.05,0.1],[0.08,0.045,0.17],[-0.55,0,0],0.08);
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if(mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.scale.setScalar(height/data.H);
-    mesh.castShadow = true; mesh.frustumCulled = false;
-    pivot.add(mesh); g.userData.mesh = mesh;
+  }
+};
+
+/* ===================== 둥근 3D 인형 캐릭터: 제미나이 그림의 모양·색을 보고 머리·몸·팔·다리로 빚음 ===================== */
+var TOON_GRAD = (function(){ var d=new Uint8Array([120,195,255]); var t=new THREE.DataTexture(d,3,1,THREE.LuminanceFormat); t.minFilter=THREE.NearestFilter; t.magFilter=THREE.NearestFilter; t.generateMipmaps=false; t.needsUpdate=true; return t; })();
+var GEO = { sph:new THREE.SphereGeometry(1,22,16), cyl:new THREE.CylinderGeometry(1,1,1,18), cone:new THREE.ConeGeometry(1,1,18),
+  box:new THREE.BoxGeometry(1,1,1), tor:new THREE.TorusGeometry(1,0.3,10,28), hemi:new THREE.SphereGeometry(1,22,12,0,Math.PI*2,0,Math.PI/2) };
+var _mats = null, _olMat = null;
+function toon(color, o){
+  o = o||{};
+  var m = new THREE.MeshToonMaterial({ color:color, gradientMap:TOON_GRAD, emissive:o.emissive||0x000000 });
+  if(TOON_DIM!==1) m.color.multiplyScalar(TOON_DIM);
+  m.toneMapped = false;
+  if(o.opacity){ m.transparent = true; m.opacity = o.opacity; m.userData.glassOp = o.opacity; m.depthWrite = false; }
+  m.userData.base = m.color.clone(); m.userData.baseEm = new THREE.Color(o.emissive||0x000000);
+  if(_mats) _mats.push(m);
+  return m;
+}
+/* 부품 하나 붙이기 (ol: 테두리 두께) */
+function P(parent, geo, mat, pos, scl, rot, ol){
+  var m = new THREE.Mesh(geo, mat);
+  m.position.set(pos[0],pos[1],pos[2]);
+  if(scl) m.scale.set(scl[0],scl[1],scl[2]);
+  if(rot) m.rotation.set(rot[0],rot[1],rot[2]);
+  parent.add(m);
+  if(ol){ var o = new THREE.Mesh(geo, _olMat); o.scale.setScalar(1+ol); m.add(o); }
+  return m;
+}
+/* 관절(팔·다리·머리가 돌아가는 자리) */
+function J(parent, x,y,z){ var g = new THREE.Group(); g.position.set(x,y,z); parent.add(g); return g; }
+function eye(parent, mat, pos, scl, shine){
+  var e = P(parent, GEO.sph, mat, pos, scl);
+  e.userData.sy = scl[1];
+  if(shine) P(e, GEO.sph, shine, [0.35,0.35,0.7], [0.32,0.28,0.25]);
+  return e;
+}
+function buildChar(name, h){
+  var root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  _mats = []; _olMat = new THREE.MeshBasicMaterial({ color:OUTLINE_COLOR, side:THREE.BackSide });
+  var R = { body:body, eyes:[] };
+  CHAR_BUILDERS[name](body, R);
+  body.scale.setScalar(h/2);
+  root.userData = { pivot:body, rig:R, mats:_mats, olMat:_olMat, h:h, name:name, walk:0, mv:0, blink:1+Math.random()*3, atk:-1,
+    phase:Math.random()*6, tint:new THREE.Color(1,1,1), speed:R.walkSpeed||10 };
+  _mats = null;
+  return root;
+}
+/* 걷기·숨쉬기·눈 깜빡임·공격 동작 */
+function animChibi(g, dt, moving){
+  var u = g.userData, R = u.rig, t = performance.now()/1000;
+  u.mv += ((moving?1:0) - u.mv)*Math.min(1, dt*8);
+  if(moving) u.walk += dt*u.speed;
+  var sw = Math.sin(u.walk), mv = u.mv, s = u.h/2;
+  if(R.legL){ R.legL.rotation.x = sw*0.8*mv; R.legR.rotation.x = -sw*0.8*mv; }
+  var arm = sw*0.7*mv;
+  if(R.armL) R.armL.rotation.x = -arm + (R.armLRest||0) + Math.sin(t*2+u.phase)*0.04;
+  if(R.armR && u.atk<0) R.armR.rotation.x = arm + (R.armRRest||0) + Math.sin(t*2+u.phase+1)*0.04;
+  var hover = R.hover ? Math.sin(t*2+u.phase)*0.05 : 0;
+  R.body.position.y = (Math.abs(Math.sin(u.walk))*0.08*mv + hover)*s;
+  R.body.rotation.z = Math.sin(u.walk)*0.06*mv;
+  if(u.atk<0) R.body.rotation.x = 0.07*mv;
+  if(R.torso) R.torso.scale.y = R.torsoSY*(1+Math.sin(t*2.4+u.phase)*0.025);
+  if(R.head){
+    R.head.rotation.z = Math.sin(t*1.2+u.phase)*0.06*(1-mv);
+    R.head.rotation.x = Math.sin(u.walk*2)*0.05*mv + Math.sin(t*0.9+u.phase)*0.03;
+  }
+  if(R.tail) R.tail.rotation.y = Math.sin(t*2.6+u.phase)*0.3 + sw*0.25*mv;
+  if(R.tail) R.tail.rotation.x = Math.sin(t*1.7+u.phase)*0.08;
+  if(R.wings) R.wings.forEach(function(w,i){ w.rotation.y = (i?-1:1)*(0.25+Math.sin(t*8+u.phase)*0.35); });
+  if(R.orb){ var k = 1+Math.sin(t*5)*0.12; R.orb.scale.set(R.orbS*k, R.orbS*k, R.orbS*k); }
+  u.blink -= dt;
+  var closed = u.blink < 0.13;
+  if(u.blink < 0) u.blink = 2 + Math.random()*3.5;
+  R.eyes.forEach(function(e){ e.scale.y = closed ? e.userData.sy*0.12 : e.userData.sy; });
+  if(u.atk >= 0){
+    u.atk += dt;
+    var a = u.atk/0.34;
+    if(a >= 1){ u.atk = -1; R.body.rotation.x = 0; }
+    else {
+      var rest = R.armRRest||0;
+      if(R.armR) R.armR.rotation.x = a < 0.38 ? rest + (-2.7-rest)*(a/0.38) : -2.7 + (2.7+rest+0.25)*((a-0.38)/0.62);
+      if(R.armL && R.bothArms) R.armL.rotation.x = R.armR.rotation.x;
+      R.body.rotation.x = Math.sin(a*Math.PI)*0.28;
+    }
+  }
+}
+function chibiAttack(g){ g.userData.atk = 0; }
+function chibiTint(g, r, gg, b){
+  g.userData.tint.setRGB(r, gg, b);
+  g.userData.mats.forEach(function(m){ m.color.copy(m.userData.base).multiply(g.userData.tint); });
+}
+function chibiOpacity(g, o){
+  g.userData.mats.forEach(function(m){
+    var glass = m.userData.glassOp;
+    m.transparent = o < 1 || !!glass; m.opacity = (glass||1)*o; m.depthWrite = !(glass) && o >= 1;
   });
-  return g;
+  g.userData.olMat.transparent = o < 1; g.userData.olMat.opacity = o;
+}
+function chibiFlash(g, on){
+  if(g.userData.flashOn === on) return;
+  g.userData.flashOn = on;
+  g.userData.mats.forEach(function(m){ if(on) m.emissive.setRGB(0.75,0.22,0.18); else m.emissive.copy(m.userData.baseEm); });
 }
 /* 바라보는 방향을 부드럽게 돌린다 */
 function turnTo(g, target, dt, speed){
@@ -814,10 +975,10 @@ function turnTo(g, target, dt, speed){
   while(diff > Math.PI) diff -= Math.PI*2; while(diff < -Math.PI) diff += Math.PI*2;
   g.rotation.y = cur + diff*Math.min(1, dt*(speed||10));
 }
-function applySpriteLight(mat){ mat.color.copy(mat.userData.tint); }
+
 
 /* player: 밀짚모자를 쓴 아이 */
-var player = buildVoxelChar('player', 2.2, 46);
+var player = buildChar('player', 2.1);
 player.position.set(0,0,-3);
 scene.add(player);
 var playerBlob = addBlobShadow(0.7);
@@ -833,7 +994,7 @@ scene.add(marker);
 /* ===================== NPCs ===================== */
 var npcs = [];
 function spawnNpc(def){
-  var mesh = buildVoxelChar(def.sprite, def.h, def.rows||44);
+  var mesh = buildChar(def.sprite, def.h);
   mesh.position.set(def.x,heightAt(def.x,def.z),def.z);
   mesh.rotation.y = Math.PI/4;
   scene.add(mesh);
@@ -846,7 +1007,7 @@ function spawnNpc(def){
   npcs.push(npc);
   return npc;
 }
-function setNpcTint(npc, r,g,b){ npc.mesh.userData.mat.userData.tint.setRGB(r,g,b); applySpriteLight(npc.mesh.userData.mat); }
+function setNpcTint(npc, r,g,b){ chibiTint(npc.mesh, r,g,b); }
 
 var bosol = spawnNpc({ id:'bosol', name:'보솔이', sprite:'bosol', h:1.9, x:-2, z:-6, portraitColor:'#f7d2a6' });
 var mongle = spawnNpc({ id:'mongle', name:'몽글이', sprite:'mongle', h:2.1, x:-5.5, z:-13.5, shadowR:0.7, portraitColor:'#eef3ff' });
@@ -856,7 +1017,7 @@ setNpcTint(rita, 0.55, 0.6, 0.78);
 var SHRINE = new THREE.Vector3(0, 0, -20.5);
 var saesum = spawnNpc({ id:'saesum', name:'새숨이', sprite:'saesum', h:2.5, rows:50, x:SHRINE.x, z:SHRINE.z-0.3, shadowR:0.7, portraitColor:'#e3f7c8', float:0.35 });
 setNpcTint(saesum, 0.62, 0.72, 0.7);
-saesum.mesh.userData.mat.transparent = true; saesum.mesh.userData.mat.opacity = 0.72;
+chibiOpacity(saesum.mesh, 0.75);
 
 /* ===================== 새숨이 제단 ===================== */
 var shrineOrbs = [];
@@ -1118,12 +1279,11 @@ function purifyRita(){
   if(state.flags.ritaPurified) return;
   state.flags.ritaPurified = true;
   rita.shadowed = false;
-  var from = rita.mesh.userData.mat.userData.tint.clone(), to = new THREE.Color(1,1,1);
+  var from = rita.mesh.userData.tint.clone(), to = new THREE.Color(1,1,1), cur = new THREE.Color();
   var t0 = performance.now();
   (function anim(){
     var t = Math.min(1,(performance.now()-t0)/1200);
-    rita.mesh.userData.mat.userData.tint.lerpColors(from,to,t);
-    applySpriteLight(rita.mesh.userData.mat);
+    cur.copy(from).lerp(to,t); chibiTint(rita.mesh, cur.r, cur.g, cur.b);
     if(t<1) requestAnimationFrame(anim);
   })();
   spawnFloatText(rita.mesh.position, '✨', 'sparkle');
@@ -1187,7 +1347,7 @@ function offerToShrine(o){
 function awakenSaesum(){
   if(state.flags.saesumAwake) return;
   state.flags.saesumAwake = true;
-  setNpcTint(saesum,1,1,1); saesum.mesh.userData.mat.opacity = 1; saesum.mesh.userData.mat.transparent = false;
+  setNpcTint(saesum,1,1,1); chibiOpacity(saesum.mesh, 1);
   refreshShrine();
   addVibe(20);
   if(window.__shrineGroup) window.__shrineGroup.userData.crownMat.color.setHex(0x8fe07a);
@@ -1510,15 +1670,8 @@ function updatePlayer(dt){
     collideObstacles(player.position,0.5);
     faceTowards(player.position.clone().add(moveVec));
     walkPhase += dt*11;
-    var pv = player.userData.pivot;
-    pv.position.y = Math.abs(Math.sin(walkPhase))*0.14;
-    pv.rotation.z = Math.sin(walkPhase)*0.09;
-    pv.rotation.x = 0.08;
-  } else {
-    var pv2 = player.userData.pivot;
-    pv2.position.y *= 0.7; pv2.rotation.z *= 0.8; pv2.rotation.x *= 0.8;
-    pv2.scale.y = 1 + Math.sin(performance.now()/420)*0.015;
   }
+  animChibi(player, dt, moved);
   player.position.y = heightAt(player.position.x, player.position.z);
   turnTo(player, playerFacing, dt, 12);
   if(marker.visible) marker.rotation.z += dt*2;
@@ -1526,19 +1679,19 @@ function updatePlayer(dt){
 
 function updateNpcs(t, dt){
   npcs.forEach(function(n){
-    var pv = n.mesh.userData.pivot, base = heightAt(n.mesh.position.x, n.mesh.position.z);
+    var base = heightAt(n.mesh.position.x, n.mesh.position.z);
     if(n.float){
       var awake = n.id==='saesum' && state.flags.saesumAwake;
       n.mesh.position.y = base + n.float + Math.sin(t*(awake?2.2:0.9)+n.phase)*(awake?0.22:0.06);
     } else {
       n.mesh.position.y = base;
-      pv.scale.y = 1 + Math.sin(t*2.2+n.phase)*0.025;
-      pv.rotation.z = Math.sin(t*1.1+n.phase)*0.03;
     }
+    animChibi(n.mesh, dt, false);
     /* 가까이 오면 플레이어 쪽으로 몸을 돌린다 */
     var dx = player.position.x-n.mesh.position.x, dz = player.position.z-n.mesh.position.z;
     var want = Math.PI/4;
     if(dx*dx+dz*dz < 64){ var rel = Math.atan2(dx,dz) - Math.PI/4; while(rel>Math.PI) rel-=Math.PI*2; while(rel<-Math.PI) rel+=Math.PI*2; want = Math.PI/4 + Math.max(-1.0, Math.min(1.0, rel)); }
+    if(window.__pfPose) want = Math.PI/4; // 시험용(카드 사진 찍을 때)
     turnTo(n.mesh, want, dt, 4);
   });
   if(!state.flags.saesumAwake && Math.floor(t/2.6)!==saesum.zzz){
@@ -1685,7 +1838,7 @@ function applySave(d){
   });
   if(typeof d.px==='number'){ player.position.set(d.px,0,d.pz); camTarget.copy(player.position); camera.position.copy(player.position).add(camOffset); }
   if(f.ritaPurified){ rita.shadowed=false; setNpcTint(rita,1,1,1); }
-  if(f.saesumAwake){ setNpcTint(saesum,1,1,1); saesum.mesh.userData.mat.opacity=1; saesum.mesh.userData.mat.transparent=false; if(window.__shrineGroup) window.__shrineGroup.userData.crownMat.color.setHex(0x8fe07a); }
+  if(f.saesumAwake){ setNpcTint(saesum,1,1,1); chibiOpacity(saesum.mesh, 1); if(window.__shrineGroup) window.__shrineGroup.userData.crownMat.color.setHex(0x8fe07a); }
   $('vibefill').style.width = state.vibe+'%'; $('vibetext').textContent = state.vibe;
 }
 function startGame(fromSave){
@@ -1709,7 +1862,7 @@ window.addEventListener('pagehide', saveGame);
 document.addEventListener('visibilitychange', function(){ if(document.hidden) saveGame(); });
 
 if(/[?&]debug/.test(location.search)) window.__pf = { state:state, addItem:addItem, addVibe:addVibe, player:player, npcs:npcs, OFFERINGS:OFFERINGS,
-  talk:handleNpcClick, camOffset:camOffset, offer:offerToShrine, awaken:awakenSaesum, closeDialogue:closeDialogue, camTarget:camTarget, camera:camera, saveGame:saveGame };
+  talk:handleNpcClick, camOffset:camOffset, tint:chibiTint, offer:offerToShrine, awaken:awakenSaesum, closeDialogue:closeDialogue, camTarget:camTarget, camera:camera, saveGame:saveGame };
 resize();
 tickTime(0);
 loop();

@@ -922,11 +922,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       });
       floatingTextsRef.current = floatingTextsRef.current.filter((ft) => ft.life > 0);
 
-      // 8. RENDER CANVAS (Custom Stage Retro Background)
-      CanvasRenderer.drawBackground(ctx, stage.id, CANVAS_WIDTH, CANVAS_HEIGHT, performance.now() / 1000);
+      // 8. RENDER CANVAS — 캔버스는 2배 해상도(그림이 또렷하게), 좌표는 그대로 560×420
+      ctx.setTransform(2, 0, 0, 2, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
-      // Draw Platforms & Ladders
-      CanvasRenderer.drawPlatformsAndLadders(ctx, stage.platforms, stage.ladders);
+      // 배경·사다리·발판 (제미나이 그림이 준비되면 그 그림으로, 아니면 예전 코드 그림)
+      if (!CanvasRenderer.drawStageLayer(ctx, stage.id, CANVAS_WIDTH, CANVAS_HEIGHT, stage.platforms, stage.ladders)) {
+        CanvasRenderer.drawBackground(ctx, stage.id, CANVAS_WIDTH, CANVAS_HEIGHT, performance.now() / 1000);
+        CanvasRenderer.drawPlatformsAndLadders(ctx, stage.platforms, stage.ladders);
+      }
 
       // Draw Spikes
       spikesRef.current.forEach((spk) => CanvasRenderer.drawSpike(ctx, spk));
@@ -998,8 +1003,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     <div className="relative w-full max-w-[560px] flex flex-col items-center bg-black border-2 border-cyan-500 rounded-t-lg overflow-hidden shadow-2xl">
       <canvas
         ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        width={CANVAS_WIDTH * 2}
+        height={CANVAS_HEIGHT * 2}
         className="w-full h-auto bg-black block cursor-crosshair aspect-[4/3]"
       />
     </div>
