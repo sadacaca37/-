@@ -6,17 +6,22 @@ import { soundFx } from "../game/SoundEffects";
 
 interface CraftingGridProps {
   dim?: 2 | 3;
-  onCraftItem: (blockType: BlockType, count: number) => void;
+  onCraftItem: (blockType: BlockType, count: number, consumed: Record<number, number>) => void;
   icons: Record<BlockType, string>;
   playerInventory?: Array<{ id: number; count: number }>;
+  // Survival: what the player actually owns (BlockType -> count). When set,
+  // crafting requires and consumes the ingredients.
+  survivalInventory?: Record<number, number>;
 }
 
 export const CraftingGrid: React.FC<CraftingGridProps> = ({
   dim: initialDim = 3,
   onCraftItem,
   icons,
+  survivalInventory,
 }) => {
   const [dim, setDim] = useState<2 | 3>(initialDim);
+  const [craftError, setCraftError] = useState<string | null>(null);
   const [grid, setGrid] = useState<(BlockType | null)[]>(new Array(initialDim * initialDim).fill(null));
   const [showRecipeBook, setShowRecipeBook] = useState(false);
 
@@ -38,11 +43,36 @@ export const CraftingGrid: React.FC<CraftingGridProps> = ({
     }
   };
 
+  // Ingredients the current grid would use up
+  const neededCounts = (): Record<number, number> => {
+    const need: Record<number, number> = {};
+    for (const cell of grid) {
+      if (cell !== null && cell !== BlockType.AIR) need[cell] = (need[cell] ?? 0) + 1;
+    }
+    return need;
+  };
+  const missingIngredient = (): string | null => {
+    if (!survivalInventory) return null;
+    const need = neededCounts();
+    for (const k of Object.keys(need)) {
+      const t = Number(k) as BlockType;
+      const have = survivalInventory[t] ?? 0;
+      if (have < need[t]) return `${BLOCK_DEFINITIONS[t]?.nameKo ?? "재료"} ${need[t] - have}개 부족`;
+    }
+    return null;
+  };
+
   const handleTakeResult = () => {
     if (!match) return;
+    const missing = missingIngredient();
+    if (missing) {
+      setCraftError(missing);
+      setTimeout(() => setCraftError(null), 1800);
+      return;
+    }
 
     soundFx.playCraft();
-    onCraftItem(match.result.blockType, match.result.count);
+    onCraftItem(match.result.blockType, match.result.count, neededCounts());
 
     // Consume 1 from each occupied cell
     const next = [...grid];
@@ -88,7 +118,12 @@ export const CraftingGrid: React.FC<CraftingGridProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 bg-stone-900/90 border border-stone-700/80 rounded-xl p-4 text-stone-100">
+    <div className="relative flex flex-col gap-4 bg-stone-900/90 border border-stone-700/80 rounded-xl p-4 text-stone-100">
+      {craftError && (
+        <div className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-lg border border-red-500/60 bg-red-950/90 px-3 py-1 text-xs font-bold text-red-200 shadow-lg">
+          ⚠ {craftError}
+        </div>
+      )}
       {/* Header with Mode Toggle & Recipe Book Button */}
       <div className="flex items-center justify-between border-b border-stone-800 pb-2.5">
         <div className="flex items-center gap-2">

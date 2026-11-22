@@ -166,6 +166,8 @@ export class Chunk {
         for (let x = 0; x < CHUNK_WIDTH; x++) {
           const blockType = this.getBlock(x, y, z);
           if (blockType === BlockType.AIR) continue;
+          // Decorations are drawn as separate little models (VoxelWorld.syncDecor)
+          if (blockType === BlockType.FLOWER_POT || blockType === BlockType.LANTERN || blockType === BlockType.TORCH || blockType === BlockType.ANVIL || blockType === BlockType.FENCE) continue;
 
           const meta = BLOCK_DEFINITIONS[blockType];
           const isTransparentBlock = meta.transparent;
