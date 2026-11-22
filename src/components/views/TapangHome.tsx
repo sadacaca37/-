@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { soundManager } from '../../utils/sound';
+import { MoaWalker, WalkDir } from '../MoaCharacter';
 import { pointsManager } from '../../utils/pointsManager';
 import { getQuestProgress, QuestMode } from '../../utils/questProgress';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
@@ -494,6 +495,9 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
   const targetPoint = targetStageIdx >= 0 ? stagePoint(targetStageIdx) : ROAD_WAYPOINTS[0];
   const [botPos, setBotPos] = useState<RoadPoint>(targetPoint);
   const [isWalking, setIsWalking] = useState(false);
+  const [walkDir, setWalkDir] = useState<WalkDir>('right');
+  const walkDirRef = useRef<WalkDir>('right');
+  walkDirRef.current = walkDir;
   const [arrivedStageIdx, setArrivedStageIdx] = useState<number | null>(null);
   const [showSparkle, setShowSparkle] = useState(false);
   const botLayerRef = useRef<HTMLDivElement | null>(null);
@@ -575,6 +579,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     const duration = Math.min(2900, 2000 + Math.max(0, Math.abs(targetStageIdx - prevIdx) - 1) * 350);
 
     setBotPos(startPt);
+    setWalkDir(pathPts.length > 1 && pathPts[1].x < startPt.x ? 'left' : 'right');
     setIsWalking(true);
     setShowSparkle(false);
     if (botLayerRef.current) {
@@ -585,6 +590,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     let sparkleTimer = 0;
     let t0 = 0;
 
+    let lastPt: RoadPoint | null = null;
     const tick = (now: number) => {
       if (!t0) t0 = now;
       const rawT = Math.min(1, (now - t0) / duration);
@@ -594,6 +600,16 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       if (botLayerRef.current) {
         botLayerRef.current.style.transform = `translate3d(${pt.x}%, ${pt.y}%, 0)`;
       }
+      // 가는 방향에 따라 캐릭터가 왼쪽·오른쪽·앞·뒤를 봄
+      if (lastPt) {
+        const dx = pt.x - lastPt.x;
+        const dy = pt.y - lastPt.y;
+        if (Math.abs(dx) + Math.abs(dy) > 0.25) {
+          const d: WalkDir = Math.abs(dx) >= Math.abs(dy) * 0.8 ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'front' : 'back';
+          if (d !== walkDirRef.current) setWalkDir(d);
+          lastPt = pt;
+        }
+      } else lastPt = pt;
 
       if (rawT < 1) {
         rafId = window.requestAnimationFrame(tick);
@@ -781,8 +797,14 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                   </span>
                 )}
                 <span className="qm-bot-sprite">
-                  <Pixel grid={TV_BOT} pal={TV_PAL} size={64} className="qm-bot-tv" />
-                  <span className="qm-tracks" aria-hidden="true" />
+                  <MoaWalker
+                    size={72}
+                    walking={isWalking}
+                    dir={isWalking ? walkDir : 'front'}
+                    className="qm-bot-moa"
+                    fallback={<Pixel grid={TV_BOT} pal={TV_PAL} size={64} className="qm-bot-tv" />}
+                  />
+                  <span className="qm-moa-shadow" aria-hidden="true" />
                 </span>
                 {!hideBotBubble && (
                   <span

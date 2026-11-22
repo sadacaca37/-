@@ -4171,3 +4171,7 @@ body:has(.tp-typing-screen) .tp-result-big * {
   word-break: keep-all;
   overflow-wrap: normal;
 }
+
+/* 퀘스트 지도: 로봇 대신 모아팡 캐릭터가 걸어감 */
+.qm-bot-moa { width: 6.4cqw !important; height: 6.4cqw !important; filter: drop-shadow(0 0.2cqw 0 rgba(20, 28, 16, 0.4)); }
+.qm-moa-shadow { width: 3.6cqw; height: 0.9cqw; margin-top: -0.7cqw; border-radius: 50%; background: rgba(20, 28, 16, 0.35); }
