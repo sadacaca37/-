@@ -173,11 +173,12 @@ export async function loadStudent(s: MoaSession): Promise<UserSession> {
 }
 
 /** 선생님이 타자팡 저장을 승인한 학생인지 (config/taja_approved, 선생님만 씀) */
-export async function approvedByTeacher(userId: string): Promise<boolean> {
+export async function approvedByTeacher(userId: string, strict = false): Promise<boolean> {
   try {
     const snap = await getDoc(doc(fs, 'config', 'taja_approved'));
     return !!(snap.exists() && (snap.data() as any).ok?.[userId]);
-  } catch {
+  } catch (e) {
+    if (strict) throw e; // 인터넷이 잠깐 끊긴 것을 '승인 안 됨'으로 착각하지 않게
     return false;
   }
 }
@@ -368,17 +369,23 @@ export async function loginMember(rawName: string, phone: string): Promise<{ ok:
 }
 
 /** 저장된 로그인으로 다시 들어오기 (승인이 풀렸으면 null) */
-export async function reloadMember(userId: string): Promise<UserSession | null> {
+/**
+ * 이 컴퓨터에 로그인해 둔 회원을 다시 확인
+ *  - null: 지워졌거나 승인이 풀린 회원 → 로그아웃
+ *  - 'offline': 인터넷·Firebase에 잠깐 닿지 않음 → 로그인은 그대로 두고 나중에 다시 확인
+ *    (예전에는 이때도 null 이라 학교 와이파이가 느린 날 학생이 저절로 로그아웃됐음)
+ */
+export async function reloadMember(userId: string): Promise<UserSession | null | 'offline'> {
   const p = parseUserId(userId);
   if (!p || p.cid !== MEMBER_CID) return null;
   try {
     const u = await ensureUser();
     const snap = await getDoc(memberRef(p.key));
-    if (!snap.exists() || !(await approvedByTeacher(userId))) return null;
+    if (!snap.exists() || !(await approvedByTeacher(userId, true))) return null;
     const v = snap.data() as any;
     if (v.uid !== u.uid) await setDoc(memberRef(p.key), { name: v.name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
     return memberSession(p.key, v, true);
   } catch {
-    return null;
+    return 'offline';
   }
 }

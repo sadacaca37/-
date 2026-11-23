@@ -123,7 +123,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
 
       <header className="cy-title">
         <span className="cy-star">★</span>
-        사이버 랭킹전 <small>(CYBER RANKING)</small>
+        명예의 전당 <small>짧은 글 타수 순위</small>
         <span className="cy-star">★</span>
       </header>
 
@@ -141,12 +141,12 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
       </nav>
 
       <div className="flex flex-wrap items-center justify-center gap-2 -mt-1 mb-2 text-[12px] font-black" style={{ position: 'relative', zIndex: 2 }}>
-        <span style={{ color: '#9fe8ff' }}>📅 {month ? `${monthLabel(month)} 기록 (보관함)` : `${monthLabel(thisMonth())} 명예의 전당 · 매달 1일 새로 시작`}</span>
+        <span className="cy-month">📅 {month ? `${monthLabel(month)} 기록 (보관함)` : `${monthLabel(thisMonth())} 명예의 전당 · 매달 1일 새로 시작`}</span>
         {months.length > 0 && (
           <select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="px-2 py-1 rounded-lg bg-slate-900 text-cyan-100 border border-cyan-400/60 cursor-pointer"
+            className="cy-month-select"
             aria-label="달 고르기"
             data-testid="lb-month"
           >
@@ -161,10 +161,10 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
       </div>
 
       {/* 주간 랭킹 보상 안내 + 지난주 학년별 1~3등 */}
-      <div className="mx-auto mb-3 max-w-3xl px-3 py-2 rounded-xl text-[12px] font-black text-center" style={{ position: 'relative', zIndex: 2, background: 'rgba(15,23,42,0.75)', border: '1px solid rgba(253,224,71,0.6)', color: '#fde68a' }} data-testid="rank-reward-info">
+      <div className="cy-reward" data-testid="rank-reward-info">
         🏆 매주 학년별 짧은 글 최고 타수 1등 {RANK_POINTS[0]}P · 2등 {RANK_POINTS[1]}P · 3등 {RANK_POINTS[2]}P (월요일에 자동으로 선물이 와요)
         {lastWin && lastWin.winners.length > 0 && (
-          <div className="mt-1 text-[11px] font-bold" style={{ color: '#cffafe' }}>
+          <div className="cy-reward-last">
             지난 주({weekLabel(lastWin.week)}):{' '}
             {[1, 2, 3, 4, 5, 6]
               .map((g) => {
@@ -222,9 +222,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
           <table className="cy-table">
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Student Name</th>
-                <th>타수 (CPM)</th>
+                <th>순위</th>
+                <th>이름</th>
+                <th>타수</th>
                 <th>정확도</th>
                 <th>걸린 시간</th>
                 <th className="cy-hide-sm">학년</th>
@@ -234,7 +234,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
               {rest.length > 0 ? (
                 rest.map((e, i) => (
                   <tr key={e.id}>
-                    <td>{i + 4}th</td>
+                    <td>{i + 4}등</td>
                     <td className="cy-name">
                       {e.userAvatar ? `${e.userAvatar} ` : ''}
                       {e.userName}
@@ -258,7 +258,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
 
         <div className="cy-board-foot">
           <button type="button" className="cy-coin" onClick={onStartSentencePractice}>
-            ▶ INSERT COIN · 짧은 글 도전
+            ▶ 짧은 글 도전하러 가기
           </button>
         </div>
 

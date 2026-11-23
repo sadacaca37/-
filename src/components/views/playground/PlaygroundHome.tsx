@@ -219,7 +219,9 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   // If a game is actively playing, render inside PlaygroundHeader with full-view toggle
   if (activeGame) {
     const GameComponent = activeGame.component;
-    const isBasic = BASIC_GAME_IDS.includes(activeGame.id);
+    // '기본' 칸의 게임은 모두 무료 (예전에는 목록에 빠진 수박게임·탕후루·젤리 러너가
+    //  펀펀 시간을 깎고 1,000P 자동 충전까지 될 수 있었음)
+    const isBasic = activeGame.category === '기본' || BASIC_GAME_IDS.includes(activeGame.id);
     // 펀펀 게임은 원본 게임을 창(iframe)으로 띄우므로 크기만 꽉 채우면 됨
     const isIframeGame = activeGame.category === '펀펀';
 

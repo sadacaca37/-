@@ -28,6 +28,7 @@ import { pointsManager, MASTER_POINTS } from '../utils/pointsManager';
 import { longUnlocked, SHORT_TO_LONG_CPM } from '../utils/longGate';
 import { myTier } from '../utils/speedTier';
 import { PixelIcon } from './views/TapangHome';
+import { FUNFUN_ENTRY_POINTS, GAME_POINTS, PRACTICE_SET_POINTS } from '../utils/pointRules';
 import { soundManager } from '../utils/sound';
 import { MoaCharacter } from './MoaCharacter';
 
@@ -131,21 +132,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   // 계정 버튼 앞 그림: 내 타자 등급 (선생님은 왕관, 로그인 전은 웃는 얼굴)
   const tier = currentUser?.role === 'master' ? { emoji: '👑', title: '선생님' } : currentUser ? myTier(currentUser.id) : { emoji: '🙂', title: '' };
 
-  const navItems = [
-    { mode: 'key-practice' as AppMode, label: '자리 연습', icon: Keyboard, color: 'sky' },
-    { mode: 'word-practice' as AppMode, label: '낱말 연습', icon: BookOpen, color: 'mint' },
-    { mode: 'sentence-practice' as AppMode, label: '짧은 글 (5분)', icon: FileText, color: 'pink', badge: '한/영' },
-    { mode: 'long-practice' as AppMode, label: '긴 글 연습', icon: FileText, color: 'indigo', badge: longUnlocked(currentUser) ? '신규' : `🔒${SHORT_TO_LONG_CPM}타` },
-    { mode: 'knowledge-hub' as AppMode, label: '지식 타자', icon: GraduationCap, color: 'purple', badge: '3대 코스' },
-    { mode: 'mini-games' as any, label: '미니타자게임', icon: Gamepad2, color: 'rose', badge: '무료' },
-    { 
-      mode: 'playground' as AppMode, 
-      label: '놀이터', 
-      icon: Sparkles, 
-      color: 'yellow', 
-      badge: currentUser ? (currentUser?.role === 'master' ? '마스터 FREE' : '기본/펀펀') : '로그인 전용'
-    },
-    { mode: 'leaderboard' as AppMode, label: '명예의 전당', icon: Trophy, color: 'yellow', badge: '랭킹' },
+  // 위쪽 메뉴: 1~4단계 연습 → 지식 타자 → 게임 → 명예의 전당 (홈 지도 STAGE 순서와 같게)
+  //  - 배지는 꼭 알아야 할 것(긴 글 잠금, 로그인 필요)만 남겨 좁은 화면에서도 한 줄~두 줄에 다 보이게
+  type NavItem = { mode: AppMode; label: string; icon: any; color: string; badge?: string; step?: number; sep?: boolean };
+  const navItems: NavItem[] = [
+    { mode: 'key-practice', label: '자리 연습', icon: Keyboard, color: 'sky', step: 1 },
+    { mode: 'word-practice', label: '낱말 연습', icon: BookOpen, color: 'mint', step: 2 },
+    { mode: 'sentence-practice', label: '짧은 글', icon: FileText, color: 'pink', step: 3 },
+    { mode: 'long-practice', label: '긴 글', icon: FileText, color: 'indigo', step: 4, badge: longUnlocked(currentUser) ? undefined : `🔒${SHORT_TO_LONG_CPM}타` },
+    { mode: 'knowledge-hub', label: '지식 타자', icon: GraduationCap, color: 'purple', sep: true },
+    { mode: 'mini-games', label: '미니타자게임', icon: Gamepad2, color: 'rose', sep: true },
+    { mode: 'playground', label: '놀이터', icon: Sparkles, color: 'yellow', badge: currentUser ? undefined : '로그인' },
+    { mode: 'leaderboard', label: '명예의 전당', icon: Trophy, color: 'yellow', sep: true },
   ];
 
   return (
@@ -256,10 +254,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Total Points Wallet Indicator (상단 마스터 관리실 옆 전체 보유 포인트) */}
+            <div className="tp-pt-wrap">
             <button
               onClick={() => onOpenProfile('account')}
               className="tp-nbtn tp-nbtn--coin px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-100 hover:from-yellow-100 hover:to-amber-200 text-amber-950 border-2 border-yellow-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 group"
-              title="내 포인트 (클릭하여 내 프로필 확인)"
+              aria-label="내 포인트 (누르면 내 계정)"
             >
               <PixelIcon name="coin" size={26} className="group-hover:rotate-12 transition-transform" />
               <div className="flex flex-col text-left">
@@ -279,6 +278,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
             </button>
+            {/* 마우스를 올리면: 포인트 모으는 법 · 쓰는 곳 · 펀펀 플레이까지 남은 포인트 */}
+            {userPoints < MASTER_POINTS && (
+              <div className="tp-pt-tip" role="tooltip" data-testid="points-tip">
+                <b>💰 포인트 모으는 법</b>
+                <ul>
+                  <li>⌨️ 타자 연습 한 세트 끝내기 +{PRACTICE_SET_POINTS}P</li>
+                  <li>🎮 타자 게임 한 판 끝내기 +{GAME_POINTS}P</li>
+                  <li>🏆 주간 랭킹 1~3등 선물</li>
+                </ul>
+                <b>🎁 쓰는 곳</b>
+                <ul>
+                  <li>🎢 놀이터 펀펀 플레이 10분 {FUNFUN_ENTRY_POINTS.toLocaleString()}P</li>
+                </ul>
+                {!currentUser ? (
+                  <div className="tp-pt-goal">로그인해야 포인트가 모여요.</div>
+                ) : userPoints < FUNFUN_ENTRY_POINTS ? (
+                  <div className="tp-pt-goal">
+                    펀펀 플레이까지 <b>{(FUNFUN_ENTRY_POINTS - userPoints).toLocaleString()}P</b> 남았어요!
+                    <div className="tp-pt-bar"><i style={{ width: `${Math.round((userPoints / FUNFUN_ENTRY_POINTS) * 100)}%` }} /></div>
+                  </div>
+                ) : (
+                  <div className="tp-pt-goal">펀펀 플레이에 들어갈 수 있어요! 🎉</div>
+                )}
+              </div>
+            )}
+            </div>
 
             {/* Global Fixed Volume Slider */}
             <div className="tp-nbtn tp-nbtn--crt flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-sky-50/90 border-2 border-sky-200 text-sky-700 shadow-xs">
@@ -378,8 +403,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             if (item.color === 'yellow') activeStyles = 'bg-amber-400 text-amber-950 font-black shadow-md border-amber-500 ring-2 ring-amber-200 scale-105';
 
             return (
+              <React.Fragment key={item.mode}>
+              {item.sep && <span className="tp-nav-sep" aria-hidden="true" />}
               <button
-                key={item.mode}
                 onClick={() => {
                   if (item.mode === 'playground' && !currentUser) {
                     soundManager.play('error');
@@ -395,7 +421,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-pink-50 hover:border-pink-200 hover:text-pink-700'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : item.color === 'rose' ? 'text-rose-500' : ''}`} />
+                {item.step ? (
+                  <span className="tp-step-no" aria-label={`${item.step}단계`}>{item.step}</span>
+                ) : (
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : item.color === 'rose' ? 'text-rose-500' : ''}`} />
+                )}
                 <span>{item.label}</span>
                 {item.badge && (
                   <span className={`tp-tab-badge text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase ${
@@ -405,6 +435,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 )}
               </button>
+              </React.Fragment>
             );
           })}
         </div>

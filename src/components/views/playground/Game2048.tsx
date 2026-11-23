@@ -128,6 +128,7 @@ export const Game2048: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       title="2048 퍼즐"
       subtitle="SLIDE · MERGE · 2048"
       tone="#edc22e"
+      scene="./assets/playground/thumb-2048.webp"
       score={score}
       best={Math.max(best, score)}
       extra={<button className="ac-chip ac-chip--btn" onClick={undo} disabled={!hist.current}>↶ 되돌리기</button>}
