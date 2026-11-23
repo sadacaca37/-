@@ -101,6 +101,10 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   const [inputVal, setInputVal] = useState('');
   const [hasResumed, setHasResumed] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // 예시 글이 한 줄에 다 들어가도록 글자 크기를 맞춤 (치는 칸도 같은 크기)
+  const lineBoxRef = useRef<HTMLDivElement>(null);
+  const lineMeasureRef = useRef<HTMLSpanElement>(null);
+  const [lineFontPx, setLineFontPx] = useState(24);
   
   // 5-Min Challenge or Regular mode
   const [is5MinMode, setIs5MinMode] = useState(false);
@@ -245,6 +249,27 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   const SET_SENTENCES = 20;
   const activeSentences = (isRandomOrder && shuffledSentences.length > 0 ? shuffledSentences : currentCategory.sentences).slice(0, SET_SENTENCES);
   const currentSentence = activeSentences[sentenceIndex] || activeSentences[0] || '';
+
+  React.useLayoutEffect(() => {
+    const fit = () => {
+      const box = lineBoxRef.current;
+      const m = lineMeasureRef.current;
+      if (!box || !m) return;
+      const cs = getComputedStyle(box);
+      const avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 32; // 칸 테두리·여백
+      const w100 = m.getBoundingClientRect().width / (box.getBoundingClientRect().width / Math.max(1, box.offsetWidth) || 1);
+      if (avail <= 0 || w100 <= 0) return;
+      const px = Math.max(13, Math.min(34, Math.floor((avail / w100) * 100 * 0.98)));
+      setLineFontPx((old) => (old === px ? old : px));
+    };
+    fit();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
+    if (ro && lineBoxRef.current) ro.observe(lineBoxRef.current);
+    try {
+      (document as any).fonts?.ready?.then(fit);
+    } catch {}
+    return () => ro?.disconnect();
+  }, [currentSentence]);
 
   // Target next character and finger guide accurately based on atomic strokes
   const targetGuide = useMemo(() => {
@@ -904,16 +929,21 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       <div className="pr-shell p-3 sm:p-4 space-y-3">
         {/* Forest Meadow Backdrop with Parchment Scroll Target & Input */}
         <div className="pr-meadow-stage pr-meadow-stage--sentence p-4 sm:p-6 space-y-4">
-          {/* Target Sentence Parchment Scroll Card (fixed box height; only font size scales for long sentences) */}
-          <div className="pr-parchment-card pr-parchment-card--sentence h-[144px] sm:h-[164px] overflow-hidden flex flex-col justify-center items-center text-center">
+          {/* 예시 글 한 줄 + 바로 아래 같은 글꼴·크기로 치는 칸 → 친 글자가 예시 글자와 같은 자리에 맞춰짐 */}
+          <div ref={lineBoxRef} className="pr-parchment-card pr-parchment-card--sentence pr-parchment-card--line relative flex flex-col justify-center gap-1.5">
+            <span
+              ref={lineMeasureRef}
+              aria-hidden
+              className="absolute invisible pointer-events-none whitespace-nowrap font-black font-arcade"
+              style={{ fontSize: 100, left: 0, top: 0 }}
+            >
+              {currentSentence}
+            </span>
             <div
               data-testid="target-sentence"
               data-sentence={currentSentence}
-              className={`${
-                currentSentence.length > 36
-                  ? 'text-xl sm:text-2xl md:text-3xl leading-snug'
-                  : 'text-2xl sm:text-3xl md:text-4xl leading-relaxed'
-              } font-extrabold tracking-wide font-arcade select-none`}
+              className="text-left whitespace-nowrap overflow-hidden font-black font-arcade select-none px-3 border-4 border-transparent"
+              style={{ fontSize: lineFontPx, lineHeight: 1.5 }}
             >
               {currentSentence.split('').map((char, index) => {
                 let charStyle = 'text-[#7d6242]';
@@ -937,16 +967,14 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                 }
 
                 return (
-                  <span key={index} className={`px-0.5 ${charStyle}`}>
+                  <span key={index} className={charStyle}>
                     {char === ' ' ? '\u00A0' : char}
                   </span>
                 );
               })}
             </div>
-          </div>
 
-          {/* User Typing Input Field */}
-          <div className="relative">
+            <div className="relative">
             <input
               ref={inputRef}
               type="text"
@@ -956,7 +984,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
               placeholder={language === 'ko' ? "문장을 다 치고 Enter 또는 스페이스를 누르면 다음 문장으로 넘어가요" : "Type the sentence, then press Enter or Space to go on"}
-              className="block w-full text-center text-xl sm:text-2xl md:text-3xl font-black px-5 py-3.5 rounded-xl border-4 border-[#3d220d] focus:border-[#b45309] focus:ring-4 focus:ring-[#fde047]/70 outline-hidden bg-[#fffaf0] text-[#241106] tracking-wide font-arcade placeholder:text-base sm:placeholder:text-lg placeholder:text-[#8c6b48] shadow-[0_4px_0_#2c1507]"
+              className="block w-full text-left font-black font-arcade whitespace-nowrap px-3 py-1.5 rounded-xl border-4 border-[#3d220d] focus:border-[#b45309] focus:ring-4 focus:ring-[#fde047]/70 outline-hidden bg-[#fffaf0] text-[#241106] placeholder:text-sm sm:placeholder:text-base placeholder:text-[#8c6b48] shadow-[0_3px_0_#2c1507]"
+              style={{ fontSize: lineFontPx, lineHeight: 1.5 }}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
@@ -984,6 +1013,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                 }}
               />
             </div>
+          </div>
           </div>
         </div>
       </div>
