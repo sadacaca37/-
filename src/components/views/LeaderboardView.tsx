@@ -200,9 +200,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
         )}
       </div>
 
-      <div className="mx-auto mb-3 max-w-3xl px-3 py-1.5 text-[12px] font-black text-center" style={{ position: 'relative', zIndex: 2, color: '#cffafe' }} data-testid="hof-rule">
+      <div className="cy-reward" data-testid="hof-rule">
         📜 짧은 글과 긴 글을 <b>모두</b> 친 학생만 올라가요 · 두 최고 기록의 <b>평균 타수</b>가 높은 순, 같으면 <b>오타</b>가 적은 순
-        {waiting.length > 0 && <div className="text-[11px] mt-0.5" style={{ color: '#fde68a' }}>🔓 한 가지만 쳐서 기다리는 친구: {waiting.slice(0, 8).join(', ')}{waiting.length > 8 ? ` 외 ${waiting.length - 8}명` : ''}</div>}
+        {waiting.length > 0 && <div className="cy-reward-last">🔓 한 가지만 쳐서 기다리는 친구: {waiting.slice(0, 8).join(', ')}{waiting.length > 8 ? ` 외 ${waiting.length - 8}명` : ''}</div>}
       </div>
 
       {/* podium */}
