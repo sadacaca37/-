@@ -4283,3 +4283,113 @@ body:has(.tp-modal) #root > div > main .tp-modal,
 body:has(.tp-modal) #root > div > main .tp-modal * {
   animation-play-state: running !important;
 }
+
+/* ================================================================
+   조선 왕조 27대 — 궁궐 족보판 (나무 틀 · 양피지 · 단청 빛깔)
+   ================================================================ */
+.kw-studio--joseon { --tone: #c0392b; }
+.js-wrap { display: flex; flex-direction: column; gap: 20px; }
+.js-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (min-width: 1024px) { .js-grid { grid-template-columns: minmax(0, 8fr) minmax(300px, 4fr); } }
+.js-board, .js-table-card, .js-now, .js-type {
+  position: relative;
+  background: repeating-linear-gradient(0deg, rgba(90, 52, 23, 0.035) 0 2px, transparent 2px 5px), linear-gradient(180deg, #fdf5dd, #f3e2b6);
+  border: 5px solid #5a3417; border-radius: 14px;
+  box-shadow: inset 0 0 0 3px #c98a4b, 0 6px 0 rgba(42, 21, 11, 0.55);
+}
+.js-board { padding: 14px 16px 12px; }
+.js-board-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.js-sign {
+  display: inline-block; padding: 6px 16px 7px; font-family: 'Jua', sans-serif; font-size: 1.25rem; color: #ffd700;
+  text-shadow: 2px 2px 0 #2a150b;
+  background: repeating-linear-gradient(180deg, transparent 0 14px, rgba(30, 14, 6, 0.28) 14px 16px), linear-gradient(180deg, #a86b33, #784e3d);
+  border: 3px solid #2a150b; border-radius: 8px; box-shadow: inset 0 0 0 2px #c98a4b, 0 4px 0 #1e0e06;
+}
+.js-count { font-family: 'Jua', sans-serif; font-size: 1rem; color: #5a3417; background: #fff4dc; border: 3px solid #5a3417; border-radius: 8px; padding: 3px 12px; box-shadow: 0 3px 0 #5a3417; }
+.js-count b { color: #c0392b; font-size: 1.15rem; }
+
+.js-row { margin-bottom: 12px; }
+.js-row-label { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.js-row-no { font-family: 'Jua', sans-serif; font-size: 13px; color: #fff; background: #2e8b57; border: 2px solid #1d5a38; border-radius: 6px; padding: 1px 8px; }
+.js-row-text { font-family: 'Jua', sans-serif; font-size: 1.05rem; letter-spacing: 0.15em; color: #c0392b; }
+.js-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 8px 8px 10px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(46, 139, 87, 0.12), rgba(46, 139, 87, 0.04)); border: 2px dashed rgba(90, 52, 23, 0.35); }
+.js-tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 6px;
+  background: #fffaf0; border: 3px solid #5a3417; border-radius: 10px; box-shadow: 0 3px 0 #5a3417; cursor: pointer; min-width: 0;
+  transition: transform 0.12s;
+}
+.js-tile:hover { transform: translateY(-2px); }
+.js-tile-pic { display: block; width: 100%; max-width: 64px; aspect-ratio: 1; border: 3px solid #2a150b; border-radius: 6px; overflow: hidden; background: #e8d3a3; }
+.js-tile-pic img { display: block; }
+.js-tile-no { position: absolute; top: 2px; left: 2px; min-width: 20px; height: 20px; padding: 0 4px; display: grid; place-items: center;
+  font-family: 'Galmuri11', monospace; font-size: 11px; font-weight: 700; color: #fff; background: #5a3417; border: 2px solid #fff4dc; border-radius: 6px; }
+.js-tile-name { font-family: 'Jua', sans-serif; font-size: 15px; line-height: 1.1; color: #3d220d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.js-tile.is-done { background: #e9f8ec; }
+.js-tile.is-done .js-tile-no { background: #2e8b57; }
+.js-tile.is-now { background: #fff1a8; border-color: #c0392b; box-shadow: 0 0 0 3px #ffd700, 0 4px 0 #c0392b; }
+.js-tile.is-now .js-tile-no { background: #c0392b; }
+.js-tile.is-now .js-tile-name { color: #c0392b; }
+.js-tile-crown { position: absolute; top: -16px; left: 50%; translate: -50% 0; font-size: 18px; animation: tpBob 1s ease-in-out infinite; }
+@media (max-width: 639px) { .js-tiles { gap: 4px; padding: 4px; } .js-tile-name { font-size: 12px; } .js-tile-no { display: none; } }
+.js-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; font-size: 12px; font-weight: 800; color: #7a5a3a; }
+
+.js-side { display: flex; flex-direction: column; gap: 12px; }
+.js-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.js-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; background: #fff4dc; border: 3px solid #5a3417; border-radius: 10px; box-shadow: 0 3px 0 #5a3417; }
+.js-stat span { font-size: 12px; font-weight: 800; color: #7a5a3a; }
+.js-stat b { font-family: 'Galmuri11', 'Jua', monospace; font-size: 1.35rem; color: #3d220d; }
+.js-memo { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; font-family: 'Jua', sans-serif; font-size: 1rem; color: #3d220d;
+  background: linear-gradient(180deg, #fff176, #ffd700 60%, #ffc400); border: 3px solid #3d220d; border-radius: 10px; box-shadow: 0 4px 0 #3d220d; cursor: pointer; }
+.js-memo.is-on { background: linear-gradient(180deg, #4b4f63, #2b2f3e); color: #ffd700; }
+.js-memo:active { transform: translateY(3px); box-shadow: 0 1px 0 #3d220d; }
+
+.js-now { padding: 14px 14px 16px; text-align: center; }
+.js-steps { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.js-step { font-family: 'Jua', sans-serif; font-size: 13px; padding: 3px 10px; border-radius: 6px; border: 2px solid #b59a74; color: #9a7a5a; background: #fffaf0; }
+.js-step.is-on { color: #fff; background: #c0392b; border-color: #7f1d1d; }
+.js-step.is-done { color: #fff; background: #2e8b57; border-color: #1d5a38; }
+.js-frame { position: relative; display: inline-block; padding: 8px; margin-bottom: 14px; background: linear-gradient(180deg, #a86b33, #784e3d); border: 4px solid #2a150b; border-radius: 10px; box-shadow: inset 0 0 0 2px #c98a4b, 0 5px 0 #1e0e06; }
+.js-frame-pic { width: 168px; height: 168px; border: 3px solid #2a150b; border-radius: 4px; overflow: hidden; background: #e8d3a3; }
+.js-frame-pic img { display: block; }
+.js-frame-plaque { position: absolute; left: 50%; bottom: -14px; translate: -50% 0; white-space: nowrap; padding: 2px 12px; font-family: 'Jua', sans-serif; font-size: 15px; color: #ffd700; background: #c0392b; border: 3px solid #2a150b; border-radius: 8px; text-shadow: 1px 1px 0 #2a150b; }
+.js-caption { margin-top: 6px; font-size: 12px; font-weight: 800; color: #7a5a3a; line-height: 1.4; }
+.js-reign { margin-top: 4px; font-size: 13px; font-weight: 800; color: #2e8b57; }
+.js-target { margin-top: 10px; padding-top: 10px; border-top: 3px dashed rgba(90, 52, 23, 0.3); }
+.js-target-tag { display: inline-block; font-family: 'Jua', sans-serif; font-size: 13px; color: #c0392b; }
+.js-target-tag--2 { color: #2e8b57; }
+.tp-skin .js-target-name, .js-target-name { font-family: 'Jua', sans-serif !important; font-weight: 400 !important; font-size: 2.6rem; line-height: 1.1; color: #3d220d; margin: 2px 0; }
+.tp-skin .js-target-line, .js-target-line { font-family: 'Jua', sans-serif !important; font-weight: 400 !important; font-size: 1.35rem; line-height: 1.3; color: #3d220d; margin: 4px 0; }
+.js-target-sub { font-size: 12.5px; font-weight: 700; color: #7a5a3a; line-height: 1.45; }
+.js-type { padding: 10px; }
+.js-input { width: 100%; padding: 14px 12px; text-align: center; font-size: 1.15rem; font-weight: 800; color: #3d220d; background: #fffdf6; border: 3px solid #5a3417; border-radius: 10px; outline: none; box-shadow: inset 0 3px 0 rgba(90, 52, 23, 0.12); }
+.js-input:focus { border-color: #c0392b; box-shadow: 0 0 0 3px #ffd700; }
+.js-input::placeholder { color: #b59a74; font-weight: 700; font-size: 0.95rem; }
+.js-type-meta { display: flex; justify-content: space-between; margin-top: 6px; padding: 0 4px; font-size: 12px; font-weight: 800; color: #7a5a3a; }
+
+.js-table-card { padding: 14px 16px 16px; }
+.js-table-help { font-size: 13px; font-weight: 700; color: #7a5a3a; margin: -4px 0 10px; }
+.js-table-scroll { overflow-x: auto; border: 3px solid #5a3417; border-radius: 10px; background: #fffaf0; }
+.js-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.js-table th { position: sticky; top: 0; padding: 8px 10px; text-align: left; font-family: 'Jua', sans-serif; font-weight: 400; font-size: 14px; color: #ffd700; background: #784e3d; border-bottom: 3px solid #2a150b; white-space: nowrap; }
+.js-table td { padding: 6px 10px; border-bottom: 2px solid rgba(90, 52, 23, 0.15); color: #3d220d; vertical-align: middle; }
+.js-table tr { cursor: pointer; }
+.js-table tbody tr:hover { background: #fff4dc; }
+.js-table tr.is-done { background: #eef9f0; }
+.js-table tr.is-now { background: #fff1a8; box-shadow: inset 4px 0 0 #c0392b; }
+.js-td-no { width: 52px; text-align: center; font-family: 'Galmuri11', monospace; font-weight: 700; color: #7a5a3a; }
+.js-check { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #2e8b57; color: #fff; font-size: 12px; }
+.js-td-pic { width: 56px; }
+.js-mini { display: block; width: 40px; height: 40px; border: 2px solid #2a150b; border-radius: 6px; overflow: hidden; background: #e8d3a3; }
+.js-td-name { width: 80px; font-family: 'Jua', sans-serif; font-size: 16px; white-space: nowrap; }
+.js-td-year { width: 100px; font-family: 'Galmuri11', monospace; font-size: 12px; color: #7a5a3a; white-space: nowrap; }
+.js-td-desc b { font-weight: 800; }
+.js-td-desc span { color: #7a5a3a; }
+.js-td-desc em { margin-left: 6px; font-style: normal; font-size: 11.5px; font-weight: 800; color: #2e8b57; white-space: nowrap; }
+.js-credit { display: inline-block; margin-top: 2px; font-size: 10.5px; font-weight: 700; color: #9a7a5a; text-decoration: underline dotted; }
+.js-credits { margin-top: 10px; font-size: 12px; color: #7a5a3a; }
+.js-credits summary { cursor: pointer; font-weight: 800; }
+.js-credits ul { margin: 6px 0 0 18px; list-style: disc; columns: 2; column-gap: 24px; }
+@media (max-width: 767px) { .js-credits ul { columns: 1; } }
+.js-credits a { color: #5a3417; text-decoration: underline; }
+.js-tile-pic, .js-frame-pic, .js-mini { position: relative; }

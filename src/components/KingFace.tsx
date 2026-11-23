@@ -48,14 +48,69 @@ const LOOKS: Record<number, Look> = {
   27: { beard: 'thin', mood: 'sad' }, // 순종 (대한제국 황제)
 };
 
-/** 실제 어진(초상화)·사진이 전하는 왕 (public/kings, 퍼블릭 도메인 — CREDITS.txt 참고) */
-export const REAL_KING_PORTRAITS: Record<number, { src: string; caption: string }> = {
+/** 실제 어진(초상화)·사진이 전하는 왕 (퍼블릭 도메인 — public/kings/CREDITS.txt 참고)
+ *  - 세조는 1935년 무렵 김은호가 원래 어진을 보고 그린 밑그림(초본)이 남아 있어 위키미디어 공용에서 불러옴 */
+const WM = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/';
+export const REAL_KING_PORTRAITS: Record<number, { src: string; caption: string; crop?: { scale: number; origin: string }; credit?: { by: string; license: string; page: string } }> = {
   1: { src: 'kings/taejo.webp', caption: '태조 어진 (1872년 모사본)' },
+  7: {
+    src: WM + '6/6c/%EC%84%B8%EC%A1%B0_%EC%96%B4%EC%A7%84_%EC%B4%88%EB%B3%B8.jpg/960px-%EC%84%B8%EC%A1%B0_%EC%96%B4%EC%A7%84_%EC%B4%88%EB%B3%B8.jpg',
+    caption: '세조 어진 초본 (원래 어진을 보고 그린 밑그림)',
+    crop: { scale: 4.2, origin: '50% 7%' },
+    credit: { by: '김은호', license: '퍼블릭 도메인', page: 'https://commons.wikimedia.org/wiki/File:%EC%84%B8%EC%A1%B0_%EC%96%B4%EC%A7%84_%EC%B4%88%EB%B3%B8.jpg' },
+  },
   21: { src: 'kings/yeongjo.webp', caption: '영조 어진 (1900년 모사본)' },
   25: { src: 'kings/cheoljong.webp', caption: '철종 어진 (1861년, 일부 불탐)' },
   26: { src: 'kings/gojong.webp', caption: '고종 어진' },
   27: { src: 'kings/sunjong.webp', caption: '순종 사진' },
 };
+
+/**
+ * 어진(얼굴)이 전하지 않는 왕: 그 왕 때 가장 이름난 유적·유물·그림의 실제 사진 (위키미디어 공용에서 불러옴, 출처 표시)
+ *  - 사진을 못 불러오면(인터넷 막힘 등) 같은 것을 그린 도트 그림(public/kings/relic_XX.png)을 대신 보여 줌
+ */
+type Credit = { by: string; license: string; page: string };
+type Relic = { photo: string; src?: string; name: string; caption: string; credit: Credit; pos?: string };
+const C = (by: string, license: string, file: string): Credit => ({ by, license, page: 'https://commons.wikimedia.org/wiki/File:' + file });
+export const KING_RELICS: Record<number, Relic> = {
+  2: { photo: WM + 'c/c3/Gyeongbokgung%28palace%29_Geunjeongjeon%28hall%29.jpg/330px-Gyeongbokgung%28palace%29_Geunjeongjeon%28hall%29.jpg', src: 'kings/relic_02.png', name: '경복궁 근정전', caption: '정종이 왕위에 오른 경복궁 근정전', credit: C('Brady Bellini', 'CC0', 'Gyeongbokgung(palace)_Geunjeongjeon(hall).jpg') },
+  3: { photo: WM + 'a/a1/Donhwamun_Gate_Changdeokgung_1.jpg/330px-Donhwamun_Gate_Changdeokgung_1.jpg', src: 'kings/relic_03.png', name: '창덕궁 돈화문', caption: '태종 때(1405) 새로 지은 궁궐, 창덕궁의 정문 돈화문', credit: C('kallerna', 'CC BY-SA 4.0', 'Donhwamun_Gate_Changdeokgung_1.jpg') },
+  4: { photo: WM + '6/67/Hunminjeongeum_Haerye_03.jpg/330px-Hunminjeongeum_Haerye_03.jpg', src: 'kings/relic_04.png', name: '훈민정음 해례본', caption: '세종 때(1446) 펴낸 훈민정음 해례본', credit: C('조선 정부', '퍼블릭 도메인', 'Hunminjeongeum_Haerye_03.jpg') },
+  5: { photo: 'https://upload.wikimedia.org/wikipedia/commons/2/21/Rain_Gauge_%EC%B8%A1%EC%9A%B0%EA%B8%B0.jpg', src: 'kings/relic_05.png', name: '측우기', caption: '문종이 세자 때(1441) 만든, 비의 양을 재는 측우기', credit: C('Gyeongmin Koh', 'CC BY-SA 4.0', 'Rain_Gauge_%EC%B8%A1%EC%9A%B0%EA%B8%B0.jpg'), pos: '50% 20%' },
+  6: { photo: WM + '2/2f/CheongRyeongpo_Eoso.JPG/330px-CheongRyeongpo_Eoso.JPG', src: 'kings/relic_06.png', name: '영월 청령포', caption: '단종이 쫓겨나 머문 영월 청령포의 집(어소)', credit: C('Naturehead', 'CC BY-SA 3.0', 'CheongRyeongpo_Eoso.JPG') },
+  7: { photo: WM + 'c/c0/Korea-Seoul-Tapgol_Park_10_Storied_Pagoda_at_Wongaksa_0095-06.JPG/330px-Korea-Seoul-Tapgol_Park_10_Storied_Pagoda_at_Wongaksa_0095-06.JPG', src: 'kings/relic_07.png', name: '원각사지 십층석탑', caption: '세조 때(1467) 세운 원각사지 십층석탑', credit: C('Steve46814', 'CC BY-SA 3.0', 'Korea-Seoul-Tapgol_Park_10_Storied_Pagoda_at_Wongaksa_0095-06.JPG') },
+  8: { photo: WM + '6/65/%EA%B3%A0%EC%96%91_%EC%84%9C%EC%98%A4%EB%A6%89_%EC%B0%BD%EB%A6%89.jpg/330px-%EA%B3%A0%EC%96%91_%EC%84%9C%EC%98%A4%EB%A6%89_%EC%B0%BD%EB%A6%89.jpg', name: '창릉', caption: '예종이 잠든 창릉 (고양 서오릉)', credit: C('QWMN1409', 'CC BY-SA 4.0', '%EA%B3%A0%EC%96%91_%EC%84%9C%EC%98%A4%EB%A6%89_%EC%B0%BD%EB%A6%89.jpg') },
+  9: { photo: WM + 'a/a3/Gyeongguk_daejeon_in_the_National_Museum_of_Korea_2016-11.jpg/330px-Gyeongguk_daejeon_in_the_National_Museum_of_Korea_2016-11.jpg', src: 'kings/relic_09.png', name: '경국대전', caption: '성종 때(1485) 완성한 나라의 법전, 경국대전', credit: C('猫猫的日记本', 'CC BY-SA 4.0', 'Gyeongguk_daejeon_in_the_National_Museum_of_Korea_2016-11.jpg') },
+  10: { photo: WM + '5/5d/Gyeonghoeru_%28Royal_Banquet_Hall%29_at_Gyeongbokgung_Palace%2C_Seoul.jpg/330px-Gyeonghoeru_%28Royal_Banquet_Hall%29_at_Gyeongbokgung_Palace%2C_Seoul.jpg', src: 'kings/relic_10.png', name: '경복궁 경회루', caption: '연산군이 큰 잔치를 벌였던 경회루', credit: C('Frank Schulenburg', 'CC BY-SA 4.0', 'Gyeonghoeru_(Royal_Banquet_Hall)_at_Gyeongbokgung_Palace,_Seoul.jpg') },
+  11: { photo: WM + '8/84/Sosu_Seowon_%287%29.jpg/330px-Sosu_Seowon_%287%29.jpg', src: 'kings/relic_11.png', name: '소수서원', caption: '중종 때(1543) 세운 우리나라 첫 서원(백운동서원)', credit: C('Kyle', 'CC BY 2.0', 'Sosu_Seowon_(7).jpg') },
+  12: { photo: WM + '7/71/%EA%B3%A0%EC%96%91_%EC%84%9C%EC%82%BC%EB%A6%89_%ED%9A%A8%EB%A6%89_%EB%8A%A5%EC%B9%A8.jpg/330px-%EA%B3%A0%EC%96%91_%EC%84%9C%EC%82%BC%EB%A6%89_%ED%9A%A8%EB%A6%89_%EB%8A%A5%EC%B9%A8.jpg', name: '효릉', caption: '인종이 잠든 효릉 (고양 서삼릉)', credit: C('문화재청', '공공누리 제1유형', '%EA%B3%A0%EC%96%91_%EC%84%9C%EC%82%BC%EB%A6%89_%ED%9A%A8%EB%A6%89_%EB%8A%A5%EC%B9%A8.jpg') },
+  13: { photo: WM + '3/35/Shin.Saimdang-Chochungdo-01.jpg/330px-Shin.Saimdang-Chochungdo-01.jpg', src: 'kings/relic_13.png', name: '신사임당 초충도', caption: '그 무렵 신사임당이 그린 풀과 벌레 그림, 초충도', credit: C('신사임당', '퍼블릭 도메인', 'Shin.Saimdang-Chochungdo-01.jpg') },
+  14: { photo: WM + '2/2e/Geobukseon_reconstructed.jpg/330px-Geobukseon_reconstructed.jpg', src: 'kings/relic_14.png', name: '거북선', caption: '임진왜란 때 이순신 장군의 거북선 (다시 만든 배)', credit: C('Moody75', 'CC BY-SA 2.0', 'Geobukseon_reconstructed.jpg') },
+  15: { photo: WM + '2/2f/Dongui_Bogam_in_museum.jpg/330px-Dongui_Bogam_in_museum.jpg', src: 'kings/relic_15.png', name: '동의보감', caption: '광해군 때(1610) 허준이 완성한 동의보감', credit: C('Salamander724', '퍼블릭 도메인', 'Dongui_Bogam_in_museum.jpg') },
+  16: { photo: WM + '5/5e/Korea-Namhansanseong-06.jpg/330px-Korea-Namhansanseong-06.jpg', src: 'kings/relic_16.png', name: '남한산성', caption: '병자호란 때 인조가 피했던 남한산성', credit: C('Steve46814', 'CC BY-SA 3.0', 'Korea-Namhansanseong-06.jpg') },
+  17: { photo: WM + 'd/d9/Royal_Tomb_of_King_Hyojong_23.jpg/330px-Royal_Tomb_of_King_Hyojong_23.jpg', name: '영릉', caption: '효종이 잠든 영릉 (여주)', credit: C('Altostratus', 'CC BY-SA 4.0', 'Royal_Tomb_of_King_Hyojong_23.jpg'), pos: '50% 40%' },
+  18: { photo: WM + 'e/e6/%ED%98%BC%EC%B2%9C%EC%9D%98_%EB%B0%8F_%ED%98%BC%EC%B2%9C%EC%8B%9C%EA%B3%84.jpg/330px-%ED%98%BC%EC%B2%9C%EC%9D%98_%EB%B0%8F_%ED%98%BC%EC%B2%9C%EC%8B%9C%EA%B3%84.jpg', src: 'kings/relic_18.png', name: '혼천시계', caption: '현종 때(1669) 송이영이 만든 천문 시계, 혼천시계', credit: C('문화재청', 'CC BY-SA 4.0', '%ED%98%BC%EC%B2%9C%EC%9D%98_%EB%B0%8F_%ED%98%BC%EC%B2%9C%EC%8B%9C%EA%B3%84.jpg'), pos: '35% 25%' },
+  19: { photo: WM + '4/4a/Sangpyeong_Tongbo_%28%E5%B8%B8%E5%B9%B3%E9%80%9A%E5%AF%B6%29_%E2%80%93_All_denominations_%28%E4%B8%80%E6%96%87%2C_%E4%BA%8C%E6%96%87%2C_%E4%BA%94%E6%96%87%2C_%E7%99%BE%E6%96%87%29_01.jpg/330px-Sangpyeong_Tongbo_%28%E5%B8%B8%E5%B9%B3%E9%80%9A%E5%AF%B6%29_%E2%80%93_All_denominations_%28%E4%B8%80%E6%96%87%2C_%E4%BA%8C%E6%96%87%2C_%E4%BA%94%E6%96%87%2C_%E7%99%BE%E6%96%87%29_01.jpg', src: 'kings/relic_19.png', name: '상평통보', caption: '숙종 때(1678) 전국에서 쓴 돈, 상평통보', credit: C('Donald Trung Quoc Don', 'CC BY-SA 4.0', 'Sangpyeong_Tongbo_(%E5%B8%B8%E5%B9%B3%E9%80%9A%E5%AF%B6)_%E2%80%93_All_denominations_(%E4%B8%80%E6%96%87,_%E4%BA%8C%E6%96%87,_%E4%BA%94%E6%96%87,_%E7%99%BE%E6%96%87)_01.jpg') },
+  20: { photo: WM + '2/21/Uireung%2C2018.jpg/330px-Uireung%2C2018.jpg', name: '의릉', caption: '경종이 잠든 의릉 (서울 성북구)', credit: C('Tombus20032000', 'CC BY-SA 4.0', 'Uireung,2018.jpg') },
+  22: { photo: WM + '4/4f/Paldalmun_hwaseong_suwon.JPG/330px-Paldalmun_hwaseong_suwon.JPG', src: 'kings/relic_22.png', name: '수원 화성', caption: '정조 때(1796) 쌓은 수원 화성 팔달문', credit: C('Kbarends', 'CC BY-SA 3.0', 'Paldalmun_hwaseong_suwon.JPG') },
+  23: { photo: WM + '6/68/Korean_art-Donggwoldo_detail-Changdeokgung-Seonjeongjeon_and_its_vicinity-01.jpg/330px-Korean_art-Donggwoldo_detail-Changdeokgung-Seonjeongjeon_and_its_vicinity-01.jpg', src: 'kings/relic_23.png', name: '동궐도', caption: '순조 때(1830 무렵) 창덕궁·창경궁을 그린 동궐도', credit: C('도화서 화원들', '퍼블릭 도메인', 'Korean_art-Donggwoldo_detail-Changdeokgung-Seonjeongjeon_and_its_vicinity-01.jpg') },
+  24: { photo: WM + '7/7a/Sehando_-_detail.jpg/330px-Sehando_-_detail.jpg', src: 'kings/relic_24.png', name: '세한도', caption: '헌종 때(1844) 김정희가 그린 세한도', credit: C('김정희', '퍼블릭 도메인', 'Sehando_-_detail.jpg') },
+};
+
+/** 그림 아래 출처 (사진을 쓴 경우) */
+export function kingPictureCredit(order: number): Credit | null {
+  const real = REAL_KING_PORTRAITS[order];
+  if (real) return real.credit || null;
+  return KING_RELICS[order]?.credit || null;
+}
+
+/** 이 왕을 나타내는 그림 설명 (어진이 있으면 어진, 없으면 그 시대 대표 유산) */
+export function kingPictureCaption(order: number): string {
+  const real = REAL_KING_PORTRAITS[order];
+  if (real) return `📜 실제 모습: ${real.caption}`;
+  const relic = KING_RELICS[order];
+  return relic ? `🏯 어진이 전하지 않아 이 시대 대표 유산으로: ${relic.caption}` : '';
+}
 
 export const KingFace: React.FC<{ order: number; size?: number; className?: string; title?: string; drawnOnly?: boolean; fill?: boolean }> = ({
   order,
@@ -66,17 +121,52 @@ export const KingFace: React.FC<{ order: number; size?: number; className?: stri
   fill = false,
 }) => {
   const real = drawnOnly ? undefined : REAL_KING_PORTRAITS[order];
-  if (real) {
+  const relic = drawnOnly || real ? undefined : KING_RELICS[order];
+  // 사진을 못 불러오면 다음 그림으로 (왕이 바뀌면 처음부터 다시)
+  const [bk, setBk] = React.useState<{ o: number; n: number }>({ o: order, n: 0 });
+  const broken = bk.o === order ? bk.n : 0;
+  const setBroken = (f: number | ((n: number) => number)) => setBk((p) => ({ o: order, n: typeof f === 'function' ? f(p.o === order ? p.n : 0) : f }));
+  if (real && !(real.credit && broken)) {
+    const crop = real.crop;
     return (
       <img
         src={real.src}
         alt={title || real.caption}
-        title={real.caption}
+        title={title || real.caption}
         width={size}
         height={size}
         className={`object-cover ${className}`}
-        style={fill ? { width: '100%', height: '100%', objectPosition: '50% 50%' } : { width: size, height: size, objectPosition: '50% 50%' }}
+        style={{
+          ...(fill ? { width: '100%', height: '100%' } : { width: size, height: size }),
+          objectPosition: '50% 50%',
+          ...(crop ? { objectPosition: crop.origin, transform: `scale(${crop.scale})`, transformOrigin: crop.origin } : null),
+        }}
         loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(1)}
+      />
+    );
+  }
+  if (relic && broken < (relic.src ? 2 : 1)) {
+    const usePixel = broken === 1 && !!relic.src;
+    return (
+      <img
+        src={usePixel ? relic.src : relic.photo}
+        alt={title ? `${title} — ${relic.name}` : relic.caption}
+        title={title || relic.caption}
+        width={size}
+        height={size}
+        className={`kf-relic ${className}`}
+        style={{
+          ...(fill ? { width: '100%', height: '100%' } : { width: size, height: size }),
+          objectFit: 'cover',
+          objectPosition: relic.pos || '50% 50%',
+          imageRendering: usePixel ? 'pixelated' : undefined,
+        }}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        draggable={false}
+        onError={() => setBroken((b) => b + 1)}
       />
     );
   }
