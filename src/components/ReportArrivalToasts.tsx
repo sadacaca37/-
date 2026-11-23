@@ -7,6 +7,30 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { fs } from '../utils/moaFirebase';
 import { soundManager } from '../utils/sound';
 
+/** 이미 알린 보고 (학생·날짜마다 한 번만) — 여러 창·새로 고침에도 다시 안 뜨게 이 컴퓨터에 기억 */
+const SEEN_KEY = 'taja_report_toast_seen';
+function seenStore(): Record<string, number> {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+/** 처음이면 true (그리고 기억), 이미 알렸으면 false */
+function claimToast(docId: string): boolean {
+  const all = seenStore();
+  if (all[docId]) return false;
+  all[docId] = Date.now();
+  // 사흘 지난 것은 정리
+  const cut = Date.now() - 3 * 86400000;
+  for (const k of Object.keys(all)) if (all[k] < cut) delete all[k];
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(all));
+  } catch {}
+  return true;
+}
+
 type Toast = { id: string; name: string; grade?: number; sets: number; avgCpm: number; acc: number; at: number };
 
 export const ReportArrivalToasts: React.FC<{ active: boolean; onOpen: () => void }> = ({ active, onOpen }) => {
@@ -25,8 +49,9 @@ export const ReportArrivalToasts: React.FC<{ active: boolean; onOpen: () => void
           if (ch.type === 'removed') return;
           const v = ch.doc.data() as any;
           const sentAt = Number(v.sentAt) || 0;
-          if (seen.current.get(ch.doc.id) === sentAt) return; // 같은 보고를 두 번 알리지 않음
+          if (seen.current.has(ch.doc.id)) return; // 같은 학생의 같은 날 보고는 한 번만
           seen.current.set(ch.doc.id, sentAt);
+          if (!claimToast(ch.doc.id)) return; // 다른 창·새로 고침에서 이미 알린 보고
           const s = v.summary || {};
           fresh.push({ id: `${ch.doc.id}_${sentAt}`, name: String(v.name || '학생'), grade: Number(v.grade) || undefined, sets: Number(s.sets) || 0, avgCpm: Number(s.avgCpm) || 0, acc: Number(s.avgAcc) || 0, at: sentAt });
         });
@@ -34,7 +59,7 @@ export const ReportArrivalToasts: React.FC<{ active: boolean; onOpen: () => void
         try {
           soundManager.play('pop');
         } catch {}
-        setToasts((t) => [...fresh, ...t].slice(0, 4));
+        setToasts((t) => [...fresh, ...t.filter((x) => !fresh.some((f) => f.name === x.name))].slice(0, 4));
         fresh.forEach((f) => window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== f.id)), 20000));
       },
       () => {},
