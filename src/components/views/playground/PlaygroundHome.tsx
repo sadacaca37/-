@@ -570,7 +570,7 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
                             </span>
                           ) : null}
                         </div>
-                        <h3 className="mt-2.5 font-black text-xs sm:text-sm text-[#2c1507] font-arcade group-hover:text-[#9e2a12] leading-tight">
+                        <h3 className="mt-2.5 font-black text-xs sm:text-sm text-[#2c1507] font-arcade leading-tight">
                           {displayTitle}
                         </h3>
                       </button>
