@@ -100,6 +100,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   const [sentenceIndex, setSentenceIndex] = useState(0);
   const [inputVal, setInputVal] = useState('');
   const [hasResumed, setHasResumed] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   
   // 5-Min Challenge or Regular mode
   const [is5MinMode, setIs5MinMode] = useState(false);
@@ -771,6 +772,66 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       <div className="pr-toolbar px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <h1 className="text-base font-black text-[#2c1507] tracking-tight font-arcade whitespace-nowrap">📝 짧은 글</h1>
+
+          {/* 글 고르기: 긴 글처럼 누르면 목록이 펼쳐짐 */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              className="pr-stone-btn flex items-center gap-1 px-2.5 py-1 text-[12px] font-black text-[#2c1507] cursor-pointer whitespace-nowrap"
+              aria-expanded={pickerOpen}
+              title={currentCategory.category}
+            >
+              📚 글 고르기
+              <span className="text-[11px] font-bold text-[#7c3f18]">· {shortCategoryLabel(currentCategory.category)}</span>
+              <span className={`text-[9px] transition-transform ${pickerOpen ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            {pickerOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+                <div className="absolute left-0 top-full mt-2 z-50 w-[min(560px,88vw)] rounded-2xl border-4 border-[#2c1507] bg-[#fff6dc] shadow-[0_6px_0_#2c1507] p-3">
+                  <div className="text-[12px] font-black text-[#6e4622] mb-2">
+                    {language === 'ko' ? '🇰🇷 한글 짧은 글' : '🇺🇸 영어 짧은 글'} · 묶음마다 {SET_SENTENCES}문장
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {activeDataset.map((cat, idx) => {
+                      const on = selectedCategoryIndex === idx;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategoryIndex(idx);
+                            setSentenceIndex(0);
+                            setInputVal('');
+                            setPickerOpen(false);
+                          }}
+                          className={`text-left rounded-xl border-2 px-2.5 py-2 cursor-pointer transition-colors ${
+                            on ? 'border-[#c2410c] bg-[#fde6a8]' : 'border-[#d6c4a1] bg-white hover:bg-[#fff1cf]'
+                          }`}
+                        >
+                          <div className="text-[13px] font-black text-[#2c1507] leading-tight truncate">
+                            {on ? '▶ ' : ''}
+                            {shortCategoryLabel(cat.category)}
+                          </div>
+                          <div className="text-[10.5px] font-bold text-[#8a5a2b] truncate mt-0.5">{cat.category.replace(/^\d+\.\s*/, '')}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 진행도 (작게) */}
+          <span className="hidden md:flex items-center gap-1.5 text-[11px] font-black text-[#5c3d22] whitespace-nowrap">
+            <span className="pr-gauge-track w-20 h-3 inline-block align-middle">
+              <span className="pr-gauge-fill pr-gauge-fill--gold block" style={{ width: `${Math.round((sentenceIndex / Math.max(1, activeSentences.length)) * 100)}%` }} />
+            </span>
+            <span className="tabular-nums">{sentenceIndex + 1}/{activeSentences.length}</span>
+            <span className="tabular-nums text-[#8a5a2b]">· 완주 {completedInSession}</span>
+          </span>
           {!currentUser && (
             <span className="text-[11px] font-bold text-[#6e3a0e] bg-[#fef0c7] px-2 py-0.5 rounded-md border border-[#c69148] flex items-center gap-1 whitespace-nowrap" title="랭킹은 로그인 회원만 등록돼요">
               <Lock className="w-3 h-3" />
@@ -836,76 +897,11 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         </div>
       </div>
 
-      {/* Category Selection Stone Buttons */}
-      <div className="flex items-center gap-1.5 pb-1 whitespace-nowrap overflow-hidden">
-        <span className="text-[12px] font-black text-[#fde68a] px-1 shrink-0">📚 글 고르기</span>
-        {activeDataset.map((cat, idx) => (
-          <button
-            key={cat.id}
-            onClick={() => {
-              setSelectedCategoryIndex(idx);
-              setSentenceIndex(0);
-              setInputVal('');
-            }}
-            title={`${cat.category} · ${Math.min(SET_SENTENCES, cat.sentences.length)}문장`}
-            className={`min-w-0 flex-1 px-2 py-1.5 text-xs font-black whitespace-nowrap truncate cursor-pointer ${
-              selectedCategoryIndex === idx
-                ? 'pr-stone-btn--active rounded-lg'
-                : 'pr-stone-btn'
-            }`}
-          >
-            {shortCategoryLabel(cat.category)}
-          </button>
-        ))}
-      </div>
-
       {/* Real-time Stats Bar */}
       <StatsBar stats={stats} compact />
 
       {/* Main Sentence Display Box on Forest & Parchment Stage */}
       <div className="pr-shell p-3 sm:p-4 space-y-3">
-        {/* Wooden Signboard Status Row */}
-        <div className="pr-status-bar px-3.5 sm:px-5 py-2.5 flex items-center justify-between flex-wrap gap-2.5">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="pr-status-chip text-sm sm:text-base font-black px-3 py-1">
-              📜 {currentCategory.category}
-            </span>
-            {/* 진행도 픽셀 게이지 */}
-            <span className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-black text-[#ffe9a8]">진행도</span>
-              <span className="pr-gauge-track w-28 sm:w-40 h-4.5 inline-block align-middle">
-                <span
-                  className="pr-gauge-fill pr-gauge-fill--gold block"
-                  style={{ width: `${Math.round((sentenceIndex / Math.max(1, activeSentences.length)) * 100)}%` }}
-                />
-              </span>
-              <span className="min-w-[44px] text-right text-sm sm:text-base font-black text-white tabular-nums">
-                {Math.round((sentenceIndex / Math.max(1, activeSentences.length)) * 100)}%
-              </span>
-              <span className="min-w-[100px] text-sm font-bold text-[#fde6a8] tabular-nums">
-                ({sentenceIndex + 1} / {activeSentences.length} 문장)
-              </span>
-            </span>
-            {hasResumed && (
-              <span className="pr-status-chip text-xs font-black px-2.5 py-0.5 flex items-center gap-1 text-[#bbf7d0]">
-                <Sparkles className="w-3.5 h-3.5 text-[#4ade80]" />
-                <span>이전 위치 이어서 연습 중</span>
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 text-sm sm:text-base font-extrabold">
-            <span className="pr-status-chip px-3 py-1 text-[#fde68a] tabular-nums">
-              누적 완주: {completedInSession} 문장
-            </span>
-            {is5MinMode && (
-              <span className="pr-status-chip px-3 py-1 text-[#fca5a5] font-mono font-black tabular-nums">
-                ⏱ 남은 시간: {formatRemainingTime(remainingTime5Min)}
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Forest Meadow Backdrop with Parchment Scroll Target & Input */}
         <div className="pr-meadow-stage pr-meadow-stage--sentence p-4 sm:p-6 space-y-4">
           {/* Target Sentence Parchment Scroll Card (fixed box height; only font size scales for long sentences) */}
