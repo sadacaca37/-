@@ -271,6 +271,24 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                 끄기
               </button>
             </span>
+            <button
+              type="button"
+              disabled={busy}
+              className={`${btn} bg-rose-600 text-white hover:bg-rose-500`}
+              data-testid="remove-selected"
+              onClick={async () => {
+                if (!(await askConfirm(`${selNames}\n이 학생들(${selUsers.length}명)을 명단에서 삭제할까요?\n로그인 정보·포인트·연습 기록이 모두 지워지고 되돌릴 수 없어요.`, '명단에서 삭제'))) return;
+                setBusy(true);
+                let n = 0;
+                for (const u of selUsers) if (await typangApi.removeMember(u.id)) n++;
+                setBusy(false);
+                setSel(new Set());
+                say(n ? `🗑️ ${n}명을 명단에서 삭제했어요.` : '❌ 삭제하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+                void onRefresh();
+              }}
+            >
+              🗑 명단에서 삭제
+            </button>
             <button type="button" className={`${btn} bg-white border border-slate-300 text-slate-600 hover:bg-slate-100`} onClick={() => setSel(new Set())}>
               고르기 풀기
             </button>
@@ -392,6 +410,27 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                           }}
                         >
                           기록 지우기
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          className={`${btn} bg-rose-600 text-white hover:bg-rose-500`}
+                          data-testid="remove-student"
+                          onClick={async () => {
+                            if (!(await askConfirm(`'${u.name}' 학생을 명단에서 삭제할까요?\n로그인 정보·포인트·연습 기록이 모두 지워지고 되돌릴 수 없어요.\n(다시 쓰려면 새로 가입하거나 엑셀로 올려야 해요)`, '명단에서 삭제'))) return;
+                            setBusy(true);
+                            const ok = await typangApi.removeMember(u.id);
+                            setBusy(false);
+                            setSel((old) => {
+                              const n = new Set(old);
+                              n.delete(u.id);
+                              return n;
+                            });
+                            say(ok ? `🗑️ ${u.name} 학생을 명단에서 삭제했어요.` : '❌ 삭제하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+                            void onRefresh();
+                          }}
+                        >
+                          명단에서 삭제
                         </button>
                       </td>
                     </tr>
