@@ -189,9 +189,16 @@
   #chatinput{ flex:1; min-width:0; font:inherit; font-size:16px; padding:8px 12px; border:2px solid var(--ink); border-radius:12px; background:#fff; color:var(--ink); -webkit-user-select:text; user-select:text; }
   #chatlog{ position:absolute; left:12px; bottom:84px; z-index:33; max-width:min(330px,62vw); display:none; flex-direction:column; gap:4px; pointer-events:none; }
   #chatlog.show{ display:flex; }
-  #chatlog .cl{ background:rgba(255,253,246,.92); border:2px solid var(--line); border-radius:10px; padding:3px 9px; font-size:12.5px; color:var(--ink); }
-  #chatlog .cl b{ font-family:'Jua',sans-serif; font-weight:normal; color:#2e5f8c; margin-right:3px; }
-  #chatlog .cl.me b{ color:#b07a12; }
+  #chatroll{ display:none; flex-direction:column; gap:3px; max-height:100px; overflow-y:auto; }
+  #chatlog .cl, #chatroll .cl{ background:rgba(255,253,246,.92); border:2px solid var(--line); border-radius:10px; padding:3px 9px; font-size:12.5px; color:var(--ink); }
+  #chatlog .cl b, #chatroll .cl b{ font-family:'Jua',sans-serif; font-weight:normal; color:#2e5f8c; margin-right:3px; }
+  #chatlog .cl.me b, #chatroll .cl.me b{ color:#b07a12; }
+  #chatlog .cl.npc b, #chatroll .cl.npc b{ color:#3d8a4f; }
+  #chathint{ font-size:12.5px; color:var(--ink-soft); padding:0 4px; line-height:1.45; }
+  #chathint b{ font-family:'Jua',sans-serif; font-weight:normal; color:#3d8a4f; }
+  .lbl.say.npc{ border-color:#3d8a4f; background:#f6fff2; }
+  .lbl.say.npc::after{ border-top-color:#3d8a4f; }
+  .lbl.say.typing{ font-size:15px; padding:1px 10px; letter-spacing:2px; }
   @media (max-width:640px){ #weaponbar{ right:8px; bottom:76px; gap:5px; } .wbtn{ width:50px; height:50px; } .wbtn .wi{ font-size:19px; } #chatlog{ bottom:76px; } #namerow{ max-width:160px; } #namerow .meface{ width:38px; height:38px; } #namerow .mename b{ font-size:15px; } #skycv{ width:78px; height:34px; } }
   @media (max-width:640px){
     .title-xl{ font-size:40px; }
@@ -235,8 +242,10 @@
   <div id="weaponbar"></div>
   <div id="chatlog"></div>
   <div id="chatbar" class="panel">
+    <div id="chathint"></div>
+    <div id="chatroll"></div>
     <div id="chatquick"></div>
-    <div class="chatrow"><input id="chatinput" maxlength="40" placeholder="친구에게 할 말 (Enter로 보내기)" autocomplete="off"><button class="btn small mint" id="chatsend">보내기</button><button class="btn small ghost" id="chatclose">닫기</button></div>
+    <div class="chatrow"><input id="chatinput" maxlength="40" placeholder="하고 싶은 말을 써 보세요 (Enter로 보내기)" autocomplete="off"><button class="btn small mint" id="chatsend">보내기</button><button class="btn small ghost" id="chatclose">닫기</button></div>
   </div>
   <div id="decopalette" class="panel"></div>
 
@@ -299,7 +308,8 @@
       <div><b>Space · 누르기</b>말 걸기·베기·공격</div>
       <div><b>1 · 2 · 3</b>🗡️ 칼 · 🪓 도끼 · 🏹 활</div>
       <div><b>🪓 산 · ⚔️ 몬스터 숲</b>벌목하고 사냥하기</div>
-      <div><b>👫 친구</b>방 번호로 10명까지 · 💬 대화(Enter)</div>
+      <div><b>💬 대화 (Enter)</b>가까운 주민이 대답해요 · 친구 방에서는 친구들도 봐요</div>
+      <div><b>👫 친구</b>방 번호로 10명까지 같이 놀기</div>
       <div><b>🏠 우리 집</b>들어가서 가구로 꾸미기</div>
     </div>
     <div class="startbtns">
@@ -1674,7 +1684,7 @@ function refreshActionHud(){
   else if(state.tut>=1) html+='<button class="btn yellow" id="seedbtn">'+(sc?sc.icon+' '+sc.name+' 씨앗 x'+cnt:'🌱 씨앗')+'</button>';
   html+='<button class="btn '+(decorateMode?'mint':'ghost')+'" id="decobtn">'+(decorateMode?'✔ 꾸미기 끝':(inHome?'🛋️ 집 꾸미기':'🏡 꾸미기'))+'</button>';
   html+='<button class="btn ghost" id="netbtn">'+(NET.room?'👫 '+NET.room+' ('+(Object.keys(NET.peers).length+1)+'명)':'👫 친구')+'</button>';
-  if(NET.room) html+='<button class="btn mint" id="chatbtn">💬 대화</button>';
+  html+='<button class="btn mint" id="chatbtn">💬 대화</button>';
   el.innerHTML=html;
   var sb=$('seedbtn'); if(sb) sb.addEventListener('click', function(){ openSeedPicker(null); });
   var ob=$('outbtn'); if(ob) ob.addEventListener('click', leaveHome);
@@ -2586,9 +2596,9 @@ function renderHome(){
 canvas.addEventListener('pointermove', function(e){ if(inHome && decorateMode){ var w=screenToWorld(e.clientX,e.clientY); home.hover=w; } });
 
 /* =====================================================================
-   친구들과 대화 (방 안에서만) · 말풍선 + 대화 기록 + 빠른 말
+   대화 · 말풍선 + 대화 기록 + 빠른 말 — 혼자서도 가까운 주민이 대답, 친구 방에서는 친구들에게도 보임
    ===================================================================== */
-var chatLog=[], chatOpen=false, lastChatAt=0;
+var chatLog=[], chatOpen=false, lastChatAt=0, chatTo=null;
 function cleanChat(t){
   t=String(t||'').replace(/[<>&"'`\\]/g,'').replace(/\s+/g,' ').trim().slice(0,40);
   var low=t.toLowerCase();
@@ -2596,32 +2606,35 @@ function cleanChat(t){
   return t;
 }
 function esc(t){ return String(t).replace(/[&<>"']/g,function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
-function pushChatLog(name, text, me){
-  chatLog.push({ name:name, text:text, me:me, at:performance.now() }); if(chatLog.length>30) chatLog.shift();
+function pushChatLog(name, text, me, npc){
+  chatLog.push({ name:name, text:text, me:me, npc:!!npc, at:performance.now() }); if(chatLog.length>30) chatLog.shift();
   renderChatLog();
 }
 function renderChatLog(){
   var el=$('chatlog'); if(!el) return;
-  if(!NET.room){ el.classList.remove('show'); return; }
-  var now=performance.now(), recent=chatLog.slice(chatOpen?-8:-4).filter(function(c){ return chatOpen || now-c.at<14000; });
-  el.innerHTML=recent.map(function(c){ return '<div class="cl'+(c.me?' me':'')+'"><b>'+esc(c.name)+'</b> '+esc(c.text)+'</div>'; }).join('');
+  var fmt=function(c){ return '<div class="cl'+(c.me?' me':'')+(c.npc?' npc':'')+'"><b>'+esc(c.name)+'</b> '+esc(c.text)+'</div>'; };
+  var roll=$('chatroll');
+  if(chatOpen && roll){ el.classList.remove('show'); var rr=chatLog.slice(-10); var html=rr.map(fmt).join(''); if(roll.innerHTML!==html){ roll.innerHTML=html; roll.scrollTop=roll.scrollHeight; } roll.style.display=rr.length?'flex':'none'; return; }
+  var now=performance.now(), recent=chatLog.slice(-4).filter(function(c){ return now-c.at<14000; });
+  el.innerHTML=recent.map(fmt).join('');
   el.classList.toggle('show', recent.length>0);
 }
 function sendChat(text){
-  if(!NET.room){ toast('👫 친구 방에 들어가면 대화할 수 있어요'); return; }
   var now=performance.now(); if(now-lastChatAt<1200){ toast('천천히 써 주세요 🙂'); return; }
   var t=cleanChat(text); if(!t) return; lastChatAt=now;
   player.say=t; player.sayT=5.5; pushChatLog(NET.name, t, true);
-  NET.event({ t:'chat', m:t, n:NET.name });
+  if(NET.room) NET.event({ t:'chat', m:t, n:NET.name });
+  villagerHear(t);
 }
-function openChat(){
-  if(!NET.room){ toast('👫 친구 방에 들어가면 대화할 수 있어요'); return; }
-  chatOpen=true; $('chatbar').classList.add('show'); renderChatLog();
-  $('chatquick').innerHTML=QUICK_CHAT.map(function(q,i){ return '<button class="btn small ghost" data-q="'+i+'">'+q+'</button>'; }).join('');
-  $('chatquick').querySelectorAll('[data-q]').forEach(function(b){ b.addEventListener('click', function(){ sendChat(QUICK_CHAT[+b.dataset.q]); }); });
+function openChat(target){
+  if(target && npcs.indexOf(target)>=0) chatTo=target;
+  chatOpen=true; $('chatbar').classList.add('show'); renderChatLog(); refreshChatHint();
+  var Q=NET.room ? QUICK_CHAT : QUICK_TOWN;
+  $('chatquick').innerHTML=Q.map(function(q,i){ return '<button class="btn small ghost" data-q="'+i+'">'+q+'</button>'; }).join('');
+  $('chatquick').querySelectorAll('[data-q]').forEach(function(b){ b.addEventListener('click', function(){ sendChat(Q[+b.dataset.q]); }); });
   setTimeout(function(){ $('chatinput').focus(); }, 30);
 }
-function closeChat(){ chatOpen=false; $('chatbar').classList.remove('show'); $('chatinput').blur(); renderChatLog(); }
+function closeChat(){ chatOpen=false; chatTo=null; $('chatbar').classList.remove('show'); $('chatinput').blur(); renderChatLog(); }
 (function(){
   var inp=$('chatinput');
   inp.addEventListener('keydown', function(e){ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); var v=inp.value; inp.value=''; if(v.trim()) sendChat(v); else closeChat(); } else if(e.key==='Escape'){ closeChat(); } });
@@ -2629,6 +2642,7 @@ function closeChat(){ chatOpen=false; $('chatbar').classList.remove('show'); $('
   $('chatsend').addEventListener('click', function(){ var v=inp.value; inp.value=''; if(v.trim()) sendChat(v); inp.focus(); });
   $('chatclose').addEventListener('click', closeChat);
   setInterval(renderChatLog, 2000);
+  setInterval(refreshChatHint, 600);
 })();
 
 /* =====================================================================
@@ -3516,6 +3530,133 @@ function seaSpeedK(){ return player.boat?1.2:player.swim?0.55:1; }
   var _ot2=onTap; onTap=function(){ player.mining=null; return _ot2.apply(this,arguments); }; })();
 
 /* =====================================================================
+   마을 주민과 이야기하기 — 💬 대화 창에 쓴 말을 가까운 주민이 알아듣고 대답해요 (혼자서도 됨)
+   · 주민 이름을 부르면 조금 멀리 있어도 그 주민이 대답
+   · 주민을 눌러 나온 대화 창의 [💬 말 걸기] → 그 주민과 이야기
+   · 친구 방에 있으면 내가 쓴 말은 친구들에게도 보임 (주민 대답은 내 화면에만)
+   ===================================================================== */
+var QUICK_TOWN = ['안녕! 👋','뭐 하고 있어? 🙂','오늘 날씨 어때? ☀️','뭘 하면 좋을까? 🤔','좋아하는 게 뭐야? 💝','고마워! 💖','심심해 😶','잘 자~ 🌙'];
+var NPC_TALK = {
+  tori:   { fav:'당근', tail:['',' 👒'], doing:['마을 사람들 안부를 묻고 다니는 중이야.','광장 꽃밭을 살펴보고 있었어.','오늘 마을 일기를 쓰고 있었지!'] },
+  ddak:   { fav:'목재', tail:[' 뚝딱!',''], doing:['망치질 연습 중이야! 뚝딱뚝딱.','다음에 지을 집 설계도를 그리고 있었어.','나무 냄새 맡으면서 쉬는 중~'] },
+  pinky:  { fav:'달걀', tail:[' 💕',''], doing:['가게 물건 정리하고 있어~','오늘 들어온 물건을 세고 있었어!','손님 기다리는 중이야. 뭐 살 거 있어?'] },
+  nabi:   { tail:[' 냐옹~',' 냐아~'], doing:['햇볕 아래서 꾸벅꾸벅 졸고 있었어.','꽃 냄새 맡는 중이야.','고양이 세수하는 중! 냐옹.'] },
+  badug:  { tail:[' 멍멍!',' 왈!'], doing:['마을 한 바퀴 뛰고 왔어!','강아지랑 공놀이 하는 중이야!','옥수수밭 구경하는 중!'] },
+  puding: { tail:['...','~'], doing:['구름 구경하고 있었어...','사과 먹을까 말까 고민 중...','천천히 산책하는 중이야~'] },
+  penggu: { tail:[' 펭!',' 펭펭!'], doing:['연못 물고기 세고 있었어 펭!','뒤뚱뒤뚱 걷기 연습 중이야!','바닷바람 맡는 중 펭!'] },
+  mong:   { tail:[' 야호!',' 히히!'], doing:['새 춤 동작 만드는 중이야!','풍선 불고 있었어!','나무 타기 하고 왔지롱!'] }
+};
+function hasBatchim(w){ var c=String(w||'').charCodeAt(String(w||'').length-1); if(c>=0xAC00 && c<=0xD7A3) return (c-0xAC00)%28!==0; return false; }
+function josa(w, a, b){ return w+(hasBatchim(w)?a:b); }   // josa('푸딩','이','가') → 푸딩이
+function npcDist(n){ return Math.hypot(n.x-player.x, n.y-player.y); }
+function canHear(n){ return n && npcs.indexOf(n)>=0 && !n.asleep && !n.arriving; }
+/* 누가 내 말을 들을까: 말 거는 중인 주민 → 이름 부른 주민 → 가장 가까운 주민 */
+function chatListener(t){
+  if(inHome || !player) return null;
+  if(chatTo && canHear(chatTo) && npcDist(chatTo)<9) return chatTo;
+  t=String(t||'');
+  var named=npcs.filter(function(n){ return canHear(n) && t.indexOf(n.name)>=0 && npcDist(n)<16; })[0];
+  if(named) return named;
+  var best=null, bd=6;
+  npcs.forEach(function(n){ if(!canHear(n)) return; var d=npcDist(n); if(d<bd){ bd=d; best=n; } });
+  return best;
+}
+function refreshChatHint(){
+  var el=$('chathint'); if(!el || !chatOpen) return;
+  var n=chatListener(''), parts=[];
+  if(n) parts.push('🗨️ <b>'+esc(n.name)+'</b>'+(hasBatchim(n.name)?'이':'가')+' 듣고 있어요');
+  else parts.push(inHome ? '🏠 집 안이에요 — 주민들은 밖에 있어요' : '🗨️ 가까운 주민이 없어요 — 주민 옆에 가서 말해 보세요');
+  parts.push(NET.room ? '👫 '+NET.room+'번 방 친구들에게도 보여요' : '👫 친구랑 이야기하려면 [👫 친구]에서 방 만들기');
+  el.innerHTML=parts.join(' · ');
+}
+function talkHint(){
+  if(raid && raid.active) return '지금 몬스터 습격 중이야! 1·2·3 키로 칼·도끼·활을 바꿔 가며 물리쳐 줘!';
+  var steps=['광장에 있는 토리 이장님을 눌러서 말 걸기','밭을 눌러 씨앗 심기','씨앗에 물 주기','다 자란 작물 수확하기','핑키네 가게에서 작물 팔기','뚝딱이 게시판 보기'];
+  if(state.tut<6) return '지금은 "'+steps[state.tut]+'"부터 해 보면 돼!';
+  var st=currentStar();
+  var up=upgrades().filter(function(u){ return u.avail() && u.star<=st; }).sort(function(a,b){ return a.cost-b.cost; })[0];
+  var tips=[];
+  if(up) tips.push('뚝딱이 게시판에서 '+up.name.replace(/ \(.*\)/,'')+'을(를) 지을 수 있어! ('+costLabel(up)+')');
+  if((state.inv['목재']||0)<10) tips.push('산에 가서 나무를 베어 목재를 모아 봐! 집 지을 때 꼭 필요해.');
+  if((state.homeDecor||[]).length<8) tips.push('집에 들어가서 🛋️ 집 꾸미기로 가구를 놓아 봐!');
+  tips.push('산에 있는 바위를 두드리면 돌이랑 철 광석이 나와!','연못 다리 끝에서 낚시해 봐. 물고기를 잡으면 가게에 팔 수 있어!','주민들 부탁(❗)을 들어주면 코인이랑 점수를 둘 다 받아!');
+  return pick(tips);
+}
+function wxLine(){
+  var Wt=WX[state.wx.today], Wn=WX[state.wx.tomorrow], S=SEASONS[curSeason()]||SEASONS[0];
+  return '오늘은 '+Wt.icon+' '+Wt.name.replace(/ \(.*/,'')+', 내일은 '+Wn.icon+' '+Wn.name.replace(/ \(.*/,'')+'(이)래! 지금은 '+S.icon+' '+S.name+'이야.';
+}
+function npcReply(n, t){
+  var C=NPC_TALK[n.id]||{}, V=n.villager, v=vs(n.id), me=NET.name||'친구', hh=state.timeHours;
+  var fav=(V&&V.fav)||C.fav||'사과', tail=function(s){ return s+(Math.random()<0.5?pick(C.tail||['']):''); };
+  var low=t.toLowerCase().replace(/\s+/g,' ');
+  function has(re){ return re.test(low); }
+  if(n.id==='tori' && state.tut===0) return '반가워! 나한테 가까이 와서 나를 눌러 줘. 줄 게 있어! ❗';
+  if(V && !v.greeted){ v.greeted=true; v.reqT=15; addHearts(n.id,1,n); updateScore(); saveSoon(); return pick(V.hello); }
+  if(has(/♡♡/)) return '앗, 고운 말을 쓰면 마음이 더 따뜻해져 🌷';
+  if(has(/잘\s?가|바이|빠이|안녕히|다음에\s?봐|또\s?봐|나중에\s?봐/)) return tail(pick(['또 놀러 와~ 👋','응, 잘 가! 또 보자!','다음에 또 이야기하자!']));
+  if(has(/잘\s?자|졸려|졸리|자러|피곤/)) return isNightNow ? tail('응, 잘 자~ 집 침대에 누우면 체력이 다시 차올라 🌙') : tail('피곤하면 집 침대에 누워서 쉬어 봐. 체력이 회복돼!');
+  if(has(/안녕|하이|ㅎㅇ|반가|방가|hello|\bhi\b|헬로/)) return tail(pick([(hh<11?'좋은 아침이야, ':hh>=18?'좋은 저녁이야, ':'안녕, ')+me+'! 😊', '어, '+me+'! 반가워~', '안녕! 오늘도 와 줘서 고마워!']));
+  if(has(/고마|감사|땡큐|thank|ㄱㅅ/)) return tail(pick(['천만에! 언제든 말해~','헤헤, 별말씀을!','나도 고마워! 💖']));
+  if(has(/이름|누구(야|니|세요|예요)?\??$|넌\s?누구|너\s?누구/)) return tail('나는 '+josa(n.name,'이야','야')+'! '+(n.species||'포근숲 주민')+(hasBatchim(n.species||'민')?'이지.':'지.'));
+  if(has(/몇\s?살|나이/)) return tail('그건 비밀이야~ 히히.');
+  if(has(/몇\s?시|지금\s?시간/)) return tail('지금은 '+(hh<12?'오전 ':'오후 ')+(((Math.floor(hh)+11)%12)+1)+'시쯤이야.');
+  if(has(/날씨|비\s?(와|온|오|내)|눈\s?(와|온|오|내)|더워|더운|추워|추운|맑아|맑네|계절|봄|여름|가을|겨울/)) return tail(wxLine());
+  if(has(/뭘\s?하|뭐\s?하면|뭐\s?해야|뭐\s?하지|할\s?거|할게\s?없|어떻게|모르겠|도와|알려|방법|힌트/)) return tail(talkHint());
+  if(has(/선물/)) return tail('선물은 나를 눌러서 💝 선물하기를 고르면 돼! 나는 '+josa(itemLabel(fav),'을','를')+' 제일 좋아해.');
+  if(has(/좋아하는|뭐\s?좋아|최애|취미|좋아해\?|좋아하니/)) return tail('나는 '+josa(itemLabel(fav),'을','를')+' 제일 좋아해!');
+  if(has(/사랑|좋아해|좋아|친구\s?하자|친구\s?할래|단짝|귀여|예뻐|이뻐|멋져|멋있/)){
+    if(v.chatDay!==state.day){ v.chatDay=state.day; addHearts(n.id,1,n); saveSoon(); }
+    avatarPlay(n.av,'cheer');
+    return tail(pick(['나도 네가 정말 좋아! 💖','헤헤, 부끄러워~ 고마워!','우리 이제 진짜 친구다! 🤝']));
+  }
+  if(has(/뭐\s?해|뭐\s?하(고|니|는|냐|세)|뭐하/)) return tail(pick(C.doing||['그냥 산책하고 있었어~']));
+  if(has(/심심|지루|놀자|놀아|같이\s?놀/)){ avatarPlay(n.av,'dance'); return tail(pick(['좋아! 같이 춤추자! 💃','그럼 나랑 연못에서 낚시할래? 🎣','👫 친구 방을 만들어서 친구들을 불러 봐! 같이 하면 더 재밌어!'])); }
+  if(has(/슬퍼|슬프|우울|힘들|외로|속상/)) return tail(pick(['힘내! 내가 옆에서 응원할게 📣','속상한 날도 있지. 맛있는 거 먹고 푹 쉬자!','괜찮아, 천천히 해도 돼. 내가 있잖아!']));
+  if(has(/최고|잘했|대단|짱|굿|good/)) return tail(pick(['헤헤, 고마워! 너도 최고야 👍','우리 마을 최고! 🌟']));
+  if(has(/배고|먹고\s?싶|맛있|요리|밥|간식/)) return tail(pick(['배고프면 캠핑장 모닥불에서 요리해 봐! 구운 물고기 최고야.','나는 '+itemLabel(fav)+' 먹고 싶다~','밭에서 키운 작물로 요리하면 체력이 차올라!']));
+  if(has(/몬스터|습격|무서|싸우|사냥|칼|활|도끼|무기/)) return tail(raid&&raid.active ? '지금 습격이야! 다 같이 힘을 합쳐서 막자! ⚔️' : '몬스터 숲은 오른쪽이야. 1·2·3 키로 칼·도끼·활을 바꿀 수 있어!');
+  if(has(/낚시|물고기|바다|수영|조개|배\s?타|배를\s?타|보트/)) return tail(state.town>=5 ? '동쪽 바다 부두에서 배를 타고 나가면 큰 물고기도 낚을 수 있어! 🚤' : '연못 다리 끝에서 낚시할 수 있어! 마을이 커지면 바닷길도 열린대.');
+  if(has(/광석|광산|곡괭이|캐러|바위|캠핑|텐트/)) return tail('산에 있는 바위를 두드리면 돌이랑 철 광석이 나와! 산 근처 캠핑장 텐트에서 쉬어 갈 수도 있어 ⛺');
+  if(has(/돈|코인|부자|팔(아|고|래|까)|가게|사고\s?싶/)) return tail('작물이나 광석은 핑키네 가게에서 팔 수 있어! 🪙');
+  if(has(/집|가구|꾸미|침대|소파|의자|3층|층/)) return tail('집에 들어가서 🛋️ 집 꾸미기를 눌러 봐! 침대에 누우면 쉴 수도 있어.');
+  if(has(/[?？]$|(까|니|냐|나요|어요|에요)\??$/)) return tail(pick(['음... 그건 잘 모르겠어! 토리 이장님께 물어볼래?','글쎄~ 나도 궁금하다!','음, 그건 나도 처음 듣는 이야기야!']));
+  if(Math.random()<0.45) return tail(pick(['"'+t.slice(0,16)+(t.length>16?'…':'')+'"? 그렇구나!','오호, 재밌다~','정말? 더 이야기해 줘!','응응, 듣고 있어!']));
+  return tail(V ? pick(V.talk) : pick(C.doing||['그렇구나!']));
+}
+var lastNoOneT=0;
+function villagerHear(t){
+  var n=chatListener(t);
+  if(!n){
+    var nowT=performance.now();
+    if(!NET.room && nowT-lastNoOneT>12000){ lastNoOneT=nowT; setTimeout(function(){ toast(inHome?'🏠 집 안에는 대답해 줄 주민이 없어요. 밖에 나가서 말해 보세요!':'🗨️ 근처에 주민이 없어요. 주민 가까이 가서 말해 보세요!'); }, 300); }
+    return;
+  }
+  chatTo=n; n.talking=true;
+  var reply=npcReply(n, t), delay=650+Math.min(1400, t.length*45);
+  n.say='···'; n.sayUntil=performance.now()+delay+50;
+  setTimeout(function(){
+    if(npcs.indexOf(n)<0) return;
+    n.say=reply; n.sayUntil=performance.now()+Math.max(4500, reply.length*130);
+    pushChatLog(n.name, reply, false, true);
+    try{ sfx('talk'); }catch(e){}
+    clearTimeout(n.chatHoldT);
+    n.chatHoldT=setTimeout(function(){ if(!activeDialogue || activeDialogue.who!==n) n.talking=false; }, 4000);
+    refreshChatHint();
+  }, delay);
+}
+/* 주민을 눌러 나온 대화 창에 [💬 말 걸기] */
+(function(){
+  var _od=openDialogue;
+  openDialogue=function(who, lines, opts){
+    if(who && opts && Array.isArray(opts.choices) && npcs.indexOf(who)>=0 && state.tut>=1){
+      opts=Object.assign({}, opts, { choices:opts.choices.concat([{ label:'💬 말 걸기', cls:'ghost', action:function(){ openChat(who); } }]) });
+    }
+    return _od.call(this, who, lines, opts);
+  };
+})();
+
+/* =====================================================================
    친구들과 함께 (최대 10명) — 모아팡 Firebase(Realtime Database) taja/duo/pogeunforest/<방번호>
    ===================================================================== */
 var NET={ room:null, uid:null, host:null, peers:{}, fb:null, joinedAt:0, offs:[], lastSend:0, lastMons:0, name:'친구',
@@ -3539,7 +3680,7 @@ function getFb(){
   })();
   return fbReady;
 }
-function netErr(e){ var m=String((e&&(e.code||e.message))||e); if(/permission|PERMISSION/.test(m)) return '함께 하기 방 자리가 아직 열려 있지 않아요. 선생님이 Firebase 규칙에 taja/duo 를 추가해 주세요.'; return '방에 연결하지 못했어요. 잠시 뒤 다시 해 보세요.'; }
+function netErr(e){ var m=String((e&&(e.code||e.message))||e); if(/permission|PERMISSION/.test(m)){ NET.ruleMissing=true; setTimeout(renderNetPanel,0); } if(/permission|PERMISSION/.test(m)) return '함께 하기 방 자리가 아직 열려 있지 않아요. 선생님이 Firebase 규칙에 taja/duo 를 추가해 주세요.'; return '방에 연결하지 못했어요. 잠시 뒤 다시 해 보세요.'; }
 async function netEnter(kind, code){
   var F=await getFb(); if(!F){ toast('인터넷 연결을 확인해 주세요'); return; }
   var D=F.D, db=F.db, now=Date.now();
@@ -3654,6 +3795,8 @@ function renderNetPanel(){
     html+='<div class="sub">같은 방 번호로 들어온 친구들(최대 10명)이 한 마을에서 같이 움직이고, 몬스터도 같이 잡고, 💬 대화도 해요. 밭은 한 사람이 하나씩 맡아요 — 방을 만든 사람은 집 옆 밭, 들어온 친구는 남쪽 들판 1~9번 밭!</div>';
     html+='<div class="itemrow"><b class="display">새 방 만들기</b><button class="btn small yellow" id="netcreate">방 만들기</button></div>';
     html+='<div class="itemrow"><input id="netcode" inputmode="numeric" maxlength="4" placeholder="방 번호 4자리" style="flex:1;font:inherit;font-size:16px;padding:6px 10px;border:2px solid var(--ink);border-radius:10px;min-width:0"><button class="btn small mint" id="netjoin">들어가기</button></div>';
+    if(NET.ruleMissing) html+='<div class="sub" style="background:#fff3c4;border:2px solid #e0b840;border-radius:10px;padding:7px 10px;margin-top:6px">⚠️ 아직 친구 방 자리가 열려 있지 않아요. 선생님이 Firebase 규칙에 <b>taja/duo</b> 를 한 번 넣어 주면 친구 방과 친구 대화가 돼요.<br>그동안에도 아래 <b>💬 대화</b>로 마을 주민들과 이야기할 수 있어요!</div>';
+    html+='<div class="itemrow"><span>💬 마을 주민과 대화하기 <span class="sub" style="margin:0">(Enter)</span></span><button class="btn small mint" id="netchat">대화</button></div>';
   } else {
     var list=[{ name:NET.name+' (나)', host:NET.host===NET.uid, lot:myLot }].concat(Object.keys(NET.peers).map(function(id){ return { name:NET.peers[id].name, host:NET.host===id, lot:NET.peers[id].lot }; }));
     html+='<div class="itemrow"><b class="display" style="font-size:20px">방 번호 '+NET.room+'</b><span class="sub" style="margin:0">'+list.length+' / 10명</span></div>';
@@ -3712,7 +3855,7 @@ window.addEventListener('keydown', function(e){
   if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA')) return;
   var k=e.key.toLowerCase(); keys[k]=true;
   if(state.started && !anyPanelOpen() && !inHome){ if(k==='1') setWeapon('sword'); else if(k==='2') setWeapon('axe'); else if(k==='3') setWeapon('bow'); else if(k==='q'){ var wi=WEAPON_KEYS.indexOf(state.weapon); setWeapon(WEAPON_KEYS[(wi+1)%3]); } }
-  if(k==='enter' && state.started && NET.room && !anyPanelOpen()){ e.preventDefault(); openChat(); return; }
+  if(k==='enter' && state.started && !anyPanelOpen()){ e.preventDefault(); openChat(); return; }
   if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].indexOf(k)>=0){ player && (player.path=null, player.target=null); if(k.indexOf('arrow')===0) e.preventDefault(); }
   if(k==='escape'){ closePanels(); if(decorateMode) toggleDecorate(); }
   if((k===' '||k==='e'||k==='j') && state.started && !anyPanelOpen()){ e.preventDefault(); actionKey(); }
@@ -3861,7 +4004,8 @@ function updateLabels(){
       if(n.id==='tori' && state.tut===0) b='❗';
       else if(n.villager && v && !v.greeted && !n.arriving) b='👋';
       else if(v && v.req) b = (state.inv[v.req.item]||0)>=v.req.qty ? '🎁' : '❗'+ITEMS[v.req.item].icon;
-      if(b) label('b_'+n.id, 'bubble'+(b.indexOf('🎁')>=0?' need':''), b, n.x, n.y-top-0.55);
+      if(n.sayUntil>performance.now()) label('ns_'+n.id, 'say npc'+(n.say==='···'?' typing':''), esc(n.say), n.x, n.y-top-0.55);
+      else if(b) label('b_'+n.id, 'bubble'+(b.indexOf('🎁')>=0?' need':''), b, n.x, n.y-top-0.55);
     });
     for(var id in NET.peers){ var p=NET.peers[id]; if(p.ih){ continue; } label('pp_'+id, 'name friend', '👫 '+esc(p.name), p.x, p.y-top); if(p.sayT>0) label('ps_'+id, 'say', esc(p.say), p.x, p.y-top-0.55); else if(p.emoT>0) label('pe_'+id, 'bubble', p.emo, p.x, p.y-top-0.6); }
     label('me', 'name me', esc(NET.name), player.x, player.y-top);
@@ -3977,7 +4121,7 @@ setInterval(saveGame, 10000);
 window.addEventListener('pagehide', function(){ saveGame(); netLeave(); });
 document.addEventListener('visibilitychange', function(){ if(document.hidden) saveGame(); });
 
-if(/[?&]debug/.test(location.search)) window.__pf={ state:state, get player(){ return player; }, npcs:npcs, plots:plots, talk:talkTo, closeDialogue:closeDialogue, addCoins:addCoins, addItem:addItem, setTut:setTut,
+if(/[?&]debug/.test(location.search)) window.__pf={ state:state, openChat:openChat, sendChat:sendChat, npcReply:npcReply, chatListener:chatListener, get chatLog(){ return chatLog; }, get player(){ return player; }, npcs:npcs, plots:plots, talk:talkTo, closeDialogue:closeDialogue, addCoins:addCoins, addItem:addItem, setTut:setTut,
   upgrades:upgrades, openBoard:openBoard, openShop:openShop, usePlot:usePlot, growAll:function(){ for(var i=0;i<plotCount();i++){ var d=plotData(i); if(d.crop) d.stage=3; } }, saveGame:saveGame,
   buildVillagerHouse:buildVillagerHouse, score:farmScore, star:currentStar, updateScore:updateScore, spawnPest:spawnPest, get pests(){ return pests; }, startRaid:startRaid, get monsters(){ return monsters; }, spawnMonster:spawnMonster,
   addPet:addPet, petObjs:petObjs, petGrow:petGrow, openPetDialog:openPetDialog, chopTrees:chopTrees, chopHit:chopHit, get world(){ return world; }, setZoom:function(z){ ZOOM=z; }, tickTime:tickTime, NET:NET, swing:swing,
