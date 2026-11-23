@@ -863,7 +863,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       </div>
 
       {/* Category Selection Stone Buttons */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto tp-thin-scroll pb-1.5">
         {activeDataset.map((cat, idx) => (
           <button
             key={cat.id}

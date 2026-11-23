@@ -890,9 +890,9 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mt-8">
                   {[
-                    { icon: <Pixel grid={TROPHY} pal={TROPHY_PAL} size={38} />, label: 'Average Speed', val: String(stats.avg), unit: 'CPM', tone: 'forest' },
-                    { icon: <Pixel grid={STAR} pal={STAR_PAL} size={42} />, label: 'Top Speed', val: String(stats.top), unit: 'CPM', tone: 'gold' },
-                    { icon: <Pixel grid={HEART} pal={HEART_PAL} size={38} />, label: 'Precision', val: stats.acc.toFixed(1), unit: '%', tone: 'crimson' },
+                    { icon: <Pixel grid={TROPHY} pal={TROPHY_PAL} size={38} />, label: '평균 타수', val: String(stats.avg), unit: '타', tone: 'forest' },
+                    { icon: <Pixel grid={STAR} pal={STAR_PAL} size={42} />, label: '최고 타수', val: String(stats.top), unit: '타', tone: 'gold' },
+                    { icon: <Pixel grid={HEART} pal={HEART_PAL} size={38} />, label: '정확도', val: stats.acc.toFixed(1), unit: '%', tone: 'crimson' },
                   ].map((b) => (
                     <div key={b.label} className={`tp-seg tp-seg--${b.tone}`}>
                       <span className="tp-seg-icon" aria-hidden="true">{b.icon}</span>
@@ -908,10 +908,10 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                 <div className="flex flex-col lg:flex-row items-center lg:items-end gap-5 mt-6">
                   <div className="tp-log">
                     <div className="tp-log-row tp-log-head">
-                      <span>Date</span>
-                      <span>Sentence</span>
-                      <span>CPM</span>
-                      <span>Accuracy</span>
+                      <span>날짜</span>
+                      <span>연습한 글</span>
+                      <span>타수</span>
+                      <span>정확도</span>
                     </div>
                     {(stats.recent.length ? stats.recent : [null, null, null]).map((r, i) => (
                       <div key={r ? r.id : i} className="tp-log-row">

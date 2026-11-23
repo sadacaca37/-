@@ -10,6 +10,7 @@ import { refreshMyApproval } from './utils/tajaApproval';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
+import { WoodGate } from './components/WoodDialog';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
 import { ContestBanner } from './components/ContestBanner';
@@ -333,13 +334,22 @@ export default function App() {
           return;
         }
         if (savedUser && savedUser.role !== 'master') {
-          const u = await reloadMember(savedUser.id);
-          if (u) startSession(u);
-          else {
-            // 승인이 풀렸거나 지워진 회원
-            localStorage.removeItem('typang_current_user');
-            setCurrentUser(null);
-          }
+          const member = savedUser;
+          const check = async (triesLeft: number): Promise<void> => {
+            const u = await reloadMember(member.id);
+            if (u === 'offline') {
+              // 인터넷이 잠깐 안 될 때는 로그인을 그대로 두고 조금 뒤 다시 확인 (저절로 로그아웃되지 않게)
+              if (triesLeft > 0) window.setTimeout(() => void check(triesLeft - 1), 15000);
+              return;
+            }
+            if (u) startSession(u);
+            else {
+              // 승인이 풀렸거나 지워진 회원
+              localStorage.removeItem('typang_current_user');
+              setCurrentUser(null);
+            }
+          };
+          await check(8);
           return;
         }
         if (savedUser?.role === 'master') {
@@ -730,31 +740,38 @@ export default function App() {
         )}
 
         {longGate && (
-          <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-4 border-[#5a3417] shadow-xl text-center space-y-5 animate-fade-in" data-testid="long-gate">
-            <div className="w-16 h-16 rounded-3xl bg-amber-100 mx-auto flex items-center justify-center text-3xl shadow-inner">🔒</div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-900 font-arcade">짧은 글 {SHORT_TO_LONG_CPM}타를 넘으면 긴 글이 열려요!</h3>
-              <p className="text-sm text-slate-600 leading-relaxed font-bold">
-                지금 내 짧은 글 최고 기록은 <strong className="text-pink-600 text-lg">{bestShortCpm(currentUser)}타</strong>예요.
-                <br />
-                {SHORT_TO_LONG_CPM - bestShortCpm(currentUser) > 0 ? `${SHORT_TO_LONG_CPM - bestShortCpm(currentUser)}타만 더 빨라지면 긴 글 연습을 할 수 있어요. 화이팅!` : ''}
-                {!currentUser && (
-                  <>
-                    <br />
-                    로그인하면 내 기록이 저장돼요.
-                  </>
+          <WoodGate
+            testId="long-gate"
+            icon="🔒"
+            title={<>짧은 글 {SHORT_TO_LONG_CPM}타를 넘으면 긴 글이 열려요!</>}
+            actions={
+              <>
+                <button onClick={() => handleSelectMode('sentence-practice')} className="wd-btn wd-btn--sky">
+                  📝 짧은 글 연습하러 가기
+                </button>
+                {isPopupMode ? (
+                  // 연습 창(팝업) 안에서는 홈 화면 대신 창을 닫음
+                  <button onClick={() => window.close()} className="wd-btn wd-btn--plain">
+                    창 닫기
+                  </button>
+                ) : (
+                  <button onClick={() => setCurrentMode('home')} className="wd-btn wd-btn--plain">
+                    홈으로
+                  </button>
                 )}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button onClick={() => handleSelectMode('sentence-practice')} className="px-6 py-3 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm shadow-md cursor-pointer">
-                📝 짧은 글 연습하러 가기
-              </button>
-              <button onClick={() => setCurrentMode('home')} className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer">
-                홈으로
-              </button>
-            </div>
-          </div>
+              </>
+            }
+          >
+            지금 내 짧은 글 최고 기록은 <strong>{bestShortCpm(currentUser)}타</strong>예요.
+            <br />
+            {SHORT_TO_LONG_CPM - bestShortCpm(currentUser) > 0 ? `${SHORT_TO_LONG_CPM - bestShortCpm(currentUser)}타만 더 빨라지면 긴 글 연습을 할 수 있어요. 화이팅!` : ''}
+            {!currentUser && (
+              <>
+                <br />
+                로그인하면 내 기록이 저장돼요.
+              </>
+            )}
+          </WoodGate>
         )}
 
         {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longGate && (
@@ -859,36 +876,36 @@ export default function App() {
 
         {/* 미니게임·놀이터는 타자팡 로그인 뒤에 (모아팡 방번호로만 들어오면 연습만) */}
         {loginGate && (
-          <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-4 border-[#5a3417] shadow-xl text-center space-y-5 animate-fade-in" data-testid="login-gate">
-            <div className="w-16 h-16 rounded-3xl bg-amber-100 mx-auto flex items-center justify-center text-3xl shadow-inner">🔒</div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-900 font-arcade">미니게임과 놀이터는 로그인하고 할 수 있어요!</h3>
-              <p className="text-sm text-slate-600 leading-relaxed font-bold">
-                자리·낱말·짧은 글·긴 글·지식 타자 연습은 로그인 없이도 할 수 있어요.
-                <br />
-                <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호 뒷자리</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button onClick={() => setIsAuthOpen(true)} className="px-6 py-3 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm shadow-md cursor-pointer">
-                🔑 로그인
-              </button>
-              <button
-                onClick={() => {
-                  try {
-                    sessionStorage.setItem('taja_open_signup', '1');
-                  } catch {}
-                  setIsAuthOpen(true);
-                }}
-                className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md cursor-pointer"
-              >
-                ✨ 새로 가입하기
-              </button>
-              <button onClick={() => setCurrentMode('home')} className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer">
-                홈으로
-              </button>
-            </div>
-          </div>
+          <WoodGate
+            testId="login-gate"
+            icon="🔑"
+            title="미니게임과 놀이터는 로그인하고 할 수 있어요!"
+            actions={
+              <>
+                <button onClick={() => setIsAuthOpen(true)} className="wd-btn wd-btn--sky">
+                  🔑 로그인
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('taja_open_signup', '1');
+                    } catch {}
+                    setIsAuthOpen(true);
+                  }}
+                  className="wd-btn wd-btn--green"
+                >
+                  ✨ 새로 가입하기
+                </button>
+                <button onClick={() => setCurrentMode('home')} className="wd-btn wd-btn--plain">
+                  홈으로
+                </button>
+              </>
+            }
+          >
+            자리·낱말·짧은 글·긴 글·지식 타자 연습은 로그인 없이도 할 수 있어요.
+            <br />
+            <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호 뒷자리</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
+          </WoodGate>
         )}
 
         {currentMode === 'word-crush' && !loginGate && (
