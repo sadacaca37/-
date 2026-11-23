@@ -175,7 +175,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '펀펀',
     icon: '🐭',
     thumb: './assets/playground/thumb-pogeunforest.webp',
-    description: '모아팡 내 캐릭터로 하는 스타듀밸리풍 2D 농장 · 👥 친구 10명까지 함께(대화·밭 10곳) · 칼·도끼·활로 큰 몬스터 사냥·마을 습격 · 벌목 · 집 안 꾸미기 · 알·새끼 농장 동물과 반려동물 · 사계절·날씨·해와 달 · 이어하기 저장',
+    description: '모아팡 내 캐릭터로 하는 스타듀밸리풍 2D 농장 · 👥 친구 10명까지(대화·밭 10곳) · 인원수만큼 몰려오는 몬스터 습격(못 막으면 집·밭이 무너져요) · 칼·도끼·활 · 벌목·⛏️광석 캐기·🏕️캠핑 · 마을 키우기·🌊바다(수영·배·바다 낚시) · 3층 집 꾸미기 · 알·새끼 동물 · 사계절·음악 · 계정별 이어하기',
     component: PogeunForestGame,
   },
   {
