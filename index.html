@@ -12,7 +12,18 @@
     <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" media="print" onload="this.media='all'" />
   </head>
   <body class="bg-[#fffdf8] text-slate-800 font-sans antialiased selection:bg-rose-400 selection:text-white">
-    <div id="root"></div>
+    <div id="root"><style>
+      .tp-boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fffdf8;font-family:system-ui,'Malgun Gothic',sans-serif;z-index:1}
+      .tp-boot.pop{background:#3b2210}
+      .tp-boot-card{display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px 34px;border:4px solid #2c1507;border-radius:18px;background:#fff6dc;box-shadow:0 6px 0 #2c1507;color:#2c1507;font-weight:900;font-size:17px}
+      .tp-boot-logo{font-size:30px;letter-spacing:1px}
+      .tp-boot-logo b{color:#e2552d}
+      .tp-boot-bar{width:200px;height:12px;border:3px solid #2c1507;border-radius:8px;background:#fde6a8;overflow:hidden}
+      .tp-boot-bar i{display:block;height:100%;width:40%;background:#f59e0b;animation:tpboot 1s ease-in-out infinite alternate}
+      @keyframes tpboot{from{margin-left:0}to{margin-left:60%}}
+    </style><div class="tp-boot" id="tp-boot"><div class="tp-boot-card"><div class="tp-boot-logo">⌨️ 타자<b>팡</b></div><div id="tp-boot-msg">타자팡 여는 중…</div><div class="tp-boot-bar"><i></i></div></div></div><script>
+      if(/[?&]popup=true/.test(location.search)){document.getElementById('tp-boot').className='tp-boot pop';document.getElementById('tp-boot-msg').textContent='연습 창 여는 중…';}
+    </script></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -863,7 +863,8 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
       </div>
 
       {/* Category Selection Stone Buttons */}
-      <div className="flex items-center gap-2 overflow-x-auto tp-thin-scroll pb-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 pb-1">
+        <span className="text-[12px] font-black text-[#fde68a] px-1 shrink-0">📚 글 고르기</span>
         {activeDataset.map((cat, idx) => (
           <button
             key={cat.id}
@@ -872,7 +873,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               setSentenceIndex(0);
               setInputVal('');
             }}
-            className={`px-3.5 py-2 text-xs font-black whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1.5 text-xs font-black whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               selectedCategoryIndex === idx
                 ? 'pr-stone-btn--active rounded-lg'
                 : 'pr-stone-btn'
