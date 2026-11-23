@@ -494,8 +494,8 @@ var FURN = {
   '나무 침대':  { spr:'f_bed',       icon:'🛏️', price:150, w:2, d:2, bed:true },
   '큰 침대':    { spr:'f_bed2',      icon:'🛏️', price:600, w:3, d:2, bed:true },
   '둥근 탁자':  { spr:'f_table',     icon:'🟤', price:120, w:2, d:1 },
-  '나무 의자':  { spr:'f_chair',     icon:'🪑', price:50,  w:1, d:1 },
-  '초록 소파':  { spr:'f_sofa',      icon:'🛋️', price:260, w:3, d:1 },
+  '나무 의자':  { spr:'f_chair',     icon:'🪑', price:50,  w:1, d:1, sit:[0.5], hip:0.64, cover:0.7 },
+  '초록 소파':  { spr:'f_sofa',      icon:'🛋️', price:260, w:3, d:1, sit:[0.62,1.5,2.38], hip:0.58, cover:0.64 },
   '책장':       { spr:'f_shelf',     icon:'📚', price:220, w:2, d:1, fun:'📖 재미있는 책이 가득!' },
   '옷장':       { spr:'f_wardrobe',  icon:'👚', price:240, w:2, d:1, fun:'👕 옷이 잔뜩!' },
   '벽난로':     { spr:'f_fireplace', icon:'🔥', price:400, w:2, d:1, light:true, fun:'🔥 따뜻해~' },
@@ -2415,7 +2415,7 @@ function enterHome(){
   }, 350);
 }
 function leaveHome(){
-  if(!inHome) return; if(decorateMode) toggleDecorate();
+  if(!inHome) return; home.pose=null; if(decorateMode) toggleDecorate();
   var f=$('fade'); f.classList.add('on');
   setTimeout(function(){ inHome=false; player.x=HOME.x+0.5; player.y=HOME.y+1.6; player.av.dir=0; camX=player.x; camY=player.y; refreshActionHud(); refreshWeaponBar(); f.classList.remove('on'); saveSoon(); }, 300);
 }
@@ -2440,8 +2440,27 @@ function canPlaceFurn(k, x, y, ignore){
   return !homeItems().some(function(o){ if(o===ignore) return false; var G=FURN[o.k]; if(G.wall || (!!G.flat)!==(!!F.flat)) return false; return x<o.x+G.w && x+F.w>o.x && y<o.y+G.d && y+F.d>o.y; });
 }
 function homeGhostPos(wx,wy){ var F=FURN[home.sel]; if(!F) return null; var x=Math.round(wx-F.w/2), y=F.wall?-1:Math.round(wy-(F.d||1)/2-0.1); return { x:x, y:y }; }
+function poseSpot(type, it){
+  var F=FURN[it.k], bx=it.x+F.w/2, by=it.y+F.d, box=sprBox(F.spr, bx, by, 1)||{ y0:by-2, y1:by };
+  if(type==='lie'){ var hgt=box.y1-box.y0, px=it.x+(F.w>2.5?F.w*0.3:F.w/2), py=box.y0+hgt*0.32; return { x:px, y:py+1.27, hx:px, hy:py, cover:box.y0+hgt*0.42, box:box }; }
+  var seats=F.sit||[F.w/2], sx0=seats[0], bd=1e9; seats.forEach(function(s){ var d=Math.abs(it.x+s-home.x); if(d<bd){ bd=d; sx0=s; } });
+  var hh=box.y1-box.y0, seatY=box.y0+hh*(F.hip||0.62);
+  return { x:it.x+sx0, y:seatY+0.72, cover:box.y0+hh*(F.cover||0.68), box:box };
+}
+function setPose(type, it){
+  var sp=poseSpot(type, it); home.pose={ type:type, it:it, x:sp.x, y:sp.y, hx:sp.hx, hy:sp.hy, cover:sp.cover, box:sp.box, t:0 };
+  home.path=null; home.act=null; player.av.dir=0; if(typeof sfx==='function') sfx(type==='lie'?'heart':'place');
+  if(type==='lie') toast('🛏️ 누워서 쉬는 중… 움직이면 일어나요'); else spawnFloat({ x:sp.x, y:sp.y-1.6 }, '🪑 앉았어요', 'sparkle');
+}
+function standUp(){
+  var P=home.pose; if(!P) return; home.pose=null; var F=FURN[P.it.k], WH=roomWH();
+  var cand=[[P.x, P.it.y+F.d+0.5],[P.it.x-0.45, P.it.y+F.d/2],[P.it.x+F.w+0.45, P.it.y+F.d/2],[P.x, P.it.y-0.4]];
+  for(var i=0;i<cand.length;i++){ var c=cand[i]; var x=Math.max(0.35,Math.min(WH[0]-0.35,c[0])), y=Math.max(0.5,Math.min(WH[1]-0.3,c[1])); if(!roomHits(x,y,0.28)){ home.x=x; home.y=y; return; } }
+  home.x=doorX()+0.5; home.y=WH[1]-0.55;
+}
 function homeTap(wx,wy){
   var WH=roomWH(), W=WH[0], H=WH[1];
+  if(home.pose && !decorateMode){ standUp(); }
   if(decorateMode){
     var it=homeAt(wx,wy);
     if(!home.sel){ if(it){ removeFurn(it); addItem(it.k,1); puff({ x:it.x+FURN[it.k].w/2, y:it.y+0.5 },8,0.5); refreshDecoPalette(); updateScore(); saveSoon(); } return; }
@@ -2464,7 +2483,7 @@ function nearHomeAct(){
   var sr=stairsRect(); if(sr && home.x>sr[0]-0.6 && home.x<sr[2]+0.4 && home.y<sr[3]+1.1) return { stairs:true, label:'🪜 계단 ('+(home.floor+1)+'층)' };
   if(home.floor===0 && home.y>H-1.2 && Math.abs(home.x-(doorX()+0.5))<0.9) return { door:true, label:'🚪 밖으로 나가기' };
   var best=null, bd=1.3;
-  homeItems().forEach(function(it){ var F=FURN[it.k]; if(!F || F.flat || !(F.bed||F.fun||F.wall)) return; var cx=Math.max(it.x,Math.min(it.x+F.w,home.x)), cy=F.wall?0:Math.max(it.y,Math.min(it.y+F.d,home.y)); var d=Math.hypot(cx-home.x,cy-home.y); if(d<bd){ bd=d; best={ item:it, label:F.bed?'🌙 침대에서 자기':(F.icon+' '+it.k) }; } });
+  homeItems().forEach(function(it){ var F=FURN[it.k]; if(!F || F.flat || !(F.bed||F.fun||F.wall||F.sit)) return; var cx=Math.max(it.x,Math.min(it.x+F.w,home.x)), cy=F.wall?0:Math.max(it.y,Math.min(it.y+F.d,home.y)); var d=Math.hypot(cx-home.x,cy-home.y); if(d<bd){ bd=d; best={ item:it, label:F.bed?'🛏️ 침대 (눕기·자기)':F.sit?'🪑 '+it.k+'에 앉기':(F.icon+' '+it.k) }; } });
   return best;
 }
 function doHomeAct(a){
@@ -2475,18 +2494,27 @@ function doHomeAct(a){
     openDialogue({ name:'계단', portraitKey:'me', color:'#fff0d6' }, ['(지금은 '+(home.floor+1)+'층이에요. 어디로 갈까요?)'], { choices:ch }); return; }
   var it=a.item, F=FURN[it.k]; if(!F) return;
   home.lastDx=(it.x+F.w/2)-home.x; home.lastDy=-1; player.av.dir=avatarDir(home.lastDx, F.wall?-1:(it.y+F.d/2-home.y));
-  if(F.bed){ var lines=['(포근한 '+it.k+'이에요. 푹 자면 다음 날 아침이 돼요.)']; if(state.hp<state.maxHp) lines.push('(자고 나면 체력이 다 차요 ❤)');
-    openDialogue({ name:'우리 집', portraitKey:'me', color:'#fff0d6' }, lines, { choices:[ { label:'🌙 푹 자고 아침 맞기', cls:'mint', action:sleep }, { label:'조금 더 놀래요', cls:'ghost', action:function(){} } ] }); return; }
+  if(F.bed){ var lines=['(포근한 '+it.k+'이에요. 누워서 쉬거나, 푹 자면 다음 날 아침이 돼요.)']; if(state.hp<state.maxHp) lines.push('(누워 있으면 체력이 빨리 차요 ❤)');
+    openDialogue({ name:'우리 집', portraitKey:'me', color:'#fff0d6' }, lines, { choices:[ { label:'🛏️ 침대에 눕기', cls:'yellow', action:function(){ setPose('lie', it); } }, { label:'🌙 푹 자고 아침 맞기', cls:'mint', action:function(){ setPose('lie', it); setTimeout(sleep, 700); } }, { label:'조금 더 놀래요', cls:'ghost', action:function(){} } ] }); return; }
+  if(F.sit){ setPose('sit', it); return; }
   if(F.fun){ spawnFloat({ x:home.x, y:home.y }, F.fun, 'sparkle'); playerAct(it.k==='피아노'?'dance':'cheer'); return; }
   if(it.k==='벽시계'){ var h=state.timeHours, hh=Math.floor(h); spawnFloat({ x:home.x, y:home.y }, '🕰️ '+(hh<12?'오전 ':'오후 ')+((hh%12)||12)+'시', 'item'); return; }
   spawnFloat({ x:home.x, y:home.y }, F.icon, 'item');
 }
 function goFloor(fl){
   var f=$('fade'); f.classList.add('on'); if(typeof sfx==='function') sfx('stairs');
+  home.pose=null;
   setTimeout(function(){ home.floor=fl; var sr=stairsRect(); home.x=sr?sr[0]+0.5:2; home.y=sr?sr[3]+0.6:2; home.path=null; home.act=null; if(decorateMode) refreshDecoPalette(); f.classList.remove('on'); toast('🏠 '+(fl+1)+'층이에요'+(fl>0?' · 여기도 가구로 꾸며 봐요!':'')); }, 260);
 }
 function updateHome(dt){
   if(player.hurtT>0) player.hurtT-=dt; if(player.swingT>0) player.swingT-=dt; if(player.emoT>0) player.emoT-=dt;
+  if(home.pose){
+    var mv=!anyPanelOpen() && (keys['w']||keys['a']||keys['s']||keys['d']||keys['arrowup']||keys['arrowdown']||keys['arrowleft']||keys['arrowright']);
+    if(mv || (home.path && home.path.length)){ standUp(); }
+    else { var P=home.pose; P.t+=dt; player.moving=false; player.av.dir=P.type==='lie'?0:0; animAvatar(player.av, dt, false, 1.6);
+      if(P.type==='lie'){ P.hpT=(P.hpT||0)+dt; if(P.hpT>2.5){ P.hpT=0; if(state.hp<state.maxHp){ state.hp++; refreshHp(); spawnFloat({ x:P.hx, y:P.hy-0.6 },'❤+1','heart'); } } }
+      if(marker){ marker.t-=dt; if(marker.t<=0) marker=null; } return; }
+  }
   var mx=0, my=0, moved=false, SPEED=3.6;
   if(!anyPanelOpen()){ if(keys['w']||keys['arrowup']) my-=1; if(keys['s']||keys['arrowdown']) my+=1; if(keys['a']||keys['arrowleft']) mx-=1; if(keys['d']||keys['arrowright']) mx+=1; }
   if(mx||my){ var l=Math.hypot(mx,my); moved=moveRoom(mx/l*SPEED*dt, my/l*SPEED*dt); home.lastDx=mx; home.lastDy=my; home.path=null; home.act=null; }
@@ -2535,6 +2563,14 @@ function renderHome(){
   items.forEach(function(it){ var F=FURN[it.k]; if(!F || F.flat || F.wall) return; if(F.light) lights.push({ x:it.x+F.w/2, y:it.y+F.d-1.1, r:it.k==='벽난로'?3.6:2.8 });
     list.push({ y:it.y+F.d, f:function(){ shadow(it.x+F.w/2, it.y+F.d-0.08, F.w*0.42, 0.16, 0.18); var fl=it.k==='벽난로'?Math.sin(t*12)*0.012:0; drawSpr(F.spr, it.x+F.w/2, it.y+F.d, { s:popScale(it)+fl }); } }); });
   var sr=stairsRect(); if(sr) list.push({ y:sr[3], f:function(){ drawSpr('f_stairs', sr[0]+1, sr[3]+0.05, { s:1.05 }); ctx.save(); ctx.font='bold '+Math.round(TS*0.3)+'px Jua, sans-serif'; ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.strokeStyle='rgba(70,45,30,.9)'; ctx.lineWidth=TS*0.08; var tx=(home.floor<floorsOf()-1?'⬆':'')+(home.floor>0?'⬇':''); ctx.strokeText(tx, sx(sr[0]+1), sy(-1.9)); ctx.fillText(tx, sx(sr[0]+1), sy(-1.9)); ctx.restore(); } });
+  if(home.pose){ var P=home.pose, PF=FURN[P.it.k];
+    if(P.type==='lie') list.push({ y:P.it.y+PF.d+0.001, f:function(){
+        ctx.save(); ctx.translate(sx(P.x), sy(P.y)); ctx.scale(0.86,0.86); ctx.translate(-sx(P.x), -sy(P.y)); drawAvatar(player.av, P.x, P.y, { moving:false }); ctx.restore();
+        var b=P.box; ctx.save(); ctx.beginPath(); ctx.rect(sx(b.x0)-2, sy(P.cover), sx(b.x1)-sx(b.x0)+4, sy(b.y1)-sy(P.cover)+2); ctx.clip(); drawSpr(PF.spr, P.it.x+PF.w/2, P.it.y+PF.d, {}); ctx.restore();
+        if(P.t>1.2){ ctx.save(); ctx.font='bold '+Math.round(TS*0.32)+'px Jua, sans-serif'; ctx.fillStyle='rgba(90,110,200,0.85)'; for(var z=0;z<3;z++){ var ph=((P.t*0.6)+z/3)%1; ctx.globalAlpha=1-ph; ctx.fillText('z', sx(P.hx+0.35+ph*0.5), sy(P.hy-0.5-ph*0.9)); } ctx.restore(); } } });
+    else list.push({ y:P.it.y+PF.d+0.002, f:function(){ var bob=Math.sin(P.t*2)*0.015; drawAvatar(player.av, P.x, P.y+bob, { moving:false });
+        var b=P.box; ctx.save(); ctx.beginPath(); ctx.rect(sx(b.x0)-2, sy(P.cover), sx(b.x1)-sx(b.x0)+4, sy(b.y1)-sy(P.cover)+2); ctx.clip(); drawSpr(PF.spr, P.it.x+PF.w/2, P.it.y+PF.d, {}); ctx.restore(); } });
+  } else
   list.push({ y:home.y, f:function(){ shadow(home.x, home.y, 0.32, 0.12, 0.2); drawAvatar(player.av, home.x, home.y, { moving:player.moving }); } });
   list.sort(function(a,b){ return a.y-b.y; }); list.forEach(function(o){ o.f(); });
   /* 꾸미기: 놓을 자리 미리 보기 */
@@ -3810,9 +3846,11 @@ function updateLabels(){
   labelUsed={};
   if(state.started && inHome){
     var topH=AVA*0.92;
-    label('me', 'name me', esc(NET.name), home.x, home.y-topH);
+    var hx=home.pose?home.pose.x:home.x, hy=home.pose?(home.pose.type==='lie'?home.pose.hy+1.2:home.pose.y):home.y;
+    label('me', 'name me', esc(NET.name), hx, hy-topH);
     if(player.sayT>0) label('mesay', 'say', esc(player.say), home.x, home.y-topH-0.55);
-    if(!activeDialogue && !decorateMode && !(home.path && home.path.length)){ var ha=nearHomeAct(); if(ha) label('prompt','prompt',ha.label+' <span class="key">Space</span>', home.x, home.y-topH-0.6); }
+    if(home.pose && !activeDialogue){ label('prompt','prompt',(home.pose.type==='lie'?'🛏️ 쉬는 중':'🪑 앉아 있어요')+' · 움직이면 일어나요', hx, hy-topH-0.6); }
+    else if(!activeDialogue && !decorateMode && !(home.path && home.path.length)){ var ha=nearHomeAct(); if(ha) label('prompt','prompt',ha.label+' <span class="key">Space</span>', home.x, home.y-topH-0.6); }
   } else if(state.started){
     var top=AVA*0.92;
     npcs.forEach(function(n){
@@ -3943,7 +3981,7 @@ if(/[?&]debug/.test(location.search)) window.__pf={ state:state, get player(){ r
   upgrades:upgrades, openBoard:openBoard, openShop:openShop, usePlot:usePlot, growAll:function(){ for(var i=0;i<plotCount();i++){ var d=plotData(i); if(d.crop) d.stage=3; } }, saveGame:saveGame,
   buildVillagerHouse:buildVillagerHouse, score:farmScore, star:currentStar, updateScore:updateScore, spawnPest:spawnPest, get pests(){ return pests; }, startRaid:startRaid, get monsters(){ return monsters; }, spawnMonster:spawnMonster,
   addPet:addPet, petObjs:petObjs, petGrow:petGrow, openPetDialog:openPetDialog, chopTrees:chopTrees, chopHit:chopHit, get world(){ return world; }, setZoom:function(z){ ZOOM=z; }, tickTime:tickTime, NET:NET, swing:swing,
-  setWeather:function(w){ state.wx.today=w; refreshWxHud(); }, enterHome:enterHome, leaveHome:leaveHome, goFloor:goFloor, rocks:rocks, mineHit:mineHit, boardBoat:boardBoat, leaveBoat:leaveBoat, seaCatch:seaCatch, beach:beach, BOAT:BOAT, PIER:PIER, useFire:useFire, cookItem:cookItem, useTent:useTent, refreshSea:refreshSea, spawnBeach:spawnBeach, upgrades:upgrades, startRaid:startRaid, removeMonster:removeMonster, endRaid:endRaid, openRebuild:openRebuild, rebuildBuilding:rebuildBuilding, B:B, HOME:HOME, get raid(){ return raid; }, refreshTown:refreshTown, AU:AU, sfx:sfx, home:home, get inHome(){ return inHome; }, homeTap:homeTap, setWeapon:setWeapon, setMyLot:setMyLot, get myLot(){ return myLot; }, farmObjs:farmObjs, addFarm:addFarm, buyFarm:buyFarm, sendChat:sendChat, openChat:openChat, readMyLook:readMyLook, applyMyLook:applyMyLook, get arrows(){ return arrows; }, FARMS:FARMS, fieldCode:fieldCode, netEvent:netEvent, peerPlots:peerPlots, get cam(){ return { x:camX, y:camY }; }, interactables:interactables, placeDecor:placeDecor, toggleDecorate:toggleDecorate, set selDecor(v){ selDecor=v; }, B:B };
+  setWeather:function(w){ state.wx.today=w; refreshWxHud(); }, enterHome:enterHome, leaveHome:leaveHome, goFloor:goFloor, setPose:setPose, standUp:standUp, rocks:rocks, mineHit:mineHit, boardBoat:boardBoat, leaveBoat:leaveBoat, seaCatch:seaCatch, beach:beach, BOAT:BOAT, PIER:PIER, useFire:useFire, cookItem:cookItem, useTent:useTent, refreshSea:refreshSea, spawnBeach:spawnBeach, upgrades:upgrades, startRaid:startRaid, removeMonster:removeMonster, endRaid:endRaid, openRebuild:openRebuild, rebuildBuilding:rebuildBuilding, B:B, HOME:HOME, get raid(){ return raid; }, refreshTown:refreshTown, AU:AU, sfx:sfx, home:home, get inHome(){ return inHome; }, homeTap:homeTap, setWeapon:setWeapon, setMyLot:setMyLot, get myLot(){ return myLot; }, farmObjs:farmObjs, addFarm:addFarm, buyFarm:buyFarm, sendChat:sendChat, openChat:openChat, readMyLook:readMyLook, applyMyLook:applyMyLook, get arrows(){ return arrows; }, FARMS:FARMS, fieldCode:fieldCode, netEvent:netEvent, peerPlots:peerPlots, get cam(){ return { x:camX, y:camY }; }, interactables:interactables, placeDecor:placeDecor, toggleDecorate:toggleDecorate, set selDecor(v){ selDecor=v; }, B:B };
 requestAnimationFrame(loop);
 boot();
 })();
