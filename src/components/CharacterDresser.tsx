@@ -145,7 +145,11 @@ export const CharacterDresser: React.FC<{ user: UserSession }> = ({ user }) => {
       change(next);
     }
   };
-  const colors = !category.skin && me[category.id] ? category.colors : null;
+  // 피부·눈 탭의 색 줄 = 눈동자 색 (js/avatar.js 의 EYE, 저장 키 eyeColor)
+  const colors = category.skin ? A.EYE || null : me[category.id] ? category.colors : null;
+  const colorKey = category.skin ? 'eyeColor' : category.id + 'Color';
+  const plain = category.skin || category.id === 'hair';
+  const curColor = me[colorKey] || 'orig';
 
   return (
     <div className="cd-box" data-testid="dresser">
@@ -193,18 +197,18 @@ export const CharacterDresser: React.FC<{ user: UserSession }> = ({ user }) => {
         </div>
         {colors && (
           <div className="cd-colors">
-            <span className="cd-colors-t">색깔</span>
+            <span className="cd-colors-t">{category.skin ? '눈동자 색' : '색깔'}</span>
             {colors.map((cl: any) => (
               <button
                 key={cl.k}
                 type="button"
                 role="radio"
-                aria-checked={me[category.id + 'Color'] === cl.k}
+                aria-checked={curColor === cl.k}
                 aria-label={cl.name}
                 title={cl.name}
-                className={`cd-sw ${cl.k === 'orig' && category.id !== 'hair' ? 'orig' : ''} ${me[category.id + 'Color'] === cl.k ? 'is-on' : ''}`}
-                style={cl.k === 'orig' && category.id !== 'hair' ? undefined : { background: cl.c }}
-                onClick={() => change({ ...me, [category.id + 'Color']: cl.k })}
+                className={`cd-sw ${cl.k === 'orig' && !plain ? 'orig' : ''} ${curColor === cl.k ? 'is-on' : ''}`}
+                style={cl.k === 'orig' && !plain ? undefined : { background: cl.c }}
+                onClick={() => change({ ...me, [colorKey]: cl.k })}
               />
             ))}
           </div>
