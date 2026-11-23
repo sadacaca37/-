@@ -14,6 +14,8 @@ import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
 import { bestShortCpm, longUnlocked, SHORT_TO_LONG_CPM } from './utils/longGate';
 import { AccountTabs, AccountTab } from './components/AccountTabs';
+import { AccountFrame, AccountLoading } from './components/AccountFrame';
+import { MoaCharacter, loadAvatarLib } from './components/MoaCharacter';
 import { payWeeklyRankRewards } from './utils/rankRewards';
 import { weekLabel } from './utils/weekBest';
 import { authReady, purgeStaleIdentities, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
@@ -131,8 +133,11 @@ if (typeof window !== 'undefined') {
           loadSentencePractice,
           loadLongPractice,
           () => import('./components/ProfileModal'),
-          () => import('./components/MasterModal'),
+          // 내 계정 옷장: 옷 그림 목록과 지금 입은 옷 그림을 미리 받아 두어 계정 창이 바로 뜨게
+          () => loadAvatarLib().then((A) => (A ? A.ready() : null)),
           () => import('./components/PracticeHistoryModal'),
+          () => import('./components/MonthlyReportModal'),
+          () => import('./components/MasterModal'),
           () => import('./components/views/playground/PlaygroundHome'),
           () => import('./components/views/KnowledgeHubView'),
           () => import('./components/views/MiniGamesHubView'),
@@ -152,6 +157,15 @@ if (typeof window !== 'undefined') {
     }
   } catch {}
 }
+
+/** 팝업 창 코드를 받는 동안 바로 보여 주는 작은 창 (아무것도 안 뜨고 멈춘 것처럼 보이지 않게) */
+const PopupLoading: React.FC = () => (
+  <div className="tp-modal acct-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="acct-loading-box">
+      <AccountLoading />
+    </div>
+  </div>
+);
 
 /** 열려 있는 연습 창 (모드별로 하나) */
 const openPracticeWindows = new Map<string, Window>();
@@ -227,8 +241,9 @@ export default function App() {
     activityTracker.setContext(isStudent ? currentUser!.id : '', currentMode);
   }, [currentUser, currentMode]);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
-  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
-  const [profileInitialTab, setProfileInitialTab] = useState<'avatar' | 'account'>('account');
+  /** 내 계정 창 (내 계정·캐릭터 / 타자 기록 / 성적표). null 이면 닫힘 */
+  const [acctTab, setAcctTab] = useState<AccountTab | null>(null);
+  const setIsProfileOpen = (open: boolean) => setAcctTab(open ? 'account' : null);
   const [isMasterOpen, setIsMasterOpen] = useState<boolean>(false);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   // 오늘의 연습 보고: 학생은 [선생님께 보내기], 선생님은 관리실 버튼에 새 보고 수
@@ -253,25 +268,16 @@ export default function App() {
       window.removeEventListener('daily-report-updated', sent);
     };
   }, []);
-  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [reportTargetUser, setReportTargetUser] = useState<UserSession | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(soundManager.getMuted());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const lastRecordRef = useRef<{ sig: string; at: number }>({ sig: '', at: 0 });
   const [usersDb, setUsersDb] = useState<UserSession[]>([]);
 
-  const handleOpenProfile = (tab: 'avatar' | 'account' = 'account') => {
-    setProfileInitialTab(tab);
-    setIsProfileOpen(true);
-  };
-  // 내 계정 · 타자 기록 · 성적표를 한 창처럼 오가기
-  const openAccount = (tab: AccountTab) => {
-    setIsProfileOpen(tab === 'account');
-    setIsHistoryOpen(tab === 'records');
-    if (tab === 'report') setReportTargetUser(currentUserRef.current);
-    setIsReportOpen(tab === 'report');
-  };
-  const acctTabs = (active: AccountTab) => (currentUserRef.current ? <AccountTabs active={active} onChange={openAccount} /> : null);
+  const handleOpenProfile = (_tab: 'avatar' | 'account' = 'account') => setAcctTab('account');
+  // 내 계정 · 타자 기록 · 성적표를 한 창 안에서 오가기 (창은 그대로, 안쪽만 바뀜)
+  const openAccount = (tab: AccountTab) => setAcctTab(tab);
+  const closeAccount = useCallback(() => setAcctTab(null), []);
 
   // Initialize DB and sessions
   useEffect(() => {
@@ -654,7 +660,7 @@ export default function App() {
             onClose={() => setCurrentMode('home')}
             showKeyboardSimultaneousBadge={true}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <KeyPracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -672,7 +678,7 @@ export default function App() {
             onClose={() => setCurrentMode('home')}
             showKeyboardSimultaneousBadge={true}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <WordPracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -689,7 +695,7 @@ export default function App() {
             icon="📝"
             onClose={() => setCurrentMode('home')}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <SentencePracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -734,7 +740,7 @@ export default function App() {
             icon="📜"
             onClose={() => setCurrentMode('home')}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <LongTextPracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -925,17 +931,42 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <Suspense fallback={null}>
-      {/* Profile & Avatar Selector Modal */}
-      {isProfileOpen && <ProfileModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        currentUser={currentUser}
-        onUpdateUser={handleUpdateProfile}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        initialTab={profileInitialTab}
-        tabs={acctTabs('account')}
-      />}
+      {/* 내 계정 창: 내 계정·캐릭터 / 타자 기록 / 성적표 — 같은 틀 안에서 탭만 바뀜 */}
+      {acctTab && (
+        <AccountFrame
+          title="내 계정"
+          sub={currentUser ? `${currentUser.name || '학생'} · 캐릭터 · 타자 기록 · 성적표` : '로그인하면 내 캐릭터와 기록을 볼 수 있어요'}
+          icon={currentUser && currentUser.role !== 'master' ? <MoaCharacter size={36} fallback="🙂" /> : currentUser ? '👑' : '🙂'}
+          tabs={currentUser ? <AccountTabs active={acctTab} onChange={openAccount} /> : null}
+          onClose={closeAccount}
+          bubble={acctTab === 'account' ? '내 캐릭터를 꾸며요!' : acctTab === 'records' ? '내 타자 기록이에요!' : '성적표를 확인해요!'}
+          testId="account-window"
+        >
+          {acctTab === 'account' || !currentUser ? (
+            <ProfileModal
+              embedded
+              isOpen
+              onClose={closeAccount}
+              currentUser={currentUser}
+              onUpdateUser={handleUpdateProfile}
+              onOpenAuth={() => setIsAuthOpen(true)}
+            />
+          ) : acctTab === 'records' ? (
+            <PracticeHistoryModal
+              embedded
+              isOpen
+              onClose={closeAccount}
+              currentUser={currentUser}
+              onSelectMode={(mode) => {
+                setAcctTab(null);
+                handleSelectMode(mode);
+              }}
+            />
+          ) : (
+            <MonthlyReportModal embedded isOpen onClose={closeAccount} currentUser={currentUser} targetUser={currentUser} />
+          )}
+        </AccountFrame>
+      )}
 
       {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
       {!isPopupMode && <ReportArrivalToasts active={currentUser?.role === 'master'} onOpen={() => setIsMasterOpen(true)} />}
@@ -950,6 +981,7 @@ export default function App() {
       )}
 
       {/* Master / Teacher Console Modal */}
+      <Suspense fallback={isMasterOpen ? <PopupLoading /> : null}>
       {isMasterOpen && <MasterModal
         isOpen={isMasterOpen}
         onClose={() => setIsMasterOpen(false)}
@@ -961,15 +993,21 @@ export default function App() {
           setIsReportOpen(true);
         }}
       />}
+      </Suspense>
 
-      {/* Monthly Report Card Modal (SMS / MMS / Download) */}
-      {isReportOpen && <MonthlyReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        currentUser={currentUser}
-        targetUser={reportTargetUser}
-        tabs={!reportTargetUser || reportTargetUser.id === currentUser?.id ? acctTabs('report') : null}
-      />}
+      {/* 선생님이 고른 학생의 성적표 (내 계정 창과 같은 틀) */}
+      {isReportOpen && reportTargetUser && (
+        <AccountFrame
+          title="성적표"
+          sub={`${reportTargetUser.name || '학생'} 학생의 타자 성장 성적표`}
+          icon="🏆"
+          onClose={() => setIsReportOpen(false)}
+          showPoints={false}
+          testId="report-window"
+        >
+          <MonthlyReportModal embedded isOpen onClose={() => setIsReportOpen(false)} currentUser={currentUser} targetUser={reportTargetUser} />
+        </AccountFrame>
+      )}
 
       {/* 세트를 끝냈을 때 화면 아래에 크게: 선생님께 보내기 */}
       {setDonePrompt > 0 && !isSendReportOpen && currentUser && currentUser.role !== 'master' && (
@@ -998,21 +1036,10 @@ export default function App() {
       )}
 
       {/* 학생: 오늘 연습을 선생님께 보내는 창 */}
+      <Suspense fallback={isSendReportOpen ? <PopupLoading /> : null}>
       {isSendReportOpen && currentUser && currentUser.role !== 'master' && (
         <SendReportModal isOpen={isSendReportOpen} onClose={() => setIsSendReportOpen(false)} currentUser={currentUser} />
       )}
-
-      {/* Student Typing Practice History Modal */}
-      {isHistoryOpen && <PracticeHistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        currentUser={currentUser}
-        tabs={acctTabs('records')}
-        onSelectMode={(mode) => {
-          setIsHistoryOpen(false);
-          handleSelectMode(mode);
-        }}
-      />}
       </Suspense>
     </div>
   );

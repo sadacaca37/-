@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AccountSection } from './AccountFrame';
 import { 
   X, 
   Send, 
@@ -27,7 +28,8 @@ interface MonthlyReportModalProps {
   onClose: () => void;
   currentUser: UserSession | null;
   targetUser?: UserSession | null; // For Master/Teacher viewing specific student
-  tabs?: React.ReactNode;
+  /** 내 계정 창 틀(AccountFrame) 안에 들어감 */
+  embedded?: boolean;
 }
 
 export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
@@ -35,7 +37,6 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   onClose,
   currentUser,
   targetUser,
-  tabs,
 }) => {
   const effectiveUser = targetUser || currentUser;
   const [periodOffset, setPeriodOffset] = useState(0); // 0 = latest 4-month window, 1 = previous 4 months
@@ -60,6 +61,8 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   const loadReport = async (offset: number) => {
     setIsGenerating(true);
     setShareSuccessMsg('');
+    // 창(틀)을 먼저 화면에 그린 뒤 성적표 그림을 만듦 — 느린 컴퓨터에서 창이 늦게 뜨지 않게
+    await new Promise((r) => window.setTimeout(r, 30));
     try {
       const uid = effectiveUser?.id || '';
       if (uid && activityRef.current?.id !== uid) {
@@ -193,40 +196,15 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 tp-modal rp-report">
-      <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl border-4 border-pink-300 overflow-hidden flex flex-col max-h-[96vh] h-[860px]">
-        {tabs}
-        
-        {/* Modal Header */}
-        <div className="rp-woodbar p-4 text-white flex items-center justify-between shadow-md shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center border border-white/40 shadow-xs shrink-0">
-              <TrendingUp className="w-5 h-5 text-yellow-300" />
-            </div>
-            <div>
-              <h2 className="font-arcade text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                <span>{reportData ? `${reportData.year}년 ${reportData.halfTerm} 타자 성장 성적표 발송실` : '상반기/하반기 타자 성장 성적표 발송실'}</span>
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full border border-white/30 font-bold">
-                  {reportData?.halfTerm || '상/하반기'} 정기 발송
-                </span>
-              </h2>
-              <p className="text-xs text-pink-100 font-medium">
-                {effectiveUser.name} 학생({effectiveUser.grade || 3}학년)의 {reportData ? `${reportData.year}년 ${reportData.halfTerm}` : ''} 월별 타수 향상 추이와 4대 영역 진도표를 확인하고 학부모님께 전송합니다.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors cursor-pointer"
-            title="닫기"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="rp-report acct-tabbody acct-tabbody--report">
+        <AccountSection
+          icon="🏆"
+          title={reportData ? `${reportData.year}년 ${reportData.halfTerm} 타자 성장 성적표` : '타자 성장 성적표'}
+          desc={`${effectiveUser.name} 학생(${effectiveUser.grade || 3}학년)의 월별 타수와 4가지 연습 진도를 보고, 학부모님께 보낼 수 있어요.`}
+        />
 
         {/* Period Selector Bar */}
-        <div className="bg-pink-50/90 px-4 py-2.5 border-b border-pink-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="acct-toolbar">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-pink-600 shrink-0" />
             <span className="text-xs font-black text-slate-800">성적표 평가 학기:</span>
@@ -268,7 +246,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
         </div>
 
         {/* Modal Main Content (2-Column Grid) */}
-        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-50">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
           {/* Left Column: High-Res Canvas 4-Month Report Card Image Preview */}
           <div className="lg:col-span-6 flex flex-col items-center justify-center bg-white p-3 rounded-2xl border-2 border-slate-200 shadow-xs">
@@ -440,7 +418,6 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
 
         </div>
 
-      </div>
     </div>
   );
 };

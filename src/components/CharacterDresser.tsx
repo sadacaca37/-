@@ -26,27 +26,42 @@ export const CharacterDresser: React.FC<{ user: UserSession }> = ({ user }) => {
   const dirRef = useRef<Dir>('front');
   dirRef.current = dir;
 
-  // 옷장 그림 모두 불러오기
+  // 옷장 열기: 그림 202장을 다 받지 않고, 지금 입은 옷 그림만 먼저 받아 바로 보여 줌
+  //  (옷 고르기 칸의 작은 그림은 칸마다 필요한 것만 받아 한 장씩 나눠 그림)
   useEffect(() => {
     let alive = true;
     void loadAvatarLib().then(async (lib) => {
-      if (!lib || !alive) return setMsg(lib ? '' : '캐릭터 그림을 불러오지 못했어요. 인터넷을 확인해 주세요.');
+      if (!alive) return;
+      if (!lib) return setMsg('캐릭터 그림을 불러오지 못했어요. 인터넷을 확인해 주세요.');
+      const start = lib.clean(currentOutfit() || lib.START);
       try {
-        await lib.loadAll();
+        await lib.ready();
+        await lib.ensure(start);
       } catch {}
       if (!alive) return;
       setA(lib);
-      setMe(lib.clean(currentOutfit() || lib.START));
+      setMe(start);
     });
     return () => {
       alive = false;
     };
   }, [user.id]);
 
-  // 큰 미리보기: 걷는 모습
+  // 큰 미리보기: 걷는 모습 (새 옷 그림은 받은 뒤에 바꿔 그림)
   useEffect(() => {
     if (!A || !me) return;
-    sheetRef.current = A.sheet(me);
+    let alive = true;
+    const draw = () => {
+      if (!alive) return;
+      try {
+        sheetRef.current = A.sheet(me);
+      } catch {}
+    };
+    if (A.need(me).every((id: string) => A.raw[id] !== undefined)) draw();
+    else void A.ensure(me).then(draw);
+    return () => {
+      alive = false;
+    };
   }, [A, me]);
   useEffect(() => {
     if (!A) return;
@@ -118,7 +133,7 @@ export const CharacterDresser: React.FC<{ user: UserSession }> = ({ user }) => {
     A.PARTS.forEach((p: string) => (bare[p] = null));
     if (category.id === 'hat') bare.hair = 'hair_short';
     category.items.forEach(([id, label]: [string, string]) => {
-      if (A.raw[id]) options.push({ label, value: id, o: { ...bare, [category.id]: id, [category.id + 'Color']: me[category.id + 'Color'] } });
+      if (!A.have || A.have.has(id)) options.push({ label, value: id, o: { ...bare, [category.id]: id, [category.id + 'Color']: me[category.id + 'Color'] } });
     });
   }
   const pick = (value: any) => {
@@ -199,15 +214,54 @@ export const CharacterDresser: React.FC<{ user: UserSession }> = ({ user }) => {
   );
 };
 
-/** 옷 하나 미리보기 그림 */
-const Thumb: React.FC<{ A: any; o: any }> = React.memo(({ A, o }) => {
-  const [src, setSrc] = useState('');
-  useEffect(() => {
+/* ---------- 옷 하나 미리보기 그림 ----------
+ *  한꺼번에 그리면 느린 컴퓨터에서 창이 멈춘 것처럼 보여서, 한 번에 조금씩(한 화면 그릴 틈마다) 나눠 그림.
+ *  한 번 그린 그림은 기억해 두어 다음에 열 때는 바로 보임. */
+const thumbCache = new Map<string, string>();
+const jobs: Array<() => void> = [];
+let pumping = false;
+function pump() {
+  const t0 = performance.now();
+  while (jobs.length && performance.now() - t0 < 10) {
     try {
-      setSrc(A.thumb(o).toDataURL('image/png'));
-    } catch {
-      setSrc('');
+      jobs.shift()!();
+    } catch {}
+  }
+  if (jobs.length) window.setTimeout(pump, 16);
+  else pumping = false;
+}
+function later(job: () => void) {
+  jobs.push(job);
+  if (!pumping) {
+    pumping = true;
+    window.setTimeout(pump, 0);
+  }
+}
+
+const Thumb: React.FC<{ A: any; o: any }> = React.memo(({ A, o }) => {
+  const key = JSON.stringify(o);
+  const [src, setSrc] = useState(() => thumbCache.get(key) || '');
+  useEffect(() => {
+    const hit = thumbCache.get(key);
+    if (hit) {
+      setSrc(hit);
+      return;
     }
-  }, [A, JSON.stringify(o)]);
-  return src ? <img src={src} alt="" width={72} height={72} className="cd-thumb" draggable={false} /> : <span className="cd-none">…</span>;
+    setSrc('');
+    let alive = true;
+    void A.ensure(o).then(() =>
+      later(() => {
+        if (!alive) return;
+        try {
+          const url = A.thumb(o).toDataURL('image/png');
+          thumbCache.set(key, url);
+          setSrc(url);
+        } catch {}
+      })
+    );
+    return () => {
+      alive = false;
+    };
+  }, [A, key]);
+  return src ? <img src={src} alt="" width={72} height={72} className="cd-thumb" draggable={false} /> : <span className="cd-none cd-wait" aria-hidden="true" />;
 });

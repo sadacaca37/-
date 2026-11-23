@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MoaCharacter, MoaWalker } from './MoaCharacter';
 import { CharacterDresser } from './CharacterDresser';
-import { TvBot } from './views/TapangHome';
+import { AccountSection } from './AccountFrame';
 import {
   X,
   Eye,
@@ -22,8 +22,6 @@ import {
 import { UserSession, PracticeHistoryRecord } from '../types';
 import { soundManager } from '../utils/sound';
 import { pointsManager } from '../utils/pointsManager';
-import { getUserPracticeHistory } from '../utils/curriculumManager';
-import { WeeklyProgressChart } from './WeeklyProgressChart';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -32,8 +30,8 @@ interface ProfileModalProps {
   onUpdateUser: (updatedUser: Partial<UserSession>) => void;
   onOpenAuth?: () => void;
   initialTab?: 'avatar' | 'account';
-  /** 내 계정·타자 기록·성적표 탭 */
-  tabs?: React.ReactNode;
+  /** 내 계정 창 틀(AccountFrame) 안에 들어감 */
+  embedded?: boolean;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -42,10 +40,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   currentUser,
   onUpdateUser,
   onOpenAuth,
-  tabs,
 }) => {
   const [volume, setVolumeState] = useState<number>(() => soundManager.getVolume());
-  const [practiceRecords, setPracticeRecords] = useState<PracticeHistoryRecord[]>([]);
 
   // Student Account Info & Password State
   const [editName, setEditName] = useState(currentUser?.name || '');
@@ -70,13 +66,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const targetId = currentUser?.id || 'guest';
-      let recs = getUserPracticeHistory(targetId);
-      if (recs.length === 0) {
-        const guestRecs = getUserPracticeHistory('guest');
-        if (guestRecs.length > 0) recs = guestRecs;
-      }
-      setPracticeRecords(recs);
       setVolumeState(soundManager.getVolume());
       setUserPoints(pointsManager.getBalance());
     }
@@ -148,50 +137,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const profileEmoji = currentUser?.avatar || (currentUser?.role === 'master' ? '👑' : '🙂');
 
   return (
-    <div className="tp-modal fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="tp-modal-bot" aria-hidden="true">
-        <TvBot size={110} bubble="내 계정 정보를 확인해요!" bubbleSide="top" />
-      </div>
-
-      <div className="relative w-full max-w-4xl max-h-[92vh] bg-[#EEF2F6] rounded-3xl shadow-2xl border-4 border-slate-300 flex flex-col overflow-hidden text-slate-800">
-        {/* TOP HEADER */}
-        <header className="pf-head flex flex-wrap items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-slate-200 select-none shrink-0 gap-2">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-9 h-9 rounded-full bg-sky-100 border-2 border-sky-400 flex items-center justify-center shadow-xs text-lg">
-              {profileEmoji}
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-black tracking-tight text-slate-900 font-sans">
-                내 계정
-              </h1>
-              <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 hidden sm:block">
-                내 캐릭터 · 내 정보 · 타자 기록 · 성적표
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="pf-points flex items-center gap-1.5 px-3 py-1 bg-amber-50 border-2 border-amber-300 rounded-full shadow-2xs">
-              <span className="text-sm">🪙</span>
-              <span className="text-xs font-black text-amber-950 font-arcade">
-                {userPoints.toLocaleString()} <span className="text-[10px] font-bold text-amber-700">P</span>
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
-              aria-label="닫기"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </header>
-
-        {tabs}
+    <>
         {/* BODY: ACCOUNT INFO ONLY */}
-        <div className="pf-acct flex-1 p-3 sm:p-6 overflow-y-auto bg-slate-50/70">
+        <div className="pf-acct">
           {!currentUser ? (
             <div className="max-w-md mx-auto my-8 bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm text-center space-y-4">
               <div className="w-20 h-20 mx-auto rounded-2xl bg-sky-50 border-2 border-sky-200 flex items-center justify-center text-4xl shadow-inner">
@@ -221,7 +169,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5">
+            <div className="space-y-4 sm:space-y-5">
+              <AccountSection icon="👤" title="내 계정·캐릭터" desc="모아팡과 같은 옷장으로 캐릭터를 꾸미고, 내 정보를 확인해요." />
               {accountFeedback && (
                 <div
                   className={`p-4 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 shadow-sm border-2 animate-in fade-in ${
@@ -241,7 +190,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               {/* 모아팡과 같은 캐릭터 꾸미기 (옷장) */}
               <section className="pf-card bg-white rounded-3xl p-4 sm:p-5 border-2 border-slate-200 shadow-sm" data-testid="dress-section">
-                <h3 className="text-lg font-black text-slate-900 mb-3">👕 캐릭터 꾸미기 <span className="text-xs font-bold text-slate-400">모아팡과 같은 옷장이에요</span></h3>
+                <h3 className="acct-card-title">👕 캐릭터 꾸미기 <span>모아팡과 같은 옷장이에요</span></h3>
                 <CharacterDresser user={currentUser} />
               </section>
 
@@ -354,7 +303,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </>
   );
 };

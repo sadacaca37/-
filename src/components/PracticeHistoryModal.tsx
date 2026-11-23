@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { AccountSection } from './AccountFrame';
 import { 
   X, 
   History, 
@@ -43,7 +44,8 @@ interface PracticeHistoryModalProps {
   onClose: () => void;
   currentUser: UserSession | null;
   onSelectMode: (mode: AppMode) => void;
-  tabs?: React.ReactNode;
+  /** 내 계정 창 틀(AccountFrame) 안에 들어감 */
+  embedded?: boolean;
 }
 
 // Speed Tier Animal Badges for intuitive kid-friendly visuals
@@ -73,7 +75,6 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
   onClose,
   currentUser,
   onSelectMode,
-  tabs,
 }) => {
   const [historyList, setHistoryList] = useState<PracticeHistoryRecord[]>([]);
   const [filterLang, setFilterLang] = useState<'all' | 'ko' | 'en'>('all');
@@ -233,50 +234,24 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto tp-modal">
-      <div className="bg-white rounded-3xl max-w-4xl w-full p-4 sm:p-7 shadow-2xl border-4 border-sky-300 relative my-6 arcade-card-glow max-h-[92vh] flex flex-col overflow-y-auto rp-journal">
-        {tabs && <div className="-mx-4 sm:-mx-7 -mt-4 sm:-mt-7 mb-4">{tabs}</div>}
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2.5 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 border-2 border-sky-200 transition-colors cursor-pointer z-10"
-          title="닫기"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b-2 border-slate-100 pr-12">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-blue-600 text-white flex items-center justify-center shadow-md border-2 border-sky-200 shrink-0">
-              <History className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-arcade flex items-center gap-1.5">
-                  <span>내 타자 기록장</span>
-                  <span className="text-sm font-sans font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-300">
-                    {currentUser?.name || '게스트'}
-                  </span>
-                </h2>
-              </div>
-              <p className="text-xs text-slate-500 font-bold mt-0.5">
-                내가 연습한 속도(CPM), 정확도, 동물 칭호를 한눈에 직관적으로 확인하세요!
-              </p>
-            </div>
-          </div>
-
-          {totalPracticeCount > 0 && (
-            <button
-              onClick={handleOpenClearModal}
-              className="text-[11px] text-slate-500 hover:text-rose-600 flex items-center gap-1 font-bold transition-colors cursor-pointer bg-slate-100 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-rose-200"
-              title="마스터 비밀번호 인증 후 기록 초기화가 가능합니다."
-            >
-              <Lock className="w-3.5 h-3.5 text-amber-600" />
-              <span>기록 초기화 (마스터)</span>
-            </button>
-          )}
-        </div>
+    <div className="rp-journal acct-tabbody">
+        <AccountSection
+          icon="📖"
+          title={<>내 타자 기록장 <span className="acct-name-badge">{currentUser?.name || '게스트'}</span></>}
+          desc="내가 연습한 속도(타수), 정확도, 동물 칭호를 한눈에 봐요."
+          right={
+            totalPracticeCount > 0 ? (
+              <button
+                onClick={handleOpenClearModal}
+                className="acct-mini-btn"
+                title="마스터 비밀번호 인증 후 기록 초기화가 가능합니다."
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-600" />
+                <span>기록 초기화 (마스터)</span>
+              </button>
+            ) : null
+          }
+        />
 
         {/* Success Message Banner */}
         {resetSuccessMsg && (
@@ -828,8 +803,6 @@ export const PracticeHistoryModal: React.FC<PracticeHistoryModalProps> = ({
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };
-
