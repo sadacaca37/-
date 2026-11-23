@@ -27,6 +27,7 @@ import { MychewRewardModal } from '../MychewRewardModal';
 import { PracticeSetResultModal } from '../PracticeSetResultModal';
 import { TypingReviewList, TypingReviewItem, isUnfinished } from '../TypingReviewList';
 import { markQuestUnitDone } from '../../utils/questProgress';
+import { splitForOneLine } from '../../utils/oneLine';
 
 interface SentencePracticeViewProps {
   currentUser: UserSession | null;
@@ -247,7 +248,11 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
 
   // 한 세트 = 짧은 글 20개 (선생님 요청). 섞기 모드면 세트마다 다른 20개
   const SET_SENTENCES = 20;
-  const activeSentences = (isRandomOrder && shuffledSentences.length > 0 ? shuffledSentences : currentCategory.sentences).slice(0, SET_SENTENCES);
+  // 긴 문장은 한 줄에 들어가게 나눠서 침 (한 세트 = 나눈 줄 20개)
+  const activeSentences = useMemo(
+    () => splitForOneLine(isRandomOrder && shuffledSentences.length > 0 ? shuffledSentences : currentCategory.sentences, language).slice(0, SET_SENTENCES),
+    [isRandomOrder, shuffledSentences, currentCategory, language],
+  );
   const currentSentence = activeSentences[sentenceIndex] || activeSentences[0] || '';
 
   React.useLayoutEffect(() => {
