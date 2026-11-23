@@ -160,7 +160,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-blockcraft',
-    players: 1,
+    players: 10,
     title: '블록 쌓기 월드',
     category: '펀펀',
     icon: '⛏️',
@@ -180,7 +180,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-ashenhollow',
-    players: 1,
+    players: 4,
     title: 'Ashen Hollow',
     category: '펀펀',
     icon: '🕯️',
