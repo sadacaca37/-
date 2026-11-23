@@ -625,6 +625,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             cpm: finalCpm,
             accuracy: finalAccuracy,
             details: `${currentCategory.category} (${activeSentences.length}문장 완주)`,
+            errorCount: finalErrors,
             completedSentences: activeSentences.length,
             elapsedSeconds: stats.elapsedSeconds,
           });
@@ -707,6 +708,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
         cpm: stats.cpm,
         accuracy: stats.accuracy,
         details: `${is5MinMode ? '5분 완주' : currentCategory.category} (${completedInSession || 1}문장 완료)`,
+        errorCount: stats.errorCount,
         completedSentences: completedInSession || 1,
         elapsedSeconds: stats.elapsedSeconds,
       });

@@ -27,6 +27,7 @@ import { soundManager } from '../../utils/sound';
 import { countKeystrokes, isHangulPrefix } from '../../utils/hangul';
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { recordPracticeHistory } from '../../utils/curriculumManager';
+import { isRecordable } from '../../utils/typingScore';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { newAgeBgmEngine, NEW_AGE_TRACKS } from '../../utils/newAgeBgmEngine';
 import { MychewRewardModal } from '../MychewRewardModal';
@@ -613,7 +614,21 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       elapsedSeconds: stats.elapsedSeconds,
     });
 
-    // 명예의 전당은 '짧은 글' 기록만 올림 (긴 글은 연습 기록·성적표에 남음)
+    // 명예의 전당: 긴 글 한 편을 다 치면 기록 (짧은 글 기록과 합쳐 순위를 냄)
+    if (currentUser && onRecordScore && language === 'ko' && bookCpm > 0 && isRecordable(bookCpm, bookAcc)) {
+      onRecordScore({
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar || '📚',
+        mode: 'long',
+        modeTitle: `긴 글: ${currentText.title}`.slice(0, 60),
+        score: bookCpm * 10 + bookAcc * 5,
+        cpm: bookCpm,
+        accuracy: bookAcc,
+        errorCount: cg.errors,
+        details: `${currentText.author} - ${currentText.title}`.slice(0, 80),
+        elapsedSeconds: stats.elapsedSeconds,
+      } as any);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

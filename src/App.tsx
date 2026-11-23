@@ -12,6 +12,8 @@ import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
+import { ContestBanner } from './components/ContestBanner';
+import { finalizeContest } from './utils/contest';
 import { bestShortCpm, longUnlocked, SHORT_TO_LONG_CPM } from './utils/longGate';
 import { AccountTabs, AccountTab } from './components/AccountTabs';
 import { AccountFrame, AccountLoading } from './components/AccountFrame';
@@ -409,6 +411,12 @@ export default function App() {
     if (currentUser?.role !== 'master' || isPopupMode) return;
     const t = window.setTimeout(() => {
       void typangApi.getUsers().catch(() => {}); // 뒷자리 로그인 목록도 새로 맞춤
+      void finalizeContest() // 끝난 타자 대회가 있으면 결과 발표 + 1·2·3등 포인트
+        .then((r) => {
+          if (r.done) setRankMsg(`🏁 '${r.title}' 결과 발표! ${r.winners?.join(', ') || '참가자 없음'}`);
+          window.dispatchEvent(new Event('contest-updated'));
+        })
+        .catch(() => {});
       void payWeeklyRankRewards()
         .then((r) => {
           if (r.weeks.length) setRankMsg(`🏆 ${r.weeks.map(weekLabel).join(', ')} 주간 랭킹 보상을 학년별 1~3등 ${r.count}명에게 보냈어요. (1등 500P · 2등 200P · 3등 100P)`);
@@ -416,6 +424,22 @@ export default function App() {
         .catch(() => {});
     }, 4000);
     return () => window.clearTimeout(t);
+  }, [currentUser?.role, isPopupMode]);
+
+  // 선생님이 켜 두는 동안: 타자 대회가 끝나면 1분 안에 저절로 결과 발표 + 1·2·3등 포인트
+  useEffect(() => {
+    if (currentUser?.role !== 'master' || isPopupMode) return;
+    const t = window.setInterval(() => {
+      void finalizeContest()
+        .then((r) => {
+          if (r.done) {
+            setRankMsg(`🏁 '${r.title}' 결과 발표! ${r.winners?.join(', ') || '참가자 없음'}`);
+            window.dispatchEvent(new Event('contest-updated'));
+          }
+        })
+        .catch(() => {});
+    }, 60000);
+    return () => window.clearInterval(t);
   }, [currentUser?.role, isPopupMode]);
 
   // 연습 단계에 들어가면(연습 창 포함) 이 컴퓨터에 기억 → 홈 지도 로봇이 그 단계로 감 (로그인 안 해도)
@@ -494,8 +518,8 @@ export default function App() {
     // 선생님 승인 전 학생은 명예의 전당에 저장하지 않음
     if (!isApprovedNow()) return;
 
-    // Only sentence practice goes to Hall of Fame
-    if (entry.mode !== 'sentence') return;
+    // 명예의 전당: 짧은 글 · 긴 글 기록만
+    if (entry.mode !== 'sentence' && entry.mode !== 'long') return;
     // 오류로 생긴 기록(말이 안 되는 타수)·같은 기록이 잇달아 들어오는 것은 받지 않음
     if (!(entry.cpm > 0) || entry.cpm > 1200) return;
     const sig = `${entry.cpm}|${entry.accuracy}|${entry.modeTitle}`;
@@ -632,6 +656,7 @@ export default function App() {
           pendingStudentsCount={pendingStudentsCount}
         />
       )}
+      {!isPopupMode && currentMode === 'home' && <ContestBanner user={currentUser} onLogin={() => setIsAuthOpen(true)} />}
 
       {/* 선생님 승인 전 학생: 타자는 칠 수 있지만 저장은 안 된다는 안내 */}
       {currentUser && currentUser.role !== 'master' && currentUser.isApproved !== true && (

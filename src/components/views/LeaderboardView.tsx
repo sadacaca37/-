@@ -95,17 +95,40 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
 
   const source = month ? archived || [] : entries;
 
-  // 짧은 글 기록만, 한 학생은 가장 좋은 기록 하나만 (같은 학생이 순위를 다 차지하지 않게)
-  const bestByStudent = new Map<string, LeaderboardEntry>();
+  // 짧은 글과 긴 글을 모두 친 학생만: 두 최고 기록의 평균 타수(높은 순) → 오타 합계(적은 순)
+  type Row = LeaderboardEntry & { shortCpm: number; longCpm: number; errSum: number };
+  const better = (a: LeaderboardEntry, b: LeaderboardEntry) => (b.cpm || 0) - (a.cpm || 0) || (a.errorCount ?? 9999) - (b.errorCount ?? 9999);
+  const byStudent = new Map<string, { s?: LeaderboardEntry; l?: LeaderboardEntry }>();
   for (const e of source) {
-    if (!(e.mode === 'sentence' || !e.mode)) continue;
     const who = e.userId || e.userName;
-    const prev = bestByStudent.get(who);
-    if (!prev || (e.cpm || 0) > (prev.cpm || 0) || ((e.cpm || 0) === (prev.cpm || 0) && (e.accuracy || 0) > (prev.accuracy || 0))) bestByStudent.set(who, e);
+    const cur = byStudent.get(who) || {};
+    if (e.mode === 'long') {
+      if (!cur.l || better(e, cur.l) < 0) cur.l = e;
+    } else if (e.mode === 'sentence' || !e.mode) {
+      if (!cur.s || better(e, cur.s) < 0) cur.s = e;
+    }
+    byStudent.set(who, cur);
   }
-  const ranked = [...bestByStudent.values()]
+  const waiting: string[] = [];
+  const rows: Row[] = [];
+  for (const { s: se, l: le } of byStudent.values()) {
+    if (se && le) {
+      rows.push({
+        ...se,
+        id: `${se.id}_${le.id}`,
+        grade: se.grade || le.grade,
+        cpm: Math.round(((se.cpm || 0) + (le.cpm || 0)) / 2),
+        accuracy: Math.round(((se.accuracy || 0) + (le.accuracy || 0)) / 2),
+        elapsedSeconds: (se.elapsedSeconds || 0) + (le.elapsedSeconds || 0),
+        shortCpm: se.cpm || 0,
+        longCpm: le.cpm || 0,
+        errSum: (se.errorCount || 0) + (le.errorCount || 0),
+      });
+    } else if (se || le) waiting.push((se || le)!.userName);
+  }
+  const ranked = rows
     .filter((e) => selectedGrade === 'all' || e.grade === selectedGrade)
-    .sort((a, b) => (b.cpm || 0) - (a.cpm || 0) || (b.accuracy || 0) - (a.accuracy || 0));
+    .sort((a, b) => b.cpm - a.cpm || a.errSum - b.errSum);
 
   const podium = [ranked[1], ranked[0], ranked[2]]; // 2 · 1 · 3
   const rest = ranked.slice(3, 30);
@@ -177,6 +200,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
         )}
       </div>
 
+      <div className="mx-auto mb-3 max-w-3xl px-3 py-1.5 text-[12px] font-black text-center" style={{ position: 'relative', zIndex: 2, color: '#cffafe' }} data-testid="hof-rule">
+        📜 짧은 글과 긴 글을 <b>모두</b> 친 학생만 올라가요 · 두 최고 기록의 <b>평균 타수</b>가 높은 순, 같으면 <b>오타</b>가 적은 순
+        {waiting.length > 0 && <div className="text-[11px] mt-0.5" style={{ color: '#fde68a' }}>🔓 한 가지만 쳐서 기다리는 친구: {waiting.slice(0, 8).join(', ')}{waiting.length > 8 ? ` 외 ${waiting.length - 8}명` : ''}</div>}
+      </div>
+
       {/* podium */}
       <div className="cy-podium">
         {podium.map((p, i) => {
@@ -200,9 +228,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
                       {p.userName}
                     </b>
                     <span>
-                      {p.cpm}타 · 정확도 {p.accuracy}%
+                      평균 {p.cpm}타 · 오타 {p.errSum}개
                     </span>
-                    <span>⏱ {fmtTime(p.elapsedSeconds)}</span>
+                    <span>짧은 글 {p.shortCpm} · 긴 글 {p.longCpm}</span>
                   </>
                 ) : (
                   <span className="cy-empty">- 도전자 대기 -</span>
@@ -224,9 +252,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
               <tr>
                 <th>Rank</th>
                 <th>Student Name</th>
-                <th>타수 (CPM)</th>
-                <th>정확도</th>
-                <th>걸린 시간</th>
+                <th>평균 타수</th>
+                <th>오타</th>
+                <th>짧은 글 · 긴 글</th>
                 <th className="cy-hide-sm">학년</th>
               </tr>
             </thead>
@@ -240,15 +268,15 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ entries, onSta
                       {e.userName}
                     </td>
                     <td className="cy-num">{e.cpm}</td>
-                    <td className="cy-acc">{e.accuracy}%</td>
-                    <td className="cy-num">{fmtTime(e.elapsedSeconds)}</td>
+                    <td className="cy-acc">{e.errSum}개</td>
+                    <td className="cy-num">{e.shortCpm} · {e.longCpm}</td>
                     <td className="cy-hide-sm">{e.grade ? `${e.grade}학년` : '-'}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={6} className="cy-none">
-                    {ranked.length === 0 ? (month ? '이 달에는 기록이 없어요.' : '이번 달 기록이 아직 없어요. 첫 번째 챔피언이 되어 보세요!') : '4위부터는 아직 비어 있어요.'}
+                    {ranked.length === 0 ? (month ? '이 달에는 짧은 글·긴 글을 모두 친 기록이 없어요.' : '짧은 글과 긴 글을 모두 치면 명예의 전당에 올라가요. 첫 번째 챔피언이 되어 보세요!') : '4위부터는 아직 비어 있어요.'}
                   </td>
                 </tr>
               )}

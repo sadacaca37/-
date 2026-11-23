@@ -7,6 +7,7 @@ import { UserSession } from '../types';
 import { typangApi } from '../utils/apiClient';
 import { askConfirm } from '../utils/dialog';
 import { FunfunFreePanel } from './FunfunFreePanel';
+import { ContestPanel } from './ContestPanel';
 import { setApprovals } from '../utils/tajaApproval';
 import { downloadMoaTemplate, readImportFile, importStudents } from '../utils/moaStudentImport';
 import { fetchStudentFree, saveStudentFree, formatKDate } from '../utils/funfunFree';
@@ -177,6 +178,8 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
         </div>
         {msg && <div className="text-[12px]">{msg}</div>}
       </div>
+
+      <ContestPanel />
 
       <FunfunFreePanel />
 

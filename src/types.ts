@@ -397,7 +397,9 @@ export interface LeaderboardEntry {
   userId?: string;
   /** 기록한 시각(ms) */
   ts?: number;
-  mode: 'sentence' | 'mole-game' | 'rain-game' | 'shortcut-quiz'; // 명예의 전당에는 짧은 글만 기록됨
+  mode: 'sentence' | 'long' | 'mole-game' | 'rain-game' | 'shortcut-quiz'; // 명예의 전당: 짧은 글 + 긴 글
+  /** 오타 수 */
+  errorCount?: number;
   modeTitle: string;
   score: number;
   cpm: number;
