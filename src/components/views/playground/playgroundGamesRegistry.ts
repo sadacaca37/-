@@ -185,7 +185,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '펀펀',
     icon: '🕯️',
     thumb: './assets/playground/thumb-ashenhollow.webp',
-    description: '지하 3층까지 내려가 고대의 파수꾼을 쓰러뜨리는 쿼터뷰 액션 RPG · 화염구·치유 물약 · 보스전',
+    description: '영웅 4명(기사·바바리안·마법사·도적) 중 골라 지하 5층까지 · 👥 친구 4명까지 함께 · 층마다 다른 맵, 내려갈수록 센 괴물·거대 몹·보스 · 쿼터뷰 액션 RPG',
     component: AshenHollowGame,
   },
   {

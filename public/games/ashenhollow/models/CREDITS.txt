@@ -1,4 +1,6 @@
-3D 캐릭터 모델 출처 (모두 CC0 — 무료, 출처 표시 안 해도 됨)
+3D 모델 출처 (모두 CC0 — 무료, 출처 표시 안 해도 됨)
 - KayKit Character Pack: Adventures / Skeletons — Kay Lousberg (https://kaylousberg.com), https://github.com/KayKit-Game-Assets
-- Ultimate Animated Animal Pack — Quaternius (https://quaternius.com)
-필요한 동작만 남기고 줄여서 씀 (glTF-Transform).
+  영웅 4명(기사·바바리안·마법사·도적), 해골 졸병·전사·마법사·도적, 해골 무기·방패
+- Quaternius (https://quaternius.com) — Ultimate Animated Animal Pack(황소·늑대), Easy Enemies(쥐·거미·뱀),
+  Dinosaurs(랩터·티라노), Modular Dungeon·RPG Items·Nature·Crops·Platformer 소품(kit.glb에 모음)
+필요한 동작·부품만 남기고 줄여서 씀 (glTF-Transform).
