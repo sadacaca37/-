@@ -16,7 +16,14 @@ export interface PlaneConfig {
   koreanName: string;
   codename: string;
   type: 'SPREAD' | 'FOCUSED';
-  koreanType: '확산형' | '집탄형';
+  koreanType: string;
+  /** 기체마다 다른 무기 방식 */
+  weapon: 'WIDE' | 'FOCUS' | 'PIERCE' | 'HOMING' | 'SERAPH' | 'LASER';
+  /** 화면에 보여 줄 한 줄 특징 (아이들용 쉬운 설명) */
+  strength: string;
+  weakness: string;
+  /** 폭탄 위력 (적 전체에 주는 피해) */
+  bombPower: number;
   isElite?: boolean;
   country: string;
   flag: string;
@@ -119,6 +126,8 @@ export interface Enemy {
   bossPhase?: number;
   bossName?: string;
   parts?: BossPart[];
+  /** 맞았을 때 잠깐 반짝이는 시간(초) */
+  hitFlash?: number;
 }
 
 export interface BossPart {
@@ -153,6 +162,8 @@ export interface Bullet {
   angle?: number;
   targetEnemyId?: string;
   piercing?: boolean;
+  /** 관통탄이 이미 맞힌 적 (같은 적을 매 프레임 때리지 않도록) */
+  hitIds?: string[];
 }
 
 export type ItemType = 'POWER_UP' | 'BOMB' | 'SPEED_UP' | 'OPTION' | 'MEDAL' | 'SHIELD';

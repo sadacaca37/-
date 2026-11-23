@@ -25,3 +25,8 @@ export const LightsaberDuelGame: React.FC<{ onBack?: () => void }> = () => (
 export const FlameSquadGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/flamesquad/index.html" title="불꽃 특공대" icon="🔥" />
 );
+
+/** 뽀글뽀글 – 같은 색 방울 3개를 붙여 터뜨리는 방울 퍼즐 · 혼자 10판 · 컴퓨터 대결 · 한 키보드 둘이서 대결 (public/games/ppogeul, 한 파일, 그림은 코드로 그린 도트) */
+export const PpogeulGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/ppogeul/index.html" title="뽀글뽀글" icon="🫧" />
+);

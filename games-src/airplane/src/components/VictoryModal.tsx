@@ -72,7 +72,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         animate={{ scale: 1, opacity: 1 }}
         className="w-full max-w-md bg-[#0f172a] border border-amber-400 rounded-lg p-5 flex flex-col items-center shadow-[0_0_40px_rgba(245,158,11,0.3)] max-h-[95vh] overflow-y-auto"
       >
-        <div className="flex items-center gap-1.5 text-amber-400 text-[10px] tracking-widest uppercase mb-0.5 font-bold">
+        <div className="flex items-center gap-1.5 text-amber-400 text-[11px] tracking-widest uppercase mb-0.5 font-bold">
           <Trophy className="w-4 h-4 text-amber-400" /> THEATER CAMPAIGN COMPLETED
         </div>
 
@@ -88,7 +88,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           <span className="text-xl">{plane.flag}</span>
           <div className="text-left">
             <div className="text-xs text-amber-400 font-bold">{plane.name}</div>
-            <div className="text-[10px] text-slate-400 font-mono">"{plane.codename}"</div>
+            <div className="text-[11px] text-slate-400 font-mono">"{plane.codename}"</div>
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           <div className="w-full mb-3">
             {!isSaved ? (
               <form onSubmit={handleSave} className="flex flex-col items-center">
-                <label className="text-[10px] text-amber-400 mb-1 flex items-center gap-1 font-bold uppercase">
+                <label className="text-[11px] text-amber-400 mb-1 flex items-center gap-1 font-bold uppercase">
                   <Trophy className="w-3.5 h-3.5 text-amber-400" /> TOP 30 명예의 전당 랭킹 등록
                 </label>
                 <div className="flex gap-2 w-full">

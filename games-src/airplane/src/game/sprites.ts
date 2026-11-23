@@ -1,15 +1,11 @@
 import { Player, Enemy, Bullet, PowerUpItem, Particle, BombEffect } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, STAGE_BG_IMAGES, ENEMY_SHIP_IMAGES, PLAYER_PLANE_IMAGES } from './constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, STAGE_BG_IMAGES, ENEMY_SHIP_IMAGES, PLAYER_PLANE_IMAGES, BOSS_IMAGES } from './constants';
 
 export class SpriteRenderer {
   private static bgImageCache: Record<number, HTMLImageElement> = {};
-  private static enemyImageCache: Record<string, HTMLImageElement> = {};
-  private static playerImageCache: Record<string, HTMLImageElement> = {};
-  private static transparentEnemyCache: Record<string, HTMLCanvasElement> = {};
-  private static transparentPlayerCache: Record<string, HTMLCanvasElement> = {};
+  private static spriteCache: Record<string, HTMLImageElement> = {};
   private static imagesInitialized: boolean = false;
-  private static enemyImagesInitialized: boolean = false;
-  private static playerImagesInitialized: boolean = false;
+  private static spritesInitialized: boolean = false;
 
   public static initBgImages() {
     if (this.imagesInitialized || typeof window === 'undefined') return;
@@ -22,102 +18,67 @@ export class SpriteRenderer {
     }
   }
 
-  // Chroma-Key Image Processor to remove dark/black background into 100% transparent PNG
-  private static processChromaKey(img: HTMLImageElement): HTMLCanvasElement {
-    const canvas = document.createElement('canvas');
-    const w = img.naturalWidth || img.width || 256;
-    const h = img.naturalHeight || img.height || 256;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return canvas;
-
-    ctx.drawImage(img, 0, 0, w, h);
-    try {
-      const imgData = ctx.getImageData(0, 0, w, h);
-      const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-
-        if (brightness < 32) {
-          data[i + 3] = 0; // Pure transparent
-        } else if (brightness < 68) {
-          const alphaRatio = (brightness - 32) / 36;
-          data[i + 3] = Math.round(data[i + 3] * alphaRatio);
-        }
-      }
-      ctx.putImageData(imgData, 0, 0);
-    } catch {
-      // Fallback if cross-origin
+  // 새 그림은 처음부터 배경이 투명한 WebP라서, 예전처럼 검은색을 지우는 처리가 필요 없어요.
+  // (예전 방식은 검은 기체·어두운 부분까지 투명하게 만들어 버리는 문제가 있었어요.)
+  private static initSprites() {
+    if (this.spritesInitialized || typeof window === 'undefined') return;
+    this.spritesInitialized = true;
+    const all: Record<string, string> = {};
+    for (const [k, v] of Object.entries(PLAYER_PLANE_IMAGES)) all['P_' + k] = v;
+    for (const [k, v] of Object.entries(ENEMY_SHIP_IMAGES)) all['E_' + k] = v;
+    for (const [k, v] of Object.entries(BOSS_IMAGES)) all['B_' + k] = v;
+    for (const [key, src] of Object.entries(all)) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+      this.spriteCache[key] = img;
     }
-    return canvas;
+  }
+
+  private static ready(key: string): HTMLImageElement | null {
+    this.initSprites();
+    const img = this.spriteCache[key];
+    return img && img.complete && img.naturalWidth > 0 ? img : null;
   }
 
   public static initEnemyImages() {
-    if (this.enemyImagesInitialized || typeof window === 'undefined') return;
-    this.enemyImagesInitialized = true;
-    for (const [key, src] of Object.entries(ENEMY_SHIP_IMAGES)) {
-      const img = new Image();
-      img.src = src;
-      if (img.complete && img.naturalWidth > 0) {
-        this.transparentEnemyCache[key] = this.processChromaKey(img);
-      } else {
-        img.onload = () => {
-          this.transparentEnemyCache[key] = this.processChromaKey(img);
-        };
-      }
-      this.enemyImageCache[key] = img;
-    }
+    this.initSprites();
   }
 
   public static initPlayerImages() {
-    if (this.playerImagesInitialized || typeof window === 'undefined') return;
-    this.playerImagesInitialized = true;
-    for (const [planeId, src] of Object.entries(PLAYER_PLANE_IMAGES)) {
-      const img = new Image();
-      img.src = src;
-      if (img.complete && img.naturalWidth > 0) {
-        this.transparentPlayerCache[planeId] = this.processChromaKey(img);
-      } else {
-        img.onload = () => {
-          this.transparentPlayerCache[planeId] = this.processChromaKey(img);
-        };
+    this.initSprites();
+  }
+
+  public static getProcessedPlayerImage(planeId: string): HTMLImageElement | null {
+    return this.ready('P_' + planeId);
+  }
+
+  public static getProcessedEnemyImage(key: string): HTMLImageElement | null {
+    return this.ready('E_' + key);
+  }
+
+  public static getBossImage(bossType: string): HTMLImageElement | null {
+    return this.ready('B_' + bossType);
+  }
+
+  // 그림 모양 그대로의 검은 그림자 (예전의 둥근 검은 원 대신)
+  private static shadowCache = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
+  public static getShadow(img: HTMLImageElement): HTMLCanvasElement {
+    let c = this.shadowCache.get(img);
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const x = c.getContext('2d');
+      if (x) {
+        x.drawImage(img, 0, 0);
+        x.globalCompositeOperation = 'source-in';
+        x.fillStyle = '#000';
+        x.fillRect(0, 0, c.width, c.height);
       }
-      this.playerImageCache[planeId] = img;
+      this.shadowCache.set(img, c);
     }
-  }
-
-  // Get or dynamically create transparent player canvas
-  public static getProcessedPlayerImage(planeId: string): HTMLCanvasElement | HTMLImageElement | null {
-    this.initPlayerImages();
-    if (this.transparentPlayerCache[planeId]) {
-      return this.transparentPlayerCache[planeId];
-    }
-    const rawImg = this.playerImageCache[planeId];
-    if (rawImg && rawImg.complete && rawImg.naturalWidth > 0) {
-      const processed = this.processChromaKey(rawImg);
-      this.transparentPlayerCache[planeId] = processed;
-      return processed;
-    }
-    return null;
-  }
-
-  // Get or dynamically create transparent enemy canvas
-  public static getProcessedEnemyImage(key: string): HTMLCanvasElement | HTMLImageElement | null {
-    this.initEnemyImages();
-    if (this.transparentEnemyCache[key]) {
-      return this.transparentEnemyCache[key];
-    }
-    const rawImg = this.enemyImageCache[key];
-    if (rawImg && rawImg.complete && rawImg.naturalWidth > 0) {
-      const processed = this.processChromaKey(rawImg);
-      this.transparentEnemyCache[key] = processed;
-      return processed;
-    }
-    return null;
+    return c;
   }
 
   // Draw Parallax Scrolling Retro World with 10 Distinct Level Backgrounds
@@ -463,7 +424,18 @@ export class SpriteRenderer {
 
     // Jet / Engine Exhaust Flame
     const flameSize = 4 + Math.sin(time * 40) * 3;
-    if (player.planeId === 'AV8_HARRIER') {
+    if (this.getProcessedPlayerImage(player.planeId)) {
+      // 새 그림에는 엔진 불꽃이 그려져 있어서, 꼬리 쪽에 깜빡이는 빛만 살짝 더해요
+      const flick = 0.55 + Math.sin(time * 38) * 0.2;
+      const g = ctx.createRadialGradient(0, 27, 0, 0, 27, 12 + flameSize);
+      g.addColorStop(0, `rgba(224, 242, 254, ${flick})`);
+      g.addColorStop(0.5, `rgba(56, 189, 248, ${flick * 0.45})`);
+      g.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 27, 12 + flameSize, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (player.planeId === 'AV8_HARRIER') {
       // VTOL Side + Rear Thrusters
       ctx.fillStyle = '#f59e0b';
       ctx.fillRect(-18, 4, 3, flameSize * 0.8);
@@ -583,23 +555,6 @@ export class SpriteRenderer {
     // Plane Body
     this.renderPlaneSprite(ctx, planeId, 0, 0, false);
 
-    // Subtle Preview Flame
-    if (planeId === 'F117_NIGHTHAWK') {
-      ctx.fillStyle = '#06b6d4';
-      ctx.fillRect(-7, 16, 14, 3);
-    } else if (
-      planeId === 'F4_PHANTOM' ||
-      planeId === 'FA18_SUPER_HORNET' ||
-      planeId === 'X36'
-    ) {
-      ctx.fillStyle = '#f97316';
-      ctx.fillRect(-7, 18, 4, 4);
-      ctx.fillRect(3, 18, 4, 4);
-    } else {
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(-3, 18, 6, 4);
-    }
-
     ctx.restore();
   }
 
@@ -614,13 +569,13 @@ export class SpriteRenderer {
     const playerImg = this.getProcessedPlayerImage(planeId);
     if (playerImg) {
       if (isShadow) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 22, 22, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        ctx.globalAlpha *= 0.32;
+        ctx.drawImage(this.getShadow(playerImg), -22, -22, 44, 44);
+        ctx.restore();
         return;
       }
-      const size = 52;
+      const size = 56;
       ctx.save();
       ctx.rotate(tilt * 0.15);
       ctx.drawImage(playerImg, -size / 2, -size / 2, size, size);
@@ -1104,12 +1059,22 @@ export class SpriteRenderer {
     // Enemy planes face DOWNWARDS (Math.PI / 180 degrees) toward the player
     ctx.rotate(enemy.rotation + Math.PI);
 
-    // 1. Soft Aircraft Shadow below plane
+    // 1. Soft Aircraft Shadow below plane (그림 모양 그림자)
+    const shadowKey = this.getEnemyImageKey(enemy);
+    const shadowImg = shadowKey ? this.getProcessedEnemyImage(shadowKey) : null;
     ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
-    ctx.beginPath();
-    ctx.ellipse(12, 16, enemy.width * 0.45, enemy.height * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (shadowImg) {
+      ctx.globalAlpha = 0.3;
+      const sw = enemy.width * 0.85;
+      const sh = enemy.height * 0.85;
+      // 화면 기준 오른쪽 아래로 그림자 (기체가 180도 돌아가 있으니 반대로)
+      ctx.drawImage(this.getShadow(shadowImg), -12 - sw / 2, -16 - sh / 2, sw, sh);
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+      ctx.beginPath();
+      ctx.ellipse(12, 16, enemy.width * 0.45, enemy.height * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
 
     // 2. Animated Jet Engine Thruster Flames (Rear afterburners shooting upward behind the enemy)
@@ -1127,12 +1092,11 @@ export class SpriteRenderer {
       // Draw transparent image centered
       ctx.drawImage(transparentSprite, -w / 2, -h / 2, w, h);
 
-      // Hit flash overlay when taking damage
-      if (enemy.hp < enemy.maxHp) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.beginPath();
-        ctx.arc(0, 0, Math.max(w, h) * 0.45, 0, Math.PI * 2);
-        ctx.fill();
+      // 맞은 순간에만 기체가 살짝 하얗게 반짝여요
+      if (enemy.hitFlash && enemy.hitFlash > 0) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(transparentSprite, -w / 2, -h / 2, w, h);
       }
       ctx.restore();
     } else {
@@ -1150,29 +1114,21 @@ export class SpriteRenderer {
     const type = enemy.type;
 
     if (stage >= 5) {
-      // High-tier space stages: advanced spacecraft armada
-      if (type === 'SCOUT_GREEN') return 'BOSS_BLUE_CRESCENT';
-      if (type === 'SCOUT_ORANGE') return 'BOSS_GREEN_SAUCER';
-      if (type === 'SCOUT_DART') return 'BOSS_BLUE_CRESCENT';
-      if (type === 'FIGHTER_RED') return 'BOSS_RED_THRUSTER';
-      if (type === 'STEALTH_JET') return 'BOSS_PURPLE_VOID';
-      if (type === 'HEAVY_BOMBER') return 'BOSS_RED_ORB';
-    } else if (stage >= 2) {
-      // Mid stages: mix of heavy alien and combat spacecraft
-      if (type === 'SCOUT_GREEN') return 'SMALL_JET';
-      if (type === 'SCOUT_ORANGE') return 'GOLD_FIGHTER';
-      if (type === 'SCOUT_DART') return 'SMALL_JET';
-      if (type === 'FIGHTER_RED') return 'RED_FIGHTER';
-      if (type === 'STEALTH_JET') return 'BOSS_BLUE_CRESCENT';
-      if (type === 'HEAVY_BOMBER') return 'HEAVY_CARRIER';
+      // 6~10스테이지(우주·이세계): 외계 함선
+      if (type === 'SCOUT_GREEN') return 'A_DRONE';
+      if (type === 'SCOUT_ORANGE') return 'A_CLAW';
+      if (type === 'SCOUT_DART') return 'A_DART';
+      if (type === 'FIGHTER_RED') return 'A_EYE';
+      if (type === 'STEALTH_JET') return 'A_MANTA';
+      if (type === 'HEAVY_BOMBER') return 'A_BOMBER';
     } else {
-      // Early stages
-      if (type === 'SCOUT_GREEN') return 'SMALL_JET';
-      if (type === 'SCOUT_ORANGE') return 'GOLD_FIGHTER';
-      if (type === 'SCOUT_DART') return 'SMALL_JET';
-      if (type === 'FIGHTER_RED') return 'RED_FIGHTER';
-      if (type === 'STEALTH_JET') return 'ALIEN_VOID';
-      if (type === 'HEAVY_BOMBER') return 'HEAVY_CARRIER';
+      // 1~5스테이지: 적 전투기 편대
+      if (type === 'SCOUT_GREEN') return 'SCOUT';
+      if (type === 'SCOUT_ORANGE') return 'TWIN';
+      if (type === 'SCOUT_DART') return 'SCOUT';
+      if (type === 'FIGHTER_RED') return 'RED';
+      if (type === 'STEALTH_JET') return stage >= 2 ? 'BATWING' : 'STEEL';
+      if (type === 'HEAVY_BOMBER') return 'BOMBER';
     }
     return null;
   }
@@ -1352,54 +1308,47 @@ export class SpriteRenderer {
     const hpRatio = Math.max(0, boss.hp / boss.maxHp);
     const isEnraged = hpRatio < 0.4;
 
-    // 1. Giant Mothership Shadow
+    // 1. Giant Mothership Shadow (그림 모양 그림자)
+    const shadowSprite = this.getBossImage(boss.type);
     ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.beginPath();
-    ctx.ellipse(20, 28, w * 0.52, h * 0.48, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (shadowSprite) {
+      const s0 = Math.min(w / shadowSprite.naturalWidth, (h * 1.05) / shadowSprite.naturalHeight);
+      const sw = shadowSprite.naturalWidth * s0;
+      const sh = shadowSprite.naturalHeight * s0;
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(this.getShadow(shadowSprite), 22 - sw / 2, 30 - sh / 2, sw, sh);
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.beginPath();
+      ctx.ellipse(20, 28, w * 0.52, h * 0.48, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
 
     // 2. Boss Multi-Thruster Mega Plasma Flames (Shooting upward behind the mothership)
     this.drawBossThrusterFlames(ctx, boss, time);
 
-    // 3. Boss Dreadnought Mothership Body (Inverted to face downward towards player)
-    let bossSpriteKey = 'BOSS_RED_THRUSTER';
-    if (boss.type === 'BOSS_STAGE_1') {
-      bossSpriteKey = 'BOSS_RED_THRUSTER';
-    } else if (boss.type === 'BOSS_STAGE_2') {
-      bossSpriteKey = 'BOSS_BLUE_CRESCENT';
-    } else if (boss.type === 'BOSS_STAGE_3') {
-      bossSpriteKey = 'BOSS_GREEN_SAUCER';
-    } else if (boss.type === 'BOSS_STAGE_4') {
-      bossSpriteKey = 'BOSS_RED_THRUSTER';
-    } else if (boss.type === 'BOSS_STAGE_5') {
-      bossSpriteKey = 'BOSS_BLUE_CRESCENT';
-    } else if (boss.type === 'BOSS_STAGE_6') {
-      bossSpriteKey = 'BOSS_RED_ORB';
-    } else if (boss.type === 'BOSS_STAGE_7') {
-      bossSpriteKey = 'BOSS_PURPLE_VOID';
-    } else if (boss.type === 'BOSS_STAGE_8') {
-      bossSpriteKey = 'BOSS_GREEN_SAUCER';
-    } else if (boss.type === 'BOSS_STAGE_9') {
-      bossSpriteKey = 'BOSS_RED_THRUSTER';
-    } else if (boss.type === 'BOSS_STAGE_10') {
-      bossSpriteKey = 'BOSS_PURPLE_VOID';
-    }
-
-    const bossSprite =
-      this.getProcessedEnemyImage(bossSpriteKey) ||
-      this.getProcessedEnemyImage('BOSS_CARRIER') ||
-      this.getProcessedEnemyImage('HEAVY_CARRIER') ||
-      this.getProcessedEnemyImage('ALIEN_VOID');
+    // 3. 스테이지별 보스 그림 (그림 자체가 아래쪽=플레이어를 보고 있어서 회전하지 않아요)
+    const bossSprite = this.getBossImage(boss.type);
 
     ctx.save();
-    // Rotate 180 degrees (Math.PI) so the menacing prow and forward plasma bays face the player
-    ctx.rotate(Math.PI);
-
     if (bossSprite) {
-      ctx.drawImage(bossSprite, -w / 2, -h / 2, w, h);
+      // 그림 비율을 지키면서 보스 크기 상자에 맞춰 그리기
+      const iw = bossSprite.naturalWidth;
+      const ih = bossSprite.naturalHeight;
+      const scale = Math.min(w / iw, (h * 1.05) / ih);
+      const dw = iw * scale;
+      const dh = ih * scale;
+      ctx.drawImage(bossSprite, -dw / 2, -dh / 2, dw, dh);
+      if (boss.hitFlash && boss.hitFlash > 0) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(bossSprite, -dw / 2, -dh / 2, dw, dh);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
     } else {
+      ctx.rotate(Math.PI);
       // High-Tech Cyber Dreadnought Fallback
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
@@ -1418,31 +1367,32 @@ export class SpriteRenderer {
       ctx.fillRect(-w * 0.35, -h * 0.35, w * 0.7, h * 0.7);
       ctx.fillStyle = '#334155';
       ctx.fillRect(-w * 0.25, -h * 0.25, w * 0.5, h * 0.5);
+
+      // Glowing Hyperspace Reactor Core in the center of the mothership
+      const corePulse = Math.sin(time * 8) * 0.2 + 0.8;
+      ctx.fillStyle = isEnraged ? `rgba(239, 68, 68, ${corePulse})` : `rgba(56, 189, 248, ${corePulse})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Flight deck / Launch bay hazard lights
+      ctx.fillStyle = 'rgba(234, 179, 8, 0.4)';
+      ctx.fillRect(-8, -h * 0.3, 16, h * 0.6);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, -h * 0.3);
+      ctx.lineTo(0, h * 0.3);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    // Glowing Hyperspace Reactor Core in the center of the mothership
-    const corePulse = Math.sin(time * 8) * 0.2 + 0.8;
-    ctx.fillStyle = isEnraged ? `rgba(239, 68, 68, ${corePulse})` : `rgba(56, 189, 248, ${corePulse})`;
-    ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(0, 0, 7, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Flight deck / Launch bay hazard lights
-    ctx.fillStyle = 'rgba(234, 179, 8, 0.4)';
-    ctx.fillRect(-8, -h * 0.3, 16, h * 0.6);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(0, -h * 0.3);
-    ctx.lineTo(0, h * 0.3);
-    ctx.stroke();
-
-    ctx.restore(); // Restore from rotation
+    ctx.restore();
 
     // 4. Battle Damage Visual FX (Smoke & Electrical Sparks at low HP)
     if (hpRatio < 0.75) {
@@ -1587,56 +1537,53 @@ export class SpriteRenderer {
     ctx.save();
     ctx.translate(b.x, b.y);
 
-    if (b.owner === 'PLAYER' || b.owner === 'OPTION') {
+    // 플레이어 총알 (예전에는 PLAYER_1/PLAYER_2 총알이 적 총알 모양으로 그려지던 문제를 고쳤어요)
+    if (b.owner === 'PLAYER' || b.owner === 'PLAYER_1' || b.owner === 'PLAYER_2' || b.owner === 'OPTION') {
+      const c = b.color || '#38bdf8';
       if (b.type === 'LASER') {
-        // High energy glowing cyan laser beam
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-        ctx.fillRect(-5, -20, 10, 40);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(-3, -18, 6, 36);
+        // 기체 색깔의 빛나는 레이저
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = c;
+        ctx.fillRect(-6, -22, 12, 44);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = c;
+        ctx.fillRect(-3.5, -20, 7, 40);
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-1, -16, 2, 32);
+        ctx.fillRect(-1.2, -18, 2.4, 36);
       } else if (b.type === 'HOMING_MISSILE') {
-        // Green Plasma Missile (as seen in Image 3)
-        ctx.fillStyle = '#22c55e';
+        // 유도 미사일: 날아가는 방향으로 기울어짐
+        ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+        ctx.fillStyle = '#e2e8f0';
         ctx.beginPath();
         ctx.moveTo(0, -9);
-        ctx.lineTo(4, 6);
-        ctx.lineTo(0, 4);
-        ctx.lineTo(-4, 6);
+        ctx.lineTo(3.5, 5);
+        ctx.lineTo(-3.5, 5);
         ctx.closePath();
         ctx.fill();
-
-        // White missile core
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-1, -6, 2, 8);
-
-        // Rocket exhaust flame trail
+        ctx.fillStyle = c;
+        ctx.fillRect(-3.5, 2, 7, 3);
         ctx.fillStyle = '#fbbf24';
         ctx.fillRect(-1.5, 5, 3, 4 + Math.sin(time * 30) * 2);
       } else {
-        // Iconic Golden-Orange Teardrop Flame Bullet (Image 3)
-        // Outer flame halo
-        ctx.fillStyle = 'rgba(249, 115, 22, 0.45)';
+        // 기체 색깔의 물방울 모양 발칸탄
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = c;
         ctx.beginPath();
-        ctx.moveTo(0, -10);
+        ctx.moveTo(0, -11);
         ctx.lineTo(5, 6);
         ctx.lineTo(0, 4);
         ctx.lineTo(-5, 6);
         ctx.closePath();
         ctx.fill();
-
-        // Golden body
-        ctx.fillStyle = '#f59e0b';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = c;
         ctx.beginPath();
         ctx.moveTo(0, -8);
-        ctx.lineTo(3.5, 4);
+        ctx.lineTo(3.2, 4);
         ctx.lineTo(0, 2.5);
-        ctx.lineTo(-3.5, 4);
+        ctx.lineTo(-3.2, 4);
         ctx.closePath();
         ctx.fill();
-
-        // White-hot core
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(-1, -5, 2, 7);
       }

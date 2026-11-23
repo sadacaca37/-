@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame, PpogeulGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -135,7 +135,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     category: '펀펀',
     icon: '✈️',
     thumb: './assets/playground/thumb-airplane.webp',
-    description: '전투기 7종 · 스테이지 10개 · 보스전이 있는 비행 슈팅 · 👥 2인 대결',
+    description: '전투기 6종(기체마다 다른 무기) · 스테이지 10개 · 보스 10종이 있는 비행 슈팅 · 👥 2인 대결',
     component: AirplaneShootingGame,
   },
   {
@@ -217,6 +217,16 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     thumb: './assets/playground/thumb-flamesquad.webp',
     description: '총·수류탄·메카로 싸우며 나아가는 옆으로 가는 액션 슈팅 · 스테이지 5개 · 보스전 (사격 E · 점프 X · 수류탄 C)',
     component: FlameSquadGame,
+  },
+  {
+    id: 'app-ppogeul',
+    players: 2,
+    title: '뽀글뽀글',
+    category: '펀펀',
+    icon: '🫧',
+    thumb: './assets/playground/thumb-ppogeul.webp',
+    description: '같은 색 방울 3개를 붙여 터뜨리는 방울 퍼즐 · 혼자 하기 10판 · 컴퓨터와 대결 · 둘이서 대결(한 키보드)',
+    component: PpogeulGame,
   },
 ];
 

@@ -341,7 +341,7 @@ export class GameEngine {
       type: 'SUPER_BOMB',
       duration: 1.4,
       maxDuration: 1.4,
-      damage: config.isElite ? 260 : 200,
+      damage: Math.round(config.bombPower * 1.5),
     });
 
     retroAudio.playBomb();
@@ -362,7 +362,7 @@ export class GameEngine {
     this.enemyBullets = [];
 
     // Damage all enemies
-    const bombDmg = config.isElite ? 160 : 130;
+    const bombDmg = config.bombPower;
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
       e.hp -= bombDmg;
@@ -378,14 +378,14 @@ export class GameEngine {
       }
     }
 
-    // Temporary player invincibility
+    // Temporary player invincibility (세라프는 무적 시간이 더 길어요)
     p.isInvincible = true;
-    p.invincibleTimer = 2.4;
+    p.invincibleTimer = config.weapon === 'SERAPH' ? 3.6 : 2.4;
 
     return true;
   }
 
-  // Shoot Player Weapons (Differentiated for Spread 확산형 vs Focused 집탄형)
+  // Shoot Player Weapons — 기체마다 다른 무기 (WIDE / FOCUS / PIERCE / HOMING / SERAPH / LASER)
   public shootPlayer(playerNum: 1 | 2 = 1) {
     const p = playerNum === 2 ? this.player2 : this.player;
     if (!p || p.lives <= 0 || p.isLooping) return;
@@ -401,113 +401,96 @@ export class GameEngine {
 
     const px = p.x;
     const py = p.y - 14;
-    const pLvl = p.powerLevel;
+    const lv = p.powerLevel;
     const color = config.color;
-    const isSpread = config.type === 'SPREAD';
-    const isElite = config.isElite;
-    const bulletOwner = playerNum === 2 ? 'PLAYER_2' : 'PLAYER_1';
+    const owner = playerNum === 2 ? 'PLAYER_2' : 'PLAYER_1';
+    // 화력(power) 3~5 → 피해 배율
+    const mult = config.power >= 5 ? 1.12 : config.power <= 3 ? 0.9 : 1.0;
+    const fire = (
+      dx: number, dy: number, vx: number, vy: number,
+      type: 'VULCAN' | 'LASER' | 'HOMING_MISSILE', dmg: number, c: string = color, pierce = false
+    ) => this.addPlayerBullet(px + dx, py + dy, vx, vy, type, Math.round(dmg * mult), c, pierce, owner);
+    const missiles = (count: number, dmg: number) => {
+      for (let k = 0; k < count; k++) {
+        const side = k % 2 === 0 ? -1 : 1;
+        const row = Math.floor(k / 2);
+        fire(side * (14 + row * 6), 6 + row * 4, side * (0.8 + row * 0.5), -11, 'HOMING_MISSILE', dmg, '#fbbf24');
+      }
+    };
 
-    if (isElite) {
-      // X-36 S-Rank Elite: High piercing twin hyper beam + focused lasers
-      if (pLvl === 1) {
-        this.addPlayerBullet(px - 4, py, 0, -15, 'LASER', 16, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px + 4, py, 0, -15, 'LASER', 16, '#38bdf8', true, bulletOwner);
-      } else if (pLvl === 2) {
-        this.addPlayerBullet(px - 5, py - 4, 0, -16, 'LASER', 17, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px + 5, py - 4, 0, -16, 'LASER', 17, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px - 12, py, 0, -14, 'VULCAN', 12, '#60a5fa', false, bulletOwner);
-        this.addPlayerBullet(px + 12, py, 0, -14, 'VULCAN', 12, '#60a5fa', false, bulletOwner);
-      } else if (pLvl === 3) {
-        this.addPlayerBullet(px - 5, py - 6, 0, -17, 'LASER', 18, '#67e8f9', true, bulletOwner);
-        this.addPlayerBullet(px + 5, py - 6, 0, -17, 'LASER', 18, '#67e8f9', true, bulletOwner);
-        this.addPlayerBullet(px - 13, py - 2, 0, -15, 'VULCAN', 13, '#3b82f6', false, bulletOwner);
-        this.addPlayerBullet(px + 13, py - 2, 0, -15, 'VULCAN', 13, '#3b82f6', false, bulletOwner);
-        this.addPlayerBullet(px - 18, py + 4, -0.6, -12, 'HOMING_MISSILE', 20, '#fbbf24', false, bulletOwner);
-        this.addPlayerBullet(px + 18, py + 4, 0.6, -12, 'HOMING_MISSILE', 20, '#fbbf24', false, bulletOwner);
-      } else if (pLvl === 4) {
-        this.addPlayerBullet(px - 6, py - 8, 0, -18, 'LASER', 20, '#22d3ee', true, bulletOwner);
-        this.addPlayerBullet(px + 6, py - 8, 0, -18, 'LASER', 20, '#22d3ee', true, bulletOwner);
-        this.addPlayerBullet(px - 14, py - 2, 0, -16, 'VULCAN', 14, '#38bdf8', false, bulletOwner);
-        this.addPlayerBullet(px + 14, py - 2, 0, -16, 'VULCAN', 14, '#38bdf8', false, bulletOwner);
-        this.addPlayerBullet(px - 20, py + 4, -0.8, -13, 'HOMING_MISSILE', 22, '#fbbf24', false, bulletOwner);
-        this.addPlayerBullet(px + 20, py + 4, 0.8, -13, 'HOMING_MISSILE', 22, '#fbbf24', false, bulletOwner);
-      } else {
-        // Level 5 MAX: Hyper Dimensional Annihilator Stream
-        this.addPlayerBullet(px - 6, py - 10, 0, -19, 'LASER', 22, '#e0f2fe', true, bulletOwner);
-        this.addPlayerBullet(px + 6, py - 10, 0, -19, 'LASER', 22, '#e0f2fe', true, bulletOwner);
-        this.addPlayerBullet(px - 14, py - 4, 0, -17, 'LASER', 18, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px + 14, py - 4, 0, -17, 'LASER', 18, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px - 22, py + 6, -1.0, -13, 'HOMING_MISSILE', 24, '#f59e0b', false, bulletOwner);
-        this.addPlayerBullet(px + 22, py + 6, 1.0, -13, 'HOMING_MISSILE', 24, '#f59e0b', false, bulletOwner);
+    switch (config.weapon) {
+      case 'WIDE': {
+        // 피닉스: 넓은 부채꼴 확산탄
+        const ways = [3, 3, 5, 5, 7][lv - 1];
+        const spread = [0.9, 1.2, 1.2, 1.5, 1.6][lv - 1];
+        const dmg = [13, 14, 13, 14, 14][lv - 1];
+        for (let k = 0; k < ways; k++) {
+          const t = k - (ways - 1) / 2;
+          fire(t * 5, Math.abs(t) * 2, t * spread, -13.5, 'VULCAN', dmg);
+        }
+        if (lv >= 4) missiles(2, 18);
+        break;
       }
-    } else if (isSpread) {
-      // Spread Archetype (AV-8, F-4, F-117): Wide angle coverage & clearing power
-      if (pLvl === 1) {
-        this.addPlayerBullet(px - 4, py, 0, -13, 'VULCAN', 13, color, false, bulletOwner);
-        this.addPlayerBullet(px + 4, py, 0, -13, 'VULCAN', 13, color, false, bulletOwner);
-      } else if (pLvl === 2) {
-        this.addPlayerBullet(px - 4, py - 2, 0, -14, 'VULCAN', 13, color, false, bulletOwner);
-        this.addPlayerBullet(px + 4, py - 2, 0, -14, 'VULCAN', 13, color, false, bulletOwner);
-        this.addPlayerBullet(px - 11, py, -1.0, -13, 'VULCAN', 11, color, false, bulletOwner);
-        this.addPlayerBullet(px + 11, py, 1.0, -13, 'VULCAN', 11, color, false, bulletOwner);
-      } else if (pLvl === 3) {
-        this.addPlayerBullet(px, py - 4, 0, -14, 'VULCAN', 14, color, false, bulletOwner);
-        this.addPlayerBullet(px - 8, py - 2, -0.8, -13, 'VULCAN', 12, color, false, bulletOwner);
-        this.addPlayerBullet(px + 8, py - 2, 0.8, -13, 'VULCAN', 12, color, false, bulletOwner);
-        this.addPlayerBullet(px - 16, py + 2, -2.2, -12, 'VULCAN', 11, color, false, bulletOwner);
-        this.addPlayerBullet(px + 16, py + 2, 2.2, -12, 'VULCAN', 11, color, false, bulletOwner);
-      } else if (pLvl === 4) {
-        this.addPlayerBullet(px - 4, py - 4, 0, -15, 'VULCAN', 14, color, false, bulletOwner);
-        this.addPlayerBullet(px + 4, py - 4, 0, -15, 'VULCAN', 14, color, false, bulletOwner);
-        this.addPlayerBullet(px - 10, py - 2, -1.2, -14, 'VULCAN', 12, color, false, bulletOwner);
-        this.addPlayerBullet(px + 10, py - 2, 1.2, -14, 'VULCAN', 12, color, false, bulletOwner);
-        this.addPlayerBullet(px - 16, py + 2, -2.6, -13, 'VULCAN', 11, color, false, bulletOwner);
-        this.addPlayerBullet(px + 16, py + 2, 2.6, -13, 'VULCAN', 11, color, false, bulletOwner);
-        this.addPlayerBullet(px - 14, py + 6, -0.8, -11, 'HOMING_MISSILE', 18, '#fbbf24', false, bulletOwner);
-        this.addPlayerBullet(px + 14, py + 6, 0.8, -11, 'HOMING_MISSILE', 18, '#fbbf24', false, bulletOwner);
-      } else {
-        // Level 5 MAX Spread: 5-Way Wide Sweep + Twin Missiles
-        this.addPlayerBullet(px - 4, py - 6, 0, -16, 'LASER', 17, '#67e8f9', true, bulletOwner);
-        this.addPlayerBullet(px + 4, py - 6, 0, -16, 'LASER', 17, '#67e8f9', true, bulletOwner);
-        this.addPlayerBullet(px - 11, py - 2, -1.4, -14, 'VULCAN', 13, color, false, bulletOwner);
-        this.addPlayerBullet(px + 11, py - 2, 1.4, -14, 'VULCAN', 13, color, false, bulletOwner);
-        this.addPlayerBullet(px - 18, py + 2, -3.2, -13, 'VULCAN', 12, color, false, bulletOwner);
-        this.addPlayerBullet(px + 18, py + 2, 3.2, -13, 'VULCAN', 12, color, false, bulletOwner);
-        this.addPlayerBullet(px - 16, py + 6, -1.0, -12, 'HOMING_MISSILE', 22, '#f59e0b', false, bulletOwner);
-        this.addPlayerBullet(px + 16, py + 6, 1.0, -12, 'HOMING_MISSILE', 22, '#f59e0b', false, bulletOwner);
+      case 'FOCUS': {
+        // 블루 템페스트: 앞쪽 집중 화력
+        const lines = [2, 3, 4, 4, 4][lv - 1];
+        for (let k = 0; k < lines; k++) {
+          const t = k - (lines - 1) / 2;
+          fire(t * 7, Math.abs(t) * 3, 0, -15, 'VULCAN', 15 + (lv >= 3 ? 1 : 0));
+        }
+        if (lv >= 3) fire(0, -8, 0, -18, 'LASER', 18, '#93c5fd', true);
+        if (lv >= 5) missiles(2, 20);
+        break;
       }
-    } else {
-      // Focused Archetype (FA-18E, F-22): Extreme centerline boss-killer DPS
-      if (pLvl === 1) {
-        this.addPlayerBullet(px - 3, py, 0, -14, 'VULCAN', 14, color, false, bulletOwner);
-        this.addPlayerBullet(px + 3, py, 0, -14, 'VULCAN', 14, color, false, bulletOwner);
-      } else if (pLvl === 2) {
-        this.addPlayerBullet(px - 3, py - 4, 0, -15, 'VULCAN', 15, color, false, bulletOwner);
-        this.addPlayerBullet(px + 3, py - 4, 0, -15, 'VULCAN', 15, color, false, bulletOwner);
-        this.addPlayerBullet(px - 9, py, 0, -14, 'VULCAN', 13, color, false, bulletOwner);
-        this.addPlayerBullet(px + 9, py, 0, -14, 'VULCAN', 13, color, false, bulletOwner);
-      } else if (pLvl === 3) {
-        this.addPlayerBullet(px - 3, py - 6, 0, -16, 'VULCAN', 16, color, false, bulletOwner);
-        this.addPlayerBullet(px + 3, py - 6, 0, -16, 'VULCAN', 16, color, false, bulletOwner);
-        this.addPlayerBullet(px - 9, py - 2, 0, -15, 'VULCAN', 14, color, false, bulletOwner);
-        this.addPlayerBullet(px + 9, py - 2, 0, -15, 'VULCAN', 14, color, false, bulletOwner);
-        this.addPlayerBullet(px - 15, py + 4, -0.4, -12, 'HOMING_MISSILE', 20, '#fbbf24', false, bulletOwner);
-        this.addPlayerBullet(px + 15, py + 4, 0.4, -12, 'HOMING_MISSILE', 20, '#fbbf24', false, bulletOwner);
-      } else if (pLvl === 4) {
-        this.addPlayerBullet(px - 3, py - 8, 0, -17, 'LASER', 18, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px + 3, py - 8, 0, -17, 'LASER', 18, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px - 9, py - 4, 0, -16, 'VULCAN', 15, color, false, bulletOwner);
-        this.addPlayerBullet(px + 9, py - 4, 0, -16, 'VULCAN', 15, color, false, bulletOwner);
-        this.addPlayerBullet(px - 16, py + 4, -0.6, -13, 'HOMING_MISSILE', 22, '#fbbf24', false, bulletOwner);
-        this.addPlayerBullet(px + 16, py + 4, 0.6, -13, 'HOMING_MISSILE', 22, '#fbbf24', false, bulletOwner);
-      } else {
-        // Level 5 MAX Focused: Concentrated Armor-Piercing Railgun Stream
-        this.addPlayerBullet(px - 4, py - 10, 0, -19, 'LASER', 20, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px + 4, py - 10, 0, -19, 'LASER', 20, '#38bdf8', true, bulletOwner);
-        this.addPlayerBullet(px - 10, py - 6, 0, -17, 'VULCAN', 16, color, false, bulletOwner);
-        this.addPlayerBullet(px + 10, py - 6, 0, -17, 'VULCAN', 16, color, false, bulletOwner);
-        this.addPlayerBullet(px - 18, py + 6, -0.8, -13, 'HOMING_MISSILE', 24, '#f59e0b', false, bulletOwner);
-        this.addPlayerBullet(px + 18, py + 6, 0.8, -13, 'HOMING_MISSILE', 24, '#f59e0b', false, bulletOwner);
+      case 'PIERCE': {
+        // 발키리: 적을 뚫고 지나가는 웨이브탄
+        const ways = [2, 2, 3, 3, 5][lv - 1];
+        for (let k = 0; k < ways; k++) {
+          const t = k - (ways - 1) / 2;
+          fire(t * 9, Math.abs(t) * 3, t * 0.7, -14, 'LASER', 19 + lv, '#34d399', true);
+        }
+        if (lv >= 4) {
+          fire(-16, 6, -1.8, -12, 'VULCAN', 12);
+          fire(16, 6, 1.8, -12, 'VULCAN', 12);
+        }
+        break;
+      }
+      case 'HOMING': {
+        // 스텔스 스톰: 쌍발 발칸 + 처음부터 유도 미사일
+        fire(-4, 0, 0, -15, 'VULCAN', 12);
+        fire(4, 0, 0, -15, 'VULCAN', 12);
+        if (lv >= 3) {
+          fire(-10, 2, -0.6, -14, 'VULCAN', 11);
+          fire(10, 2, 0.6, -14, 'VULCAN', 11);
+        }
+        missiles([1, 2, 2, 4, 4][lv - 1], [16, 16, 18, 18, 20][lv - 1]);
+        break;
+      }
+      case 'SERAPH': {
+        // 바이올렛 세라프: 가운데 레이저 + 양옆 하트 확산탄
+        fire(0, -4, 0, -16, 'LASER', 15 + lv, '#e9d5ff', true);
+        const side = [1, 1, 2, 2, 3][lv - 1];
+        for (let k = 1; k <= side; k++) {
+          fire(-6 - k * 4, k * 2, -k * 1.1, -13, 'VULCAN', 12, '#f472b6');
+          fire(6 + k * 4, k * 2, k * 1.1, -13, 'VULCAN', 12, '#f472b6');
+        }
+        if (lv >= 4) missiles(2, 18);
+        break;
+      }
+      case 'LASER':
+      default: {
+        // 블랙 골드 타이탄: 굵은 쌍둥이 관통 레이저 (느리지만 한 방이 셈)
+        const beams = [2, 2, 3, 4, 4][lv - 1];
+        for (let k = 0; k < beams; k++) {
+          const t = k - (beams - 1) / 2;
+          fire(t * 8, Math.abs(t) * 4, 0, -18, 'LASER', [28, 30, 30, 30, 32][lv - 1], '#fde047', true);
+        }
+        if (lv >= 2) {
+          fire(-14, 4, -0.3, -15, 'VULCAN', 16);
+          fire(14, 4, 0.3, -15, 'VULCAN', 16);
+        }
+        if (lv >= 5) missiles(2, 20);
+        break;
       }
     }
 
@@ -821,7 +804,13 @@ export class GameEngine {
             const dist = Math.hypot(b.x - partWorldX, b.y - partWorldY);
 
             if (dist < p.width / 2 + b.radius) {
+              if (b.piercing) {
+                const key = e.id + ':' + p.id;
+                if (b.hitIds?.includes(key)) continue;
+                (b.hitIds ||= []).push(key);
+              }
               p.hp -= b.damage;
+              e.hitFlash = 0.08;
               this.stats.shotsHit++;
               this.createHitSparks(b.x, b.y, b.color);
               if (p.hp <= 0) {
@@ -840,7 +829,12 @@ export class GameEngine {
 
         const dist = Math.hypot(b.x - e.x, b.y - e.y);
         if (dist < e.width / 2 + b.radius) {
+          if (b.piercing) {
+            if (b.hitIds?.includes(e.id)) continue;
+            (b.hitIds ||= []).push(e.id);
+          }
           e.hp -= b.damage;
+          e.hitFlash = 0.08;
           this.stats.shotsHit++;
           this.createHitSparks(b.x, b.y, b.color);
 
@@ -1220,6 +1214,7 @@ export class GameEngine {
       const e = this.enemies[i];
       e.patternTimer += dt;
       e.shootTimer += dt;
+      if (e.hitFlash) e.hitFlash = Math.max(0, e.hitFlash - dt);
 
       // Rotate ground/sea battery barrels towards player
       if (e.type === 'GROUND_ARTILLERY' || e.type === 'ISLAND_TURRET' || e.type === 'GUNBOAT') {
@@ -1229,11 +1224,12 @@ export class GameEngine {
       // Enemy Movement Patterns
       if (e.behavior === 'BOSS_PATTERN') {
         // Boss fly-in and hovering figure-8 dance
-        if (e.y < 120) {
+        // (새 보스 그림이 화면 위로 잘리지 않도록 조금 더 아래에서 맴돌아요)
+        if (e.y < 140) {
           e.y += e.vy * 40 * dt;
         } else {
-          e.x = CANVAS_WIDTH / 2 + Math.sin(e.patternTimer * 0.8) * 110;
-          e.y = 120 + Math.cos(e.patternTimer * 1.6) * 35;
+          e.x = CANVAS_WIDTH / 2 + Math.sin(e.patternTimer * 0.8) * 100;
+          e.y = 140 + Math.cos(e.patternTimer * 1.6) * 30;
         }
 
         // Aim boss turrets at player

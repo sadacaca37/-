@@ -55,13 +55,13 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         <h1 className="text-2xl font-bold text-red-500 tracking-wider mb-0.5 animate-pulse">
           MISSION TERMINATED
         </h1>
-        <div className="text-[10px] text-slate-400 mb-3 uppercase tracking-widest">
+        <div className="text-[11px] text-slate-400 mb-3 uppercase tracking-widest">
           AIRCRAFT DOWN // DEBRIEFING
         </div>
 
         {/* Continue Countdown Badge */}
         <div className="flex flex-col items-center mb-3 bg-[#020617] px-6 py-1.5 rounded border border-slate-800">
-          <div className="text-[9px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">
+          <div className="text-[11px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">
             RESCUE SCRAMBLE COUNTDOWN
           </div>
           <div className="text-3xl font-black text-amber-400">
@@ -94,7 +94,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {/* High Score Initials Entry Form (Top 30 Ranking Input) */}
         {!isSaved ? (
           <form onSubmit={handleSave} className="w-full mb-3 flex flex-col items-center">
-            <label className="text-[10px] text-amber-400 mb-1.5 flex items-center gap-1 font-bold uppercase tracking-wider">
+            <label className="text-[11px] text-amber-400 mb-1.5 flex items-center gap-1 font-bold uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-400" /> TOP 30 랭킹 등록 (이름/이니셜)
             </label>
             <div className="flex gap-2 w-full">
