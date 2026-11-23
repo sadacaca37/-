@@ -115,6 +115,7 @@ export function buildTodaySummary(userId: string): { day: string; active: boolea
 export async function sendTodayReport(user: UserSession, note: string): Promise<{ success: boolean; message?: string; report?: DailyReport }> {
   const { day, active, summary } = buildTodaySummary(user.id);
   if (!active) return { success: false, message: '오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요.' };
+  if (!summary.sets) return { success: false, message: '아직 끝까지 친 세트가 없어요. 한 세트를 끝까지(완주) 치고 나서 보내 주세요.' };
   const p = parseUserId(user.id);
   if (!p) return { success: false, message: '모아팡에서 방번호와 이름으로 들어온 학생만 보낼 수 있어요.' };
   // 함께 쓰는 선생님(owner가 있는 반)은 아직 보고함을 쓰지 않음 (보고함은 주 선생님만)

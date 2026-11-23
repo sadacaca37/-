@@ -50,10 +50,10 @@ export const ContestPanel: React.FC = () => {
   const state = !cur ? '' : now < cur.startAt ? '⏳ 시작 전' : now < cur.endAt ? '🔴 진행 중' : res?.paid ? '🏆 결과 발표함' : '⏹ 끝남 (발표 전)';
 
   return (
-    <div className="px-3.5 py-3 rounded-xl border-2 border-violet-300 bg-violet-50 text-xs font-bold text-violet-950 space-y-2 shrink-0" data-testid="contest-panel">
+    <div className="px-3 py-2 rounded-xl border-2 border-violet-300 bg-violet-50 text-xs font-bold text-violet-950 space-y-2 shrink-0" data-testid="contest-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-black">🏁 타자 대회 (정해진 시간에 한 번만 · 점수 = 타수 − 오타×{ERROR_PENALTY} · 1·2·3등 {CONTEST_PRIZES.join('·')}P)</span>
-        <button type="button" className="px-3 py-1.5 rounded-lg bg-violet-600 text-white font-black cursor-pointer" onClick={() => setOpen(!open)}>
+        <span className="text-[13px] font-black" title={`정해진 시간에 한 번만 · 점수 = 타수 − 오타×${ERROR_PENALTY} · 1·2·3등 ${CONTEST_PRIZES.join('·')}P`}>🏁 타자 대회</span>
+        <button type="button" className="px-2.5 py-1 rounded-lg bg-violet-600 text-white font-black cursor-pointer" onClick={() => setOpen(!open)}>
           {open ? '접기' : cur ? '대회 보기' : '대회 열기'}
         </button>
       </div>

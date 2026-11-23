@@ -82,7 +82,7 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
             .filter(([, c]) => c > 0)
             .map(([m, c]) => (
               <span key={m} className="wd-chip">
-                {MODE_NAME[m] || m} {modeSetLabel(m, c, s.keySets)}
+                {(m === 'key' ? (s.keySets || 0) > 0 : c > 0) ? '✅' : '⏳'} {MODE_NAME[m] || m} {modeSetLabel(m, c, s.keySets)}
               </span>
             ))}
         </div>
@@ -96,8 +96,22 @@ export const SendReportModal: React.FC<Props> = ({ isOpen, onClose, currentUser 
         className="wd-input"
       />
 
-      {!today.active ? (
-        <div className="wd-note wd-note--warn">오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요!</div>
+      {/* 완주 확인: 한 세트라도 끝까지 쳐야 보낼 수 있음 */}
+      <div className={`wd-note ${s.sets > 0 ? 'wd-note--ok' : 'wd-note--warn'}`} data-testid="finish-check">
+        {s.sets > 0 ? (
+          <>🏁 <b>완주했어요!</b> 오늘 끝까지 친 세트 {s.sets}개</>
+        ) : today.active ? (
+          <>⏳ <b>아직 완주 안 했어요.</b> 치다 만 연습이 있어요. 한 세트를 끝까지 쳐야 보낼 수 있어요.</>
+        ) : (
+          <>⬜ <b>아직 완주 안 했어요.</b> 오늘 친 타자가 없어요. 한 세트를 끝까지 치고 보내 주세요.</>
+        )}
+      </div>
+
+      {s.sets < 1 ? (
+        <button type="button" disabled className="wd-btn wd-btn--block wd-btn--big wd-btn--sky opacity-50 cursor-not-allowed" data-testid="send-report-btn">
+          <Send className="w-6 h-6" />
+          완주하면 보낼 수 있어요
+        </button>
       ) : (
         <button
           type="button"
