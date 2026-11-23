@@ -12,7 +12,8 @@ import { RotateCcw, Award, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucid
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { recordPracticeHistory } from '../../utils/curriculumManager';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
-import { TypingSpeedTrendChart } from '../TypingSpeedTrendChart';
+// 그래프(recharts)는 결과 창에서만 쓰므로 나중에 불러옴 → 연습 창이 빨리 뜸
+const TypingSpeedTrendChart = React.lazy(() => import('../TypingSpeedTrendChart').then((m) => ({ default: m.TypingSpeedTrendChart })));
 import { MychewRewardModal } from '../MychewRewardModal';
 import { PracticeSetResultModal } from '../PracticeSetResultModal';
 import { starMissionManager } from '../../utils/starMissionManager';
@@ -767,11 +768,13 @@ export const KeyPracticeView: React.FC<KeyPracticeViewProps> = ({
 
             {/* Recharts Typing Speed Trend Chart */}
             <div className="max-w-md mx-auto">
+              <React.Suspense fallback={null}>
               <TypingSpeedTrendChart
                 currentCpm={stats.cpm}
                 currentAccuracy={stats.accuracy}
                 stageTitle={stage.title}
               />
+              </React.Suspense>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">

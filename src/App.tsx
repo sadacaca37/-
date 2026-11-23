@@ -590,12 +590,7 @@ export default function App() {
         // Open dedicated popup browser window; if the browser blocks popups, open it inside this page
         let opened = false;
         try {
-          // 이미 열려 있는 연습 창이면 새로 불러오지 않고 앞으로만 가져옴 (여러 번 눌러도 버벅이지 않게)
-          const existing = openPracticeWindows.get(mode);
-          if (existing && !existing.closed) {
-            existing.focus();
-            return;
-          }
+          // 이미 열려 있는 연습 창이 뒤에 숨어 있으면 focus()만으로는 앞에 안 나올 때가 있음 → 같은 이름으로 다시 열어 앞으로 가져옴
           const url = `${window.location.origin}${window.location.pathname}?mode=${mode}&popup=true`;
           const scr = window.screen as Screen & { availLeft?: number; availTop?: number };
           const availW = scr?.availWidth || 1366;

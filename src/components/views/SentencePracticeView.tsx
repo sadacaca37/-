@@ -22,7 +22,8 @@ import { VirtualKeyboard } from '../VirtualKeyboard';
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { recordPracticeHistory } from '../../utils/curriculumManager';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
-import { TypingSpeedTrendChart } from '../TypingSpeedTrendChart';
+// 그래프(recharts)는 결과 창에서만 쓰므로 나중에 불러옴 → 연습 창이 빨리 뜸
+const TypingSpeedTrendChart = React.lazy(() => import('../TypingSpeedTrendChart').then((m) => ({ default: m.TypingSpeedTrendChart })));
 import { MychewRewardModal } from '../MychewRewardModal';
 import { PracticeSetResultModal } from '../PracticeSetResultModal';
 import { TypingReviewList, TypingReviewItem, isUnfinished } from '../TypingReviewList';
@@ -1062,12 +1063,14 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
             </div>
 
             {/* Recharts Typing Speed Trend Chart */}
+            <React.Suspense fallback={null}>
             <TypingSpeedTrendChart
               currentCpm={stats.cpm}
               currentAccuracy={stats.accuracy}
               checkpoints={sentenceSpeedCheckpointsRef.current}
               stageTitle={currentCategory.category}
             />
+            </React.Suspense>
 
             <div className="flex flex-col sm:flex-row gap-2.5">
               <button

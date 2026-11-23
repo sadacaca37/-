@@ -10,6 +10,18 @@
     <!-- 외부 글꼴은 화면 그리기를 막지 않도록 나중에 불러옴 (학교망에서 막혀 있어도 첫 화면이 바로 뜸) -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
     <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" media="print" onload="this.media='all'" />
+    <script>
+      /* 새로 올린 뒤 예전 화면(지워진 파일)을 불러오다 멈추면 한 번만 새로 받아 옴 → 하얀 화면으로 멈추지 않게 */
+      (function(){
+        function again(){
+          try{ if(sessionStorage.getItem('tp_reload_once'))return; sessionStorage.setItem('tp_reload_once','1'); }catch(e){}
+          var u=new URL(location.href); u.searchParams.set('_r',Date.now().toString(36)); location.replace(u.toString());
+        }
+        window.addEventListener('error',function(e){var t=e&&e.target; if(t&&(t.tagName==='SCRIPT'||(t.tagName==='LINK'&&/stylesheet|modulepreload/.test(t.rel)))&&/\/assets\//.test(t.src||t.href||''))again();},true);
+        window.addEventListener('vite:preloadError',function(e){ if(e&&e.preventDefault)e.preventDefault(); again(); });
+        window.addEventListener('load',function(){ setTimeout(function(){ try{sessionStorage.removeItem('tp_reload_once');}catch(e){} },15000); });
+      })();
+    </script>
   </head>
   <body class="bg-[#fffdf8] text-slate-800 font-sans antialiased selection:bg-rose-400 selection:text-white">
     <style>
