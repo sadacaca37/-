@@ -275,7 +275,8 @@ export function clearMemberDress() {
 }
 const memberSession = (key: string, v: any, approved: boolean): UserSession => {
   const taja = v?.taja || {};
-  const s: MoaSession = { cid: MEMBER_CID, room: '', className: taja.className || MEMBER_CLASS, name: String(v?.name || ''), key };
+  const g = Number(taja.grade) || 0;
+  const s: MoaSession = { cid: MEMBER_CID, room: '', className: g ? `${g}학년` : MEMBER_CLASS, name: String(v?.name || ''), key }; // 타자팡 회원은 학년만 (모아팡 반과 따로)
   try {
     localStorage.setItem(MEMBER_DRESS_KEY, JSON.stringify({ cid: MEMBER_CID, key, name: s.name, className: s.className, outfit: v?.outfit || null }));
     window.dispatchEvent(new Event('moa-outfit-changed'));

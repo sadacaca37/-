@@ -148,7 +148,7 @@ class TypangApiClient {
         users.push({
           id,
           name: String(v.name || ''),
-          studentId: t.className || MEMBER_CLASS,
+          studentId: grade ? `${grade}학년` : '학년 미정', // 타자팡은 학년만 (모아팡 반과 따로)
           grade,
           avatar: t.avatar || '⭐',
           avatarBg: t.avatarBg || 'bg-yellow-100',
@@ -163,7 +163,7 @@ class TypangApiClient {
           moaOutfit: v.outfit || null, // 모아팡 캐릭터 옷차림 (성적표에 그림)
         } as UserSession);
       }
-      users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));
+      users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || (a.grade || 9) - (b.grade || 9) || a.name.localeCompare(b.name));
       // 뒷자리 로그인 목록 (승인한 회원만)
       void rebuildLoginIndex(
         sts.docs
@@ -200,7 +200,7 @@ class TypangApiClient {
       const key = await memberKey(String(v.name || ''), phone);
       if (members.has(key)) continue;
       const t = v.taja || {};
-      const taja: Record<string, any> = { ...t, phone: phoneDigits(phone), className: classNames.get(cid) || MEMBER_CLASS };
+      const taja: Record<string, any> = { ...t, phone: phoneDigits(phone), className: MEMBER_CLASS }; // 모아팡 반 이름은 가져오지 않음
       try {
         await setDoc(doc(fs, 'classes', MEMBER_CID, 'students', key), { name: String(v.name || ''), uid: '', score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), taja });
         members.add(key);

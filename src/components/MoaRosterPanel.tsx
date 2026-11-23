@@ -96,7 +96,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
       if (u.role === 'master') continue;
       if (q && !u.name.includes(q.trim())) continue;
       if (onlyPending && u.isApproved) continue;
-      const k = u.studentId || '반 없음';
+      const k = u.grade ? `${u.grade}학년` : '학년 미정';
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(u);
     }
@@ -154,8 +154,8 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                 if (!file) return;
                 try {
                   const rows = await readImportFile(file);
-                  if (!rows.length) return say("❌ 학생을 찾지 못했어요. 첫 줄에 '반 · 이름 · 학년 · 학부모 전화번호' 제목을 써 주세요. (양식 받기)");
-                  if (!(await askConfirm(`엑셀에서 학생 ${rows.length}명을 읽었어요.\n모아팡 반에 넣고 바로 승인할까요?\n(이미 있는 학생은 학년·전화번호만 고쳐요)`, '올리기'))) return;
+                  if (!rows.length) return say("❌ 학생을 찾지 못했어요. 첫 줄에 '이름 · 학년 · 전화번호' 제목을 써 주세요. (양식 받기)");
+                  if (!(await askConfirm(`엑셀에서 학생 ${rows.length}명을 읽었어요.\n타자팡 회원으로 넣고 바로 승인할까요?\n(이미 있는 학생은 학년만 고쳐요)`, '올리기'))) return;
                   setBusy(true);
                   say('⏳ 올리는 중이에요…');
                   const r = await importStudents(rows, classNames.length === 1 ? classNames[0] : '');

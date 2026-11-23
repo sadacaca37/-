@@ -207,7 +207,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   <div>
                     <h2 className="text-2xl font-black text-slate-900 font-arcade">{currentUser.name || '학생'}</h2>
                     <p className="text-xs text-slate-500 font-bold mt-1">
-                      {currentUser.role === 'master' ? '선생님(마스터) 계정' : `${currentUser.grade || editGrade}학년 · ${currentUser.studentId || '타자팡 회원'}`}
+                      {currentUser.role === 'master' ? '선생님(마스터) 계정' : currentUser.grade ? `${currentUser.grade}학년` : '학년을 골라 주세요'}
                     </p>
                   </div>
                   <div className="w-full grid grid-cols-3 gap-2">
@@ -246,15 +246,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     </p>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-3 text-sm font-black text-slate-800">
-                        <div className="p-3 rounded-2xl bg-slate-50 border-2 border-slate-200">
-                          <div className="text-[11px] text-slate-400">이름</div>
-                          {currentUser.name}
-                        </div>
-                        <div className="p-3 rounded-2xl bg-slate-50 border-2 border-slate-200">
-                          <div className="text-[11px] text-slate-400">반</div>
-                          {currentUser.studentId || '-'}
-                        </div>
+                      <div className="p-3 rounded-2xl bg-slate-50 border-2 border-slate-200 text-sm font-black text-slate-800">
+                        <div className="text-[11px] text-slate-400">이름</div>
+                        {currentUser.name}
                       </div>
                       {currentUser.parentPhone && (
                         <div className="p-3 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-between gap-2">
