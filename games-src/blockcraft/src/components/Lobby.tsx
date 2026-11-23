@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { isStaticHost } from "../game/FirebaseRoom";
 import {
   Users,
   Play,
@@ -155,7 +156,10 @@ export const Lobby: React.FC<LobbyProps> = ({
 
   const isHost = room?.hostId === selfId;
   const playerCount = room?.players.length || 0;
-  const maxPlayers = room?.maxPlayers || 6;
+  // 모아팡 안(서버 없음)은 Firebase 방 10명, 서버가 있는 곳은 6명
+  const fbMode = isStaticHost();
+  const capacity = fbMode ? 10 : 6;
+  const maxPlayers = room?.maxPlayers || capacity;
   const isFull = playerCount >= maxPlayers;
 
   return (
@@ -173,7 +177,7 @@ export const Lobby: React.FC<LobbyProps> = ({
             3D BLOCK BUILDER
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-1 font-mono">
-            방을 만들고 친구를 초대해 최대 6명이 함께 노는 블록 샌드박스
+            방을 만들고 친구를 초대해 최대 {capacity}명이 함께 노는 블록 샌드박스
           </p>
         </div>
 
@@ -233,7 +237,7 @@ export const Lobby: React.FC<LobbyProps> = ({
               </button>
             </div>
 
-            {/* Connected Players List (Max 6) */}
+            {/* Connected Players List (Max 6, 모아팡 Firebase 방은 10) */}
             <div>
               <div className="flex items-center justify-between mb-2 px-1">
                 <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-300">
@@ -251,7 +255,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-neutral-950/60 p-3 rounded-2xl border border-neutral-800">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-neutral-950/60 p-3 rounded-2xl border border-neutral-800 max-h-64 overflow-y-auto">
                 {room.players.map((p) => {
                   const isMe = p.id === selfId;
                   const isPlayerHost = p.id === room.hostId;
@@ -381,7 +385,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                     maxLength={6}
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="방 코드 5자리"
+                    placeholder={fbMode ? "방 번호 4자리" : "방 코드 5자리"}
                     className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-xs font-mono tracking-widest uppercase focus:outline-none focus:border-blue-500"
                   />
                   <button
@@ -416,7 +420,7 @@ export const Lobby: React.FC<LobbyProps> = ({
           <span>•</span>
           <span>청크 & 면 컬링 최적화</span>
           <span>•</span>
-          <span>실시간 6인 동기화</span>
+          <span>실시간 {capacity}인 동기화</span>
         </div>
       </div>
     </div>

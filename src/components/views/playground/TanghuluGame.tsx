@@ -3,8 +3,8 @@ import { soundManager } from '../../../utils/sound';
 import { ArcadeShell, overlay, rr, useBest } from './games/ArcadeShell';
 import { getPixelImg, isImgReady, preloadPixelImgs } from './pixelAssets';
 
-// 가게 배경: 놀이터 카드와 같은 탕후루 노점 그림 (예전에는 다마고치 방 그림을 빌려 써서 가게처럼 보이지 않았음)
-const TANGHULU_BG = './assets/playground/thumb-tanghulu.webp';
+// 가게 배경: 제미나이로 그린 탕후루 가게 안쪽 (줄무늬 차양·과일 선반·시럽 냄비·야시장 창문)
+const TANGHULU_BG = './assets/playground/tanghulu/shop-bg.webp';
 const TANGHULU_SPARKLE = './assets/playground/tanghulu/sparkle.webp';
 const TANGHULU_SPRITES: Record<'straw' | 'grape' | 'orange' | 'blue' | 'tomato', string> = {
   straw: './assets/playground/tanghulu/straw.webp',
@@ -91,7 +91,7 @@ export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
     let raf = 0;
-    // 배경은 한 번만 살짝 흐리게 그려 두고(게임 과일이 잘 보이게) 매 장면에는 그대로 붙임 → 느린 컴퓨터도 부드럽게
+    // 배경은 한 번만 그려 두고(살짝 어둡게 해서 게임 과일이 잘 보이게) 매 장면에는 그대로 붙임 → 느린 컴퓨터도 부드럽게
     let bgCache: HTMLCanvasElement | null = null;
     const bakeBg = (img: HTMLImageElement) => {
       const bw = W * dpr, bh = (BELT_Y + 8) * dpr;
@@ -101,12 +101,10 @@ export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       if (!o) return null;
       const nw = img.naturalWidth, nh = img.naturalHeight;
       const sh = Math.min(nh, (nw * bh) / bw);
-      const sy = Math.max(0, (nh - sh) * 0.32);
+      const sy = 0;
       o.imageSmoothingEnabled = false;
-      try { o.filter = 'blur(1.5px) saturate(1.05)'; } catch {}
-      o.drawImage(img, 0, sy, nw, sh, -4, -4, bw + 8, bh + 8);
-      try { o.filter = 'none'; } catch {}
-      o.fillStyle = 'rgba(28, 14, 40, 0.22)';
+      o.drawImage(img, 0, sy, nw, sh, 0, 0, bw, bh);
+      o.fillStyle = 'rgba(28, 14, 40, 0.16)';
       o.fillRect(0, 0, bw, bh);
       return oc;
     };
@@ -188,9 +186,9 @@ export const TanghuluGame: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         ctx.fillStyle = '#fff3d6'; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = '#ffe2b0'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, 60, 20, BELT_Y - 90);
       }
-      // awning stripes
-      for (let i = 0; i < W / 40 + 1; i++) { ctx.fillStyle = i % 2 ? '#fff6e6' : '#f45d9b'; ctx.beginPath(); ctx.moveTo(i * 40, 0); ctx.lineTo(i * 40 + 40, 0); ctx.lineTo(i * 40 + 40, 38); ctx.arc(i * 40 + 20, 38, 20, 0, Math.PI); ctx.fill(); }
-      ctx.strokeStyle = '#4a1b2c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 38); ctx.lineTo(W, 38); ctx.stroke();
+      // awning stripes (배경 그림에 차양이 이미 있으면 생략)
+      if (!bgCache) for (let i = 0; i < W / 40 + 1; i++) { ctx.fillStyle = i % 2 ? '#fff6e6' : '#f45d9b'; ctx.beginPath(); ctx.moveTo(i * 40, 0); ctx.lineTo(i * 40 + 40, 0); ctx.lineTo(i * 40 + 40, 38); ctx.arc(i * 40 + 20, 38, 20, 0, Math.PI); ctx.fill(); }
+      if (!bgCache) { ctx.strokeStyle = '#4a1b2c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 38); ctx.lineTo(W, 38); ctx.stroke(); }
       // order ticket
       ctx.fillStyle = '#ffffff'; rr(ctx, 20, 76, 250, 92, 10); ctx.fill(); ctx.strokeStyle = '#1b2340'; ctx.lineWidth = 3; ctx.stroke();
       ctx.fillStyle = '#1b2340'; ctx.font = "14px 'Galmuri11', monospace"; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
