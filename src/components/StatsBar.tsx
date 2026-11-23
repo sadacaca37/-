@@ -5,9 +5,11 @@ import { TypingStats } from '../types';
 interface StatsBarProps {
   stats: TypingStats;
   targetGoalCpm?: number;
+  /** 한 줄로 얇게 (짧은 글처럼 타자 칠 곳을 크게 보여 줄 때) */
+  compact?: boolean;
 }
 
-export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
+export const StatsBar: React.FC<StatsBarProps> = ({ stats, compact }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -17,6 +19,31 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats }) => {
   const errorRate = stats.totalKeystrokes > 0 
     ? Math.max(0, Math.round((stats.errorCount / stats.totalKeystrokes) * 100))
     : 0;
+
+  if (compact) {
+    const items: [React.ReactNode, string, React.ReactNode, string][] = [
+      [<Gauge className="w-3.5 h-3.5" />, '타수', stats.cpm, '#0369a1'],
+      [<CheckCircle className="w-3.5 h-3.5" />, '정확도', `${stats.accuracy}%`, '#0f766e'],
+      [<AlertTriangle className="w-3.5 h-3.5" />, '오타', stats.errorCount, '#be123c'],
+      [<Clock className="w-3.5 h-3.5" />, '시간', formatTime(stats.elapsedSeconds), '#5b21b6'],
+      [<Flame className="w-3.5 h-3.5" />, '콤보', stats.combo, '#b45309'],
+    ];
+    return (
+      <div id="typing-stats-bar" className="pr-stats-bar px-2 py-1.5 grid grid-cols-5 gap-1.5">
+        {items.map(([icon, label, value, color]) => (
+          <div key={label} className="pr-stat-plaque px-2 py-1 flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="flex items-center gap-1 text-xs font-black text-[#5c3214]" style={{ color }}>
+              {icon}
+              <span className="text-[#5c3214]">{label}</span>
+            </span>
+            <span className="text-lg font-black font-mono tabular-nums font-arcade" style={{ color }}>
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div 

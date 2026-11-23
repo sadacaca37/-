@@ -72,6 +72,24 @@ const saveSentenceProgress = (
   } catch {}
 };
 
+/** 글 고르기 단추에 쓰는 짧은 이름 (한 줄에 다 들어가게) */
+const SHORT_LABELS: [RegExp, string][] = [
+  [/마라톤/, '🔥 5분 마라톤'],
+  [/영어 명언/, '💬 명언·속담'],
+  [/일상 대화/, '😊 일상·긍정'],
+  [/우주/, '🚀 우주·과학'],
+  [/명작 문학|동화/, '📖 명작·동화'],
+  [/전통 속담/, '📜 속담'],
+  [/사자성어/, '🀄 사자성어·명심보감'],
+  [/동시/, '🌸 동시·문학'],
+  [/자연/, '🔬 자연·과학'],
+  [/희망|용기/, '🌈 희망·용기'],
+];
+function shortCategoryLabel(name: string): string {
+  for (const [re, label] of SHORT_LABELS) if (re.test(name)) return label;
+  return name.replace(/^\d+\.\s*/, '').replace(/\s*\d+선$/, '');
+}
+
 export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   currentUser,
   onRecordScore,
@@ -748,65 +766,21 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
   };
 
   return (
-    <div className="tp-typing-screen space-y-3.5">
-      {/* MyChew High Score Reward Mission Bar */}
-      <div className="pr-toolbar px-3.5 py-2.5 sm:px-4 sm:py-3 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl leading-none">🍬</span>
-          <div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-black text-[#4d1d0c] font-arcade">마이쮸 신기록 보상 미션</span>
-              <span className="text-[11px] font-black text-[#5c2c0e] bg-[#fde6a8] px-2 py-0.5 rounded-md border border-[#b88635]">
-                타수 갱신 + 정확도 95% 이상 시 지급!
-              </span>
-            </div>
-            <p className="text-[11px] text-[#5c3d22] font-bold mt-0.5">
-              이전 최고 타수를 뛰어넘고 오타 없이(정확도 95% 이상) 치면 선생님 확인 후 마이쮸를 받아요!
-            </p>
-          </div>
-        </div>
-
-        <div className="pr-stat-plaque flex items-center gap-2 px-3 py-1.5">
-          <span className="text-xs font-bold text-[#6e4622]">목표 기준 타수:</span>
-          <span className="font-mono font-black text-sm text-[#a63016] tabular-nums">
-            {bestCpm > 0 ? `${bestCpm} CPM` : '첫 완주 후 등록'}
-          </span>
-        </div>
-      </div>
-
-      {/* Top Banner: Mode, Language Switcher & 5-Min Switcher */}
-      <div className="pr-toolbar p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2.5 py-0.5 rounded-md bg-[#7c3518] text-[#fff6dc] text-[11px] font-black border border-[#3d220d] flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-[#fde047]" />
-              <span>명예의 전당 등록 전용 모드</span>
+    <div className="tp-typing-screen space-y-2">
+      {/* 위쪽 한 줄: 제목 + 한글/영어 + 5분 마라톤 + 다시 치기 (설명 글은 줄여서 타자 치는 곳을 크게) */}
+      <div className="pr-toolbar px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-base font-black text-[#2c1507] tracking-tight font-arcade whitespace-nowrap">📝 짧은 글</h1>
+          {!currentUser && (
+            <span className="text-[11px] font-bold text-[#6e3a0e] bg-[#fef0c7] px-2 py-0.5 rounded-md border border-[#c69148] flex items-center gap-1 whitespace-nowrap" title="랭킹은 로그인 회원만 등록돼요">
+              <Lock className="w-3 h-3" />
+              <span>비로그인 연습</span>
             </span>
-
-            {/* Language Selector Indicator */}
-            <span className="px-2.5 py-0.5 rounded-md bg-[#234d7a] text-[#fff8e2] text-[11px] font-black border border-[#14304d] flex items-center gap-1">
-              <Globe className="w-3 h-3 text-[#93c5fd]" />
-              <span>{language === 'ko' ? '🇰🇷 한글 모드' : '🇺🇸 영어 (English) 모드'}</span>
-            </span>
-
-            {!currentUser && (
-              <span className="text-[11px] font-bold text-[#6e3a0e] bg-[#fef0c7] px-2 py-0.5 rounded-md border border-[#c69148] flex items-center gap-1">
-                <Lock className="w-3 h-3" />
-                <span>비로그인 (자유 연습 모드 - 랭킹은 로그인 회원만 등록)</span>
-              </span>
-            )}
-          </div>
-
-          <h1 className="text-lg sm:text-xl font-black text-[#2c1507] tracking-tight mt-1 font-arcade">
-            짧은 글 타자 연습
-          </h1>
-          <p className="text-xs text-[#5c3d22] font-bold">
-            한글 또는 영어 문장을 자유롭게 선택하여 5분 이상 충분히 연습하고 <strong className="text-[#9e2a12]">명예의 전당</strong>에 도전하세요!
-          </p>
+          )}
         </div>
 
         {/* Language Toggle & 5-Min Marathon Switcher */}
-        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+        <div className="flex flex-wrap items-center gap-1.5">
           {/* Language Toggle Wooden Switcher */}
           <div className="pr-wood-group flex items-center gap-1">
             <button
@@ -815,7 +789,7 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                 setSelectedCategoryIndex(0);
                 handleResetSession();
               }}
-              className={`pr-wood-tab px-3 py-1.5 text-xs cursor-pointer ${
+              className={`pr-wood-tab px-2.5 py-1 text-xs cursor-pointer ${
                 language === 'ko' ? 'pr-wood-tab--active' : ''
               }`}
             >
@@ -827,11 +801,11 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
                 setSelectedCategoryIndex(0);
                 handleResetSession();
               }}
-              className={`pr-wood-tab px-3 py-1.5 text-xs cursor-pointer ${
+              className={`pr-wood-tab px-2.5 py-1 text-xs cursor-pointer ${
                 language === 'en' ? 'pr-wood-tab--blue' : ''
               }`}
             >
-              🇺🇸 영어 짧은 글
+              🇺🇸 영어
             </button>
           </div>
 
@@ -841,29 +815,29 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               setIs5MinMode((prev) => !prev);
               handleResetSession();
             }}
-            className={`px-3.5 py-2 text-xs font-black flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1 text-xs font-black flex items-center gap-1 cursor-pointer ${
               is5MinMode ? 'tp-rpg-btn tp-rpg-btn--gold' : 'pr-stone-btn'
             }`}
           >
-            <Timer className="w-4 h-4" />
+            <Timer className="w-3.5 h-3.5" />
             <span className="tabular-nums">
-              {is5MinMode ? `🔥 5분 마라톤 (${formatRemainingTime(remainingTime5Min)})` : '⏱️ 5분 마라톤 모드'}
+              {is5MinMode ? `5분 마라톤 ${formatRemainingTime(remainingTime5Min)}` : '5분 마라톤'}
             </span>
           </button>
 
           <button
             onClick={handleResetSession}
-            className="tp-rpg-btn tp-rpg-btn--wood px-3.5 py-2 text-xs font-black flex items-center gap-1.5 cursor-pointer"
+            className="tp-rpg-btn tp-rpg-btn--wood px-2.5 py-1 text-xs font-black flex items-center gap-1 cursor-pointer"
             title="현재 테마를 처음부터 다시 칩니다"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>이 단계 다시 치기</span>
+            <span>다시 치기</span>
           </button>
         </div>
       </div>
 
       {/* Category Selection Stone Buttons */}
-      <div className="flex flex-wrap items-center gap-1.5 pb-1">
+      <div className="flex items-center gap-1.5 pb-1 whitespace-nowrap overflow-hidden">
         <span className="text-[12px] font-black text-[#fde68a] px-1 shrink-0">📚 글 고르기</span>
         {activeDataset.map((cat, idx) => (
           <button
@@ -873,27 +847,20 @@ export const SentencePracticeView: React.FC<SentencePracticeViewProps> = ({
               setSentenceIndex(0);
               setInputVal('');
             }}
-            className={`px-2.5 py-1.5 text-xs font-black whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            title={`${cat.category} · ${Math.min(SET_SENTENCES, cat.sentences.length)}문장`}
+            className={`min-w-0 flex-1 px-2 py-1.5 text-xs font-black whitespace-nowrap truncate cursor-pointer ${
               selectedCategoryIndex === idx
                 ? 'pr-stone-btn--active rounded-lg'
                 : 'pr-stone-btn'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>{cat.category}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
-              selectedCategoryIndex === idx
-                ? 'bg-[#3d220d]/15 text-[#2a1204]'
-                : 'bg-[#2c1507]/12 text-[#3d220d]'
-            }`}>
-              {Math.min(SET_SENTENCES, cat.sentences.length)}문장
-            </span>
+            {shortCategoryLabel(cat.category)}
           </button>
         ))}
       </div>
 
       {/* Real-time Stats Bar */}
-      <StatsBar stats={stats} />
+      <StatsBar stats={stats} compact />
 
       {/* Main Sentence Display Box on Forest & Parchment Stage */}
       <div className="pr-shell p-3 sm:p-4 space-y-3">

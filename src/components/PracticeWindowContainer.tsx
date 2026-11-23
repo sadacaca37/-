@@ -313,7 +313,7 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
       requestAnimationFrame(step);
     };
 
-    void waitWithCap(preloadAll, 1000).then(() => {
+    void waitWithCap(preloadAll, 500).then(() => {
       if (!cancelled) waitForContentAndConverge();
     });
 
