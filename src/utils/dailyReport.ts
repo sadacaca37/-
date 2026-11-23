@@ -27,6 +27,26 @@ export interface ReportSummary {
   questPercent: number;
   /** 단계별 [끝낸 코스, 전체 코스] */
   quest: Record<string, [number, number]>;
+  /** 오늘 친 단계 (가장 최근): { key: '3단계: 오른손 윗자리', word: '1단계: …', sent: '속담', long: '어린 왕자' } */
+  stages?: Record<string, string>;
+}
+
+/** 오늘 연습 기록에서 종류별로 마지막에 친 단계 */
+function todayStages(userId: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const MAP: Record<string, string> = { 'key-practice': 'key', 'word-practice': 'word', 'sentence-practice': 'sent', 'long-practice': 'long' };
+  try {
+    const hist: any[] = JSON.parse(localStorage.getItem(`typang_history_user_${userId}`) || '[]');
+    const today = new Date().toDateString();
+    // 기록은 최근 것이 앞에 있음 → 처음 만난 것이 마지막에 친 단계
+    for (const r of hist) {
+      const m = MAP[r?.mode];
+      if (!m || out[m] || !r.timestamp || new Date(r.timestamp).toDateString() !== today) continue;
+      const t = String(r.stageTitle || '').trim();
+      if (t) out[m] = `${r.language === 'en' ? '영어 ' : ''}${t}`.slice(0, 40);
+    }
+  } catch {}
+  return out;
 }
 
 export interface DailyReport {
@@ -86,6 +106,7 @@ export function buildTodaySummary(userId: string): { day: string; active: boolea
       byMode: { ...(d?.m || {}) },
       questPercent: act.questPercent,
       quest,
+      stages: todayStages(userId),
     },
   };
 }
