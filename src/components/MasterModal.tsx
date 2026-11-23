@@ -248,6 +248,8 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // 열 때마다 '받은 보고 · 아직 확인 안 한 것만'으로 시작
+      setActiveConsoleTab('reports');
       const cfg = getMasterConfig();
       setMasterConfig(cfg);
       setSecName(cfg.masterName);

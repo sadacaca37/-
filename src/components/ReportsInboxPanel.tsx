@@ -31,7 +31,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
   const [loading, setLoading] = useState(true);
   const [loadedAt, setLoadedAt] = useState(0);
   const [view, setView] = useState<'list' | 'table'>('list');
-  const [onlyNew, setOnlyNew] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(true);
   const [ym, setYm] = useState(() => ({ y: new Date().getFullYear(), m: new Date().getMonth() + 1 }));
   const today = dayKey();
 
