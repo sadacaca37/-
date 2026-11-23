@@ -765,6 +765,9 @@ export default function App() {
   // Keyboard shortcut for Enter -> Chat
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 채팅 칸에서 누른 Enter는 그 칸이 보내기로 처리 (여기서 먼저 닫으면 글이 안 보내짐)
+      const tg = e.target as HTMLElement | null;
+      if (tg && (tg.tagName === "INPUT" || tg.tagName === "TEXTAREA")) return;
       if (e.key === "Enter" && !isInventoryOpen && !isAuthOpen && !isEnchantOpen && openChestKey === null) {
         setIsChatOpen((prev) => {
           const next = !prev;
