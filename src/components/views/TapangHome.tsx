@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppMode, UserSession, PracticeHistoryRecord } from '../../types';
 import { soundManager } from '../../utils/sound';
+import { MoaWalker, WalkDir } from '../MoaCharacter';
 import { pointsManager } from '../../utils/pointsManager';
 import { getQuestProgress, QuestMode } from '../../utils/questProgress';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
@@ -494,6 +495,9 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
   const targetPoint = targetStageIdx >= 0 ? stagePoint(targetStageIdx) : ROAD_WAYPOINTS[0];
   const [botPos, setBotPos] = useState<RoadPoint>(targetPoint);
   const [isWalking, setIsWalking] = useState(false);
+  const [walkDir, setWalkDir] = useState<WalkDir>('right');
+  const walkDirRef = useRef<WalkDir>('right');
+  walkDirRef.current = walkDir;
   const [arrivedStageIdx, setArrivedStageIdx] = useState<number | null>(null);
   const [showSparkle, setShowSparkle] = useState(false);
   const botLayerRef = useRef<HTMLDivElement | null>(null);
@@ -575,6 +579,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     const duration = Math.min(2900, 2000 + Math.max(0, Math.abs(targetStageIdx - prevIdx) - 1) * 350);
 
     setBotPos(startPt);
+    setWalkDir(pathPts.length > 1 && pathPts[1].x < startPt.x ? 'left' : 'right');
     setIsWalking(true);
     setShowSparkle(false);
     if (botLayerRef.current) {
@@ -585,6 +590,7 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
     let sparkleTimer = 0;
     let t0 = 0;
 
+    let lastPt: RoadPoint | null = null;
     const tick = (now: number) => {
       if (!t0) t0 = now;
       const rawT = Math.min(1, (now - t0) / duration);
@@ -594,6 +600,16 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
       if (botLayerRef.current) {
         botLayerRef.current.style.transform = `translate3d(${pt.x}%, ${pt.y}%, 0)`;
       }
+      // 가는 방향에 따라 캐릭터가 왼쪽·오른쪽·앞·뒤를 봄
+      if (lastPt) {
+        const dx = pt.x - lastPt.x;
+        const dy = pt.y - lastPt.y;
+        if (Math.abs(dx) + Math.abs(dy) > 0.25) {
+          const d: WalkDir = Math.abs(dx) >= Math.abs(dy) * 0.8 ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'front' : 'back';
+          if (d !== walkDirRef.current) setWalkDir(d);
+          lastPt = pt;
+        }
+      } else lastPt = pt;
 
       if (rawT < 1) {
         rafId = window.requestAnimationFrame(tick);
@@ -781,8 +797,14 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                   </span>
                 )}
                 <span className="qm-bot-sprite">
-                  <Pixel grid={TV_BOT} pal={TV_PAL} size={64} className="qm-bot-tv" />
-                  <span className="qm-tracks" aria-hidden="true" />
+                  <MoaWalker
+                    size={72}
+                    walking={isWalking}
+                    dir={isWalking ? walkDir : 'front'}
+                    className="qm-bot-moa"
+                    fallback={<Pixel grid={TV_BOT} pal={TV_PAL} size={64} className="qm-bot-tv" />}
+                  />
+                  <span className="qm-moa-shadow" aria-hidden="true" />
                 </span>
                 {!hideBotBubble && (
                   <span
@@ -868,9 +890,9 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mt-8">
                   {[
-                    { icon: <Pixel grid={TROPHY} pal={TROPHY_PAL} size={38} />, label: 'Average Speed', val: String(stats.avg), unit: 'CPM', tone: 'forest' },
-                    { icon: <Pixel grid={STAR} pal={STAR_PAL} size={42} />, label: 'Top Speed', val: String(stats.top), unit: 'CPM', tone: 'gold' },
-                    { icon: <Pixel grid={HEART} pal={HEART_PAL} size={38} />, label: 'Precision', val: stats.acc.toFixed(1), unit: '%', tone: 'crimson' },
+                    { icon: <Pixel grid={TROPHY} pal={TROPHY_PAL} size={38} />, label: '평균 타수', val: String(stats.avg), unit: '타', tone: 'forest' },
+                    { icon: <Pixel grid={STAR} pal={STAR_PAL} size={42} />, label: '최고 타수', val: String(stats.top), unit: '타', tone: 'gold' },
+                    { icon: <Pixel grid={HEART} pal={HEART_PAL} size={38} />, label: '정확도', val: stats.acc.toFixed(1), unit: '%', tone: 'crimson' },
                   ].map((b) => (
                     <div key={b.label} className={`tp-seg tp-seg--${b.tone}`}>
                       <span className="tp-seg-icon" aria-hidden="true">{b.icon}</span>
@@ -886,10 +908,10 @@ export const TapangHome: React.FC<Props> = ({ currentUser, records, onSelectMode
                 <div className="flex flex-col lg:flex-row items-center lg:items-end gap-5 mt-6">
                   <div className="tp-log">
                     <div className="tp-log-row tp-log-head">
-                      <span>Date</span>
-                      <span>Sentence</span>
-                      <span>CPM</span>
-                      <span>Accuracy</span>
+                      <span>날짜</span>
+                      <span>연습한 글</span>
+                      <span>타수</span>
+                      <span>정확도</span>
                     </div>
                     {(stats.recent.length ? stats.recent : [null, null, null]).map((r, i) => (
                       <div key={r ? r.id : i} className="tp-log-row">

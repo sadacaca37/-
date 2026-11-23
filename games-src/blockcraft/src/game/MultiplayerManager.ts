@@ -5,6 +5,7 @@ import { createCharacterModel } from "./CharacterSkin";
 import { soundFx } from "./SoundEffects";
 import { VoxelTextureAtlas } from "./TextureAtlas";
 import { VoxelWorld } from "./VoxelWorld";
+import { FbRoom, isStaticHost } from "./FirebaseRoom";
 
 interface RemotePlayerVisual {
   data: PlayerData;
@@ -47,13 +48,16 @@ export class MultiplayerManager {
     this.scene = scene;
     this.world = world;
     this.atlas = atlas;
-    this.initSocket();
+    // 모아팡(정적 사이트)에는 게임 서버가 없으니 소켓을 켜지 않고 Firebase 방을 씀
+    if (!isStaticHost()) this.initSocket();
   }
 
   // ---------------------------------------------------------------------------
-  // 네트워크: 소켓(socket.io)이 되면 소켓, 막혀 있으면 HTTP(롱폴링)로 자동 전환
+  // 네트워크: 소켓(socket.io)이 되면 소켓, 막혀 있으면 HTTP(롱폴링)로 자동 전환,
+  // 서버가 없는 곳(모아팡 안 타자팡)에서는 Firebase 방(FirebaseRoom.ts, 최대 10명)
   // ---------------------------------------------------------------------------
-  private mode: "socket" | "http" = "socket";
+  private mode: "socket" | "http" | "fb" = "socket";
+  private fbRoom: FbRoom | null = null;
   private httpPid = "";
   private httpSecret = "";
   private httpOutbox: { event: string; data: any }[] = [];
@@ -196,9 +200,55 @@ export class MultiplayerManager {
       : "멀티플레이 서버에 연결하지 못했어요. 잠시 후 다시 눌러 주세요. (혼자 하기는 바로 할 수 있어요)";
   }
 
-  /** 방 만들기·참가: 소켓 → 안 되면 HTTP */
+  /** Firebase 방으로 들어가기 (서버판과 같은 이벤트를 handlers()로 넘김) */
+  private async enterFb(kind: "create" | "join", payload: any): Promise<{ success: boolean; error?: string }> {
+    const hs = this.handlers();
+    const room = new FbRoom((event, data) => {
+      if (this.fbRoom !== room) return;
+      try {
+        hs[event]?.(data);
+      } catch (e) {
+        console.warn("[blockcraft] event", event, e);
+      }
+    });
+    // 들어가는 그 순간에 온 친구·블록도 놓치지 않게 미리 연결해 둠
+    this.fbRoom = room;
+    const res = await room.enter(kind, payload);
+    if (!res.success) {
+      if (this.fbRoom === room) this.fbRoom = null;
+      return res;
+    }
+    if (this.fbRoom !== room) {
+      room.leave();
+      return { success: false, error: "방 들어가기가 취소됐어요." };
+    }
+    this.mode = "fb";
+    this.selfId = room.selfId;
+    this.currentRoom = room.view();
+    if (kind === "join") this.world.applyModifiedBlocks(this.currentRoom.modifiedBlocks || {});
+    for (const p of this.currentRoom.players) if (p.id !== this.selfId) this.createRemoteAvatar(p);
+    if (this.onRoomUpdate) this.onRoomUpdate(this.currentRoom);
+    // 이미 시작한 방에 들어왔으면 바로 게임으로 (화면이 방 정보를 받은 다음에)
+    if (room.startedAtJoin) {
+      setTimeout(() => {
+        if (this.fbRoom === room) hs.game_started({ seed: room.seed, gameMode: room.gameMode, modifiedBlocks: {} });
+      }, 400);
+    }
+    return { success: true };
+  }
+
+  private leaveFb() {
+    if (this.fbRoom) this.fbRoom.leave();
+    this.fbRoom = null;
+    if (this.mode === "fb") this.mode = "socket";
+  }
+
+  /** 방 만들기·참가: 소켓 → 안 되면 HTTP → 그래도 안 되면 Firebase */
   private async enterRoom(kind: "create" | "join", payload: any): Promise<{ success: boolean; error?: string }> {
     this.leaveHttp();
+    this.leaveFb();
+    for (const id of [...this.remotePlayers.keys()]) this.removeRemoteAvatar(id);
+    if (isStaticHost()) return this.enterFb(kind, payload);
     let res: any = null;
     let via: "socket" | "http" = "socket";
     if (await this.waitSocket(2500)) {
@@ -208,7 +258,10 @@ export class MultiplayerManager {
       via = "http";
       res = await this.httpRequest(kind, payload);
     }
-    if (!res) return { success: false, error: this.offlineMessage() };
+    if (!res) {
+      const fb = await this.enterFb(kind, payload);
+      return fb.success ? fb : { success: false, error: this.offlineMessage() };
+    }
     if (!res.success) return { success: false, error: res.error || (kind === "create" ? "방 만들기 실패" : "방 참가 실패") };
 
     this.mode = via;
@@ -255,6 +308,10 @@ export class MultiplayerManager {
 
   private send(event: string, data: any) {
     if (!this.currentRoom) return;
+    if (this.mode === "fb") {
+      this.fbRoom?.send(event, data);
+      return;
+    }
     if (this.mode === "socket") {
       if (this.socket && this.socket.connected) this.socket.emit(event, data);
       return;
@@ -295,6 +352,11 @@ export class MultiplayerManager {
   // Join room
   public joinRoom(roomCode: string, nickname: string, characterId: number = 0): Promise<{ success: boolean; error?: string }> {
     return this.enterRoom("join", { roomCode: roomCode.toUpperCase().trim(), nickname, characterId });
+  }
+
+  /** 방에 들어갈 수 있는 최대 인원 (Firebase 방 10명, 서버 방 6명) */
+  public static capacity(): number {
+    return isStaticHost() ? 10 : 6;
   }
 
   // Host starts game
@@ -449,6 +511,10 @@ export class MultiplayerManager {
       );
     }
     geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    if (!geo.getAttribute("color")) {
+      const vCount = geo.getAttribute("position").count;
+      geo.setAttribute("color", new THREE.Float32BufferAttribute(new Array(vCount * 3).fill(1), 3));
+    }
   }
 
   // Remove remote avatar
@@ -469,8 +535,12 @@ export class MultiplayerManager {
 
       // Rotation lerp
       const [pitch, yaw] = visual.targetRotation;
-      visual.group.rotation.y = THREE.MathUtils.lerp(visual.group.rotation.y, yaw, 0.25);
-      visual.head.rotation.x = THREE.MathUtils.lerp(visual.head.rotation.x, pitch, 0.25);
+      // Face is on +z, players look down -z: add PI so avatars face where they walk
+      const targetYaw = yaw + Math.PI;
+      let dy = targetYaw - visual.group.rotation.y;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      visual.group.rotation.y += dy * 0.25;
+      visual.head.rotation.x = THREE.MathUtils.lerp(visual.head.rotation.x, -pitch, 0.25);
 
       // Walking animation based on speed
       const distMoved = visual.group.position.distanceTo(oldPos);
@@ -505,6 +575,7 @@ export class MultiplayerManager {
     }
     this.remotePlayers.clear();
     this.leaveHttp();
+    this.leaveFb();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;

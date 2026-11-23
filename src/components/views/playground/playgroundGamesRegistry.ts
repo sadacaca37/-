@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame, PpogeulGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -27,6 +27,7 @@ export interface PlaygroundGameDef {
   description?: string;
   date?: string;
   externalUrl?: string;
+  players?: number; // 한 번에 같이 할 수 있는 사람 수 (카드에 👥 표시)
   component: React.ComponentType<any>;
 }
 
@@ -89,6 +90,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   // 새 게임은 이 목록 맨 끝에 넣기 → 화면에서는 최신순(맨 끝에 넣은 게임이 맨 위)으로 보임
   {
     id: 'app-lastwar',
+    players: 2,
     title: '다리 돌파 작전',
     category: '펀펀',
     icon: '⚔️',
@@ -98,6 +100,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-ponpoko',
+    players: 2,
     title: '숲속 사다리 모험',
     category: '펀펀',
     icon: '🦝',
@@ -107,6 +110,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-bubble-bobble',
+    players: 2,
     title: '방울 용 대작전',
     category: '펀펀',
     icon: '🫧',
@@ -116,6 +120,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-super-mario',
+    players: 2,
     title: '버섯 숲 점프 모험',
     category: '펀펀',
     icon: '🍄',
@@ -125,15 +130,17 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-airplane-shooting',
+    players: 2,
     title: '하늘 비행 대작전',
     category: '펀펀',
     icon: '✈️',
     thumb: './assets/playground/thumb-airplane.webp',
-    description: '전투기 7종 · 스테이지 10개 · 보스전이 있는 비행 슈팅 · 👥 2인 대결',
+    description: '전투기 6종(기체마다 다른 무기) · 스테이지 10개 · 보스 10종이 있는 비행 슈팅 · 👥 2인 대결',
     component: AirplaneShootingGame,
   },
   {
     id: 'app-pocket-kart',
+    players: 2,
     title: '타자팡 카트 레이싱',
     category: '펀펀',
     icon: '🏎️',
@@ -143,6 +150,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-cookie-run',
+    players: 2,
     title: '과자 왕국 런',
     category: '펀펀',
     icon: '🍪',
@@ -152,6 +160,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-blockcraft',
+    players: 10,
     title: '블록 쌓기 월드',
     category: '펀펀',
     icon: '⛏️',
@@ -161,24 +170,27 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-pogeunforest',
+    players: 10,
     title: '포근숲 이야기',
     category: '펀펀',
     icon: '🐭',
     thumb: './assets/playground/thumb-pogeunforest.webp',
-    description: '생쥐 농부의 작은 농장이 동물 마을로 자라는 3D 농장 게임 · 심기·물주기·수확·팔기 · 밭 넓히기·집 고치기·이웃 이사 · ★5 수확 축제 · 이어하기 저장',
+    description: '모아팡 내 캐릭터로 하는 스타듀밸리풍 2D 농장 · 👥 친구 10명까지(대화·밭 10곳) · 인원수만큼 몰려오는 몬스터 습격(못 막으면 집·밭이 무너져요) · 칼·도끼·활 · 벌목·⛏️광석 캐기·🏕️캠핑 · 마을 키우기·🌊바다(수영·배·바다 낚시) · 3층 집 꾸미기 · 알·새끼 동물 · 사계절·음악 · 계정별 이어하기',
     component: PogeunForestGame,
   },
   {
     id: 'app-ashenhollow',
+    players: 4,
     title: 'Ashen Hollow',
     category: '펀펀',
     icon: '🕯️',
     thumb: './assets/playground/thumb-ashenhollow.webp',
-    description: '지하 3층까지 내려가 고대의 파수꾼을 쓰러뜨리는 쿼터뷰 액션 RPG · 화염구·치유 물약 · 보스전',
+    description: '영웅 4명(기사·바바리안·마법사·도적) 중 골라 지하 5층까지 · 👥 친구 4명까지 함께 · 층마다 다른 맵, 내려갈수록 센 괴물·거대 몹·보스 · 쿼터뷰 액션 RPG',
     component: AshenHollowGame,
   },
   {
     id: 'app-baramisland',
+    players: 1,
     title: '바람의 섬',
     category: '펀펀',
     icon: '🏝️',
@@ -188,6 +200,7 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-lightsaber',
+    players: 2,
     title: '광선검 결투',
     category: '펀펀',
     icon: '⚔️',
@@ -197,12 +210,23 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
   },
   {
     id: 'app-flamesquad',
+    players: 1,
     title: '불꽃 특공대',
     category: '펀펀',
     icon: '🔥',
     thumb: './assets/playground/thumb-flamesquad.webp',
     description: '총·수류탄·메카로 싸우며 나아가는 옆으로 가는 액션 슈팅 · 스테이지 5개 · 보스전 (사격 E · 점프 X · 수류탄 C)',
     component: FlameSquadGame,
+  },
+  {
+    id: 'app-ppogeul',
+    players: 2,
+    title: '뽀글뽀글',
+    category: '펀펀',
+    icon: '🫧',
+    thumb: './assets/playground/thumb-ppogeul.webp',
+    description: '같은 색 방울 3개를 붙여 터뜨리는 방울 퍼즐 · 혼자 하기 10판 · 컴퓨터와 대결 · 둘이서 대결(한 키보드)',
+    component: PpogeulGame,
   },
 ];
 

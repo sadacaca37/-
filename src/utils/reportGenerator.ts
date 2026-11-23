@@ -1,6 +1,7 @@
 import { UserSession } from '../types';
 import { summarizeMonth } from './activityLog';
 import { readLocalActivity, StudentActivity } from './studentActivity';
+import { characterCanvas } from '../components/MoaCharacter';
 
 export interface CurriculumStepInfo {
   name: string;
@@ -269,316 +270,335 @@ export function getMonthlyStudentReport(
   };
 }
 
-/**
- * Draws the 4-Month Periodic Report Card on an HTML5 Canvas and returns a high-res PNG Data URL & Blob
- */
-export async function generateReportCardImage(report: FourMonthStudentReport): Promise<{ dataUrl: string; blob: Blob }> {
+/* ====================== 성적표 그리기 (귀엽고 산뜻한 도트 느낌) ====================== */
+const INK = '#1b2340';
+const PASTEL = ['#ff9ec7', '#ffe066', '#7fe0b4', '#7cc8ff', '#c7a6ff'];
+const FONT_DOT = '"Galmuri11", "Malgun Gothic", sans-serif';
+const FONT_BODY = '"Noto Sans KR", "Malgun Gothic", sans-serif';
+
+/** 계단처럼 모서리를 깎은 도트 상자 */
+function dotBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string, opts: { line?: string; t?: number; shadow?: boolean } = {}) {
+  const t = opts.t ?? 4;
+  const line = opts.line ?? INK;
+  const step = (bx: number, by: number, bw: number, bh: number, c: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(bx + c, by, bw - 2 * c, bh);
+    ctx.fillRect(bx, by + c, bw, bh - 2 * c);
+    ctx.fillRect(bx + c / 2, by + c / 2, bw - c, bh - c);
+  };
+  if (opts.shadow !== false) step(x, y + 6, w, h, t * 2, 'rgba(27,35,64,0.22)');
+  step(x, y, w, h, t * 2, line);
+  step(x + t, y + t, w - 2 * t, h - 2 * t, t, fill);
+}
+
+/** 작은 도트 그림 (하트·별) */
+const HEART = ['01100110', '11111111', '11111111', '11111111', '01111110', '00111100', '00011000'];
+const STAR = ['00010000', '00111000', '11111110', '01111100', '00111000', '01101100', '01000100'];
+function dotSprite(ctx: CanvasRenderingContext2D, grid: string[], x: number, y: number, px: number, color: string) {
+  grid.forEach((row, r) =>
+    [...row].forEach((v, c) => {
+      if (v !== '1') return;
+      ctx.fillStyle = INK;
+      ctx.fillRect(x + c * px - 1, y + r * px - 1, px + 2, px + 2);
+    }),
+  );
+  grid.forEach((row, r) =>
+    [...row].forEach((v, c) => {
+      if (v !== '1') return;
+      ctx.fillStyle = color;
+      ctx.fillRect(x + c * px, y + r * px, px, px);
+    }),
+  );
+}
+
+/** 칸칸이 채우는 도트 진행 막대 */
+function dotProgress(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, pct: number, color: string) {
+  dotBox(ctx, x, y, w, h, '#ffffff', { t: 3, shadow: false });
+  const segs = 10;
+  const gap = 3;
+  const inner = w - 12;
+  const sw = (inner - gap * (segs - 1)) / segs;
+  const on = Math.round((Math.max(0, Math.min(100, pct)) / 100) * segs);
+  for (let i = 0; i < segs; i++) {
+    ctx.fillStyle = i < on ? color : '#e8eef7';
+    ctx.fillRect(x + 6 + i * (sw + gap), y + 6, sw, h - 12);
+    if (i < on) {
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillRect(x + 6 + i * (sw + gap), y + 6, sw, 3);
+    }
+  }
+}
+
+export async function generateReportCardImage(report: FourMonthStudentReport, opts: { outfit?: any } = {}): Promise<{ dataUrl: string; blob: Blob }> {
+  const W = 960;
+  const H = 1320;
   const canvas = document.createElement('canvas');
-  canvas.width = 960;
-  canvas.height = 1320;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas context not available');
+  ctx.imageSmoothingEnabled = false;
+  try {
+    await Promise.all([document.fonts.load(`700 20px "Galmuri11"`), document.fonts.load(`400 20px "Galmuri11"`)]);
+  } catch {}
 
-  // 바탕: 제미나이로 그린 성적표 상장 테두리 (금빛 나무 액자 + 양피지)
-  ctx.fillStyle = '#fdf3dc';
-  ctx.fillRect(0, 0, 960, 1320);
-  const frame = await loadImage('./assets/report/certificate.webp');
-  if (frame) ctx.drawImage(frame, 0, 0, 960, 1320);
+  // 1) 바탕: 연한 민트 + 물방울 도트
+  ctx.fillStyle = '#eafaf3';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(124, 200, 255, 0.18)';
+  for (let y = 12; y < H; y += 24) for (let x = (y / 24) % 2 ? 24 : 12; x < W; x += 24) ctx.fillRect(x, y, 4, 4);
 
-  // 위쪽 금색 리본 위 제목
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#5a3417';
-  ctx.font = '900 32px "Jua", "Malgun Gothic", sans-serif';
-  ctx.fillText('타자팡 타자 성적표', 480, 158);
-  ctx.font = 'bold 18px "Jua", "Malgun Gothic", sans-serif';
-  ctx.fillStyle = '#7a4a1e';
-  ctx.fillText(`${report.periodTitle}`, 480, 192);
-
-  // 양피지 안쪽에 맞춰 내용 전체를 줄여서 그림 (x 60→165, y 210→262, 0.8배)
-  ctx.save();
-  ctx.setTransform(0.8, 0, 0, 0.8, 165 - 60 * 0.8, 262 - 210 * 0.8);
-
-  // Student Profile Card Box
-  ctx.fillStyle = 'rgba(255, 252, 242, 0.94)';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
-  ctx.shadowBlur = 15;
-  ctx.shadowOffsetY = 6;
-  roundRect(ctx, 60, 210, 840, 145, 20);
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-
-  ctx.strokeStyle = '#D6B98C';
-  ctx.lineWidth = 2;
-  roundRect(ctx, 60, 210, 840, 145, 20);
-  ctx.stroke();
-
-  // Student Avatar Circle / Emoji
-  ctx.fillStyle = '#FEF08A';
-  ctx.beginPath();
-  ctx.arc(135, 282, 48, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#F59E0B';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  ctx.font = '48px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(report.avatarEmoji || '🐱', 135, 300);
-
-  // Student Name & Info
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#0F172A';
-  ctx.font = '900 30px "Malgun Gothic", sans-serif';
-  ctx.fillText(`${report.studentName} (${report.grade || 3}학년)`, 205, 262);
-
-  ctx.fillStyle = '#EC4899';
-  ctx.font = 'bold 17px "Malgun Gothic", sans-serif';
-  ctx.fillText(`칭호: [${report.levelTitle}]  •  평가 유형: [${report.speedTier}]`, 205, 296);
-
-  ctx.fillStyle = '#64748B';
-  ctx.font = '14px "Malgun Gothic", sans-serif';
-  ctx.fillText(`학부모 연락처: ${report.parentPhone}  |  발행일: ${new Date().toLocaleDateString('ko-KR')}`, 205, 325);
-
-  // Grade Medal Stamp
-  ctx.fillStyle = '#F43F5E';
-  ctx.beginPath();
-  ctx.arc(825, 282, 42, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = '900 34px "Malgun Gothic", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(report.gradeBadge, 825, 292);
-  ctx.font = 'bold 12px "Malgun Gothic", sans-serif';
-  ctx.fillText(`${report.halfTerm} 종합`, 825, 310);
-
-  // =========================================================================
-  // SECTION 1: 4-MONTH MONTH-BY-MONTH SPEED GROWTH (4개월간 월별 타수 성장 추이)
-  // =========================================================================
-  const growthY = 375;
-  ctx.fillStyle = 'rgba(255, 252, 242, 0.94)';
-  roundRect(ctx, 60, growthY, 840, 315, 22);
-  ctx.fill();
-  ctx.strokeStyle = '#8B5A2B';
-  ctx.lineWidth = 2.5;
-  roundRect(ctx, 60, growthY, 840, 315, 22);
-  ctx.stroke();
-
-  // Growth Section Header Title
-  ctx.fillStyle = '#5A3417';
-  ctx.font = '900 20px "Malgun Gothic", sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(`📈 4개월간 월별 타자 속도 (${report.startMonth}월 ~ ${report.endMonth}월)`, 85, growthY + 36);
-
-  // Growth Summary Badge Top-Right
-  ctx.fillStyle = '#EC4899';
-  ctx.font = '900 16px "Malgun Gothic", sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText(
-    report.hasData ? `평균 타수: ${improvementText(report.totalImprovement)} (${report.startCpm}타 ➔ ${report.finalAvgCpm}타)` : '연습 기록 없음',
-    875,
-    growthY + 36,
-  );
-
-  // 4 Month Cards side-by-side
-  const cardW = 185;
-  const cardH = 175;
-  const gap = 13;
-  const startX = 82;
-  const startCardY = growthY + 55;
-
-  report.monthlyBreakdown.forEach((m, idx) => {
-    const cx = startX + idx * (cardW + gap);
-    const cy = startCardY;
-
-    // Card background
-    const bgColors = ['#F8FAFC', 'rgba(240, 253, 244, 0.9)', '#EFF6FF', '#FAF5FF'];
-    const borderColors = ['#CBD5E1', '#86EFAC', '#93C5FD', '#D8B4FE'];
-    ctx.fillStyle = bgColors[idx];
-    roundRect(ctx, cx, cy, cardW, cardH, 14);
-    ctx.fill();
-    ctx.strokeStyle = borderColors[idx];
-    ctx.lineWidth = 2;
-    roundRect(ctx, cx, cy, cardW, cardH, 14);
-    ctx.stroke();
-
-    // Month Pill Header
-    ctx.fillStyle = idx === 3 ? '#9333EA' : idx === 2 ? '#2563EB' : idx === 1 ? '#16A34A' : '#475569';
-    roundRect(ctx, cx + 12, cy + 12, cardW - 24, 26, 8);
-    ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '900 13px "Malgun Gothic", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(m.monthLabel, cx + cardW / 2, cy + 29);
-
-    // Monthly Average CPM (Big Number)
-    ctx.fillStyle = '#0F172A';
-    ctx.font = '900 24px "Malgun Gothic", sans-serif';
-    ctx.fillText(`${m.avgCpm}`, cx + cardW / 2 - 12, cy + 74);
-    ctx.font = 'bold 12px "Malgun Gothic", sans-serif';
-    ctx.fillStyle = '#64748B';
-    ctx.fillText('CPM', cx + cardW / 2 + 25, cy + 74);
-
-    // Improvement Tag
-    if (m.practiceCount <= 0) {
-      ctx.fillStyle = '#94A3B8';
-      ctx.font = 'bold 12px "Malgun Gothic", sans-serif';
-      ctx.fillText('연습 기록 없음', cx + cardW / 2, cy + 96);
-    } else if (m.improvement === 0) {
-      ctx.fillStyle = '#64748B';
-      ctx.font = 'bold 12px "Malgun Gothic", sans-serif';
-      ctx.fillText('평균 타수', cx + cardW / 2, cy + 96);
-    } else {
-      ctx.fillStyle = m.improvement > 0 ? '#EC4899' : '#64748B';
-      ctx.font = '900 13px "Malgun Gothic", sans-serif';
-      ctx.fillText(improvementText(m.improvement), cx + cardW / 2, cy + 96);
-    }
-
-    // Monthly Peak & Accuracy
-    ctx.fillStyle = '#475569';
-    ctx.font = '11px "Malgun Gothic", sans-serif';
-    ctx.fillText(m.practiceCount > 0 ? `최고 ${m.highestCpm}타 • 정확 ${m.accuracy}%` : '–', cx + cardW / 2, cy + 118);
-
-    // Stage Step tag
-    ctx.fillStyle = '#FFFFFF';
-    roundRect(ctx, cx + 8, cy + 130, cardW - 16, 32, 6);
-    ctx.fill();
-    ctx.strokeStyle = '#D6B98C';
-    ctx.lineWidth = 1;
-    roundRect(ctx, cx + 8, cy + 130, cardW - 16, 32, 6);
-    ctx.stroke();
-
-    ctx.fillStyle = '#334155';
-    ctx.font = 'bold 10px "Malgun Gothic", sans-serif';
-    ctx.fillText(m.stageEvaluation.split(' ')[0] + ' ' + (m.stageEvaluation.split(' ')[1] || ''), cx + cardW / 2, cy + 145);
-    ctx.fillText(m.stageEvaluation.split(' ').slice(2).join(' '), cx + cardW / 2, cy + 157);
-  });
-
-  // Step connecting arrows between cards
-  for (let i = 0; i < 3; i++) {
-    const arrowX = startX + (i + 1) * cardW + i * gap + gap / 2;
-    const arrowY = startCardY + 68;
-    ctx.fillStyle = '#EC4899';
-    ctx.font = '900 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('➜', arrowX, arrowY);
+  // 2) 테두리: 알록달록 도트 블록 띠 + 남색 선
+  const M = 18; // 바깥 여백
+  const B = 20; // 블록 크기
+  ctx.fillStyle = INK;
+  ctx.fillRect(M - 4, M - 4, W - 2 * M + 8, H - 2 * M + 8);
+  let k = 0;
+  for (let x = M; x < W - M; x += B, k++) {
+    ctx.fillStyle = PASTEL[k % PASTEL.length];
+    ctx.fillRect(x, M, Math.min(B, W - M - x) - 2, B - 2);
+    ctx.fillStyle = PASTEL[(k + 2) % PASTEL.length];
+    ctx.fillRect(x, H - M - B + 2, Math.min(B, W - M - x) - 2, B - 2);
   }
+  k = 0;
+  for (let y = M + B; y < H - M - B; y += B, k++) {
+    ctx.fillStyle = PASTEL[(k + 1) % PASTEL.length];
+    ctx.fillRect(M, y, B - 2, Math.min(B, H - M - B - y) - 2);
+    ctx.fillStyle = PASTEL[(k + 3) % PASTEL.length];
+    ctx.fillRect(W - M - B + 2, y, B - 2, Math.min(B, H - M - B - y) - 2);
+  }
+  // 안쪽 종이
+  ctx.fillStyle = INK;
+  ctx.fillRect(M + B, M + B, W - 2 * (M + B), H - 2 * (M + B));
+  ctx.fillStyle = '#fffdf7';
+  ctx.fillRect(M + B + 4, M + B + 4, W - 2 * (M + B) - 8, H - 2 * (M + B) - 8);
+  ctx.fillStyle = 'rgba(255, 158, 199, 0.10)';
+  for (let y = M + B + 16; y < H - M - B; y += 28) for (let x = M + B + ((y / 28) % 2 ? 30 : 16); x < W - M - B; x += 28) ctx.fillRect(x, y, 3, 3);
+  // 네 모서리 하트·별
+  dotSprite(ctx, HEART, 70, 70, 5, '#ff7eb6');
+  dotSprite(ctx, STAR, W - 112, 70, 5, '#ffd43b');
+  dotSprite(ctx, STAR, 68, H - 102, 4, '#7cc8ff');
+  dotSprite(ctx, HEART, W - 100, H - 102, 4, '#7fe0b4');
 
-  // Growth Summary Text Bar inside Section 1
-  ctx.fillStyle = 'rgba(240, 253, 244, 0.9)';
-  roundRect(ctx, 82, growthY + 242, 796, 56, 12);
-  ctx.fill();
-  ctx.strokeStyle = '#86EFAC';
-  ctx.lineWidth = 1.5;
-  roundRect(ctx, 82, growthY + 242, 796, 56, 12);
-  ctx.stroke();
-
+  // 3) 제목: 타자팡 로고 글자 + "타자 성적표"
+  const word = await loadImage('./assets/brand/tajapang_word.webp');
+  ctx.imageSmoothingEnabled = true;
+  const titleText = '타자 성적표';
+  ctx.font = `700 46px ${FONT_DOT}`;
+  const tw = ctx.measureText(titleText).width;
+  const wordH = 70;
+  const wordW = word ? (word.width / word.height) * wordH : 0;
+  const totalW = wordW + (word ? 16 : 0) + tw;
+  let tx = (W - totalW) / 2;
+  if (word) {
+    ctx.drawImage(word, tx, 78, wordW, wordH);
+    tx += wordW + 16;
+  }
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#166534';
-  ctx.font = '900 14px "Malgun Gothic", sans-serif';
-  ctx.fillText(`⚡ 4개월 종합 분석: ${report.speedEvaluation}`, 98, growthY + 266);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = INK;
+  ctx.strokeText(titleText, tx, 132);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(titleText, tx, 132);
+  ctx.imageSmoothingEnabled = false;
+  // 기간 리본
+  ctx.font = `700 18px ${FONT_DOT}`;
+  const pw = ctx.measureText(report.periodTitle).width + 44;
+  dotBox(ctx, (W - pw) / 2, 160, pw, 40, '#ffe066', { t: 3 });
+  ctx.fillStyle = INK;
+  ctx.textAlign = 'center';
+  ctx.fillText(report.periodTitle, W / 2, 187);
 
-  ctx.fillStyle = '#475569';
-  ctx.font = 'bold 13px "Malgun Gothic", sans-serif';
+  // 4) 학생 카드 (지금 캐릭터)
+  const pY = 222;
+  dotBox(ctx, 80, pY, 800, 186, '#ffffff');
+  // 캐릭터 무대
+  dotBox(ctx, 100, pY + 18, 150, 150, '#dff4ff', { t: 3, shadow: false });
+  ctx.fillStyle = 'rgba(27,35,64,0.18)';
+  ctx.fillRect(130, pY + 148, 90, 8);
+  const ch = await characterCanvas(opts.outfit, 256);
+  if (ch) ctx.drawImage(ch, 0, 0, 256, 256, 103, pY + 14, 144, 144);
+  else {
+    ctx.font = '72px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(report.avatarEmoji || '🐱', 175, pY + 120);
+  }
+  ctx.textAlign = 'left';
+  ctx.fillStyle = INK;
+  ctx.font = `700 34px ${FONT_DOT}`;
+  ctx.fillText(report.studentName, 276, pY + 62);
+  const nw = ctx.measureText(report.studentName).width;
+  dotBox(ctx, 276 + nw + 14, pY + 30, 92, 40, '#7cc8ff', { t: 3, shadow: false });
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 18px ${FONT_DOT}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${report.grade || 3}학년`, 276 + nw + 60, pY + 57);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#e8559a';
+  ctx.font = `700 18px ${FONT_BODY}`;
+  ctx.fillText(`🏅 ${report.levelTitle}`, 276, pY + 102);
+  ctx.fillStyle = '#3d7a5c';
+  ctx.fillText(`${report.speedTier}`, 276, pY + 132);
+  ctx.fillStyle = '#7a86a3';
+  ctx.font = `500 14px ${FONT_BODY}`;
+  ctx.fillText(`발행일 ${new Date().toLocaleDateString('ko-KR')}`, 276, pY + 160);
+  // 등급 도장
+  dotBox(ctx, 740, pY + 30, 116, 124, '#ff9ec7');
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.font = `700 44px ${FONT_DOT}`;
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = INK;
+  ctx.strokeText(report.gradeBadge, 798, pY + 100);
+  ctx.fillText(report.gradeBadge, 798, pY + 100);
+  ctx.fillStyle = INK;
+  ctx.font = `700 14px ${FONT_DOT}`;
+  ctx.fillText(`${report.halfTerm} 등급`, 798, pY + 136);
+
+  // 5) 월별 막대그래프
+  const gY = 430;
+  const gH = 372;
+  dotBox(ctx, 80, gY, 800, gH, '#ffffff');
+  ctx.textAlign = 'left';
+  ctx.fillStyle = INK;
+  ctx.font = `700 22px ${FONT_DOT}`;
+  ctx.fillText(`📊 달마다 타자 속도 (${report.startMonth}월~${report.endMonth}월)`, 108, gY + 42);
+  // 범례
+  const legend = (x: number, color: string, label: string) => {
+    ctx.fillStyle = INK;
+    ctx.fillRect(x - 2, gY + 26, 20, 20);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, gY + 28, 16, 16);
+    ctx.fillStyle = INK;
+    ctx.font = `700 14px ${FONT_DOT}`;
+    ctx.fillText(label, x + 24, gY + 42);
+  };
+  legend(628, '#7cc8ff', '평균');
+  legend(720, '#ff9ec7', '최고');
+  // 차트 영역
+  const cx0 = 150;
+  const cx1 = 850;
+  const cy0 = gY + 76; // 위
+  const cy1 = gY + 246; // 바닥
+  const maxVal = Math.max(100, ...report.monthlyBreakdown.map((m) => Math.max(m.highestCpm || 0, m.avgCpm || 0)));
+  const top = Math.ceil((maxVal * 1.15) / 50) * 50;
+  ctx.font = `400 12px ${FONT_DOT}`;
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = Math.round((top / 4) * i);
+    const yy = cy1 - ((cy1 - cy0) * i) / 4;
+    ctx.fillStyle = i === 0 ? INK : '#e3e9f3';
+    if (i === 0) ctx.fillRect(cx0, yy, cx1 - cx0, 3);
+    else for (let x = cx0; x < cx1; x += 10) ctx.fillRect(x, yy, 5, 2);
+    ctx.fillStyle = '#7a86a3';
+    ctx.fillText(`${v}`, cx0 - 10, yy + 4);
+  }
+  const groupW = (cx1 - cx0) / 4;
+  const barW = 46;
+  report.monthlyBreakdown.forEach((m, i) => {
+    const gx = cx0 + groupW * i + groupW / 2;
+    const bars: [number, string][] = [
+      [m.avgCpm || 0, '#7cc8ff'],
+      [m.highestCpm || 0, '#ff9ec7'],
+    ];
+    bars.forEach(([v, color], j) => {
+      const bx = gx - barW - 3 + j * (barW + 6);
+      const bh = Math.max(v > 0 ? 8 : 0, Math.round(((cy1 - cy0) * v) / top));
+      if (bh > 0) {
+        ctx.fillStyle = INK;
+        ctx.fillRect(bx - 3, cy1 - bh - 3, barW + 6, bh + 3);
+        ctx.fillStyle = color;
+        ctx.fillRect(bx, cy1 - bh, barW, bh);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillRect(bx, cy1 - bh, 8, bh);
+        ctx.fillStyle = 'rgba(27,35,64,0.15)';
+        ctx.fillRect(bx + barW - 6, cy1 - bh, 6, bh);
+      }
+      ctx.fillStyle = INK;
+      ctx.font = `700 15px ${FONT_DOT}`;
+      ctx.textAlign = 'center';
+      ctx.fillText(v > 0 ? `${v}` : '-', bx + barW / 2, cy1 - bh - 10);
+    });
+    // 달 이름 + 변화
+    ctx.fillStyle = INK;
+    ctx.font = `700 17px ${FONT_DOT}`;
+    ctx.fillText(`${m.monthNumber}월`, gx, cy1 + 26);
+    ctx.font = `700 13px ${FONT_BODY}`;
+    if (m.practiceCount <= 0) {
+      ctx.fillStyle = '#a3adc2';
+      ctx.fillText('기록 없음', gx, cy1 + 47);
+    } else {
+      ctx.fillStyle = m.improvement > 0 ? '#e8559a' : '#7a86a3';
+      ctx.fillText(m.improvement ? improvementText(m.improvement) : `정확도 ${m.accuracy}%`, gx, cy1 + 47);
+    }
+  });
+  // 요약 줄
+  dotBox(ctx, 104, gY + gH - 70, 752, 52, '#eafaf3', { t: 3, shadow: false });
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#2f6b4f';
+  ctx.font = `700 15px ${FONT_BODY}`;
   ctx.fillText(
-    `4개월 연습량: ${report.totalActiveDays}일 · ${report.totalKeystrokes.toLocaleString()}타 (${report.totalPracticeCount}세트 • ${report.totalPracticeMinutes}분)  |  최고 속도: ${report.highestCpm} CPM`,
-    98,
-    growthY + 287
+    report.hasData
+      ? `⚡ 평균 ${report.startCpm}타 → ${report.finalAvgCpm}타 (${improvementText(report.totalImprovement)}) · 최고 ${report.highestCpm}타 · 정확도 ${report.avgAccuracy}%`
+      : '⚡ 이 기간에는 아직 연습 기록이 없어요.',
+    122,
+    gY + gH - 48,
   );
+  ctx.fillStyle = '#5a6b8a';
+  ctx.font = `500 13px ${FONT_BODY}`;
+  ctx.fillText(`연습량 ${report.totalActiveDays}일 · ${report.totalPracticeCount}세트 · ${report.totalPracticeMinutes}분 · ${report.totalKeystrokes.toLocaleString()}타`, 122, gY + gH - 28);
 
-  // =========================================================================
-  // SECTION 2: 4-AREA CURRICULUM PROGRESS TABLE (4대 영역 학습 진도표)
-  // =========================================================================
-  const progY = 710;
-  ctx.fillStyle = 'rgba(255, 252, 242, 0.94)';
-  roundRect(ctx, 60, progY, 840, 245, 22);
-  ctx.fill();
-  ctx.strokeStyle = '#B7791F';
-  ctx.lineWidth = 2.5;
-  roundRect(ctx, 60, progY, 840, 245, 22);
-  ctx.stroke();
-
-  ctx.fillStyle = '#7A3E12';
-  ctx.font = '900 20px "Malgun Gothic", sans-serif';
+  // 6) 진도표
+  const prY = 822;
+  dotBox(ctx, 80, prY, 800, 214, '#ffffff');
+  ctx.fillStyle = INK;
+  ctx.font = `700 22px ${FONT_DOT}`;
   ctx.textAlign = 'left';
-  ctx.fillText(`📋 4대 영역별 학습 진도표 (전체 진도율 ${report.curriculum.overallProgressPercent}%)`, 85, progY + 36);
-
-  const stages = [
-    report.curriculum.keyPractice,
-    report.curriculum.wordPractice,
-    report.curriculum.sentencePractice,
-    report.curriculum.gamePractice,
-  ];
-
-  stages.forEach((st, idx) => {
-    const sy = progY + 58 + idx * 44;
-
-    // Stage Name
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 15px "Malgun Gothic", sans-serif';
-    ctx.fillText(st.name, 85, sy + 18);
-
-    // Stage Subtitle
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = '13px "Malgun Gothic", sans-serif';
-    ctx.fillText(st.stageName, 220, sy + 18);
-
-    // Progress Bar Background
-    ctx.fillStyle = '#F1F5F9';
-    roundRect(ctx, 440, sy + 4, 270, 18, 9);
-    ctx.fill();
-
-    // Progress Bar Fill
-    const barW = Math.max(10, Math.round((st.progressPercent / 100) * 270));
-    ctx.fillStyle = st.progressPercent >= 100 ? '#10B981' : '#EC4899';
-    roundRect(ctx, 440, sy + 4, barW, 18, 9);
-    ctx.fill();
-
-    // Percentage & Status
-    ctx.fillStyle = st.progressPercent >= 100 ? '#059669' : '#7A3E12';
-    ctx.font = '900 14px "Malgun Gothic", sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${st.progressPercent}% [${st.status}]`, 855, sy + 18);
+  ctx.fillText(`🗺️ 단계별 진도 (전체 ${report.curriculum.overallProgressPercent}%)`, 108, prY + 42);
+  const stages = [report.curriculum.keyPractice, report.curriculum.wordPractice, report.curriculum.sentencePractice, report.curriculum.gamePractice];
+  const colors = ['#7cc8ff', '#7fe0b4', '#ffd43b', '#c7a6ff'];
+  stages.forEach((st, i) => {
+    const sy = prY + 64 + i * 36;
+    ctx.fillStyle = INK;
+    ctx.font = `700 15px ${FONT_BODY}`;
     ctx.textAlign = 'left';
+    ctx.fillText(st.name, 108, sy + 19);
+    ctx.fillStyle = '#8a94ab';
+    ctx.font = `500 13px ${FONT_BODY}`;
+    ctx.fillText(st.stageName, 236, sy + 19);
+    dotProgress(ctx, 470, sy, 260, 28, st.progressPercent, st.progressPercent >= 100 ? '#3ccf8e' : colors[i]);
+    ctx.fillStyle = st.progressPercent >= 100 ? '#1f9e66' : INK;
+    ctx.font = `700 14px ${FONT_DOT}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`${st.progressPercent}% ${st.status}`, 852, sy + 19);
   });
 
-  // =========================================================================
-  // SECTION 3: TEACHER 4-MONTH ASSESSMENT
-  // =========================================================================
-  const commentY = 975;
-  ctx.fillStyle = 'rgba(255, 248, 225, 0.92)';
-  roundRect(ctx, 60, commentY, 840, 205, 22);
-  ctx.fill();
-  ctx.strokeStyle = '#C9A227';
-  ctx.lineWidth = 2.5;
-  roundRect(ctx, 60, commentY, 840, 205, 22);
-  ctx.stroke();
-
-  ctx.fillStyle = '#B45309';
-  ctx.font = '900 20px "Malgun Gothic", sans-serif';
+  // 7) 선생님 한마디 (말풍선)
+  const tY = 1056;
+  dotBox(ctx, 80, tY, 800, 150, '#fff4fa');
+  // 말풍선 꼬리
+  ctx.fillStyle = INK;
+  ctx.fillRect(128, tY - 14, 24, 18);
+  ctx.fillStyle = '#fff4fa';
+  ctx.fillRect(132, tY - 10, 16, 18);
+  ctx.fillStyle = '#e8559a';
+  ctx.font = `700 20px ${FONT_DOT}`;
   ctx.textAlign = 'left';
-  ctx.fillText(`💌 담당 선생님의 ${report.halfTerm} 종합 총평`, 85, commentY + 38);
+  ctx.fillText(`💌 선생님 한마디`, 108, tY + 40);
+  ctx.fillStyle = '#3d4a66';
+  ctx.font = `600 16px ${FONT_BODY}`;
+  wrapText(ctx, report.teacherComment, 108, tY + 74, 744, 26);
 
-  ctx.fillStyle = '#334155';
-  ctx.font = 'bold 16px "Malgun Gothic", sans-serif';
-  wrapText(ctx, report.teacherComment, 85, commentY + 74, 790, 26);
-
-  // Footer Signature & Slogan
-  ctx.fillStyle = '#7a4a1e';
-  ctx.font = 'bold 15px "Jua", "Malgun Gothic", sans-serif';
+  // 8) 아래 한 줄
+  ctx.fillStyle = INK;
+  ctx.font = `700 15px ${FONT_DOT}`;
   ctx.textAlign = 'center';
-  ctx.fillText('타자팡 • 4개월간의 꾸준한 타자 훈련이 평생 가는 올바른 컴퓨터 습관을 만듭니다!', 480, 1245);
+  ctx.fillText('★ 꾸준한 타자 연습이 평생 가는 컴퓨터 습관을 만들어요! ★', W / 2, 1256);
 
-  ctx.restore();
-
-  // Convert to Blob & Data URL
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
-      if (blob) {
-        resolve({
-          dataUrl: canvas.toDataURL('image/png'),
-          blob,
-        });
-      }
+      if (blob) resolve({ dataUrl: canvas.toDataURL('image/png'), blob });
     }, 'image/png');
   });
 }

@@ -10,11 +10,18 @@ import { refreshMyApproval } from './utils/tajaApproval';
 import { serverLogout } from './utils/funfunPass';
 import { Navbar } from './components/Navbar';
 import { MoaAuthModal } from './components/MoaAuthModal';
+import { WoodGate } from './components/WoodDialog';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
+import { ContestBanner } from './components/ContestBanner';
+import { finalizeContest } from './utils/contest';
+import { bestShortCpm, longUnlocked, SHORT_TO_LONG_CPM } from './utils/longGate';
+import { AccountTabs, AccountTab } from './components/AccountTabs';
+import { AccountFrame, AccountLoading } from './components/AccountFrame';
+import { MoaCharacter, loadAvatarLib } from './components/MoaCharacter';
 import { payWeeklyRankRewards } from './utils/rankRewards';
 import { weekLabel } from './utils/weekBest';
-import { authReady, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
+import { authReady, purgeStaleIdentities, isTeacherUser, MEMBER_CID, parseUserId, pickTaja, reloadMember, teacherSession } from './utils/moaFirebase';
 import { HomeDashboard } from './components/views/HomeDashboard';
 import { TapangFooter, GutterBots } from './components/views/TapangHome';
 import { AppMode, UserSession, LeaderboardEntry } from './types';
@@ -129,8 +136,11 @@ if (typeof window !== 'undefined') {
           loadSentencePractice,
           loadLongPractice,
           () => import('./components/ProfileModal'),
-          () => import('./components/MasterModal'),
+          // 내 계정 옷장: 옷 그림 목록과 지금 입은 옷 그림을 미리 받아 두어 계정 창이 바로 뜨게
+          () => loadAvatarLib().then((A) => (A ? A.ready() : null)),
           () => import('./components/PracticeHistoryModal'),
+          () => import('./components/MonthlyReportModal'),
+          () => import('./components/MasterModal'),
           () => import('./components/views/playground/PlaygroundHome'),
           () => import('./components/views/KnowledgeHubView'),
           () => import('./components/views/MiniGamesHubView'),
@@ -150,6 +160,15 @@ if (typeof window !== 'undefined') {
     }
   } catch {}
 }
+
+/** 팝업 창 코드를 받는 동안 바로 보여 주는 작은 창 (아무것도 안 뜨고 멈춘 것처럼 보이지 않게) */
+const PopupLoading: React.FC = () => (
+  <div className="tp-modal acct-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="acct-loading-box">
+      <AccountLoading />
+    </div>
+  </div>
+);
 
 /** 열려 있는 연습 창 (모드별로 하나) */
 const openPracticeWindows = new Map<string, Window>();
@@ -174,6 +193,8 @@ export default function App() {
   const isPopupMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === 'true';
   // 미니게임·놀이터는 타자팡 회원 로그인 뒤에만
   const loginGate = !currentUser && LOGIN_MODES.has(currentMode);
+  // 짧은 글 250타 이상이어야 긴 글로 (선생님은 언제나)
+  const longGate = (currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longUnlocked(currentUser);
 
   // 오늘의 연습 보고 상태: 학생 = 보냈는지/선생님이 확인했는지, 선생님 = 새 보고 수 (팝업 연습 창에서는 생략)
   useEffect(() => {
@@ -223,8 +244,9 @@ export default function App() {
     activityTracker.setContext(isStudent ? currentUser!.id : '', currentMode);
   }, [currentUser, currentMode]);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
-  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
-  const [profileInitialTab, setProfileInitialTab] = useState<'avatar' | 'account'>('account');
+  /** 내 계정 창 (내 계정·캐릭터 / 타자 기록 / 성적표). null 이면 닫힘 */
+  const [acctTab, setAcctTab] = useState<AccountTab | null>(null);
+  const setIsProfileOpen = (open: boolean) => setAcctTab(open ? 'account' : null);
   const [isMasterOpen, setIsMasterOpen] = useState<boolean>(false);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   // 오늘의 연습 보고: 학생은 [선생님께 보내기], 선생님은 관리실 버튼에 새 보고 수
@@ -249,17 +271,16 @@ export default function App() {
       window.removeEventListener('daily-report-updated', sent);
     };
   }, []);
-  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [reportTargetUser, setReportTargetUser] = useState<UserSession | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(soundManager.getMuted());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const lastRecordRef = useRef<{ sig: string; at: number }>({ sig: '', at: 0 });
   const [usersDb, setUsersDb] = useState<UserSession[]>([]);
 
-  const handleOpenProfile = (tab: 'avatar' | 'account' = 'account') => {
-    setProfileInitialTab(tab);
-    setIsProfileOpen(true);
-  };
+  const handleOpenProfile = (_tab: 'avatar' | 'account' = 'account') => setAcctTab('account');
+  // 내 계정 · 타자 기록 · 성적표를 한 창 안에서 오가기 (창은 그대로, 안쪽만 바뀜)
+  const openAccount = (tab: AccountTab) => setAcctTab(tab);
+  const closeAccount = useCallback(() => setAcctTab(null), []);
 
   // Initialize DB and sessions
   useEffect(() => {
@@ -286,6 +307,7 @@ export default function App() {
       // 2. 지금 사용자: 선생님 계정 / 이 컴퓨터에 로그인해 둔 타자팡 회원(이름+전화번호)
       //    모아팡 방번호로만 들어온 학생은 로그인 없이 연습만 (저장 안 함, 미니게임·놀이터는 로그인 뒤에)
       const startSession = (u: UserSession) => {
+        purgeStaleIdentities(u);
         setCurrentUser(u);
         localStorage.setItem('typang_current_user', JSON.stringify(u));
         // 이 학생의 자료를 받아 와 이어서 쓰게 함
@@ -312,13 +334,22 @@ export default function App() {
           return;
         }
         if (savedUser && savedUser.role !== 'master') {
-          const u = await reloadMember(savedUser.id);
-          if (u) startSession(u);
-          else {
-            // 승인이 풀렸거나 지워진 회원
-            localStorage.removeItem('typang_current_user');
-            setCurrentUser(null);
-          }
+          const member = savedUser;
+          const check = async (triesLeft: number): Promise<void> => {
+            const u = await reloadMember(member.id);
+            if (u === 'offline') {
+              // 인터넷이 잠깐 안 될 때는 로그인을 그대로 두고 조금 뒤 다시 확인 (저절로 로그아웃되지 않게)
+              if (triesLeft > 0) window.setTimeout(() => void check(triesLeft - 1), 15000);
+              return;
+            }
+            if (u) startSession(u);
+            else {
+              // 승인이 풀렸거나 지워진 회원
+              localStorage.removeItem('typang_current_user');
+              setCurrentUser(null);
+            }
+          };
+          await check(8);
           return;
         }
         if (savedUser?.role === 'master') {
@@ -390,6 +421,12 @@ export default function App() {
     if (currentUser?.role !== 'master' || isPopupMode) return;
     const t = window.setTimeout(() => {
       void typangApi.getUsers().catch(() => {}); // 뒷자리 로그인 목록도 새로 맞춤
+      void finalizeContest() // 끝난 타자 대회가 있으면 결과 발표 + 1·2·3등 포인트
+        .then((r) => {
+          if (r.done) setRankMsg(`🏁 '${r.title}' 결과 발표! ${r.winners?.join(', ') || '참가자 없음'}`);
+          window.dispatchEvent(new Event('contest-updated'));
+        })
+        .catch(() => {});
       void payWeeklyRankRewards()
         .then((r) => {
           if (r.weeks.length) setRankMsg(`🏆 ${r.weeks.map(weekLabel).join(', ')} 주간 랭킹 보상을 학년별 1~3등 ${r.count}명에게 보냈어요. (1등 500P · 2등 200P · 3등 100P)`);
@@ -399,9 +436,26 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [currentUser?.role, isPopupMode]);
 
+  // 선생님이 켜 두는 동안: 타자 대회가 끝나면 1분 안에 저절로 결과 발표 + 1·2·3등 포인트
+  useEffect(() => {
+    if (currentUser?.role !== 'master' || isPopupMode) return;
+    const t = window.setInterval(() => {
+      void finalizeContest()
+        .then((r) => {
+          if (r.done) {
+            setRankMsg(`🏁 '${r.title}' 결과 발표! ${r.winners?.join(', ') || '참가자 없음'}`);
+            window.dispatchEvent(new Event('contest-updated'));
+          }
+        })
+        .catch(() => {});
+    }, 60000);
+    return () => window.clearInterval(t);
+  }, [currentUser?.role, isPopupMode]);
+
   // 연습 단계에 들어가면(연습 창 포함) 이 컴퓨터에 기억 → 홈 지도 로봇이 그 단계로 감 (로그인 안 해도)
   useEffect(() => {
     if (!['key-practice', 'word-practice', 'sentence-practice', 'long-practice', 'transcription-challenge', 'knowledge-hub', 'leaderboard'].includes(currentMode)) return;
+    if ((currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longUnlocked(currentUser)) return; // 잠긴 긴 글은 로봇이 가지 않음
     try {
       localStorage.setItem('taja_last_mode', currentMode);
     } catch {}
@@ -418,6 +472,7 @@ export default function App() {
     progressSync.stop();
     serverLogout();
     localStorage.removeItem('typang_current_user');
+    purgeStaleIdentities(null); // 다음 사람이 이 컴퓨터를 쓰면 예전 캐릭터·이름이 남지 않게
     typangApi.clearMasterKey();
     try {
       sessionStorage.setItem('taja_no_auto', '1'); // 이 창에서는 저절로 다시 들어가지 않게
@@ -430,6 +485,7 @@ export default function App() {
       sessionStorage.removeItem('taja_no_auto');
     } catch {}
     progressSync.stop();
+    purgeStaleIdentities(user); // 이 컴퓨터에 남은 다른 학생의 캐릭터·이름은 지움
     setCurrentUser(user);
     localStorage.setItem('typang_current_user', JSON.stringify(user));
     if (user.role === 'master') setTimeout(() => void backupKeeper.tick(), 300);
@@ -472,8 +528,8 @@ export default function App() {
     // 선생님 승인 전 학생은 명예의 전당에 저장하지 않음
     if (!isApprovedNow()) return;
 
-    // Only sentence practice goes to Hall of Fame
-    if (entry.mode !== 'sentence') return;
+    // 명예의 전당: 짧은 글 · 긴 글 기록만
+    if (entry.mode !== 'sentence' && entry.mode !== 'long') return;
     // 오류로 생긴 기록(말이 안 되는 타수)·같은 기록이 잇달아 들어오는 것은 받지 않음
     if (!(entry.cpm > 0) || entry.cpm > 1200) return;
     const sig = `${entry.cpm}|${entry.accuracy}|${entry.modeTitle}`;
@@ -524,6 +580,11 @@ export default function App() {
   };
 
   const handleSelectMode = (mode: AppMode) => {
+    // 짧은 글 250타 전에는 긴 글 창을 열지 않고 이 화면에서 안내
+    if ((mode === 'long-practice' || mode === 'transcription-challenge') && !longUnlocked(currentUserRef.current)) {
+      setCurrentMode(mode);
+      return;
+    }
     if (isPracticeMode(mode)) {
       if (!isPopupMode) {
         // Open dedicated popup browser window; if the browser blocks popups, open it inside this page
@@ -595,11 +656,7 @@ export default function App() {
               setIsMasterOpen(true);
             }
           }}
-          onOpenReport={() => {
-            setReportTargetUser(currentUser);
-            setIsReportOpen(true);
-          }}
-          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenHistory={() => openAccount('account')}
           onOpenSendReport={() => setIsSendReportOpen(true)}
           sendReportState={sendReportState}
           newReportsCount={newReportsCount}
@@ -609,6 +666,7 @@ export default function App() {
           pendingStudentsCount={pendingStudentsCount}
         />
       )}
+      {!isPopupMode && currentMode === 'home' && <ContestBanner user={currentUser} onLogin={() => setIsAuthOpen(true)} />}
 
       {/* 선생님 승인 전 학생: 타자는 칠 수 있지만 저장은 안 된다는 안내 */}
       {currentUser && currentUser.role !== 'master' && currentUser.isApproved !== true && (
@@ -637,7 +695,7 @@ export default function App() {
             onClose={() => setCurrentMode('home')}
             showKeyboardSimultaneousBadge={true}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <KeyPracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -655,7 +713,7 @@ export default function App() {
             onClose={() => setCurrentMode('home')}
             showKeyboardSimultaneousBadge={true}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <WordPracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -672,7 +730,7 @@ export default function App() {
             icon="📝"
             onClose={() => setCurrentMode('home')}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <SentencePracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -681,7 +739,42 @@ export default function App() {
           </PracticeWindowContainer>
         )}
 
-        {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && (
+        {longGate && (
+          <WoodGate
+            testId="long-gate"
+            icon="🔒"
+            title={<>짧은 글 {SHORT_TO_LONG_CPM}타를 넘으면 긴 글이 열려요!</>}
+            actions={
+              <>
+                <button onClick={() => handleSelectMode('sentence-practice')} className="wd-btn wd-btn--sky">
+                  📝 짧은 글 연습하러 가기
+                </button>
+                {isPopupMode ? (
+                  // 연습 창(팝업) 안에서는 홈 화면 대신 창을 닫음
+                  <button onClick={() => window.close()} className="wd-btn wd-btn--plain">
+                    창 닫기
+                  </button>
+                ) : (
+                  <button onClick={() => setCurrentMode('home')} className="wd-btn wd-btn--plain">
+                    홈으로
+                  </button>
+                )}
+              </>
+            }
+          >
+            지금 내 짧은 글 최고 기록은 <strong>{bestShortCpm(currentUser)}타</strong>예요.
+            <br />
+            {SHORT_TO_LONG_CPM - bestShortCpm(currentUser) > 0 ? `${SHORT_TO_LONG_CPM - bestShortCpm(currentUser)}타만 더 빨라지면 긴 글 연습을 할 수 있어요. 화이팅!` : ''}
+            {!currentUser && (
+              <>
+                <br />
+                로그인하면 내 기록이 저장돼요.
+              </>
+            )}
+          </WoodGate>
+        )}
+
+        {(currentMode === 'long-practice' || currentMode === 'transcription-challenge') && !longGate && (
           <PracticeWindowContainer
             mode="long-practice"
             title="4단계: 긴 글 연습 (명작 완독)"
@@ -689,7 +782,7 @@ export default function App() {
             icon="📜"
             onClose={() => setCurrentMode('home')}
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<AccountLoading text="연습 책상 펼치는 중이에요…" />}>
               <LongTextPracticeView
                 currentUser={currentUser}
                 onRecordScore={handleRecordScore}
@@ -710,11 +803,7 @@ export default function App() {
                 setIsMasterOpen(true);
               }
             }}
-            onOpenReport={() => {
-              setReportTargetUser(currentUser);
-              setIsReportOpen(true);
-            }}
-            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenHistory={() => openAccount('account')}
           />
         )}
 
@@ -787,36 +876,36 @@ export default function App() {
 
         {/* 미니게임·놀이터는 타자팡 로그인 뒤에 (모아팡 방번호로만 들어오면 연습만) */}
         {loginGate && (
-          <div className="max-w-2xl mx-auto my-12 p-8 bg-white/95 rounded-3xl border-4 border-[#5a3417] shadow-xl text-center space-y-5 animate-fade-in" data-testid="login-gate">
-            <div className="w-16 h-16 rounded-3xl bg-amber-100 mx-auto flex items-center justify-center text-3xl shadow-inner">🔒</div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-900 font-arcade">미니게임과 놀이터는 로그인하고 할 수 있어요!</h3>
-              <p className="text-sm text-slate-600 leading-relaxed font-bold">
-                자리·낱말·짧은 글·긴 글·지식 타자 연습은 로그인 없이도 할 수 있어요.
-                <br />
-                <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button onClick={() => setIsAuthOpen(true)} className="px-6 py-3 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm shadow-md cursor-pointer">
-                🔑 로그인
-              </button>
-              <button
-                onClick={() => {
-                  try {
-                    sessionStorage.setItem('taja_open_signup', '1');
-                  } catch {}
-                  setIsAuthOpen(true);
-                }}
-                className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md cursor-pointer"
-              >
-                ✨ 새로 가입하기
-              </button>
-              <button onClick={() => setCurrentMode('home')} className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer">
-                홈으로
-              </button>
-            </div>
-          </div>
+          <WoodGate
+            testId="login-gate"
+            icon="🔑"
+            title="미니게임과 놀이터는 로그인하고 할 수 있어요!"
+            actions={
+              <>
+                <button onClick={() => setIsAuthOpen(true)} className="wd-btn wd-btn--sky">
+                  🔑 로그인
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('taja_open_signup', '1');
+                    } catch {}
+                    setIsAuthOpen(true);
+                  }}
+                  className="wd-btn wd-btn--green"
+                >
+                  ✨ 새로 가입하기
+                </button>
+                <button onClick={() => setCurrentMode('home')} className="wd-btn wd-btn--plain">
+                  홈으로
+                </button>
+              </>
+            }
+          >
+            자리·낱말·짧은 글·긴 글·지식 타자 연습은 로그인 없이도 할 수 있어요.
+            <br />
+            <strong>미니게임·놀이터</strong>는 <strong>이름 + 전화번호 뒷자리</strong>로 로그인해야 해요. 처음이면 [새로 가입하기] 후 선생님 승인을 기다려 주세요.
+          </WoodGate>
         )}
 
         {currentMode === 'word-crush' && !loginGate && (
@@ -884,16 +973,42 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <Suspense fallback={null}>
-      {/* Profile & Avatar Selector Modal */}
-      {isProfileOpen && <ProfileModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        currentUser={currentUser}
-        onUpdateUser={handleUpdateProfile}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        initialTab={profileInitialTab}
-      />}
+      {/* 내 계정 창: 내 계정·캐릭터 / 타자 기록 / 성적표 — 같은 틀 안에서 탭만 바뀜 */}
+      {acctTab && (
+        <AccountFrame
+          title="내 계정"
+          sub={currentUser ? `${currentUser.name || '학생'} · 캐릭터 · 타자 기록 · 성적표` : '로그인하면 내 캐릭터와 기록을 볼 수 있어요'}
+          icon={currentUser && currentUser.role !== 'master' ? <MoaCharacter size={36} fallback="🙂" /> : currentUser ? '👑' : '🙂'}
+          tabs={currentUser ? <AccountTabs active={acctTab} onChange={openAccount} /> : null}
+          onClose={closeAccount}
+          bubble={acctTab === 'account' ? '내 캐릭터를 꾸며요!' : acctTab === 'records' ? '내 타자 기록이에요!' : '성적표를 확인해요!'}
+          testId="account-window"
+        >
+          {acctTab === 'account' || !currentUser ? (
+            <ProfileModal
+              embedded
+              isOpen
+              onClose={closeAccount}
+              currentUser={currentUser}
+              onUpdateUser={handleUpdateProfile}
+              onOpenAuth={() => setIsAuthOpen(true)}
+            />
+          ) : acctTab === 'records' ? (
+            <PracticeHistoryModal
+              embedded
+              isOpen
+              onClose={closeAccount}
+              currentUser={currentUser}
+              onSelectMode={(mode) => {
+                setAcctTab(null);
+                handleSelectMode(mode);
+              }}
+            />
+          ) : (
+            <MonthlyReportModal embedded isOpen onClose={closeAccount} currentUser={currentUser} targetUser={currentUser} />
+          )}
+        </AccountFrame>
+      )}
 
       {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
       {!isPopupMode && <ReportArrivalToasts active={currentUser?.role === 'master'} onOpen={() => setIsMasterOpen(true)} />}
@@ -908,6 +1023,7 @@ export default function App() {
       )}
 
       {/* Master / Teacher Console Modal */}
+      <Suspense fallback={isMasterOpen ? <PopupLoading /> : null}>
       {isMasterOpen && <MasterModal
         isOpen={isMasterOpen}
         onClose={() => setIsMasterOpen(false)}
@@ -919,14 +1035,21 @@ export default function App() {
           setIsReportOpen(true);
         }}
       />}
+      </Suspense>
 
-      {/* Monthly Report Card Modal (SMS / MMS / Download) */}
-      {isReportOpen && <MonthlyReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        currentUser={currentUser}
-        targetUser={reportTargetUser}
-      />}
+      {/* 선생님이 고른 학생의 성적표 (내 계정 창과 같은 틀) */}
+      {isReportOpen && reportTargetUser && (
+        <AccountFrame
+          title="성적표"
+          sub={`${reportTargetUser.name || '학생'} 학생의 타자 성장 성적표`}
+          icon="🏆"
+          onClose={() => setIsReportOpen(false)}
+          showPoints={false}
+          testId="report-window"
+        >
+          <MonthlyReportModal embedded isOpen onClose={() => setIsReportOpen(false)} currentUser={currentUser} targetUser={reportTargetUser} />
+        </AccountFrame>
+      )}
 
       {/* 세트를 끝냈을 때 화면 아래에 크게: 선생님께 보내기 */}
       {setDonePrompt > 0 && !isSendReportOpen && currentUser && currentUser.role !== 'master' && (
@@ -955,20 +1078,10 @@ export default function App() {
       )}
 
       {/* 학생: 오늘 연습을 선생님께 보내는 창 */}
+      <Suspense fallback={isSendReportOpen ? <PopupLoading /> : null}>
       {isSendReportOpen && currentUser && currentUser.role !== 'master' && (
         <SendReportModal isOpen={isSendReportOpen} onClose={() => setIsSendReportOpen(false)} currentUser={currentUser} />
       )}
-
-      {/* Student Typing Practice History Modal */}
-      {isHistoryOpen && <PracticeHistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        currentUser={currentUser}
-        onSelectMode={(mode) => {
-          setIsHistoryOpen(false);
-          handleSelectMode(mode);
-        }}
-      />}
       </Suspense>
     </div>
   );

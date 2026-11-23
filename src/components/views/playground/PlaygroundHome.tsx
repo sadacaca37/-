@@ -219,7 +219,9 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
   // If a game is actively playing, render inside PlaygroundHeader with full-view toggle
   if (activeGame) {
     const GameComponent = activeGame.component;
-    const isBasic = BASIC_GAME_IDS.includes(activeGame.id);
+    // '기본' 칸의 게임은 모두 무료 (예전에는 목록에 빠진 수박게임·탕후루·젤리 러너가
+    //  펀펀 시간을 깎고 1,000P 자동 충전까지 될 수 있었음)
+    const isBasic = activeGame.category === '기본' || BASIC_GAME_IDS.includes(activeGame.id);
     // 펀펀 게임은 원본 게임을 창(iframe)으로 띄우므로 크기만 꽉 채우면 됨
     const isIframeGame = activeGame.category === '펀펀';
 
@@ -560,25 +562,20 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
                             <span>즉시실행</span>
                             <span>↗</span>
                           </span>
+                          {game.players ? (
+                            <span
+                              className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-[#15803d] border border-[#0b3d1d] text-[#f0fff4] text-[10px] font-black shadow flex items-center gap-0.5"
+                              title={game.players > 1 ? `한 번에 ${game.players}명까지 같이 해요` : '혼자 하는 게임이에요'}
+                            >
+                              <span>{game.players > 1 ? '👥' : '👤'}</span>
+                              <span>{game.players > 1 ? `최대 ${game.players}명` : '1명'}</span>
+                            </span>
+                          ) : null}
                         </div>
-                        <h3 className="mt-2.5 font-black text-xs sm:text-sm text-[#2c1507] font-arcade group-hover:text-[#9e2a12] leading-tight">
+                        <h3 className="mt-2.5 font-black text-xs sm:text-sm text-[#2c1507] font-arcade leading-tight">
                           {displayTitle}
                         </h3>
-                        <span className="mt-1 text-[11px] text-[#15803d] font-extrabold flex items-center gap-0.5">
-                          <span>바로 플레이</span>
-                          <span>⚡</span>
-                        </span>
                       </button>
-
-                      <div className="mt-2 pt-2 border-t border-[#d8ae63] w-full flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => handleLaunchGame(game.id)}
-                          className="pr-stone-btn px-2.5 py-0.5 text-[10px] font-black cursor-pointer"
-                        >
-                          콘솔 모드
-                        </button>
-                      </div>
                     </div>
                   );
                 })}

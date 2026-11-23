@@ -28,7 +28,7 @@ const PlaneCanvasPreview: React.FC<{
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
     let animId: number;
 
     const render = () => {
@@ -48,11 +48,30 @@ const PlaneCanvasPreview: React.FC<{
       ref={canvasRef}
       width={width}
       height={height}
-      className={`pixelated ${className}`}
-      style={{ imageRendering: 'pixelated' }}
+      className={className}
     />
   );
 };
+
+// 무기 종류별 배지 색
+const WEAPON_BADGE: Record<PlaneConfig['weapon'], string> = {
+  WIDE: 'bg-orange-500/20 text-orange-300 border border-orange-400/50',
+  FOCUS: 'bg-blue-500/20 text-blue-300 border border-blue-400/50',
+  PIERCE: 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/50',
+  HOMING: 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50',
+  SERAPH: 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-400/50',
+  LASER: 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/50',
+};
+
+// 작은 능력치 막대
+const StatBar: React.FC<{ label: string; value: number; max: number; color: string }> = ({ label, value, max, color }) => (
+  <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+    <span className="w-8 shrink-0">{label}</span>
+    <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (value / max) * 100)}%`, background: color }} />
+    </div>
+  </div>
+);
 
 export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P', onSelect, onBack }) => {
   const planeList = Object.values(PLANES);
@@ -119,7 +138,7 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
             <Plane className="w-4 h-4 text-amber-400" />
             {mode === '2P' ? '2인용 합동 기체 편성 (2-PLAYER HANGAR)' : '전투기 격납고 (AIRCRAFT SELECTION)'}
           </div>
-          <div className="text-[10px] text-slate-400">
+          <div className="text-[11px] text-slate-400">
             {mode === '2P'
               ? '1P와 2P의 출격 기체를 각각 선택하십시오 (총 6종목)'
               : '원하는 전투기 이미지를 확인하고 출격하십시오 (6기종 선택)'}
@@ -164,13 +183,13 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.5 rounded">1P</span>
+              <span className="bg-amber-500 text-slate-950 font-black text-[11px] px-1.5 py-0.5 rounded">1P</span>
               <div className="text-left">
                 <div className="text-xs font-bold text-white">{p1Plane.koreanName}</div>
-                <div className="text-[9px] text-slate-400">{p1Plane.name}</div>
+                <div className="text-[11px] text-slate-400">{p1Plane.name}</div>
               </div>
             </div>
-            {activePilotTarget === 1 && <span className="text-[10px] text-amber-400 font-bold animate-pulse">선택 중 ◀</span>}
+            {activePilotTarget === 1 && <span className="text-[11px] text-amber-400 font-bold animate-pulse">선택 중 ◀</span>}
           </button>
 
           <button
@@ -185,13 +204,13 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="bg-cyan-500 text-slate-950 font-black text-[10px] px-1.5 py-0.5 rounded">2P</span>
+              <span className="bg-cyan-500 text-slate-950 font-black text-[11px] px-1.5 py-0.5 rounded">2P</span>
               <div className="text-left">
                 <div className="text-xs font-bold text-white">{p2Plane.koreanName}</div>
-                <div className="text-[9px] text-slate-400">{p2Plane.name}</div>
+                <div className="text-[11px] text-slate-400">{p2Plane.name}</div>
               </div>
             </div>
-            {activePilotTarget === 2 && <span className="text-[10px] text-cyan-400 font-bold animate-pulse">선택 중 ◀</span>}
+            {activePilotTarget === 2 && <span className="text-[11px] text-cyan-400 font-bold animate-pulse">선택 중 ◀</span>}
           </button>
         </div>
       )}
@@ -201,13 +220,11 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
         {viewMode === 'GRID' ? (
           /* 6-Aircraft Interactive Grid View with Visual Real Photos */
           <div className="w-full flex flex-col items-center gap-2.5">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 w-full">
               {planeList.map((plane, idx) => {
                 const isP1 = idx === selectedP1Index;
                 const isP2 = mode === '2P' && idx === selectedP2Index;
                 const isCurrentActiveTarget = idx === selectedIndex;
-                const isSpread = plane.type === 'SPREAD';
-                const isElite = plane.isElite;
                 const planeImg = PLAYER_PLANE_IMAGES[plane.id];
 
                 return (
@@ -216,6 +233,7 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleSelectIndex(idx)}
+                    data-plane-card={plane.id}
                     className={`relative rounded-lg p-2.5 flex flex-col items-center cursor-pointer transition-all border ${
                       isCurrentActiveTarget
                         ? activePilotTarget === 2
@@ -226,24 +244,16 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
                         : 'bg-slate-950/70 hover:bg-slate-900/60 border-slate-800/90 text-slate-300'
                     }`}
                   >
-                    {/* Elite / Rank Badge */}
+                    {/* 무기 종류 배지 */}
                     <div className="w-full flex justify-between items-center mb-1">
                       <span className="text-xs">{plane.flag}</span>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          isElite
-                            ? 'bg-amber-500 text-slate-950 font-black shadow-[0_0_8px_rgba(245,158,11,0.6)]'
-                            : isSpread
-                            ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40'
-                            : 'bg-sky-950/80 text-sky-300 border border-sky-500/40'
-                        }`}
-                      >
-                        {isElite ? 'S급 엘리트' : plane.koreanType}
+                      <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${WEAPON_BADGE[plane.weapon]}`}>
+                        {plane.koreanType}
                       </span>
                     </div>
 
                     {/* Aircraft High-Res Image Display Container */}
-                    <div className="w-full h-24 bg-[#020617] border border-slate-800 rounded flex items-center justify-center relative overflow-hidden mb-2 shadow-inner group">
+                    <div className="w-full h-28 bg-[#020617] border border-slate-800 rounded flex items-center justify-center relative overflow-hidden mb-2 shadow-inner group">
                       <div
                         className="absolute inset-0 opacity-25"
                         style={{
@@ -264,16 +274,16 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
 
                     {/* Plane Korean Name */}
                     <div className="text-center w-full">
-                      <div className="font-bold text-xs sm:text-[13px] text-white truncate">
+                      <div className="font-bold text-[13px] text-white truncate">
                         {plane.koreanName}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">
-                        {plane.name}
+                      <div className="text-[11px] text-slate-400 truncate">
+                        {plane.specialMove}
                       </div>
                     </div>
 
                     {/* Bomb Badge */}
-                    <div className="mt-1.5 w-full text-center py-0.5 px-1 bg-slate-950 border border-slate-800 rounded text-[9px] text-amber-300 font-semibold truncate flex items-center justify-center gap-1">
+                    <div className="mt-1.5 w-full text-center py-0.5 px-1 bg-slate-950 border border-slate-800 rounded text-[11px] text-amber-300 font-semibold truncate flex items-center justify-center gap-1">
                       <Flame className="w-2.5 h-2.5 text-red-400 shrink-0" />
                       <span>폭탄 : {plane.koreanBombName}</span>
                     </div>
@@ -281,12 +291,12 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
                     {/* 1P / 2P Selection Badges */}
                     <div className="absolute -top-1.5 right-1 flex gap-1">
                       {isP1 && (
-                        <div className="bg-amber-400 text-slate-950 px-1 py-0.5 rounded text-[9px] font-black shadow-md flex items-center gap-0.5">
+                        <div className="bg-amber-400 text-slate-950 px-1 py-0.5 rounded text-[11px] font-black shadow-md flex items-center gap-0.5">
                           <span>1P</span>
                         </div>
                       )}
                       {isP2 && (
-                        <div className="bg-cyan-400 text-slate-950 px-1 py-0.5 rounded text-[9px] font-black shadow-md flex items-center gap-0.5">
+                        <div className="bg-cyan-400 text-slate-950 px-1 py-0.5 rounded text-[11px] font-black shadow-md flex items-center gap-0.5">
                           <span>2P</span>
                         </div>
                       )}
@@ -297,45 +307,37 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
             </div>
 
             {/* Selected Plane Quick Summary Bar */}
-            <div className="w-full bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-md">
-              <div className="flex items-center gap-2.5">
-                <div className="w-12 h-12 bg-slate-950 border border-slate-700 rounded flex items-center justify-center shrink-0 overflow-hidden">
-                  {PLAYER_PLANE_IMAGES[currentPlane.id] ? (
-                    <img
-                      src={PLAYER_PLANE_IMAGES[currentPlane.id]}
-                      alt={currentPlane.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-contain p-0.5"
-                    />
-                  ) : (
-                    <PlaneCanvasPreview planeId={currentPlane.id} width={48} height={48} scale={0.8} />
-                  )}
+            <div className="w-full bg-[#0f172a] border border-slate-800 rounded-lg p-3 flex flex-col sm:flex-row gap-3 shadow-md">
+              <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                <div className="w-14 h-14 bg-slate-950 border border-slate-700 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                  <img
+                    src={PLAYER_PLANE_IMAGES[currentPlane.id]}
+                    alt={currentPlane.koreanName}
+                    className="w-full h-full object-contain p-0.5"
+                  />
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-xs sm:text-sm text-amber-400">
-                      {currentPlane.koreanName}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-sm text-amber-400">{currentPlane.koreanName}</span>
+                    <span className={`text-[11px] font-bold px-1.5 rounded ${WEAPON_BADGE[currentPlane.weapon]}`}>
+                      {currentPlane.koreanType}
                     </span>
-                    <span className="text-[10px] text-slate-400">({currentPlane.codename})</span>
                     {mode === '2P' && (
-                      <span className={`text-[9px] font-bold px-1 rounded ${activePilotTarget === 1 ? 'bg-amber-500/20 text-amber-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                      <span className={`text-[11px] font-bold px-1 rounded ${activePilotTarget === 1 ? 'bg-amber-500/20 text-amber-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
                         {activePilotTarget}P 기체로 지정
                       </span>
                     )}
                   </div>
-                  <div className="text-[10px] text-slate-300 line-clamp-1">
-                    {currentPlane.description}
-                  </div>
+                  <div className="text-[12px] text-emerald-300 mt-1 leading-snug">👍 {currentPlane.strength}</div>
+                  <div className="text-[12px] text-rose-300 leading-snug">⚠️ {currentPlane.weakness}</div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 self-end sm:self-center text-[10px]">
-                <div className="flex items-center gap-1 text-slate-400">
-                  <Zap className="w-3 h-3 text-amber-400" /> 화력 {currentPlane.power}/5
-                </div>
-                <div className="flex items-center gap-1 text-slate-400">
-                  <Wind className="w-3 h-3 text-sky-400" /> 속도 {currentPlane.speed}
-                </div>
+              <div className="sm:w-40 shrink-0 flex flex-col justify-center gap-1">
+                <StatBar label="화력" value={currentPlane.power} max={5} color="#fbbf24" />
+                <StatBar label="속도" value={currentPlane.speed} max={6.5} color="#38bdf8" />
+                <StatBar label="연사" value={currentPlane.fireRate} max={9.5} color="#34d399" />
+                <StatBar label="폭탄" value={currentPlane.bombPower} max={175} color="#f87171" />
               </div>
             </div>
           </div>
@@ -363,16 +365,8 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
                   <span>{currentPlane.flag}</span>
                   <span className="uppercase tracking-widest">{currentPlane.country}</span>
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    currentPlane.isElite
-                      ? 'bg-amber-500 text-slate-950 font-black'
-                      : currentPlane.type === 'SPREAD'
-                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-sky-950 text-sky-300 border border-sky-500/40'
-                  }`}
-                >
-                  {currentPlane.isElite ? 'S급 엘리트' : currentPlane.koreanType}
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${WEAPON_BADGE[currentPlane.weapon]}`}>
+                  {currentPlane.koreanType}
                 </span>
               </div>
 
@@ -407,7 +401,7 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
               {/* Stats Bars */}
               <div className="w-full space-y-1.5 mb-3 text-xs">
                 <div>
-                  <div className="flex justify-between text-slate-400 mb-0.5 text-[10px]">
+                  <div className="flex justify-between text-slate-400 mb-0.5 text-[11px]">
                     <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-amber-400" /> 화력 (FIREPOWER)</span>
                     <span className="text-amber-400 font-bold">LVL {currentPlane.power} / 5</span>
                   </div>
@@ -420,7 +414,7 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-slate-400 mb-0.5 text-[10px]">
+                  <div className="flex justify-between text-slate-400 mb-0.5 text-[11px]">
                     <span className="flex items-center gap-1"><Wind className="w-3 h-3 text-sky-400" /> 기동속도 (TOP SPEED)</span>
                     <span className="text-sky-400 font-bold">{currentPlane.speed} M/S</span>
                   </div>
@@ -433,14 +427,14 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-slate-400 mb-0.5 text-[10px]">
+                  <div className="flex justify-between text-slate-400 mb-0.5 text-[11px]">
                     <span className="flex items-center gap-1"><Crosshair className="w-3 h-3 text-emerald-400" /> 연사속도 (FIRE RATE)</span>
                     <span className="text-emerald-400 font-bold">{currentPlane.fireRate} ROUNDS/S</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700/60">
                     <div
                       className="h-full bg-emerald-400 rounded-full transition-all duration-300"
-                      style={{ width: `${(currentPlane.fireRate / 12.0) * 100}%` }}
+                      style={{ width: `${(currentPlane.fireRate / 9.5) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -448,15 +442,17 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
 
               {/* Bomb & Special Move Info */}
               <div className="w-full bg-[#020617] rounded p-2.5 border border-slate-800 text-left space-y-1">
-                <div className="text-[10px] text-red-400 font-bold flex items-center gap-1 uppercase">
+                <div className="text-[11px] text-red-400 font-bold flex items-center gap-1 uppercase">
                   <Sparkles className="w-3 h-3 text-red-400" /> 특수 폭탄 : {currentPlane.koreanBombName} ({currentPlane.bombName})
                 </div>
-                <div className="text-[10px] text-slate-400 leading-tight">
+                <div className="text-[11px] text-slate-400 leading-tight">
                   {currentPlane.bombDesc}
                 </div>
-                <div className="text-[10px] text-amber-400 pt-1">
+                <div className="text-[11px] text-amber-400 pt-1">
                   기체 특화 무장: <span className="text-slate-200">{currentPlane.specialMove}</span>
                 </div>
+                <div className="text-[12px] text-emerald-300 pt-1">👍 {currentPlane.strength}</div>
+                <div className="text-[12px] text-rose-300">⚠️ {currentPlane.weakness}</div>
               </div>
             </motion.div>
 
@@ -473,6 +469,7 @@ export const PlaneSelectModal: React.FC<PlaneSelectModalProps> = ({ mode = '1P',
       {/* Bottom Scramble & Launch Action */}
       <div className="w-full max-w-2xl flex gap-2 pt-1 border-t border-slate-800/80">
         <button
+          id="confirm-plane-btn"
           onClick={handleConfirm}
           className={`w-full py-3 px-6 rounded-lg font-black text-xs sm:text-sm active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider ${
             mode === '2P'

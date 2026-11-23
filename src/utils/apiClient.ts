@@ -40,7 +40,7 @@ const lbNum = (v: any, max: number) => Math.max(0, Math.min(max, Math.round(Numb
 /** RTDB 칸 이름으로 쓸 수 있게 */
 const safeKey = (s: string) => String(s || 'x').replace(/[.#$\[\]\/]/g, '_').slice(0, 120) || 'x';
 
-export function tidyLeaderboard(list: any[]): LeaderboardEntry[] {
+export function tidyLeaderboard(list: any[], perStudent = LB_PER_STUDENT): LeaderboardEntry[] {
   const seen = new Set<string>();
   const per = new Map<string, number>();
   const out: any[] = [];
@@ -53,7 +53,7 @@ export function tidyLeaderboard(list: any[]): LeaderboardEntry[] {
     seen.add(sig);
     seen.add(`id:${e.id}`);
     const n = per.get(lbWho(e)) || 0;
-    if (n >= LB_PER_STUDENT) continue;
+    if (n >= perStudent) continue;
     per.set(lbWho(e), n + 1);
     out.push(e);
   }
@@ -84,6 +84,7 @@ export function cleanLeaderboardEntry(raw: any): (LeaderboardEntry & { ts: numbe
   if (raw.details) e.details = String(raw.details).slice(0, 80);
   if (raw.completedSentences) e.completedSentences = lbNum(raw.completedSentences, 9999);
   if (raw.elapsedSeconds) e.elapsedSeconds = lbNum(raw.elapsedSeconds, 86400);
+  if (raw.errorCount != null) e.errorCount = lbNum(raw.errorCount, 99999);
   return e;
 }
 
@@ -147,7 +148,7 @@ class TypangApiClient {
         users.push({
           id,
           name: String(v.name || ''),
-          studentId: t.className || MEMBER_CLASS,
+          studentId: grade ? `${grade}학년` : '학년 미정', // 타자팡은 학년만 (모아팡 반과 따로)
           grade,
           avatar: t.avatar || '⭐',
           avatarBg: t.avatarBg || 'bg-yellow-100',
@@ -159,9 +160,10 @@ class TypangApiClient {
           lastLoginAt: Number(v.seen?.toMillis?.() || 0),
           totalPracticeCount: Number(t.totalPracticeCount) || 0,
           highestCpm: Number(t.highestCpm) || 0,
+          moaOutfit: v.outfit || null, // 모아팡 캐릭터 옷차림 (성적표에 그림)
         } as UserSession);
       }
-      users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || String(a.studentId).localeCompare(String(b.studentId)) || a.name.localeCompare(b.name));
+      users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || (a.grade || 9) - (b.grade || 9) || a.name.localeCompare(b.name));
       // 뒷자리 로그인 목록 (승인한 회원만)
       void rebuildLoginIndex(
         sts.docs
@@ -198,7 +200,7 @@ class TypangApiClient {
       const key = await memberKey(String(v.name || ''), phone);
       if (members.has(key)) continue;
       const t = v.taja || {};
-      const taja: Record<string, any> = { ...t, phone: phoneDigits(phone), className: classNames.get(cid) || MEMBER_CLASS };
+      const taja: Record<string, any> = { ...t, phone: phoneDigits(phone), className: MEMBER_CLASS }; // 모아팡 반 이름은 가져오지 않음
       try {
         await setDoc(doc(fs, 'classes', MEMBER_CID, 'students', key), { name: String(v.name || ''), uid: '', score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), taja });
         members.add(key);
@@ -458,7 +460,15 @@ class TypangApiClient {
       const r = ref(rt, `taja/lb/${month}/${who}`);
       const snap = await get(r);
       const prev = (snap.val() && snap.val().entries) || [];
-      const entries = tidyLeaderboard([...prev, e]).slice(0, LB_PER_STUDENT);
+      // 학생마다 짧은 글 최고 기록 1개 + 긴 글 최고 기록 1개는 꼭 남기고, 남는 칸은 다음 좋은 기록
+      const all = tidyLeaderboard([...prev, e], 99);
+      const isLong = (x: any) => x.mode === 'long';
+      const better = (a: any, b: any) => (b.cpm || 0) - (a.cpm || 0) || (a.errorCount ?? 9999) - (b.errorCount ?? 9999);
+      const bestShort = all.filter((x) => !isLong(x)).sort(better)[0];
+      const bestLong = all.filter(isLong).sort(better)[0];
+      const keep = [bestShort, bestLong].filter(Boolean) as any[];
+      for (const x of all.sort(better)) if (keep.length < LB_PER_STUDENT && !keep.includes(x)) keep.push(x);
+      const entries = keep.slice(0, LB_PER_STUDENT);
       const rec: any = { userName: e.userName, entries, t: Date.now() };
       if (e.grade) rec.grade = e.grade;
       await set(r, rec);

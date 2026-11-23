@@ -1,56 +1,87 @@
 import { PlaneConfig, StageInfo, HighScoreEntry, GameSettings } from '../types';
-import bgStage1 from '../assets/images/stage_1_azure_sky_1787883018044.jpg';
-import bgStage2 from '../assets/images/stage_2_deep_sea_1787883030715.jpg';
-import bgStage3 from '../assets/images/stage_3_desert_ruins_1787883042809.jpg';
-import bgStage4 from '../assets/images/stage_4_volcano_1787883056212.jpg';
-import bgStage5 from '../assets/images/stage_5_cyber_city_1787883073062.jpg';
-import bgStage6 from '../assets/images/stage_6_space_base_1787883086538.jpg';
-import bgStage7 from '../assets/images/stage_7_storm_ocean_1787883098443.jpg';
-import bgStage8 from '../assets/images/stage_8_floating_island_1787883111120.jpg';
-import bgStage9 from '../assets/images/stage_9_glacier_canyon_1787883128079.jpg';
-import bgStage10 from '../assets/images/stage_10_alien_planet_1787883142211.jpg';
+// 그림은 모두 Gemini(Nano Banana Pro)로 새로 그린 뒤 배경을 투명하게 다듬은 WebP 파일입니다.
+import bgStage1 from '../assets/images/stage_1.webp';
+import bgStage2 from '../assets/images/stage_2.webp';
+import bgStage3 from '../assets/images/stage_3.webp';
+import bgStage4 from '../assets/images/stage_4.webp';
+import bgStage5 from '../assets/images/stage_5.webp';
+import bgStage6 from '../assets/images/stage_6.webp';
+import bgStage7 from '../assets/images/stage_7.webp';
+import bgStage8 from '../assets/images/stage_8.webp';
+import bgStage9 from '../assets/images/stage_9.webp';
+import bgStage10 from '../assets/images/stage_10.webp';
+import titleKeyArt from '../assets/images/title_keyart.webp';
 
-import enemySmallJet from '../assets/images/enemy_small_jet_1787884165941.jpg';
-import enemyRedFighter from '../assets/images/enemy_red_fighter_1787884271434.jpg';
-import enemyGoldFighter from '../assets/images/enemy_gold_fighter_1787884286298.jpg';
-import enemyAlienVoid from '../assets/images/enemy_alien_void_1787884202854.jpg';
-import enemyHeavyCarrier from '../assets/images/enemy_heavy_carrier_1787884227996.jpg';
-import enemyBossCarrier from '../assets/images/enemy_boss_carrier_1787884178649.jpg';
-import bossRedOrbStation from '../assets/images/boss_red_orb_station_1787988528760.jpg';
-import bossBlueCrescentCruiser from '../assets/images/boss_blue_crescent_cruiser_1787988544841.jpg';
-import bossPurpleVoidCarrier from '../assets/images/boss_purple_void_carrier_1787988560511.jpg';
-import bossGreenSaucerMothership from '../assets/images/boss_green_saucer_mothership_1787988576237.jpg';
-import bossRedThrusterTitan from '../assets/images/boss_red_thruster_titan_1787988594121.jpg';
+import enemyScout from '../assets/images/enemy_scout.webp';
+import enemyTwin from '../assets/images/enemy_twin.webp';
+import enemyRed from '../assets/images/enemy_red.webp';
+import enemySteel from '../assets/images/enemy_steel.webp';
+import enemyBomber from '../assets/images/enemy_bomber.webp';
+import enemyBatwing from '../assets/images/enemy_batwing.webp';
+import alienDrone from '../assets/images/alien_drone.webp';
+import alienClaw from '../assets/images/alien_claw.webp';
+import alienEye from '../assets/images/alien_eye.webp';
+import alienManta from '../assets/images/alien_manta.webp';
+import alienBomber from '../assets/images/alien_bomber.webp';
+import alienDart from '../assets/images/alien_dart.webp';
 
-import playerPlane01 from '../assets/images/player_plane_01_1787985648514.jpg';
-import playerPlane02 from '../assets/images/player_plane_02_1787985667415.jpg';
-import playerPlane05 from '../assets/images/player_plane_05_1787985683375.jpg';
-import playerPlane06 from '../assets/images/player_plane_06_1787985700600.jpg';
-import playerPlane15 from '../assets/images/player_plane_15_1787985717189.jpg';
-import playerPlane16 from '../assets/images/player_plane_16_1787985736122.jpg';
-import playerPlane17 from '../assets/images/player_plane_17_1787985757293.jpg';
+import bossSky from '../assets/images/boss_sky.webp';
+import bossKraken from '../assets/images/boss_kraken.webp';
+import bossSphinx from '../assets/images/boss_sphinx.webp';
+import bossIgnis from '../assets/images/boss_ignis.webp';
+import bossNeon from '../assets/images/boss_neon.webp';
+import bossOrbital from '../assets/images/boss_orbital.webp';
+import bossLeviathan from '../assets/images/boss_leviathan.webp';
+import bossTemplar from '../assets/images/boss_templar.webp';
+import bossFrost from '../assets/images/boss_frost.webp';
+import bossNebula from '../assets/images/boss_nebula.webp';
+
+import playerPhoenix from '../assets/images/player_phoenix.webp';
+import playerBlueTempest from '../assets/images/player_blue_tempest.webp';
+import playerValkyrie from '../assets/images/player_valkyrie.webp';
+import playerStealth from '../assets/images/player_stealth.webp';
+import playerSeraph from '../assets/images/player_seraph.webp';
+import playerTitan from '../assets/images/player_titan.webp';
+
+export const TITLE_KEY_ART = titleKeyArt;
 
 export const PLAYER_PLANE_IMAGES: Record<string, string> = {
-  AV8_HARRIER: playerPlane01,
-  FA18_SUPER_HORNET: playerPlane02,
-  F4_PHANTOM: playerPlane05,
-  F117_NIGHTHAWK: playerPlane15,
-  VIOLET_SERAPH: playerPlane16,
-  X36: playerPlane17,
+  AV8_HARRIER: playerPhoenix,
+  FA18_SUPER_HORNET: playerBlueTempest,
+  F4_PHANTOM: playerValkyrie,
+  F117_NIGHTHAWK: playerStealth,
+  VIOLET_SERAPH: playerSeraph,
+  X36: playerTitan,
 };
 
-export const ENEMY_SHIP_IMAGES = {
-  SMALL_JET: enemySmallJet,
-  RED_FIGHTER: enemyRedFighter,
-  GOLD_FIGHTER: enemyGoldFighter,
-  ALIEN_VOID: enemyAlienVoid,
-  HEAVY_CARRIER: enemyHeavyCarrier,
-  BOSS_CARRIER: enemyBossCarrier,
-  BOSS_RED_ORB: bossRedOrbStation,
-  BOSS_BLUE_CRESCENT: bossBlueCrescentCruiser,
-  BOSS_PURPLE_VOID: bossPurpleVoidCarrier,
-  BOSS_GREEN_SAUCER: bossGreenSaucerMothership,
-  BOSS_RED_THRUSTER: bossRedThrusterTitan,
+// 적기 그림 (모두 기수가 위를 향하게 그려져 있고, 게임에서 180도 돌려 아래를 보게 그림)
+export const ENEMY_SHIP_IMAGES: Record<string, string> = {
+  SCOUT: enemyScout,
+  TWIN: enemyTwin,
+  RED: enemyRed,
+  STEEL: enemySteel,
+  BOMBER: enemyBomber,
+  BATWING: enemyBatwing,
+  A_DRONE: alienDrone,
+  A_CLAW: alienClaw,
+  A_EYE: alienEye,
+  A_MANTA: alienManta,
+  A_BOMBER: alienBomber,
+  A_DART: alienDart,
+};
+
+// 스테이지별 보스 그림 (모두 앞쪽이 아래 = 플레이어 쪽을 보도록 그려져 있음)
+export const BOSS_IMAGES: Record<string, string> = {
+  BOSS_STAGE_1: bossSky,
+  BOSS_STAGE_2: bossKraken,
+  BOSS_STAGE_3: bossSphinx,
+  BOSS_STAGE_4: bossIgnis,
+  BOSS_STAGE_5: bossNeon,
+  BOSS_STAGE_6: bossOrbital,
+  BOSS_STAGE_7: bossLeviathan,
+  BOSS_STAGE_8: bossTemplar,
+  BOSS_STAGE_9: bossFrost,
+  BOSS_STAGE_10: bossNebula,
 };
 
 export const STAGE_BG_IMAGES: Record<number, string> = {
@@ -69,134 +100,160 @@ export const STAGE_BG_IMAGES: Record<number, string> = {
 export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 640;
 
+// 비행기 성능
+// - 기체마다 무기 방식(weapon)이 다르고, 좋은 점과 아쉬운 점이 하나씩 있어요.
+// - power(화력) 3~5 는 실제 총알 피해에 곱해집니다 (3=0.9배, 4=1배, 5=1.12배).
+// - 예전에는 05·06번이 모든 수치가 높은 '엘리트'였지만, 이제는 모두 비슷하게 강하고 개성만 다릅니다.
 export const PLANES: Record<string, PlaneConfig> = {
   AV8_HARRIER: {
     id: 'AV8_HARRIER',
-    name: '01. PHOENIX STRIKE (AV-8)',
+    name: '01. PHOENIX STRIKE',
     koreanName: '01. 피닉스 스트라이크',
-    codename: 'Orange Phoenix VTOL',
+    codename: 'Orange Phoenix',
     type: 'SPREAD',
     koreanType: '확산형',
-    country: 'UK / ALLIED',
+    weapon: 'WIDE',
+    strength: '총알이 부채꼴로 넓게 퍼져 잔챙이 적을 쓸어 담아요',
+    weakness: '먼 곳의 큰 적에게는 힘이 조금 약해요',
+    country: 'ALLIED',
     flag: '🔥',
     speed: 5.4,
-    fireRate: 7.2,
-    power: 4,
+    fireRate: 7.5,
+    power: 3,
+    bombPower: 150,
     bombType: 'SUPER_TOMAHAWK',
     bombName: 'Super Tomahawk',
     koreanBombName: '슈퍼 토마호크',
-    bombDesc: '전장을 뒤덮는 대규모 순항 미사일 폭격과 화염 방사',
-    specialMove: 'VTOL 5방향 광역 확산 발칸',
+    bombDesc: '화면 전체에 미사일 폭격! 적 총알을 모두 메달로 바꿔요',
+    specialMove: '5방향 확산 발칸',
     color: '#f97316',
     accentColor: '#fde047',
-    description: '오렌지 & 화이트 초음속 제트기. 넓은 각도의 5열 확산 발칸과 강력한 슈퍼 토마호크 폭격.',
+    description: '오렌지 & 화이트 전투기. 넓게 퍼지는 확산탄으로 처음 하는 친구에게 추천!',
   },
   FA18_SUPER_HORNET: {
     id: 'FA18_SUPER_HORNET',
-    name: '02. BLUE TEMPEST (FA-18)',
+    name: '02. BLUE TEMPEST',
     koreanName: '02. 블루 템페스트',
     codename: 'Carrier Fleet Ace',
     type: 'FOCUSED',
-    koreanType: '집탄형',
-    country: 'USA / NAVAL',
+    koreanType: '집중형',
+    weapon: 'FOCUS',
+    strength: '앞쪽으로 총알을 모아 쏴서 보스를 가장 빨리 잡아요',
+    weakness: '옆쪽 적은 직접 따라가서 맞혀야 해요',
+    country: 'NAVAL',
     flag: '⭐',
-    speed: 5.6,
-    fireRate: 8.0,
-    power: 4,
+    speed: 5.0,
+    fireRate: 9.0,
+    power: 5,
+    bombPower: 140,
     bombType: 'SAMURAI_SWORD',
-    bombName: 'Samurai Blade Slash',
-    koreanBombName: '사무라이 블레이드',
-    bombDesc: '전방 적군과 탄막을 일도양단하는 거대한 검기 파동',
-    specialMove: 'High Density Focus Vulcan',
-    color: '#2563eb',
-    accentColor: '#60a5fa',
-    description: '로열 블루 & 화이트 주력 함재기. 전방 관통 집중 화력과 전방을 일도양단하는 결전 검기.',
+    bombName: 'Blade Slash',
+    koreanBombName: '블레이드 슬래시',
+    bombDesc: '거대한 검기 파동으로 적과 적 총알을 한 번에 베어 내요',
+    specialMove: '집중 발칸 + 관통 레이저',
+    color: '#3b82f6',
+    accentColor: '#93c5fd',
+    description: '로열 블루 & 화이트 함재기. 정면 화력이 가장 센 보스 사냥꾼.',
   },
   F4_PHANTOM: {
     id: 'F4_PHANTOM',
-    name: '03. VALKYRIE EMERALD (F-4)',
+    name: '03. VALKYRIE EMERALD',
     koreanName: '03. 발키리 에메랄드',
     codename: 'Emerald Interceptor',
     type: 'SPREAD',
-    koreanType: '확산형',
-    country: 'ALLIED ACE',
+    koreanType: '관통형',
+    weapon: 'PIERCE',
+    strength: '초록 빛탄이 적을 뚫고 지나가서 줄지어 오는 적에게 강해요',
+    weakness: '연사가 조금 느려요',
+    country: 'ALLIED',
     flag: '🌿',
     speed: 5.2,
-    fireRate: 7.0,
+    fireRate: 6.2,
     power: 4,
+    bombPower: 150,
     bombType: 'THUNDERBOLT',
-    bombName: 'Thunderbolt EMP Barrage',
+    bombName: 'Thunderbolt EMP',
     koreanBombName: '썬더볼트 EMP',
-    bombDesc: '화면 전체 적탄을 소멸시키고 감전시키는 전자기 폭풍',
-    specialMove: 'Emerald Wave Spread Burst',
+    bombDesc: '화면 전체에 번개 폭풍! 적 총알을 모두 지워요',
+    specialMove: '관통 웨이브탄',
     color: '#10b981',
     accentColor: '#6ee7b7',
-    description: '에메랄드 그린 곡선익 요격기. 광범위 확산 탄막과 화면 전체를 지지는 썬더볼트 EMP 폭풍.',
+    description: '에메랄드 그린 곡선 날개 요격기. 적을 꿰뚫는 관통탄이 특기.',
   },
   F117_NIGHTHAWK: {
     id: 'F117_NIGHTHAWK',
-    name: '04. STEALTH STORM (F-117)',
+    name: '04. STEALTH STORM',
     koreanName: '04. 스텔스 스톰',
     codename: 'Dark Cyan Shadow',
     type: 'SPREAD',
-    koreanType: '확산형',
-    country: 'STEALTH OPS',
+    koreanType: '유도형',
+    weapon: 'HOMING',
+    strength: '가장 빠르고, 유도 미사일이 알아서 적을 쫓아가요',
+    weakness: '총알 한 발의 힘이 약해요',
+    country: 'STEALTH',
     flag: '💠',
-    speed: 5.5,
-    fireRate: 7.5,
-    power: 4,
+    speed: 6.4,
+    fireRate: 7.0,
+    power: 3,
+    bombPower: 140,
     bombType: 'CLUSTER_BOMB',
-    bombName: 'EMP Cluster Detonation',
+    bombName: 'EMP Cluster',
     koreanBombName: 'EMP 클러스터',
-    bombDesc: '화면 전역에 연속 폭쇄를 일으키는 첨단 스텔스 집속탄',
-    specialMove: 'Cyan Plasma Wave Dispersion',
-    color: '#06b6d4',
-    accentColor: '#64748b',
-    description: '티타늄 다크그레이 & 시안 스트라이프 스텔스기. 전방위 플라즈마 파동과 광역 EMP 클러스터 폭격.',
+    bombDesc: '화면 곳곳에서 연속 폭발! 적 총알을 모두 지워요',
+    specialMove: '유도 미사일 + 쌍발 발칸',
+    color: '#22d3ee',
+    accentColor: '#94a3b8',
+    description: '티타늄 그레이 & 시안 스텔스기. 피하기 쉬운 최고 속도와 유도 미사일.',
   },
   VIOLET_SERAPH: {
     id: 'VIOLET_SERAPH',
-    name: '05. VIOLET SERAPH (SERAPH-X)',
+    name: '05. VIOLET SERAPH',
     koreanName: '05. 바이올렛 세라프',
-    codename: 'Heart Seraph Interceptor',
+    codename: 'Heart Seraph',
     type: 'SPREAD',
-    koreanType: '확산형',
-    isElite: true,
+    koreanType: '만능형',
+    weapon: 'SERAPH',
+    strength: '앞쪽 레이저와 양옆 하트탄을 함께 쏘는 만능 기체예요',
+    weakness: '폭탄 힘이 조금 약한 대신 무적 시간이 길어요',
     country: 'CELESTIAL',
     flag: '💜',
-    speed: 5.8,
-    fireRate: 8.2,
-    power: 5,
+    speed: 5.6,
+    fireRate: 7.2,
+    power: 4,
+    bombPower: 120,
     bombType: 'SUPER_TOMAHAWK',
-    bombName: 'Seraph Holy Annihilator',
+    bombName: 'Seraph Holy Burst',
     koreanBombName: '세라프 홀리 버스트',
-    bombDesc: '신성한 보랏빛 플라즈마 광익으로 모든 적을 일소하는 궁극 결전기',
-    specialMove: 'Violet Heart Plasma Dispersion',
+    bombDesc: '보랏빛 날개 빛으로 적 총알을 지우고 오랫동안 무적이 돼요',
+    specialMove: '레이저 + 하트 확산탄',
     color: '#a855f7',
     accentColor: '#f472b6',
-    description: '로열 퍼플 & 화이트 하트 문양 하이테크 전투기. 유도 레이저와 환상적인 세라프 홀리 버스트.',
+    description: '퍼플 & 화이트 천사 날개 전투기. 공격과 수비가 고르게 좋아요.',
   },
   X36: {
     id: 'X36',
-    name: '06. TITAN X (BOEING X-36)',
+    name: '06. BLACK GOLD TITAN',
     koreanName: '06. 블랙 골드 타이탄',
     codename: 'Apex Tailless Titan',
     type: 'FOCUSED',
-    koreanType: '집탄형',
-    isElite: true,
+    koreanType: '레이저형',
+    weapon: 'LASER',
+    strength: '굵은 쌍둥이 레이저가 적을 꿰뚫어요. 한 방이 가장 세요',
+    weakness: '연사가 가장 느려서 타이밍이 중요해요',
     country: 'EXPERIMENTAL',
     flag: '⚡',
-    speed: 6.2,
-    fireRate: 8.8,
+    speed: 5.6,
+    fireRate: 5.2,
     power: 5,
+    bombPower: 170,
     bombType: 'MEGA_SMASH',
-    bombName: 'Mega Smash Annihilator',
-    koreanBombName: '메가 스메시',
-    bombDesc: '차원 붕괴 메가 에너지 광폭포로 전장의 모든 것을 초토화',
-    specialMove: 'Twin Hyper Laser + Plasma Beam',
+    bombName: 'Mega Smash',
+    koreanBombName: '메가 스매시',
+    bombDesc: '가장 강한 폭탄! 화면의 모든 적에게 큰 피해를 줘요',
+    specialMove: '쌍둥이 하이퍼 레이저',
     color: '#eab308',
-    accentColor: '#1e293b',
-    description: '블랙 & 골드 차세대 무미익 최정예 결전기. 최고 속도 기동성과 궁극의 메가 스메시 특수 결전병기.',
+    accentColor: '#fde68a',
+    description: '블랙 & 골드 무미익 실험기. 묵직한 레이저 한 방의 손맛.',
   },
 };
 
@@ -369,8 +426,8 @@ export const INITIAL_HIGH_SCORES: HighScoreEntry[] = [
 export const DEFAULT_SETTINGS: GameSettings = {
   soundVolume: 0.7,
   musicVolume: 0.5,
-  crtFilter: true,
-  scanlines: true,
+  crtFilter: false,
+  scanlines: false,
   screenShake: true,
   autoFire: false,
   difficulty: 'NORMAL',

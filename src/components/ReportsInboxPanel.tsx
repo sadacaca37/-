@@ -31,7 +31,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
   const [loading, setLoading] = useState(true);
   const [loadedAt, setLoadedAt] = useState(0);
   const [view, setView] = useState<'list' | 'table'>('list');
-  const [onlyNew, setOnlyNew] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(true);
   const [ym, setYm] = useState(() => ({ y: new Date().getFullYear(), m: new Date().getMonth() + 1 }));
   const today = dayKey();
 
@@ -176,7 +176,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
                     </button>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs font-bold text-slate-700 min-w-[760px]">
+                    <table className="w-full text-xs font-bold text-slate-700 min-w-[920px]">
                       <thead>
                         <tr className="text-left text-[11px] text-slate-400 border-b border-slate-100">
                           <th className="py-1.5 pl-3 pr-2">학생</th>
@@ -184,6 +184,7 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
                           <th className="py-1.5 pr-2">연습량</th>
                           <th className="py-1.5 pr-2">타수</th>
                           <th className="py-1.5 pr-2">무엇을</th>
+                          <th className="py-1.5 pr-2">치는 단계</th>
                           <th className="py-1.5 pr-2">진도</th>
                           <th className="py-1.5 pr-2">한마디</th>
                           <th className="py-1.5 pr-3 text-right">확인</th>
@@ -227,6 +228,20 @@ export const ReportsInboxPanel: React.FC<Props> = ({ students, onOpenStudent }) 
                                   .filter(([, c]) => c > 0)
                                   .map(([m, c]) => `${MODE_NAME[m] || m} ${modeSetLabel(m, c, s.keySets)}`)
                                   .join(' · ') || <span className="text-slate-300">–</span>}
+                              </td>
+                              <td className="py-1.5 pr-2" data-testid="reports-stage">
+                                {Object.entries(s.stages || {}).length ? (
+                                  <span className="flex flex-col gap-0.5">
+                                    {Object.entries(s.stages || {}).map(([m, t]) => (
+                                      <span key={m} className="whitespace-nowrap">
+                                        <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-black mr-1">{MODE_NAME[m] || m}</span>
+                                        {t}
+                                      </span>
+                                    ))}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300">–</span>
+                                )}
                               </td>
                               <td className="py-1.5 pr-2 whitespace-nowrap tabular-nums">{s.questPercent}%</td>
                               <td className="py-1.5 pr-2 text-slate-600 max-w-[180px]">{r.note || <span className="text-slate-300">–</span>}</td>

@@ -173,11 +173,12 @@ export async function loadStudent(s: MoaSession): Promise<UserSession> {
 }
 
 /** 선생님이 타자팡 저장을 승인한 학생인지 (config/taja_approved, 선생님만 씀) */
-export async function approvedByTeacher(userId: string): Promise<boolean> {
+export async function approvedByTeacher(userId: string, strict = false): Promise<boolean> {
   try {
     const snap = await getDoc(doc(fs, 'config', 'taja_approved'));
     return !!(snap.exists() && (snap.data() as any).ok?.[userId]);
-  } catch {
+  } catch (e) {
+    if (strict) throw e; // 인터넷이 잠깐 끊긴 것을 '승인 안 됨'으로 착각하지 않게
     return false;
   }
 }
@@ -242,9 +243,44 @@ export async function memberKey(name: string, phone: string): Promise<string> {
   return 'n_t' + hex.slice(0, 30);
 }
 const memberRef = (key: string) => doc(fs, 'classes', MEMBER_CID, 'students', key);
+/** 타자팡 회원의 캐릭터(옷차림) — 모아팡 '캐릭터 꾸미기'(dress.html?who=member)와 함께 씀 */
+export const MEMBER_DRESS_KEY = 'taja_member_dress';
+export function getMemberDress(): { cid: string; key: string; name: string; className: string; outfit: any } | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(MEMBER_DRESS_KEY) || 'null');
+    return d && d.cid === MEMBER_CID && d.key ? d : null;
+  } catch {
+    return null;
+  }
+}
+/**
+ * 이 컴퓨터에 남아 있는 '다른 사람'의 캐릭터·이름 기록을 지움
+ *  - 타자팡에 선생님이나 다른 학생이 로그인했는데 예전 학생(모아팡 방번호 입장 등)의 옷·이름이 게임에 남는 문제 막기
+ *  - user 가 없으면(로그아웃) 둘 다 지움
+ */
+export function purgeStaleIdentities(user: { id: string; role?: string } | null) {
+  try {
+    const p = user && user.role !== 'master' ? parseUserId(user.id) : null;
+    const ses = getMoaSession();
+    if (ses && !(p && ses.cid === p.cid && ses.key === p.key)) localStorage.removeItem(SKEY);
+    const d = JSON.parse(localStorage.getItem(MEMBER_DRESS_KEY) || 'null');
+    if (d && !(p && p.cid === MEMBER_CID && d.key === p.key)) localStorage.removeItem(MEMBER_DRESS_KEY);
+    window.dispatchEvent(new Event('moa-outfit-changed'));
+  } catch {}
+}
+export function clearMemberDress() {
+  try {
+    localStorage.removeItem(MEMBER_DRESS_KEY);
+  } catch {}
+}
 const memberSession = (key: string, v: any, approved: boolean): UserSession => {
   const taja = v?.taja || {};
-  const s: MoaSession = { cid: MEMBER_CID, room: '', className: taja.className || MEMBER_CLASS, name: String(v?.name || ''), key };
+  const g = Number(taja.grade) || 0;
+  const s: MoaSession = { cid: MEMBER_CID, room: '', className: g ? `${g}학년` : MEMBER_CLASS, name: String(v?.name || ''), key }; // 타자팡 회원은 학년만 (모아팡 반과 따로)
+  try {
+    localStorage.setItem(MEMBER_DRESS_KEY, JSON.stringify({ cid: MEMBER_CID, key, name: s.name, className: s.className, outfit: v?.outfit || null }));
+    window.dispatchEvent(new Event('moa-outfit-changed'));
+  } catch {}
   return { ...studentSession(s, taja, approved), parentPhone: taja.phone ? prettyPhone(taja.phone) : undefined };
 };
 const checkInput = (name: string, phone: string) => {
@@ -334,17 +370,23 @@ export async function loginMember(rawName: string, phone: string): Promise<{ ok:
 }
 
 /** 저장된 로그인으로 다시 들어오기 (승인이 풀렸으면 null) */
-export async function reloadMember(userId: string): Promise<UserSession | null> {
+/**
+ * 이 컴퓨터에 로그인해 둔 회원을 다시 확인
+ *  - null: 지워졌거나 승인이 풀린 회원 → 로그아웃
+ *  - 'offline': 인터넷·Firebase에 잠깐 닿지 않음 → 로그인은 그대로 두고 나중에 다시 확인
+ *    (예전에는 이때도 null 이라 학교 와이파이가 느린 날 학생이 저절로 로그아웃됐음)
+ */
+export async function reloadMember(userId: string): Promise<UserSession | null | 'offline'> {
   const p = parseUserId(userId);
   if (!p || p.cid !== MEMBER_CID) return null;
   try {
     const u = await ensureUser();
     const snap = await getDoc(memberRef(p.key));
-    if (!snap.exists() || !(await approvedByTeacher(userId))) return null;
+    if (!snap.exists() || !(await approvedByTeacher(userId, true))) return null;
     const v = snap.data() as any;
     if (v.uid !== u.uid) await setDoc(memberRef(p.key), { name: v.name, uid: u.uid, seen: serverTimestamp() }, { merge: true });
     return memberSession(p.key, v, true);
   } catch {
-    return null;
+    return 'offline';
   }
 }

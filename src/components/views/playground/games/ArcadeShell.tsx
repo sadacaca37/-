@@ -1,5 +1,14 @@
 import React from 'react';
 
+/** CSS 변수 안의 그림 주소는 CSS 파일 기준으로 풀리므로, 페이지 기준 전체 주소로 바꿔 넘김 */
+const sceneUrl = (src: string) => {
+  try {
+    return new URL(src, document.baseURI).href;
+  } catch {
+    return src;
+  }
+};
+
 /** Shared retro cabinet frame used by the basic (기본) games. */
 export const ArcadeShell: React.FC<{
   title: string;
@@ -12,7 +21,9 @@ export const ArcadeShell: React.FC<{
   onRestart?: () => void;
   children: React.ReactNode;
   controls?: React.ReactNode;
-}> = ({ title, subtitle, tone = '#ff5fae', score, best, extra, onBack, onRestart, children, controls }) => {
+  /** 게임판 뒤 장면 그림 (놀이터 카드 그림 등) — 없으면 tone 색 */
+  scene?: string;
+}> = ({ title, subtitle, tone = '#ff5fae', score, best, extra, onBack, onRestart, children, controls, scene }) => {
   const screenRef = React.useRef<HTMLDivElement>(null);
   // bring the play screen into view once, so arrow-key games never start half off-screen
   React.useEffect(() => {
@@ -22,7 +33,7 @@ export const ArcadeShell: React.FC<{
     return () => window.clearTimeout(t);
   }, []);
   return (
-  <div className="ac" style={{ ['--ac' as any]: tone }}>
+  <div className={`ac ${scene ? 'ac-scene' : ''}`} style={{ ['--ac' as any]: tone, ...(scene ? { ['--ac-scene' as any]: `url('${sceneUrl(scene)}')` } : {}) }}>
     <div className="ac-top">
       {onBack && (
         <button type="button" className="ac-btn" onClick={onBack}>

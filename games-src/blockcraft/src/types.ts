@@ -79,9 +79,129 @@ export enum BlockType {
   SMOKE_BOMB = 65,
   HEAL_BOMB = 66,
   THUNDER_BOMB = 67,
+  // Heavy falling block
+  ANVIL = 68,
+  // Enchanting
+  ENCHANTING_TABLE = 69,
+  // Defense
+  SHIELD = 70,
+  // Ores
+  COAL_ORE = 71,
+  IRON_ORE = 72,
+  DEEPSLATE = 73,
+  BED_FOOT = 74, // second half of a bed (placed automatically)
+  LAVA = 75,
+  BUCKET = 76,
+  WATER_BUCKET = 77,
+  LAVA_BUCKET = 78,
 }
 
 export type GameMode = "creative" | "survival";
+export type Difficulty = "easy" | "normal" | "hard";
+export const DIFFICULTY_SETTINGS: Record<Difficulty, { nameKo: string; mobDamage: number; hungerRate: number; maxMonsters: number; spawnInterval: number; description: string }> = {
+  easy: { nameKo: "쉬움", mobDamage: 0.5, hungerRate: 0.6, maxMonsters: 3, spawnInterval: 9, description: "몬스터가 적고 약해요. 배고픔도 천천히." },
+  normal: { nameKo: "보통", mobDamage: 1, hungerRate: 1, maxMonsters: 6, spawnInterval: 5, description: "기본 밸런스." },
+  hard: { nameKo: "어려움", mobDamage: 1.6, hungerRate: 1.5, maxMonsters: 12, spawnInterval: 2.5, description: "몬스터가 많고 아파요. 굶으면 죽어요." },
+};
+
+// --- Enchantments (applied to tools/weapons at the Enchanting Table) ---
+export type EnchantType =
+  // Tools & weapons
+  | "unbreaking" | "mending" | "binding_curse" | "vanishing_curse"
+  | "efficiency" | "silk_touch" | "fortune"
+  | "luck_of_the_sea" | "lure"
+  | "sharpness" | "smite" | "bane_of_arthropods" | "knockback" | "fire_aspect" | "looting" | "sweeping" | "charge"
+  | "riptide" | "channeling" | "loyalty" | "impaling"
+  // Bows & crossbows
+  | "power" | "punch" | "flame" | "infinity" | "piercing" | "multishot" | "quick_charge"
+  // Mace
+  | "density" | "breach" | "wind_burst"
+  // Armor
+  | "protection" | "fire_protection" | "blast_protection" | "projectile_protection" | "thorns"
+  | "respiration" | "aqua_affinity" | "swift_sneak" | "feather_falling" | "depth_strider" | "frost_walker" | "soul_speed";
+export type SlotEnchantments = Partial<Record<EnchantType, number>>;
+
+// What an enchantment can go on. Tool types that exist in this game are
+// sword/pickaxe/axe/shovel/shield; the rest are listed for completeness and
+// light up once that gear is added. Armor enchantments also go on the
+// shield here, since the shield is our only piece of defensive gear.
+export type EnchantTarget =
+  | "sword" | "pickaxe" | "axe" | "shovel" | "hoe" | "shield" | "fishing_rod" | "spear" | "trident" | "mace"
+  | "bow" | "crossbow" | "armor" | "helmet" | "leggings" | "boots" | "elytra";
+
+export interface EnchantmentDef {
+  id: EnchantType;
+  nameKo: string;
+  name: string;
+  maxLevel: number;
+  appliesTo: EnchantTarget[];
+  curse?: boolean;
+  treasure?: boolean; // blue in the wiki table: can't be rolled at a table in Minecraft, here it just costs more
+  description: string;
+}
+
+const TOOLS: EnchantTarget[] = ["shovel", "pickaxe", "axe", "hoe"];
+const WEAPONS: EnchantTarget[] = ["sword", "spear", "axe"];
+const ARMOR: EnchantTarget[] = ["armor", "helmet", "leggings", "boots", "shield"];
+const DURABLE: EnchantTarget[] = [...TOOLS, ...WEAPONS, "shield", "fishing_rod", "trident", "mace", "bow", "crossbow", ...ARMOR, "elytra"];
+
+export const ENCHANTMENTS: EnchantmentDef[] = [
+  // --- 내구도가 있는 모든 아이템 ---
+  { id: "unbreaking", nameKo: "내구성", name: "Unbreaking", maxLevel: 3, appliesTo: DURABLE, description: "레벨당 내구도가 닳을 확률 감소" },
+  { id: "mending", nameKo: "수선", name: "Mending", maxLevel: 1, appliesTo: DURABLE, treasure: true, description: "블록을 캐거나 몬스터를 잡을 때 내구도가 조금씩 회복" },
+  { id: "binding_curse", nameKo: "귀속 저주", name: "Curse of Binding", maxLevel: 1, appliesTo: ["armor", "helmet", "leggings", "boots", "elytra", "shield"], curse: true, treasure: true, description: "저주: 한 번 들면 슬롯에서 뗄 수 없음 (F로 바꾸기 불가)" },
+  { id: "vanishing_curse", nameKo: "소실 저주", name: "Curse of Vanishing", maxLevel: 1, appliesTo: DURABLE, curse: true, treasure: true, description: "저주: 죽으면 아이템이 사라짐" },
+  // --- 도구 ---
+  { id: "efficiency", nameKo: "효율", name: "Efficiency", maxLevel: 5, appliesTo: TOOLS, description: "레벨당 채굴 속도 +25%" },
+  { id: "silk_touch", nameKo: "섬세한 손길", name: "Silk Touch", maxLevel: 1, appliesTo: TOOLS, description: "돌·원석·유리가 부서지지 않고 그대로 드롭" },
+  { id: "fortune", nameKo: "행운", name: "Fortune", maxLevel: 3, appliesTo: TOOLS, description: "광물을 캘 때 레벨당 추가 드롭 확률 +30%" },
+  // --- 낚싯대 ---
+  { id: "luck_of_the_sea", nameKo: "바다의 행운", name: "Luck of the Sea", maxLevel: 3, appliesTo: ["fishing_rod"], description: "낚시로 보물을 건질 확률 증가" },
+  { id: "lure", nameKo: "미끼", name: "Lure", maxLevel: 3, appliesTo: ["fishing_rod"], description: "물고기가 더 빨리 미끼를 뭅니다" },
+  // --- 검 / 창 / 도끼 ---
+  { id: "sharpness", nameKo: "날카로움", name: "Sharpness", maxLevel: 5, appliesTo: WEAPONS, description: "레벨당 공격력 +1.5" },
+  { id: "smite", nameKo: "강타", name: "Smite", maxLevel: 5, appliesTo: [...WEAPONS, "mace"], description: "좀비 같은 언데드에게 레벨당 +2.5 추가 피해" },
+  { id: "bane_of_arthropods", nameKo: "살충", name: "Bane of Arthropods", maxLevel: 5, appliesTo: [...WEAPONS, "mace"], description: "슬라임·벌레류에게 레벨당 +2.5 추가 피해" },
+  { id: "knockback", nameKo: "밀치기", name: "Knockback", maxLevel: 2, appliesTo: ["sword", "spear"], description: "맞은 몬스터를 더 멀리 날려 보냄" },
+  { id: "fire_aspect", nameKo: "발화", name: "Fire Aspect", maxLevel: 2, appliesTo: ["sword", "spear", "mace"], description: "맞은 몬스터가 레벨당 4초 동안 불탐" },
+  { id: "looting", nameKo: "약탈", name: "Looting", maxLevel: 3, appliesTo: ["sword", "spear"], description: "몬스터가 아이템을 더 많이 떨어뜨림" },
+  { id: "sweeping", nameKo: "휩쓸기", name: "Sweeping Edge", maxLevel: 3, appliesTo: ["sword"], description: "주변 몬스터도 함께 베어냄 (레벨당 피해 +25%)" },
+  { id: "charge", nameKo: "돌진", name: "Charge", maxLevel: 3, appliesTo: ["spear"], description: "달려가며 찌르면 추가 피해" },
+  // --- 삼지창 ---
+  { id: "riptide", nameKo: "급류", name: "Riptide", maxLevel: 3, appliesTo: ["trident"], description: "물속이나 비 올 때 던지면 함께 날아감" },
+  { id: "channeling", nameKo: "집전", name: "Channeling", maxLevel: 1, appliesTo: ["trident"], description: "뇌우 때 맞힌 대상에 번개" },
+  { id: "loyalty", nameKo: "충성", name: "Loyalty", maxLevel: 3, appliesTo: ["trident"], description: "던진 삼지창이 되돌아옴" },
+  { id: "impaling", nameKo: "찌르기", name: "Impaling", maxLevel: 5, appliesTo: ["trident"], description: "물속 생물에게 추가 피해" },
+  // --- 활 ---
+  { id: "power", nameKo: "힘", name: "Power", maxLevel: 5, appliesTo: ["bow"], description: "화살 피해 증가" },
+  { id: "punch", nameKo: "밀어내기", name: "Punch", maxLevel: 2, appliesTo: ["bow"], description: "화살 밀치기 증가" },
+  { id: "flame", nameKo: "화염", name: "Flame", maxLevel: 1, appliesTo: ["bow"], description: "불화살을 쏨" },
+  { id: "infinity", nameKo: "무한", name: "Infinity", maxLevel: 1, appliesTo: ["bow"], description: "화살을 소모하지 않음" },
+  // --- 쇠뇌 ---
+  { id: "piercing", nameKo: "관통", name: "Piercing", maxLevel: 4, appliesTo: ["crossbow"], description: "화살이 여러 대상을 관통" },
+  { id: "multishot", nameKo: "다중 발사", name: "Multishot", maxLevel: 1, appliesTo: ["crossbow"], description: "화살 3발을 한 번에" },
+  { id: "quick_charge", nameKo: "빠른 장전", name: "Quick Charge", maxLevel: 3, appliesTo: ["crossbow"], description: "장전 시간 단축" },
+  // --- 철퇴 ---
+  { id: "density", nameKo: "육중", name: "Density", maxLevel: 5, appliesTo: ["mace"], description: "떨어진 높이에 비례해 추가 피해" },
+  { id: "breach", nameKo: "격파", name: "Breach", maxLevel: 4, appliesTo: ["mace"], description: "상대 방어력을 무시" },
+  { id: "wind_burst", nameKo: "돌풍", name: "Wind Burst", maxLevel: 3, appliesTo: ["mace"], treasure: true, description: "내려찍으면 돌풍으로 다시 튀어오름" },
+  // --- 갑옷 (이 게임에서는 방패에도 부여 가능) ---
+  { id: "protection", nameKo: "보호", name: "Protection", maxLevel: 4, appliesTo: ARMOR, description: "방패로 막을 때 레벨당 피해 -5% 추가" },
+  { id: "fire_protection", nameKo: "화염 보호", name: "Fire Protection", maxLevel: 4, appliesTo: ARMOR, description: "용암·불 피해를 레벨당 20% 감소" },
+  { id: "blast_protection", nameKo: "폭발 보호", name: "Blast Protection", maxLevel: 4, appliesTo: ARMOR, description: "TNT·폭발 피해를 레벨당 20% 감소" },
+  { id: "projectile_protection", nameKo: "발사체 보호", name: "Projectile Protection", maxLevel: 4, appliesTo: ARMOR, description: "화살 등 발사체 피해 감소" },
+  { id: "thorns", nameKo: "가시", name: "Thorns", maxLevel: 3, appliesTo: ARMOR, description: "나를 때린 몬스터가 레벨당 1~2 피해를 되받음" },
+  // --- 투구 ---
+  { id: "respiration", nameKo: "호흡", name: "Respiration", maxLevel: 3, appliesTo: ["helmet", "shield"], description: "물속에서 더 오래 숨을 참음" },
+  { id: "aqua_affinity", nameKo: "친수성", name: "Aqua Affinity", maxLevel: 1, appliesTo: ["helmet", "shield"], description: "물속에서도 채굴 속도가 줄지 않음" },
+  // --- 레깅스 ---
+  { id: "swift_sneak", nameKo: "신속한 잠행", name: "Swift Sneak", maxLevel: 3, appliesTo: ["leggings", "shield"], treasure: true, description: "웅크린 채로 더 빨리 이동" },
+  // --- 부츠 ---
+  { id: "feather_falling", nameKo: "가벼운 착지", name: "Feather Falling", maxLevel: 4, appliesTo: ["boots", "shield"], description: "낙하 피해를 레벨당 25% 감소" },
+  { id: "depth_strider", nameKo: "물갈퀴", name: "Depth Strider", maxLevel: 3, appliesTo: ["boots", "shield"], description: "물속에서 더 빨리 이동" },
+  { id: "frost_walker", nameKo: "차가운 걸음", name: "Frost Walker", maxLevel: 2, appliesTo: ["boots", "shield"], treasure: true, description: "물 위를 걸으면 발밑이 얼어 다리처럼 건널 수 있음" },
+  { id: "soul_speed", nameKo: "영혼 가속", name: "Soul Speed", maxLevel: 3, appliesTo: ["boots", "shield"], treasure: true, description: "모래·자갈 위에서 더 빨리 달림" },
+];
 export type BombType = "firework" | "smoke" | "heal" | "thunder" | "tnt";
 
 export enum ItemCategory {
@@ -95,7 +215,7 @@ export type AnimalType = "duck" | "chicken" | "sheep" | "cow";
 export type MobType = "zombie" | "slime";
 export type CreatureType = AnimalType | MobType;
 
-export type ToolType = "pickaxe" | "axe" | "shovel" | "sword" | "none";
+export type ToolType = "pickaxe" | "axe" | "shovel" | "sword" | "shield" | "none";
 export type ToolMaterial = "wood" | "iron" | "diamond";
 
 export interface ToolStats {
@@ -129,6 +249,7 @@ export interface BlockMeta {
   lightLevel?: number; // Torch: 14, Glowstone: 15
   toolStats?: ToolStats;
   bombType?: BombType; // Effect bombs: right-click to use
+  fallDamage?: number; // Gravity blocks that hurt whatever they land on (anvil)
 }
 
 export const BLOCK_DEFINITIONS: Record<BlockType, BlockMeta> = {
@@ -1020,8 +1141,8 @@ export const BLOCK_DEFINITIONS: Record<BlockType, BlockMeta> = {
     id: BlockType.LANTERN,
     name: "Lantern",
     nameKo: "랜턴",
-    solid: true,
-    transparent: false,
+    solid: false,
+    transparent: true,
     color: "#fbbf24",
     textureType: "lantern",
     soundType: "metal",
@@ -1185,6 +1306,173 @@ export const BLOCK_DEFINITIONS: Record<BlockType, BlockMeta> = {
     isPlaceable: false,
     bombType: "thunder",
     description: "우클릭하면 번개가 내리쳐 주변 몬스터에게 큰 피해를 줍니다.",
+  },
+  [BlockType.SHIELD]: {
+    id: BlockType.SHIELD,
+    name: "Shield",
+    nameKo: "방패",
+    solid: false,
+    transparent: true,
+    color: "#a16207",
+    textureType: "shield",
+    soundType: "wood",
+    category: "tool",
+    isTool: true,
+    isPlaceable: false,
+    damage: 1,
+    toolStats: {
+      toolType: "shield",
+      material: "iron",
+      maxDurability: 336,
+      miningSpeedMultiplier: 1,
+      attackDamage: 1,
+    },
+    description: "손에 들고 있으면 몬스터·폭발 피해를 70% 막아주고 밀려나지 않습니다.",
+  },
+  [BlockType.ENCHANTING_TABLE]: {
+    id: BlockType.ENCHANTING_TABLE,
+    name: "Enchanting Table",
+    nameKo: "마법 부여대",
+    solid: true,
+    transparent: false,
+    color: "#7c3aed",
+    textureType: "enchanting_table",
+    soundType: "stone",
+    category: "block",
+    isPlaceable: true,
+    lightLevel: 7,
+    hardness: 5.0,
+    preferredTool: "pickaxe",
+    description: "우클릭하면 검·도구에 마법을 부여합니다. 서바이벌에서는 레벨당 다이아몬드 1개가 듭니다.",
+  },
+  [BlockType.COAL_ORE]: {
+    id: BlockType.COAL_ORE,
+    name: "Coal Ore",
+    nameKo: "석탄 원석",
+    solid: true,
+    transparent: false,
+    color: "#4b5563",
+    textureType: "coal_ore",
+    soundType: "stone",
+    category: "block",
+    isPlaceable: true,
+    hardness: 3.0,
+    preferredTool: "pickaxe",
+    description: "곡괭이로 캐면 석탄이 나옵니다. 횃불 재료예요.",
+  },
+  [BlockType.IRON_ORE]: {
+    id: BlockType.IRON_ORE,
+    name: "Iron Ore",
+    nameKo: "철 원석",
+    solid: true,
+    transparent: false,
+    color: "#a8a29e",
+    textureType: "iron_ore",
+    soundType: "stone",
+    category: "block",
+    isPlaceable: true,
+    hardness: 3.0,
+    preferredTool: "pickaxe",
+    description: "곡괭이로 캐면 철괴가 나옵니다. 철 도구와 방패 재료예요.",
+  },
+  [BlockType.BED_FOOT]: {
+    id: BlockType.BED_FOOT,
+    name: "Bed (foot)",
+    nameKo: "침대",
+    solid: true,
+    transparent: false,
+    color: "#dc2626",
+    textureType: "bed_foot",
+    soundType: "cloth",
+    category: "block",
+    isPlaceable: false,
+    hardness: 0.3,
+    description: "침대의 발치 부분입니다.",
+  },
+  [BlockType.LAVA]: {
+    id: BlockType.LAVA,
+    name: "Lava",
+    nameKo: "용암",
+    solid: false,
+    transparent: true,
+    color: "#f97316",
+    textureType: "lava",
+    soundType: "glass",
+    category: "block",
+    isPlaceable: true,
+    isFluid: true,
+    description: "천천히 흐르는 뜨거운 유체. 닿으면 큰 피해를 입고, 물과 만나면 조약돌이 됩니다.",
+  },
+  [BlockType.BUCKET]: {
+    id: BlockType.BUCKET,
+    name: "Bucket",
+    nameKo: "양동이",
+    solid: false,
+    transparent: true,
+    color: "#9ca3af",
+    textureType: "bucket",
+    soundType: "stone",
+    category: "item",
+    isPlaceable: false,
+    description: "물이나 용암을 우클릭으로 퍼 담습니다. 철괴 3개로 만듭니다.",
+  },
+  [BlockType.WATER_BUCKET]: {
+    id: BlockType.WATER_BUCKET,
+    name: "Water Bucket",
+    nameKo: "물 양동이",
+    solid: false,
+    transparent: true,
+    color: "#3b82f6",
+    textureType: "water_bucket",
+    soundType: "glass",
+    category: "item",
+    isPlaceable: false,
+    description: "우클릭으로 물을 쏟아 붓습니다.",
+  },
+  [BlockType.LAVA_BUCKET]: {
+    id: BlockType.LAVA_BUCKET,
+    name: "Lava Bucket",
+    nameKo: "용암 양동이",
+    solid: false,
+    transparent: true,
+    color: "#f97316",
+    textureType: "lava_bucket",
+    soundType: "glass",
+    category: "item",
+    isPlaceable: false,
+    description: "우클릭으로 용암을 쏟아 붓습니다. 조심하세요!",
+  },
+  [BlockType.DEEPSLATE]: {
+    id: BlockType.DEEPSLATE,
+    name: "Deepslate",
+    nameKo: "심층암",
+    solid: true,
+    transparent: false,
+    color: "#3f3f46",
+    textureType: "deepslate",
+    soundType: "stone",
+    category: "block",
+    isPlaceable: true,
+    hardness: 4.5,
+    preferredTool: "pickaxe",
+    description: "땅 깊은 곳의 단단하고 어두운 암석입니다. 돌보다 캐는 데 오래 걸려요.",
+  },
+  [BlockType.ANVIL]: {
+    id: BlockType.ANVIL,
+    name: "Anvil",
+    nameKo: "모루",
+    solid: true,
+    transparent: true,
+    color: "#3f3f46",
+    textureType: "anvil",
+    soundType: "metal",
+    category: "block",
+    isPlaceable: true,
+    gravityAffected: true,
+    fallDamage: 8,
+    hardness: 5.0,
+    preferredTool: "pickaxe",
+    description: "무거운 쇠 모루입니다. 아래가 비면 떨어지고, 떨어지는 모루에 맞으면 크게 다칩니다.",
   },
 };
 

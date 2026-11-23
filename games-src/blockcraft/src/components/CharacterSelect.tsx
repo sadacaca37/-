@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
-import { CHARACTER_PRESETS, CharacterPreset, GameMode } from "../types";
+import { CHARACTER_PRESETS, CharacterPreset, Difficulty, DIFFICULTY_SETTINGS, GameMode } from "../types";
 import { drawCharacterPreview } from "../game/CharacterSkin";
 
 interface CharacterSelectProps {
-  onSelect: (characterId: number, gameMode: GameMode) => void;
+  onSelect: (characterId: number, gameMode: GameMode, difficulty: Difficulty) => void;
+  onQuickPlay?: (characterId: number, gameMode: GameMode, difficulty: Difficulty) => void;
   initialSelected?: number | null;
   initialMode?: GameMode;
 }
@@ -14,13 +15,14 @@ interface CharacterSelectProps {
 // distinguishable to other players in multiplayer (previously everyone
 // looked like the same generic avatar and only the floating nickname
 // differed, which read as "다른 사람들은 이름만 보이고 캐릭터가 안 보임").
-export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelect, initialSelected = null, initialMode = "creative" }) => {
+export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelect, onQuickPlay, initialSelected = null, initialMode = "creative" }) => {
   const [picked, setPicked] = useState<number | null>(initialSelected);
   const [mode, setMode] = useState<GameMode>(initialMode);
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
 
   const handleConfirm = () => {
     if (picked === null) return;
-    onSelect(picked, mode);
+    onSelect(picked, mode, difficulty);
   };
 
   return (
@@ -84,7 +86,29 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelect, init
               <div className="mt-1 text-[11px] leading-snug text-stone-400">비행 불가, 배고픔 게이지, 몬스터와 폭발에 죽으면 리스폰. 폭탄은 1회용.</div>
             </button>
           </div>
-          <p className="mt-2 text-[11px] text-stone-500">멀티플레이에서는 방을 만든 사람의 모드가 모두에게 적용돼요.</p>
+          {mode === "survival" && (
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-400">난이도</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(DIFFICULTY_SETTINGS) as Difficulty[]).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDifficulty(d)}
+                    className={`rounded-lg border-2 px-2 py-2 text-left transition ${
+                      difficulty === d
+                        ? d === "hard" ? "border-red-400 bg-red-500/10" : d === "easy" ? "border-emerald-400 bg-emerald-500/10" : "border-amber-400 bg-amber-500/10"
+                        : "border-stone-700 bg-stone-800/60 hover:border-stone-500"
+                    }`}
+                  >
+                    <div className="text-sm font-extrabold text-stone-100">{DIFFICULTY_SETTINGS[d].nameKo}</div>
+                    <div className="mt-0.5 text-[10px] leading-snug text-stone-400">{DIFFICULTY_SETTINGS[d].description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] text-stone-500">멀티플레이에서는 방을 만든 사람의 모드가 모두에게 적용돼요. 서바이벌은 빈손으로 시작해 블록을 캐서 아이템을 모아요 (빵 3개 지급).</p>
         </div>
 
         <button
@@ -93,8 +117,17 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelect, init
           onClick={handleConfirm}
           className="mt-6 w-full rounded-xl bg-amber-500 py-3 text-base font-extrabold text-stone-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {picked === null ? "캐릭터를 선택해주세요" : "이 캐릭터로 입장하기"}
+          {picked === null ? "캐릭터를 선택해주세요" : "이 캐릭터로 입장하기 (방 만들기 / 참가)"}
         </button>
+        {onQuickPlay && (
+          <button
+            type="button"
+            onClick={() => onQuickPlay(picked ?? 0, mode, difficulty)}
+            className="mt-2 w-full rounded-xl border border-emerald-500/50 bg-emerald-600/20 py-3 text-base font-extrabold text-emerald-200 transition hover:bg-emerald-600/35"
+          >
+            ⚡ 바로 플레이 (혼자 시작)
+          </button>
+        )}
       </div>
     </div>
   );

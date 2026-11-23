@@ -28,7 +28,7 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState>('TITLE');
   const [gameMode, setGameMode] = useState<GameMode>('1P');
   const [selectedPlane, setSelectedPlane] = useState<PlaneId>('AV8_HARRIER');
-  const [selectedPlane2, setSelectedPlane2] = useState<PlaneId>('F22_RAPTOR');
+  const [selectedPlane2, setSelectedPlane2] = useState<PlaneId>('FA18_SUPER_HORNET');
   const [credits, setCredits] = useState<number>(3);
   const [highScores, setHighScores] = useState<HighScoreEntry[]>(() => {
     try {
@@ -42,7 +42,13 @@ export default function App() {
   const [settings, setSettings] = useState<GameSettings>(() => {
     try {
       const saved = localStorage.getItem(SETTINGS_KEY);
-      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      const loaded: GameSettings = saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      // 새 그림이 선명하게 보이도록, 그림을 바꾼 뒤 처음 한 번은 화면 줄무늬(CRT) 효과를 꺼 둡니다.
+      if (!localStorage.getItem('airplane_art_v2')) {
+        localStorage.setItem('airplane_art_v2', '1');
+        return { ...loaded, scanlines: false, crtFilter: false };
+      }
+      return loaded;
     } catch {
       return DEFAULT_SETTINGS;
     }
@@ -107,6 +113,8 @@ export default function App() {
     } else {
       engineRef.current.restart(planeId1, p2Id, mode);
     }
+    // 개발 확인용 (npm run dev 에서만): 브라우저 콘솔에서 window.__engine 으로 상태를 볼 수 있어요
+    if (import.meta.env.DEV) (window as unknown as { __engine?: GameEngine }).__engine = engineRef.current;
     setGameState('PLAYING');
   }, [settings, gameMode, selectedPlane2]);
 
@@ -835,7 +843,7 @@ export default function App() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-white uppercase font-mono truncate">
-                    {PLANES[selectedPlane]?.name.split(' ')[0] || 'HARRIER'}
+                    {PLANES[selectedPlane]?.koreanName || '01. 피닉스 스트라이크'}
                   </p>
                   <p className="text-[9px] text-emerald-400 font-mono">
                     {gameState === 'PLAYING' && hudLives > 0 ? 'ACTIVE IN COMBAT' : hudLives <= 0 ? 'DOWNED' : 'READY'}
@@ -885,7 +893,7 @@ export default function App() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white uppercase font-mono truncate">
-                      {PLANES[selectedPlane2]?.name.split(' ')[0] || 'RAPTOR'}
+                      {PLANES[selectedPlane2]?.koreanName || '02. 블루 템페스트'}
                     </p>
                     <p className="text-[9px] text-cyan-400 font-mono">
                       {gameState === 'PLAYING' && hud2PLives > 0 ? 'ACTIVE IN COMBAT' : hud2PLives <= 0 ? 'DOWNED' : 'READY'}

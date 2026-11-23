@@ -27,6 +27,26 @@ export interface ReportSummary {
   questPercent: number;
   /** 단계별 [끝낸 코스, 전체 코스] */
   quest: Record<string, [number, number]>;
+  /** 오늘 친 단계 (가장 최근): { key: '3단계: 오른손 윗자리', word: '1단계: …', sent: '속담', long: '어린 왕자' } */
+  stages?: Record<string, string>;
+}
+
+/** 오늘 연습 기록에서 종류별로 마지막에 친 단계 */
+function todayStages(userId: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const MAP: Record<string, string> = { 'key-practice': 'key', 'word-practice': 'word', 'sentence-practice': 'sent', 'long-practice': 'long' };
+  try {
+    const hist: any[] = JSON.parse(localStorage.getItem(`typang_history_user_${userId}`) || '[]');
+    const today = new Date().toDateString();
+    // 기록은 최근 것이 앞에 있음 → 처음 만난 것이 마지막에 친 단계
+    for (const r of hist) {
+      const m = MAP[r?.mode];
+      if (!m || out[m] || !r.timestamp || new Date(r.timestamp).toDateString() !== today) continue;
+      const t = String(r.stageTitle || '').trim();
+      if (t) out[m] = `${r.language === 'en' ? '영어 ' : ''}${t}`.slice(0, 40);
+    }
+  } catch {}
+  return out;
 }
 
 export interface DailyReport {
@@ -86,6 +106,7 @@ export function buildTodaySummary(userId: string): { day: string; active: boolea
       byMode: { ...(d?.m || {}) },
       questPercent: act.questPercent,
       quest,
+      stages: todayStages(userId),
     },
   };
 }
@@ -94,12 +115,15 @@ export function buildTodaySummary(userId: string): { day: string; active: boolea
 export async function sendTodayReport(user: UserSession, note: string): Promise<{ success: boolean; message?: string; report?: DailyReport }> {
   const { day, active, summary } = buildTodaySummary(user.id);
   if (!active) return { success: false, message: '오늘 친 타자가 아직 없어요. 연습을 하고 나서 보내 주세요.' };
+  if (!summary.sets) return { success: false, message: '아직 끝까지 친 세트가 없어요. 한 세트를 끝까지(완주) 치고 나서 보내 주세요.' };
   const p = parseUserId(user.id);
   if (!p) return { success: false, message: '모아팡에서 방번호와 이름으로 들어온 학생만 보낼 수 있어요.' };
-  // 함께 쓰는 선생님(반 문서에 owner가 있는 반)은 아직 타자팡 보고함이 없어서, 보고는 주 선생님 반만 받는다
+  // 함께 쓰는 선생님(owner가 있는 반)은 아직 보고함을 쓰지 않음 (보고함은 주 선생님만)
   try {
-    const c = await getDoc(doc(fs, 'classes', p.cid));
-    if (c.exists() && (c.data() as any).owner) return { success: false, message: '우리 반 선생님은 아직 타자팡 보고 받기를 쓰지 않아요. 연습은 그대로 계속할 수 있어요!' };
+    const cls = await getDoc(doc(fs, 'classes', p.cid));
+    if (cls.exists() && cls.data().owner) {
+      return { success: false, message: '우리 반 선생님은 아직 타자팡 보고 받기를 쓰지 않아요. 연습은 그대로 계속할 수 있어요!' };
+    }
   } catch {}
   const report: DailyReport & { cid: string; key: string } = {
     id: reportId(user.id, day),

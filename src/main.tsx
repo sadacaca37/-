@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import '@fontsource/jua';
 import './index.css';
+import './styles/unify.css';
 
 // 로그아웃 상태에서는 '게스트' 이름으로 저장되는 기록·포인트·진행도를 남기지 않음
 // (설정값처럼 학생과 상관없는 것만 저장됨)

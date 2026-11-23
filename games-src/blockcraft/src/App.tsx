@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
-import { BlockType, BLOCK_DEFINITIONS, ChatMessage, GameMode, RoomState, UserAccount } from "./types";
+import { BlockType, BLOCK_DEFINITIONS, ChatMessage, Difficulty, DIFFICULTY_SETTINGS, EnchantType, GameMode, RoomState, SlotEnchantments, UserAccount } from "./types";
 import { VoxelTextureAtlas } from "./game/TextureAtlas";
 import { VoxelWorld } from "./game/VoxelWorld";
 import { PlayerController, DEFAULT_HOTBAR } from "./game/PlayerController";
 import { MultiplayerManager } from "./game/MultiplayerManager";
 import { AnimalManager } from "./game/AnimalManager";
 import { MonsterManager } from "./game/MonsterManager";
+import { DayNightCycle } from "./game/DayNightCycle";
+import { VillagerManager } from "./game/VillagerManager";
 import { EffectsManager } from "./game/EffectsManager";
 import { authService } from "./game/AuthService";
 import { soundFx } from "./game/SoundEffects";
@@ -18,6 +20,10 @@ import { ChatBox } from "./components/ChatBox";
 import { GameHUD } from "./components/GameHUD";
 import { HealthBar } from "./components/HealthBar";
 import { HungerBar } from "./components/HungerBar";
+import { EnchantModal } from "./components/EnchantModal";
+import { ChestModal, ItemCounts } from "./components/ChestModal";
+import { TradeModal } from "./components/TradeModal";
+import { VILLAGER_TRADES, TradeOffer } from "./game/Trades";
 import { AuthModal } from "./components/AuthModal";
 
 export default function App() {
@@ -32,6 +38,7 @@ export default function App() {
   const playerRef = useRef<PlayerController | null>(null);
   const multiRef = useRef<MultiplayerManager | null>(null);
   const animalManagerRef = useRef<AnimalManager | null>(null);
+  const villagersRef = useRef<VillagerManager | null>(null);
   const monsterManagerRef = useRef<MonsterManager | null>(null);
   const effectsRef = useRef<EffectsManager | null>(null);
   const animFrameIdRef = useRef<number>(0);
@@ -47,6 +54,8 @@ export default function App() {
   // Character chosen on the pre-Lobby character-select screen (1 of 4 presets).
   // null = not chosen yet, so we show CharacterSelect instead of the Lobby.
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  const selectedCharacterRef = useRef<number | null>(null);
+  selectedCharacterRef.current = selectedCharacterId;
   // 지난번에 고른 캐릭터를 기억해 두었다가 미리 골라 둠
   const lastCharacterId = (() => {
     try {
@@ -64,6 +73,21 @@ export default function App() {
   gameModeRef.current = gameMode;
   const [playerHunger, setPlayerHunger] = useState<number>(20);
   const [screenFlash, setScreenFlash] = useState<string | null>(null);
+  const [isEnchantOpen, setIsEnchantOpen] = useState<boolean>(false);
+  // Chests: contents per block position ("x,y,z"), kept for the whole session
+  const chestsRef = useRef<Map<string, ItemCounts>>(new Map());
+  const [openChestKey, setOpenChestKey] = useState<string | null>(null);
+  const [tradeVillager, setTradeVillager] = useState<string | null>(null);
+  const [chestVersion, setChestVersion] = useState<number>(0);
+  const [offhandBlock, setOffhandBlock] = useState<BlockType>(BlockType.AIR);
+  const [isNightUI, setIsNightUI] = useState<boolean>(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  // Survival inventory: BlockType -> count. Creative ignores it (everything is free).
+  const [inventory, setInventory] = useState<Record<number, number>>({});
+  const inventoryRef = useRef<Record<number, number>>({});
+  inventoryRef.current = inventory;
+  const [miningProgress, setMiningProgress] = useState<number>(-1);
+  const [enchantments, setEnchantments] = useState<Record<number, SlotEnchantments>>({});
   const [activeSlot, setActiveSlot] = useState<number>(0);
   const [hotbarBlocks, setHotbarBlocks] = useState<BlockType[]>(() => [...DEFAULT_HOTBAR]);
   const [icons, setIcons] = useState<Record<BlockType, string>>({} as any);
@@ -105,6 +129,67 @@ export default function App() {
   //  좀비알을 골라도 벽돌이 나오고, 갑자기 안 움직이는 문제가 있었음)
   const hotbarRef = useRef<BlockType[]>(hotbarBlocks);
   hotbarRef.current = hotbarBlocks;
+
+  // --- Survival inventory helpers (counts live in inventoryRef; hotbar slots point at types) ---
+  const addItem = useCallback((type: BlockType, count: number) => {
+    if (type === BlockType.AIR || count <= 0) return;
+    const next = { ...inventoryRef.current, [type]: (inventoryRef.current[type] ?? 0) + count };
+    inventoryRef.current = next;
+    setInventory(next);
+    // Put a brand-new item type into the first empty hotbar slot
+    setHotbarBlocks((prev) => {
+      if (prev.includes(type)) return prev;
+      const idx = prev.findIndex((b) => b === BlockType.AIR);
+      if (idx < 0) return prev;
+      const n = [...prev];
+      n[idx] = type;
+      playerRef.current?.setSlotBlock(idx, type);
+      return n;
+    });
+  }, []);
+  const removeItem = useCallback((type: BlockType, count: number) => {
+    const have = inventoryRef.current[type] ?? 0;
+    const left = have - count;
+    const next = { ...inventoryRef.current };
+    if (left <= 0) delete next[type];
+    else next[type] = left;
+    inventoryRef.current = next;
+    setInventory(next);
+    if (left <= 0) {
+      const p = playerRef.current;
+      if (p && p.offhandBlock === type) {
+        p.offhandBlock = BlockType.AIR;
+        setOffhandBlock(BlockType.AIR);
+        p.updateHandMesh();
+      }
+      setHotbarBlocks((prev) => {
+        if (!prev.includes(type)) return prev;
+        const n = prev.map((b) => (b === type ? BlockType.AIR : b));
+        prev.forEach((b, i) => { if (b === type) playerRef.current?.setSlotBlock(i, BlockType.AIR); });
+        return n;
+      });
+    }
+  }, []);
+  const SURVIVAL_STARTER: Array<[BlockType, number]> = [[BlockType.BREAD, 3]];
+  const resetSurvivalInventory = useCallback(() => {
+    const inv: Record<number, number> = {};
+    const bar: BlockType[] = new Array(9).fill(BlockType.AIR);
+    SURVIVAL_STARTER.forEach(([t, c], i) => { inv[t] = c; bar[i] = t; });
+    inventoryRef.current = inv;
+    setInventory(inv);
+    setHotbarBlocks(bar);
+    const p = playerRef.current;
+    if (p) {
+      p.hotbarBlocks = [...bar];
+      p.enchantments.clear();
+      p.toolDurabilities.clear();
+      p.offhandBlock = BlockType.AIR;
+      setOffhandBlock(BlockType.AIR);
+      p.setActiveSlot(0);
+      p.isFlying = false;
+      setIsFlying(false);
+    }
+  }, []);
 
   // Manual & Auto-save helper
   const performSave = useCallback(async () => {
@@ -231,6 +316,16 @@ export default function App() {
 
     const hemiLight = new THREE.HemisphereLight(0x78a7ff, 0x5a7d3c, 0.35);
     scene.add(hemiLight);
+    // Lights must also illuminate the hand layer (1)
+    ambientLight.layers.enable(1);
+    sunLight.layers.enable(1);
+    hemiLight.layers.enable(1);
+
+    // Day / night cycle (240s per day). Monsters only spawn at night and
+    // zombies burn in daylight — see MonsterManager.update(isNight).
+    const dayNight = new DayNightCycle(scene, ambientLight, hemiLight, sunLight);
+    dayNight.moonLight.layers.enable(1);
+    let lastNightUI = false;
 
     // 6. Voxel World (Chunks & Meshing)
     const world = new VoxelWorld(scene, atlas);
@@ -252,7 +347,9 @@ export default function App() {
       }
       setGameStarted(true);
       gameStartedRef.current = true;
-      world.updateChunksAroundPlayer(0, 0);
+      world.updateChunksAroundPlayer(world.spawnOrigin.x, world.spawnOrigin.z);
+      applyOwnCharacter();
+      villagers.populate(world.spawnOrigin.x, world.spawnOrigin.z);
       player.resetToSpawn(multi.getSelfIndex());
       setTimeout(() => {
         player.requestLock();
@@ -267,9 +364,14 @@ export default function App() {
     const animals = new AnimalManager(scene, world);
     animalManagerRef.current = animals;
 
+    // Villagers + iron golem living around the spawn village
+    const villagers = new VillagerManager(scene, world);
+    villagersRef.current = villagers;
+
     // 9. Monster Manager (Zombies & Slimes + Loot Drops)
     const monsters = new MonsterManager(scene, world);
     monsterManagerRef.current = monsters;
+    villagers.monsterManager = monsters;
 
     // 9b. Effects (TNT, fireworks, smoke, heal, thunder)
     const effects = new EffectsManager(scene, world);
@@ -281,9 +383,51 @@ export default function App() {
     playerRef.current = player;
     player.gameMode = gameModeRef.current;
 
+    // Falling blocks: keep other players in sync and make anvils dangerous.
+    // Every client simulates the fall locally (it is deterministic), and only
+    // the host (or a solo player) broadcasts the result, so the room agrees
+    // on the final world without six copies of every event.
+    world.onPhysicsBlockChange = (x, y, z, type) => {
+      const roomNow = multi.currentRoom;
+      const isAuthority = !roomNow || roomNow.hostId === multi.selfId;
+      if (!isAuthority) return;
+      if (type === BlockType.AIR) multi.sendBlockBreak(x, y, z);
+      else multi.sendBlockPlace(x, y, z, type);
+      modifiedBlocksRef.current.push({ x, y, z, type });
+    };
+    const crushCheck = (x: number, y: number, z: number, type: BlockType, falling: boolean) => {
+      const dmg = BLOCK_DEFINITIONS[type]?.fallDamage ?? 0;
+      if (dmg <= 0) return;
+      const p = player.position;
+      const inColumn = Math.floor(p.x) === x && Math.floor(p.z) === z;
+      const headY = p.y + 1.8;
+      // The block occupies [y, y+1]; hit if it overlaps the player's body
+      if (inColumn && y < headY && y + 1 > p.y) {
+        player.takeDamage(dmg, new THREE.Vector3(x + 0.5, y + 2, z + 0.5));
+        setPickupNotice("🪨 떨어지는 모루에 맞았어요!");
+        setTimeout(() => setPickupNotice(null), 2000);
+      }
+      if (monsters.monsters.length > 0) {
+        for (const mob of [...monsters.monsters]) {
+          if (Math.floor(mob.position.x) === x && Math.floor(mob.position.z) === z && y < mob.position.y + 1.6 && y + 1 > mob.position.y) {
+            mob.health -= dmg;
+            mob.isHurt = true;
+            mob.hurtTimer = 0.4;
+            if (mob.health <= 0) monsters.killMonster(mob);
+          }
+        }
+      }
+      if (!falling) soundFx.playPlace();
+    };
+    world.onFallingBlockMoved = (x, y, z, type) => crushCheck(x, y, z, type, true);
+    world.onFallingBlockLanded = (x, y, z, type, dist) => {
+      crushCheck(x, y, z, type, false);
+      if (dist >= 2) soundFx.playPlace();
+    };
+
     // Effects <-> player / network wiring
     effects.getPlayerPosition = () => player.position.clone();
-    effects.damagePlayer = (amount, from) => player.takeDamage(amount, from);
+    effects.damagePlayer = (amount, from) => player.takeDamage(amount, from, "blast");
     effects.healPlayer = (amount) => player.heal(amount);
     effects.onBlockDestroyed = (x, y, z) => {
       multi.sendBlockBreak(x, y, z);
@@ -303,15 +447,20 @@ export default function App() {
     player.onIgniteTnt = (x, y, z) => effects.igniteTnt(x, y, z);
     player.onHungerChange = (h) => setPlayerHunger(h);
     player.onConsumeItem = (slotIdx) => {
-      // Survival: bombs & food are single-use — clear the slot
+      // Survival: bombs, food and broken tools use up one item
       if (gameModeRef.current !== "survival") return;
-      setHotbarBlocks((prev) => {
-        const next = [...prev];
-        next[slotIdx] = BlockType.AIR;
-        return next;
-      });
-      player.setSlotBlock(slotIdx, BlockType.AIR);
+      const type = player.hotbarBlocks[slotIdx];
+      if (type === BlockType.AIR) return;
+      removeItem(type, 1);
     };
+    player.onBlockConsumed = (_slotIdx, type) => removeItem(type, 1);
+    player.onItemGained = (type, count) => {
+      addItem(type, count);
+      const def = BLOCK_DEFINITIONS[type];
+      setPickupNotice(`+${count} ${def ? def.nameKo : "아이템"}`);
+      setTimeout(() => setPickupNotice(null), 1200);
+    };
+    player.onMiningProgress = (p) => setMiningProgress(p);
     player.onDeath = () => {
       setPickupNotice("💀 쓰러졌습니다... 스폰 지점에서 다시 시작합니다");
       setTimeout(() => setPickupNotice(null), 3000);
@@ -321,6 +470,35 @@ export default function App() {
     player.setActiveSlot(0);
     player.setAnimalManager(animals);
     player.monsterManager = monsters;
+    player.villagerManager = villagers;
+    player.onTradeVillager = (_idx, nameKo) => {
+      setTradeVillager(nameKo);
+      player.exitLock();
+    };
+    // Bucket filled or emptied: swap the item in hand
+    player.onBucketUse = (from, to) => {
+      const slot = player.activeSlot;
+      if (player.gameMode === "survival") {
+        removeItem(from, 1);
+        addItem(to, 1);
+        // Keep the new bucket in the same hotbar slot
+        setHotbarBlocks((prev) => {
+          if (prev.includes(to)) return prev;
+          const n = [...prev];
+          n[slot] = to;
+          player.setSlotBlock(slot, to);
+          return n;
+        });
+      } else {
+        setHotbarBlocks((prev) => {
+          const n = [...prev];
+          n[slot] = to;
+          return n;
+        });
+        player.setSlotBlock(slot, to);
+      }
+      player.updateHandMesh();
+    };
 
     // Hook monster events
     monsters.onPlayerDamaged = (amount, attackerPos) => {
@@ -334,7 +512,11 @@ export default function App() {
       setPickupNotice(`[전리품 획득] ${name} x${count}`);
       setTimeout(() => setPickupNotice(null), 2500);
 
-      // Equip into current active slot or add to hotbar
+      if (gameModeRef.current === "survival") {
+        addItem(itemType, count);
+        return;
+      }
+      // Creative: equip into current active slot
       setHotbarBlocks((prev) => {
         const next = [...prev];
         next[player.activeSlot] = itemType;
@@ -347,6 +529,61 @@ export default function App() {
     player.onHealthChange = (hp) => {
       setPlayerHealth(hp);
       setIsHurt(player.isHurt);
+    };
+
+    // Chest: open its storage (village chests come with starter loot)
+    player.onOpenChest = (x, y, z) => {
+      const key = `${x},${y},${z}`;
+      if (!chestsRef.current.has(key)) {
+        const loot: ItemCounts = {};
+        if (world.structures.get(key) === BlockType.CHEST) {
+          // Deterministic loot by position so everyone sees the same
+          const h = Math.abs((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) % 4;
+          if (h === 0) { loot[BlockType.WOODEN_PICKAXE] = 1; loot[BlockType.TORCH] = 6; loot[BlockType.BREAD] = 2; }
+          else if (h === 1) { loot[BlockType.WOOD] = 12; loot[BlockType.PLANK] = 16; loot[BlockType.STICK] = 8; }
+          else if (h === 2) { loot[BlockType.COBBLESTONE] = 24; loot[BlockType.COAL] = 5; loot[BlockType.IRON_INGOT] = 2; }
+          else { loot[BlockType.WHEAT] = 6; loot[BlockType.BREAD] = 3; loot[BlockType.WOOL_WHITE] = 4; loot[BlockType.GOLDEN_APPLE] = 1; }
+        }
+        chestsRef.current.set(key, loot);
+      }
+      setOpenChestKey(key);
+      player.exitLock();
+    };
+
+    // Bed: sleep through the night (sets your respawn point)
+    player.onUseBed = (x, y, z) => {
+      if (!dayNight.isNight) {
+        setPickupNotice("🛏️ 밤에만 잘 수 있어요 (지금은 낮)");
+        setTimeout(() => setPickupNotice(null), 1800);
+        player.respawnPoint = { x, y, z };
+        return;
+      }
+      player.respawnPoint = { x, y, z };
+      setScreenFlash("rgba(0,0,0,0.95)");
+      setTimeout(() => {
+        dayNight.time = 60; // morning
+        if (player.gameMode === "survival") player.heal(4);
+        setScreenFlash(null);
+        setPickupNotice("☀️ 푹 잤어요. 아침이 됐고, 여기서 다시 깨어나요.");
+        setTimeout(() => setPickupNotice(null), 2500);
+      }, 1200);
+    };
+
+    // Enchanting table
+    player.onOpenEnchantingTable = () => {
+      setIsEnchantOpen(true);
+      player.exitLock();
+    };
+    player.onEnchantmentsChange = () => {
+      const next: Record<number, SlotEnchantments> = {};
+      for (const [k, v] of player.enchantments.entries()) next[k] = { ...v };
+      setEnchantments(next);
+    };
+    player.onBonusDrop = (blockType) => {
+      const def = BLOCK_DEFINITIONS[blockType];
+      setPickupNotice(`✦ 채굴 강화: ${def ? def.nameKo : "아이템"} 추가 획득!`);
+      setTimeout(() => setPickupNotice(null), 1500);
+      addItem(blockType, 1);
     };
 
     // Hook Crafting Table interaction
@@ -388,6 +625,12 @@ export default function App() {
         setTimeout(() => setPickupNotice(null), 5000);
       }
     };
+    player.isNightProvider = () => dayNight.isNight;
+    player.onOffhandChange = (b) => {
+      setOffhandBlock(b);
+      // The swap also changed the active hotbar slot — mirror it into React state
+      setHotbarBlocks([...player.hotbarBlocks]);
+    };
     player.onFlyChange = (flying) => {
       setIsFlying(flying);
     };
@@ -402,7 +645,7 @@ export default function App() {
     };
 
     // Pre-generate initial chunks around spawn
-    world.updateChunksAroundPlayer(0, 0);
+    world.updateChunksAroundPlayer(world.spawnOrigin.x, world.spawnOrigin.z);
     // Spawn initial peaceful fauna
     animals.populateInitialFauna();
 
@@ -427,21 +670,26 @@ export default function App() {
 
       // Update animal AI and procedural animations
       animals.update(deltaTime);
+      if (gameStartedRef.current) villagers.update(deltaTime);
 
       if (gameStartedRef.current) {
         // Update Player, Monsters & Physics
         player.update(deltaTime);
 
-        // Keep sun following player for consistent lighting
-        sunLight.position.set(
-          player.position.x + 40,
-          player.position.y + 65,
-          player.position.z + 25
-        );
-        sunLight.target.position.copy(player.position);
+        // Sun/moon, sky color and light levels follow the clock
+        dayNight.update(deltaTime, player.position);
+        if (dayNight.isNight !== lastNightUI) {
+          lastNightUI = dayNight.isNight;
+          setIsNightUI(lastNightUI);
+        }
 
         // Dynamic chunk generation around player
         world.updateChunksAroundPlayer(player.position.x, player.position.z);
+
+        // Block physics: falling sand/gravel/anvil & water flow. (This tick
+        // existed in VoxelWorld but was never called, so gravity blocks just
+        // hung in the air.)
+        world.updatePhysics(deltaTime);
 
         // Multiplayer updates & position broadcasting
         multi.sendMovement(
@@ -463,7 +711,24 @@ export default function App() {
       }
 
       // Render
+      // Two-pass render: world first, then the first-person hand on its own
+      // layer with a cleared depth buffer, so the held item always draws on
+      // top (it used to vanish whenever the player stood next to a block,
+      // because the hand sits 0.65 units in front of the camera and was
+      // simply inside the neighbouring geometry).
+      camera.layers.set(0);
       renderer.render(scene, camera);
+      // (A Color background forces a clear on every render() call, which
+      // would wipe the world pass — so drop it for the hand pass.)
+      const bg = scene.background;
+      scene.background = null;
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      camera.layers.set(1);
+      renderer.render(scene, camera);
+      camera.layers.set(0);
+      renderer.autoClear = true;
+      scene.background = bg;
     };
 
     animFrameIdRef.current = requestAnimationFrame(animate);
@@ -482,6 +747,7 @@ export default function App() {
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animFrameIdRef.current);
       animals.dispose();
+      villagers.dispose();
       monsters.dispose();
       effects.dispose();
       player.dispose();
@@ -499,7 +765,10 @@ export default function App() {
   // Keyboard shortcut for Enter -> Chat
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && !isInventoryOpen && !isAuthOpen) {
+      // 채팅 칸에서 누른 Enter는 그 칸이 보내기로 처리 (여기서 먼저 닫으면 글이 안 보내짐)
+      const tg = e.target as HTMLElement | null;
+      if (tg && (tg.tagName === "INPUT" || tg.tagName === "TEXTAREA")) return;
+      if (e.key === "Enter" && !isInventoryOpen && !isAuthOpen && !isEnchantOpen && openChestKey === null) {
         setIsChatOpen((prev) => {
           const next = !prev;
           if (next && playerRef.current) {
@@ -511,7 +780,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isInventoryOpen, isAuthOpen]);
+  }, [isInventoryOpen, isAuthOpen, isEnchantOpen, openChestKey]);
 
   // Handler: Create Room
   const handleCreateRoom = async (nickname: string) => {
@@ -542,15 +811,28 @@ export default function App() {
   };
 
   // Handler: Start Game (Host)
+  // Own body model for third-person view (F5): same skin as others see
+  const applyOwnCharacter = () => {
+    const player = playerRef.current;
+    const scene = sceneRef.current;
+    if (!player || !scene) return;
+    const me = multiRef.current?.currentRoom?.players.find((p) => p.id === multiRef.current?.selfId);
+    const charId = me?.characterId ?? selectedCharacterRef.current ?? 0;
+    player.setOwnCharacter(scene, charId, me?.color ?? "#3b82f6");
+  };
+
   const handleStartGame = () => {
     if (multiRef.current) {
       multiRef.current.startGame();
     }
     setGameStarted(true);
     gameStartedRef.current = true;
-    worldRef.current?.updateChunksAroundPlayer(0, 0);
+    worldRef.current?.updateChunksAroundPlayer(worldRef.current?.spawnOrigin.x ?? 0, worldRef.current?.spawnOrigin.z ?? 0);
     animalManagerRef.current?.populateInitialFauna();
+    villagersRef.current?.populate(worldRef.current?.spawnOrigin.x ?? 0, worldRef.current?.spawnOrigin.z ?? 0);
     if (playerRef.current) playerRef.current.gameMode = gameMode;
+    if (gameMode === "survival") resetSurvivalInventory();
+    applyOwnCharacter();
     playerRef.current?.resetToSpawn(multiRef.current?.getSelfIndex() ?? 0);
     setTimeout(() => {
       playerRef.current?.requestLock();
@@ -558,16 +840,66 @@ export default function App() {
   };
 
   // Handler: Singleplayer Play Direct
-  const handleSingleplayer = (_nickname: string) => {
+  const applyDifficulty = (d: Difficulty) => {
+    setDifficulty(d);
+    const cfg = DIFFICULTY_SETTINGS[d];
+    if (playerRef.current) playerRef.current.difficulty = d;
+    if (monsterManagerRef.current) {
+      monsterManagerRef.current.maxMonsters = cfg.maxMonsters;
+      monsterManagerRef.current.spawnInterval = cfg.spawnInterval;
+    }
+  };
+
+  const handleSingleplayer = (_nickname: string, modeOverride?: GameMode) => {
+    const mode = modeOverride ?? gameMode;
     setGameStarted(true);
     gameStartedRef.current = true;
-    worldRef.current?.updateChunksAroundPlayer(0, 0);
+    worldRef.current?.updateChunksAroundPlayer(worldRef.current?.spawnOrigin.x ?? 0, worldRef.current?.spawnOrigin.z ?? 0);
     animalManagerRef.current?.populateInitialFauna();
-    if (playerRef.current) playerRef.current.gameMode = gameMode;
+    villagersRef.current?.populate(worldRef.current?.spawnOrigin.x ?? 0, worldRef.current?.spawnOrigin.z ?? 0);
+    if (playerRef.current) playerRef.current.gameMode = mode;
+    if (mode === "survival") resetSurvivalInventory();
+    applyOwnCharacter();
     playerRef.current?.resetToSpawn(0);
     setTimeout(() => {
       playerRef.current?.requestLock();
     }, 120);
+  };
+
+  // Handler: Survival crafting — consume ingredients, add the result
+  const handleSurvivalCraft = (blockType: BlockType, count: number, consumed: Record<number, number>) => {
+    for (const k of Object.keys(consumed)) removeItem(Number(k) as BlockType, consumed[Number(k)]);
+    addItem(blockType, count);
+    setPickupNotice(`🔨 ${BLOCK_DEFINITIONS[blockType]?.nameKo ?? "아이템"} x${count} 제작!`);
+    setTimeout(() => setPickupNotice(null), 1500);
+  };
+
+  // Handler: Apply enchantment (survival pays diamonds from the hotbar)
+  const handleEnchant = (slotIdx: number, id: EnchantType, level: number) => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (gameMode === "survival") {
+      if ((inventoryRef.current[BlockType.DIAMOND] ?? 0) < level) return;
+      removeItem(BlockType.DIAMOND, level);
+    }
+    const cur = { ...(player.enchantments.get(slotIdx) ?? {}) };
+    cur[id] = level;
+    player.enchantments.set(slotIdx, cur);
+    player.onEnchantmentsChange?.();
+    soundFx.playCraft();
+    setPickupNotice("✦ 마법 부여 완료!");
+    setTimeout(() => setPickupNotice(null), 1500);
+  };
+
+  // Handler: Quick play — skip the lobby and start solo right away
+  const handleQuickPlay = (characterId: number, mode: GameMode, diff: Difficulty) => {
+    setSelectedCharacterId(characterId);
+    selectedCharacterRef.current = characterId;
+    setGameMode(mode);
+    gameModeRef.current = mode;
+    applyDifficulty(diff);
+    if (playerRef.current) playerRef.current.gameMode = mode;
+    handleSingleplayer("", mode);
   };
 
   // Handler: Toggle Flight
@@ -592,6 +924,7 @@ export default function App() {
 
   // Handler: Assign block from inventory
   const handleAssignToSlot = (slotIdx: number, blockType: BlockType) => {
+    if (gameMode === "survival" && blockType !== BlockType.AIR && (inventoryRef.current[blockType] ?? 0) <= 0) return;
     setHotbarBlocks((prev) => {
       const next = [...prev];
       next[slotIdx] = blockType;
@@ -620,16 +953,18 @@ export default function App() {
       {!gameStarted && selectedCharacterId === null && (
         <CharacterSelect
           initialSelected={lastCharacterId}
-          onSelect={(id, mode) => {
+          onSelect={(id, mode, diff) => {
             try {
               localStorage.setItem("blockcraft_character_id", String(id));
             } catch {}
             setSelectedCharacterId(id);
             setGameMode(mode);
             gameModeRef.current = mode;
+            applyDifficulty(diff);
             if (playerRef.current) playerRef.current.gameMode = mode;
           }}
           initialMode={gameMode}
+          onQuickPlay={handleQuickPlay}
         />
       )}
 
@@ -687,6 +1022,13 @@ export default function App() {
             <div className="pointer-events-none fixed inset-0 z-50" style={{ background: screenFlash }} />
           )}
 
+          {/* Survival mining progress (hold left mouse) */}
+          {miningProgress >= 0 && (
+            <div className="pointer-events-none fixed left-1/2 top-1/2 z-30 mt-6 w-24 -translate-x-1/2 overflow-hidden rounded-full border border-black/50 bg-black/50">
+              <div className="h-1.5 bg-amber-400" style={{ width: `${Math.round(miningProgress * 100)}%` }} />
+            </div>
+          )}
+
           {/* Game mode badge */}
           <div
             className={`fixed top-16 left-1/2 -translate-x-1/2 z-30 rounded-full border px-3 py-0.5 text-[11px] font-bold backdrop-blur-md ${
@@ -695,7 +1037,8 @@ export default function App() {
                 : "border-sky-500/50 bg-sky-950/70 text-sky-300"
             }`}
           >
-            {gameMode === "survival" ? "⚔️ 서바이벌" : "🪽 크리에이티브"}
+            {gameMode === "survival" ? `⚔️ 서바이벌 · ${DIFFICULTY_SETTINGS[difficulty].nameKo}` : "🪽 크리에이티브"}
+            {" · "}{isNightUI ? "🌙 밤" : "☀️ 낮"}
           </div>
 
           {/* Item Pickup / Toast Notification */}
@@ -729,6 +1072,9 @@ export default function App() {
               hotbarBlocks={hotbarBlocks}
               icons={icons}
               onSelectSlot={handleSelectSlot}
+              counts={gameMode === "survival" ? inventory : undefined}
+              offhandBlock={offhandBlock}
+              enchantedSlots={new Set(Object.keys(enchantments).filter((k) => Object.keys(enchantments[Number(k)] ?? {}).length > 0).map(Number))}
             />
           </div>
 
@@ -755,6 +1101,114 @@ export default function App() {
             icons={icons}
             onAssignToSlot={handleAssignToSlot}
             initialTab={inventoryTab}
+            survivalInventory={gameMode === "survival" ? inventory : undefined}
+            onCraft={gameMode === "survival" ? handleSurvivalCraft : undefined}
+          />
+
+          <TradeModal
+            isOpen={tradeVillager !== null}
+            villagerName={tradeVillager ?? ""}
+            offers={(tradeVillager && VILLAGER_TRADES[tradeVillager]) || []}
+            playerItems={gameMode === "survival" ? inventory : {}}
+            unlimited={gameMode !== "survival"}
+            icons={icons}
+            onClose={() => {
+              setTradeVillager(null);
+              playerRef.current?.requestLock();
+            }}
+            onTrade={(offer: TradeOffer) => {
+              if (gameMode === "survival") {
+                if (!offer.give.every((g) => (inventoryRef.current[g.type] ?? 0) >= g.count)) return;
+                offer.give.forEach((g) => removeItem(g.type, g.count));
+                addItem(offer.get.type, offer.get.count);
+              } else {
+                const p = playerRef.current;
+                if (p) {
+                  const idx = p.hotbarBlocks.findIndex((b) => b === BlockType.AIR);
+                  const slot = idx >= 0 ? idx : p.activeSlot;
+                  setHotbarBlocks((prev) => {
+                    const n = [...prev];
+                    n[slot] = offer.get.type;
+                    return n;
+                  });
+                  p.setSlotBlock(slot, offer.get.type);
+                }
+              }
+              const def = BLOCK_DEFINITIONS[offer.get.type];
+              setPickupNotice(`🤝 거래 완료: ${def?.nameKo ?? "아이템"} x${offer.get.count}`);
+              setTimeout(() => setPickupNotice(null), 1500);
+            }}
+          />
+
+          <ChestModal
+            key={`chest-${chestVersion}`}
+            isOpen={openChestKey !== null}
+            onClose={() => {
+              setOpenChestKey(null);
+              playerRef.current?.requestLock();
+            }}
+            chestItems={(openChestKey && chestsRef.current.get(openChestKey)) || {}}
+            playerItems={
+              gameMode === "survival"
+                ? inventory
+                : Object.fromEntries(hotbarBlocks.filter((b) => b !== BlockType.AIR).map((b) => [b, 1]))
+            }
+            unlimited={gameMode !== "survival"}
+            icons={icons}
+            onStore={(type, count) => {
+              if (!openChestKey) return;
+              const chest = chestsRef.current.get(openChestKey) ?? {};
+              if (gameMode === "survival") {
+                const have = inventoryRef.current[type] ?? 0;
+                const n = Math.min(count, have);
+                if (n <= 0) return;
+                removeItem(type, n);
+                chest[type] = (chest[type] ?? 0) + n;
+              } else {
+                chest[type] = (chest[type] ?? 0) + count;
+              }
+              chestsRef.current.set(openChestKey, chest);
+              setChestVersion((v) => v + 1);
+              soundFx.playSwitchSlot();
+            }}
+            onTake={(type, count) => {
+              if (!openChestKey) return;
+              const chest = chestsRef.current.get(openChestKey) ?? {};
+              const n = Math.min(count, chest[type] ?? 0);
+              if (n <= 0) return;
+              chest[type] -= n;
+              if (chest[type] <= 0) delete chest[type];
+              chestsRef.current.set(openChestKey, chest);
+              setChestVersion((v) => v + 1);
+              if (gameMode === "survival") {
+                addItem(type, n);
+              } else {
+                setHotbarBlocks((prev) => {
+                  if (prev.includes(type)) return prev;
+                  const idx = prev.findIndex((b) => b === BlockType.AIR);
+                  const next = [...prev];
+                  const slot = idx >= 0 ? idx : activeSlot;
+                  next[slot] = type;
+                  playerRef.current?.setSlotBlock(slot, type);
+                  return next;
+                });
+              }
+              soundFx.playPickup();
+            }}
+          />
+
+          <EnchantModal
+            isOpen={isEnchantOpen}
+            onClose={() => {
+              setIsEnchantOpen(false);
+              playerRef.current?.requestLock();
+            }}
+            hotbarBlocks={hotbarBlocks}
+            icons={icons}
+            enchantments={enchantments}
+            gameMode={gameMode}
+            diamondCount={inventory[BlockType.DIAMOND] ?? 0}
+            onEnchant={handleEnchant}
           />
 
           <AuthModal

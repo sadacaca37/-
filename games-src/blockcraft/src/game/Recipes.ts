@@ -167,6 +167,9 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
   { id: "firework_recipe", name: "Firework", nameKo: "폭죽 (3개)", pattern: ["C", "T", "S"], key: { C: BlockType.COAL, T: BlockType.TNT, S: BlockType.STICK }, is3x3Only: true, result: { blockType: BlockType.FIREWORK, count: 3 } },
   { id: "smoke_bomb_recipe", name: "Smoke Bomb", nameKo: "연막탄 (2개)", shapeless: [BlockType.COAL, BlockType.GRAVEL, BlockType.SLIME_BALL], result: { blockType: BlockType.SMOKE_BOMB, count: 2 } },
   { id: "heal_bomb_recipe", name: "Healing Bomb", nameKo: "치유 폭탄", shapeless: [BlockType.GOLDEN_APPLE, BlockType.GLASS, BlockType.SLIME_BALL], result: { blockType: BlockType.HEAL_BOMB, count: 1 } },
+  { id: "enchanting_table_recipe", name: "Enchanting Table", nameKo: "마법 부여대", pattern: [" B ", "DOD", "OOO"], key: { B: BlockType.BOOKSHELF, D: BlockType.DIAMOND, O: BlockType.OBSIDIAN }, is3x3Only: true, result: { blockType: BlockType.ENCHANTING_TABLE, count: 1 } },
+  { id: "shield_recipe", name: "Shield", nameKo: "방패", pattern: ["PIP", "PPP", " P "], key: { P: BlockType.PLANK, I: BlockType.IRON_INGOT }, is3x3Only: true, result: { blockType: BlockType.SHIELD, count: 1 } },
+  { id: "anvil_recipe", name: "Anvil", nameKo: "모루", pattern: ["III", " I ", "III"], key: { I: BlockType.IRON_INGOT }, is3x3Only: true, result: { blockType: BlockType.ANVIL, count: 1 } },
   { id: "thunder_bomb_recipe", name: "Thunder Bomb", nameKo: "번개 폭탄", pattern: ["D", "T", "I"], key: { D: BlockType.DIAMOND, T: BlockType.TNT, I: BlockType.IRON_INGOT }, is3x3Only: true, result: { blockType: BlockType.THUNDER_BOMB, count: 1 } },
   // 14. TNT: 4 Sand + 1 Slimeball/Flesh in X
   {
@@ -232,6 +235,14 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     pattern: ["P", "S", "S"],
     key: { P: BlockType.PLANK, S: BlockType.STICK },
     result: { blockType: BlockType.WOODEN_SHOVEL, count: 1 },
+  },
+  {
+    id: "iron_to_bucket",
+    name: "Bucket",
+    nameKo: "양동이 (철괴 3개)",
+    pattern: ["I I", " I "],
+    key: { I: BlockType.IRON_INGOT },
+    result: { blockType: BlockType.BUCKET, count: 1 },
   },
 ];
 

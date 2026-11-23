@@ -27,6 +27,7 @@ import { soundManager } from '../../utils/sound';
 import { countKeystrokes, isHangulPrefix } from '../../utils/hangul';
 import { addTypingPracticePoints } from '../../utils/tamagotchiStorage';
 import { recordPracticeHistory } from '../../utils/curriculumManager';
+import { isRecordable } from '../../utils/typingScore';
 import { dailyMissionsManager } from '../../utils/dailyMissionsManager';
 import { newAgeBgmEngine, NEW_AGE_TRACKS } from '../../utils/newAgeBgmEngine';
 import { MychewRewardModal } from '../MychewRewardModal';
@@ -68,10 +69,13 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
 
   const [language, setLanguage] = useState<'ko' | 'en'>(defaultLang);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Filter texts by language and category
+  // 지금 언어의 모든 작품 (현재 작품은 여기서 정함 — 갈래 단추는 목록만 걸러 보여 줌)
+  const langTexts = useMemo(() => LONG_TEXT_LIST.filter((item) => item.language === language), [language]);
   const availableTexts = useMemo(() => {
-    let list = LONG_TEXT_LIST.filter((item) => item.language === language);
+    let list = langTexts;
     if (selectedCategory === 'poem') {
       list = list.filter((item) => item.category === 'poem');
     } else if (selectedCategory === 'novel') {
@@ -80,28 +84,28 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       list = list.filter((item) => item.category === 'quote' || item.category === 'essay' || item.category === 'speech');
     }
     return list;
-  }, [language, selectedCategory]);
+  }, [langTexts, selectedCategory]);
 
   const [selectedTextId, setSelectedTextId] = useState<string>(() => {
     if (defaultTextId && LONG_TEXT_LIST.some((t) => t.id === defaultTextId)) {
       return defaultTextId;
     }
-    return availableTexts[0]?.id || 'ko-seosi';
+    return LONG_TEXT_LIST.find((t) => t.language === language)?.id || 'ko-seosi';
   });
 
   const currentText = useMemo(() => {
-    return availableTexts.find((t) => t.id === selectedTextId) || availableTexts[0] || LONG_TEXT_LIST[0];
-  }, [availableTexts, selectedTextId]);
+    return langTexts.find((t) => t.id === selectedTextId) || langTexts[0] || LONG_TEXT_LIST[0];
+  }, [langTexts, selectedTextId]);
 
-  // When language or category filter changes, ensure valid selected text
+  // 언어를 바꾸면 그 언어의 첫 작품으로
   useEffect(() => {
-    if (availableTexts.length > 0 && !availableTexts.some(t => t.id === selectedTextId)) {
-      setSelectedTextId(availableTexts[0].id);
+    if (langTexts.length > 0 && !langTexts.some(t => t.id === selectedTextId)) {
+      setSelectedTextId(langTexts[0].id);
       setPageIndex(0);
       setInputVal('');
       resetSessionStats();
     }
-  }, [availableTexts, selectedTextId]);
+  }, [langTexts, selectedTextId]);
 
   // Page index (Each page is a clean, continuous paragraph/stanza without internal splitting)
   const [pageIndex, setPageIndex] = useState<number>(0);
@@ -613,7 +617,21 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
       elapsedSeconds: stats.elapsedSeconds,
     });
 
-    // 명예의 전당은 '짧은 글' 기록만 올림 (긴 글은 연습 기록·성적표에 남음)
+    // 명예의 전당: 긴 글 한 편을 다 치면 기록 (짧은 글 기록과 합쳐 순위를 냄)
+    if (currentUser && onRecordScore && language === 'ko' && bookCpm > 0 && isRecordable(bookCpm, bookAcc)) {
+      onRecordScore({
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar || '📚',
+        mode: 'long',
+        modeTitle: `긴 글: ${currentText.title}`.slice(0, 60),
+        score: bookCpm * 10 + bookAcc * 5,
+        cpm: bookCpm,
+        accuracy: bookAcc,
+        errorCount: cg.errors,
+        details: `${currentText.author} - ${currentText.title}`.slice(0, 80),
+        elapsedSeconds: stats.elapsedSeconds,
+      } as any);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -689,25 +707,92 @@ export const LongTextPracticeView: React.FC<LongTextPracticeViewProps> = ({
             </span>
           </div>
 
-          {/* Compact Book Selector */}
+          {/* 작품 고르기: 누르면 갈래(시·소설·명언)별 작품 목록이 펼쳐짐 */}
           <div className="relative">
-            <select
-              value={selectedTextId}
-              onChange={(e) => {
-                setSelectedTextId(e.target.value);
-                setPageIndex(0);
-                setInputVal('');
-                resetSessionStats();
-              }}
-              className="text-[11px] font-serif font-bold text-[#2c1507] bg-[#fffaf0] hover:bg-[#fdeec9] border-2 border-[#3d220d] rounded-lg px-2 py-1 pr-6 focus:outline-none cursor-pointer appearance-none max-w-[140px] sm:max-w-[180px] truncate"
+            <button
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              className="pr-stone-btn flex items-center gap-1 px-2.5 py-1 text-[12px] font-black text-[#2c1507] cursor-pointer"
+              aria-expanded={pickerOpen}
             >
-              {availableTexts.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title} - {item.author}
-                </option>
-              ))}
-            </select>
-            <ChevronRight className="w-3 h-3 text-[#5c3d22] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none rotate-90" />
+              📚 작품 고르기
+              <span className="text-[10px] font-bold text-[#7c3f18]">({langTexts.length}편)</span>
+              <ChevronRight className={`w-3 h-3 transition-transform ${pickerOpen ? '-rotate-90' : 'rotate-90'}`} />
+            </button>
+            {pickerOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+                <div className="absolute left-0 top-full mt-2 z-50 w-[min(640px,88vw)] rounded-2xl border-4 border-[#2c1507] bg-[#fff6dc] shadow-[0_6px_0_#2c1507] p-3">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex flex-wrap gap-1">
+                      {([
+                        ['all', '전체'],
+                        ['poem', '🌸 시'],
+                        ['novel', '📖 소설'],
+                        ['quote', '💬 명언·수필'],
+                      ] as [CategoryFilter, string][]).map(([k, label]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setSelectedCategory(k)}
+                          className={`px-2.5 py-1 rounded-lg border-2 border-[#3d220d] text-[12px] font-black cursor-pointer ${
+                            selectedCategory === k ? 'bg-[#f59e0b] text-[#2c1507]' : 'bg-white text-[#6e4622] hover:bg-[#fdeec9]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      {(['ko', 'en'] as const).map((l) => (
+                        <button
+                          key={l}
+                          type="button"
+                          onClick={() => setLanguage(l)}
+                          className={`px-2 py-1 rounded-lg border-2 border-[#3d220d] text-[11px] font-black cursor-pointer ${
+                            language === l ? 'bg-[#2c1507] text-[#fde68a]' : 'bg-white text-[#6e4622]'
+                          }`}
+                        >
+                          {l === 'ko' ? '한글' : 'English'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto tp-thin-scroll pr-1">
+                    {availableTexts.map((item) => {
+                      const on = item.id === selectedTextId;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTextId(item.id);
+                            setPageIndex(0);
+                            setInputVal('');
+                            resetSessionStats();
+                            setPickerOpen(false);
+                          }}
+                          className={`text-left rounded-xl border-2 px-2.5 py-2 cursor-pointer transition-colors ${
+                            on ? 'border-[#c2410c] bg-[#fde6a8]' : 'border-[#d6c4a1] bg-white hover:bg-[#fff1cf]'
+                          }`}
+                        >
+                          <div className="text-[12.5px] font-black text-[#2c1507] leading-tight truncate">
+                            {on ? '▶ ' : ''}
+                            {item.title}
+                          </div>
+                          <div className="text-[10.5px] font-bold text-[#8a5a2b] truncate mt-0.5">
+                            {item.author} · {item.categoryLabel}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {availableTexts.length === 0 && (
+                      <div className="col-span-full text-center text-[12px] font-bold text-[#8a5a2b] py-4">이 갈래에는 아직 작품이 없어요.</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Random Story Picker */}

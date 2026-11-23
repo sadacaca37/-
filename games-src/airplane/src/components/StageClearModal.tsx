@@ -59,7 +59,7 @@ export const StageClearModal: React.FC<StageClearModalProps> = ({
         className="w-full max-w-sm bg-[#0f172a] border border-amber-500/60 rounded-lg p-5 flex flex-col items-center shadow-[0_0_35px_rgba(245,158,11,0.25)]"
       >
         {/* Title */}
-        <div className="text-[10px] text-amber-400 tracking-widest uppercase mb-0.5 font-bold">
+        <div className="text-[11px] text-amber-400 tracking-widest uppercase mb-0.5 font-bold">
           ★ SECTOR {stageNumber} AIRSPACE SECURED ★
         </div>
         <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wider mb-3">
@@ -103,7 +103,7 @@ export const StageClearModal: React.FC<StageClearModalProps> = ({
         </div>
 
         {/* Reward Grant Notice */}
-        <div className="text-[10px] text-emerald-400 mb-4 flex items-center gap-1.5 font-bold uppercase">
+        <div className="text-[11px] text-emerald-400 mb-4 flex items-center gap-1.5 font-bold uppercase">
           <Sparkles className="w-3.5 h-3.5" /> REARMAMENT: +1 SUPER BOMB & +1 EVASION RESTOCKED
         </div>
 

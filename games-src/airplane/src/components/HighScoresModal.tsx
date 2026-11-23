@@ -30,7 +30,7 @@ export const HighScoresModal: React.FC<HighScoresModalProps> = ({ scores, onClos
               <h2 className="text-sm font-black text-amber-400 tracking-wider uppercase">
                 SKY VANGUARD // TOP 30 ACE LEADERBOARD
               </h2>
-              <div className="text-[10px] text-slate-400">전 세계 에이스 파일럿 명예의 전당 (1~30위)</div>
+              <div className="text-[11px] text-slate-400">전 세계 에이스 파일럿 명예의 전당 (1~30위)</div>
             </div>
           </div>
           <button
@@ -96,7 +96,7 @@ export const HighScoresModal: React.FC<HighScoresModalProps> = ({ scores, onClos
                 {/* Rank & Pilot Name */}
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`w-7 h-7 rounded border flex items-center justify-center text-[10px] shrink-0 ${badgeBg}`}
+                    className={`w-7 h-7 rounded border flex items-center justify-center text-[11px] shrink-0 ${badgeBg}`}
                   >
                     #{overallRank}
                   </div>
@@ -105,9 +105,9 @@ export const HighScoresModal: React.FC<HighScoresModalProps> = ({ scores, onClos
                       <span className="text-amber-300 font-black tracking-wider text-xs">
                         {entry.name}
                       </span>
-                      {isTop1 && <span className="text-[9px] px-1 bg-amber-500 text-slate-950 font-bold rounded">CHAMPION</span>}
+                      {isTop1 && <span className="text-[11px] px-1 bg-amber-500 text-slate-950 font-bold rounded">CHAMPION</span>}
                     </div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1.5 font-mono">
+                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
                       <span>{plane.flag}</span>
                       <span className="text-slate-300">{plane.name.split(' ')[0]}</span>
                       <span className="text-slate-600">|</span>
@@ -119,9 +119,9 @@ export const HighScoresModal: React.FC<HighScoresModalProps> = ({ scores, onClos
                 {/* Score & Timestamp */}
                 <div className="text-right">
                   <div className="text-white font-bold text-xs">
-                    {entry.score.toLocaleString()} <span className="text-amber-400 text-[10px]">PTS</span>
+                    {entry.score.toLocaleString()} <span className="text-amber-400 text-[11px]">PTS</span>
                   </div>
-                  <div className="text-[9px] text-slate-400 font-mono">{entry.date || '2026.08.28'}</div>
+                  <div className="text-[11px] text-slate-400 font-mono">{entry.date || '2026.08.28'}</div>
                 </div>
               </div>
             );
@@ -132,7 +132,7 @@ export const HighScoresModal: React.FC<HighScoresModalProps> = ({ scores, onClos
         <div className="w-full flex justify-between items-center text-xs font-mono border-t border-slate-800 pt-3">
           <button
             onClick={onResetScores}
-            className="text-[10px] text-slate-400 hover:text-red-400 transition-colors cursor-pointer uppercase font-bold flex items-center gap-1"
+            className="text-[11px] text-slate-400 hover:text-red-400 transition-colors cursor-pointer uppercase font-bold flex items-center gap-1"
           >
             <RotateCcw className="w-3 h-3" />
             초기화 (RESET)

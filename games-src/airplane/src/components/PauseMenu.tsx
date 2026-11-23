@@ -30,7 +30,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
         <h1 className="text-xl font-bold text-amber-400 tracking-wider mb-0.5">
           TACTICAL HOLD (PAUSED)
         </h1>
-        <div className="text-[10px] text-slate-400 mb-4 uppercase tracking-widest">MISSION IN FLIGHT SUSPENSION</div>
+        <div className="text-[11px] text-slate-400 mb-4 uppercase tracking-widest">MISSION IN FLIGHT SUSPENSION</div>
 
         {/* Settings Control Box */}
         <div className="w-full bg-[#020617] rounded p-3.5 border border-slate-800 space-y-3 mb-4 text-xs font-mono">
@@ -83,7 +83,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
             </span>
             <button
               onClick={() => onUpdateSettings({ scanlines: !settings.scanlines })}
-              className={`px-2 py-0.5 rounded font-bold text-[10px] cursor-pointer transition-colors ${
+              className={`px-2 py-0.5 rounded font-bold text-[11px] cursor-pointer transition-colors ${
                 settings.scanlines ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'
               }`}
             >
@@ -98,7 +98,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
             </span>
             <button
               onClick={() => onUpdateSettings({ autoFire: !settings.autoFire })}
-              className={`px-2 py-0.5 rounded font-bold text-[10px] cursor-pointer transition-colors ${
+              className={`px-2 py-0.5 rounded font-bold text-[11px] cursor-pointer transition-colors ${
                 settings.autoFire ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'
               }`}
             >
@@ -120,7 +120,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
                     retroAudio.playShoot(1);
                     onUpdateSettings({ difficulty: diff });
                   }}
-                  className={`py-1 rounded text-[9px] font-bold font-mono text-center cursor-pointer transition-all border ${
+                  className={`py-1 rounded text-[11px] font-bold font-mono text-center cursor-pointer transition-all border ${
                     settings.difficulty === diff
                       ? 'bg-amber-500/20 border-amber-500 text-amber-300'
                       : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'

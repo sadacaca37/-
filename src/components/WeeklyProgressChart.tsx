@@ -419,52 +419,15 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
 
               <Tooltip content={<CustomTooltip />} />
 
-              {/* Background bars for session volume */}
-              <Bar 
-                yAxisId="cpmAxis"
-                dataKey="count" 
-                fill="url(#barPracticeCount)" 
-                radius={[6, 6, 0, 0]} 
-                maxBarSize={28}
-                name="연습 횟수"
-              />
-
+              {/* 막대그래프: 평균 타수 · 최고 타수 · 정확도 */}
               {(metricMode === 'both' || metricMode === 'cpm') && (
                 <>
-                  <Area
-                    yAxisId="cpmAxis"
-                    type="monotone"
-                    dataKey="avgCpm"
-                    stroke="#4f46e5"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorAvgCpm)"
-                    name="평균 CPM"
-                    activeDot={{ r: 6, fill: '#4f46e5', stroke: '#ffffff', strokeWidth: 2 }}
-                  />
-                  <Line
-                    yAxisId="cpmAxis"
-                    type="monotone"
-                    dataKey="maxCpm"
-                    stroke="#ec4899"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={{ r: 3, fill: '#ec4899' }}
-                    name="최고 CPM"
-                  />
+                  <Bar yAxisId="cpmAxis" dataKey="avgCpm" name="평균 CPM" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={26} />
+                  <Bar yAxisId="cpmAxis" dataKey="maxCpm" name="최고 CPM" fill="#ec4899" radius={[6, 6, 0, 0]} maxBarSize={26} />
                 </>
               )}
-
               {(metricMode === 'both' || metricMode === 'accuracy') && (
-                <Line
-                  yAxisId="accAxis"
-                  type="monotone"
-                  dataKey="avgAccuracy"
-                  stroke="#10b981"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: '#10b981', stroke: '#ffffff', strokeWidth: 2 }}
-                  name="정확도 (%)"
-                />
+                <Bar yAxisId="accAxis" dataKey="avgAccuracy" name="정확도 (%)" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={26} />
               )}
             </ComposedChart>
           </ResponsiveContainer>

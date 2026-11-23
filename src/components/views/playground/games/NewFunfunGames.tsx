@@ -1,7 +1,7 @@
 import React from 'react';
 import { IframeGame } from './IframeGame';
 
-/** 포근숲 이야기 – 생쥐 농부의 3D 농장·동물 마을 게임 (public/games/pogeunforest, 3D 라이브러리·모델은 같은 폴더에 들어 있음) */
+/** 포근숲 이야기 – 모아팡 캐릭터로 하는 스타듀밸리풍 2D 농장 게임 (친구와 함께·벌목·몬스터 사냥) (public/games/pogeunforest, 3D 라이브러리·모델은 같은 폴더에 들어 있음) */
 export const PogeunForestGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/pogeunforest/index.html" title="포근숲 이야기" icon="🐭" />
 );
@@ -24,4 +24,9 @@ export const LightsaberDuelGame: React.FC<{ onBack?: () => void }> = () => (
 /** 불꽃 특공대 – 옆으로 가는 액션 슈팅 (public/games/flamesquad, 한 파일) */
 export const FlameSquadGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/flamesquad/index.html" title="불꽃 특공대" icon="🔥" />
+);
+
+/** 뽀글뽀글 – 같은 색 방울 3개를 붙여 터뜨리는 방울 퍼즐 · 혼자 10판 · 컴퓨터 대결 · 한 키보드 둘이서 대결 (public/games/ppogeul, 한 파일, 그림은 코드로 그린 도트) */
+export const PpogeulGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/ppogeul/index.html" title="뽀글뽀글" icon="🫧" />
 );

@@ -248,6 +248,8 @@ export const MasterModal: React.FC<MasterModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // 열 때마다 '받은 보고 · 아직 확인 안 한 것만'으로 시작
+      setActiveConsoleTab('reports');
       const cfg = getMasterConfig();
       setMasterConfig(cfg);
       setSecName(cfg.masterName);
@@ -586,9 +588,6 @@ export const MasterModal: React.FC<MasterModalProps> = ({
                       {masterConfig.masterName || '마스터 관리자'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    학생이 보낸 연습 보고, 학습 현황, 학생 명단(모아팡 반), 선생님 계정
-                  </p>
                 </div>
               </div>
 

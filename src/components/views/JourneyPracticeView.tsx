@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { UserSession, TypingStats, AppMode } from '../../types';
 import { CountryFlag } from '../CountryFlag';
-import { KingFace, REAL_KING_PORTRAITS } from '../KingFace';
+import { KingFace, KING_RELICS, REAL_KING_PORTRAITS, kingPictureCaption, kingPictureCredit } from '../KingFace';
 import { WORLD_CAPITALS_DATA, JOSEON_KINGS_DATA, JOSEON_DETAILED_MAP } from '../../data/journeyData';
 import { LYRIC_SONGS_DATA, LyricSongItem } from '../../data/lyricsData';
 import { BOOK_CHALLENGE_LIST, BookItem } from '../../data/bookData';
@@ -936,390 +936,131 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* 2. TAB: 조선 왕조 27대 (끊김없는 4단 S자 레일 + 이미지 완벽 일치 UI) */}
+      {/* 2. TAB: 조선 왕조 27대 — 궁궐 족보판 (나무 틀 · 단청 · 어진/시대 유산 그림) */}
       {/* ========================================================================= */}
       {activeTab === 'joseon' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* LEFT (8 cols): Continuous 4-Row S-Train Rail Map */}
-            <div className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6 relative overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-purple-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-purple-600" />
-                  <h3 className="font-black text-gray-900 text-base">
-                    조선 왕조 500년 27대 족보 레일 맵
-                  </h3>
+        <div className="js-wrap" data-testid="joseon-board">
+          <div className="js-grid">
+            {/* 왼쪽: 27대 족보판 (외우는 순서 그대로 4줄) */}
+            <section className="js-board">
+              <header className="js-board-head">
+                <span className="js-sign">👑 조선 왕 27대 족보판</span>
+                <span className="js-count">
+                  다 친 왕 <b>{conqueredKings.length}</b> / 27
+                </span>
+              </header>
+
+              {[
+                { label: '태정태세문단세', kings: [1, 2, 3, 4, 5, 6, 7] },
+                { label: '예성연중인명선', kings: [8, 9, 10, 11, 12, 13, 14] },
+                { label: '광인효현숙경영', kings: [15, 16, 17, 18, 19, 20, 21] },
+                { label: '정순헌철고순', kings: [22, 23, 24, 25, 26, 27] },
+              ].map((row, ri) => (
+                <div className="js-row" key={row.label}>
+                  <div className="js-row-label">
+                    <span className="js-row-no">{ri + 1}줄</span>
+                    <span className="js-row-text">{hideNameMode ? '? ? ? ? ? ? ?'.slice(0, row.kings.length * 2 - 1) : row.label.split('').join(' ')}</span>
+                  </div>
+                  <div className="js-tiles">
+                    {row.kings.map((order) => {
+                      const k = JOSEON_DETAILED_MAP[order - 1];
+                      const done = conqueredKings.includes(order);
+                      const now = kingIndex === order - 1;
+                      const showName = (done || now) && !(hideNameMode && now);
+                      return (
+                        <button
+                          key={order}
+                          type="button"
+                          className={`js-tile ${done ? 'is-done' : ''} ${now ? 'is-now' : ''}`}
+                          onClick={() => {
+                            setKingIndex(order - 1);
+                            setInputVal('');
+                          }}
+                          title={showName ? `${order}대 ${k.name} (${k.reignYears})` : `${order}대 왕`}
+                        >
+                          {now && <span className="js-tile-crown" aria-hidden="true">👑</span>}
+                          <span className="js-tile-pic">
+                            <KingFace order={order} size={64} fill title={hideNameMode ? `${order}대 왕` : undefined} />
+                          </span>
+                          <span className="js-tile-no">{done ? '✓' : order}</span>
+                          <span className="js-tile-name">{showName ? k.name : hideNameMode ? '?' : k.name.slice(0, 1)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
-                    정복 완료 {conqueredKings.length}/27
-                  </span>
+              ))}
+              <p className="js-legend">
+                <span>🖼 실제 어진(초상화)이 남은 왕</span>
+                <span>🏯 어진이 없는 왕은 그 시대 대표 유적·유물 사진</span>
+              </p>
+            </section>
+
+            {/* 오른쪽: 지금 칠 왕 */}
+            <aside className="js-side">
+              <div className="js-stats">
+                <div className="js-stat">
+                  <span>진행</span>
+                  <b>{kingIndex + 1}/27</b>
+                </div>
+                <div className="js-stat">
+                  <span>현재 타수</span>
+                  <b>{stats.cpm}</b>
+                </div>
+                <div className="js-stat">
+                  <span>시간</span>
+                  <b>{formatTime(stats.elapsedSeconds)}</b>
+                </div>
+                <div className="js-stat">
+                  <span>정확도</span>
+                  <b>{stats.accuracy}%</b>
                 </div>
               </div>
 
-              {/* CONTINUOUS 4-ROW S-TRAIN TRACK (Zero Broken Connectors!) */}
-              <div className="relative py-2 px-2 space-y-12">
-                {/* ROW 1: Kings 1 ~ 7 (태정태세문단세) -> Left to Right */}
-                <div className="relative">
-                  <div className="text-xs font-bold text-purple-600 mb-2 pl-2 tracking-widest">
-                    태 정 태 세 문 단 세
-                  </div>
-                  {/* Straight Rail Line */}
-                  <div className="absolute top-[52px] left-6 right-6 h-3 bg-purple-600 rounded-full z-0 shadow-inner" />
-                  {/* Right U-Turn Curve: 7 -> 8 (Connecting Row 1 right to Row 2 right) */}
-                  <div className="absolute top-[52px] right-6 w-14 h-28 border-t-[10px] border-r-[10px] border-b-[10px] border-purple-600 rounded-r-3xl z-0 pointer-events-none" />
-
-                  <div className="relative z-10 grid grid-cols-7 gap-2">
-                    {[1, 2, 3, 4, 5, 6, 7].map((order) => {
-                      const kingDetail = JOSEON_DETAILED_MAP[order - 1];
-                      const isConquered = conqueredKings.includes(order);
-                      const isCurrent = kingIndex === order - 1;
-
-                      return (
-                        <div key={order} className="flex flex-col items-center text-center">
-                          <div className="h-6 flex items-center justify-center">
-                            {isCurrent && <span className="text-2xl animate-bounce">🚋</span>}
-                          </div>
-                          <button
-                            onClick={() => {
-                              setKingIndex(order - 1);
-                              setInputVal('');
-                            }}
-                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
-                              isConquered
-                                ? 'bg-purple-600 text-white ring-2 ring-purple-200'
-                                : isCurrent
-                                ? 'bg-purple-600 text-white ring-4 ring-purple-300 scale-105'
-                                : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
-                            }`}
-                          >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
-
-                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
-
-                              {isConquered ? '✓' : order}
-
-                            </span>
-                          </button>
-                          <div className="mt-1.5 min-h-[34px]">
-                            {isConquered || isCurrent ? (
-                              <>
-                                <div className="text-xs font-black text-gray-900">
-                                  {hideNameMode && isCurrent ? '???' : kingDetail.name}
-                                </div>
-                                <div className="text-[10px] text-gray-400 font-mono scale-90 -mt-0.5">
-                                  {kingDetail.reignYears}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs font-black text-gray-300">.</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* ROW 2: Kings 8 ~ 14 (예성연중인명선) -> Continuous Track from Right to Left! */}
-                <div className="relative">
-                  <div className="text-xs font-bold text-purple-600 mb-2 pr-2 text-right tracking-widest">
-                    예 성 연 중 인 명 선
-                  </div>
-                  {/* Straight Rail Line */}
-                  <div className="absolute top-[52px] left-6 right-6 h-3 bg-purple-600 rounded-full z-0 shadow-inner" />
-                  {/* Left U-Turn Curve: 14 -> 15 (Connecting Row 2 left to Row 3 left) */}
-                  <div className="absolute top-[52px] left-6 w-14 h-28 border-t-[10px] border-l-[10px] border-b-[10px] border-purple-600 rounded-l-3xl z-0 pointer-events-none" />
-
-                  {/* Render 14, 13, 12, 11, 10, 9, 8 from left to right so 8 aligns at right curve! */}
-                  <div className="relative z-10 grid grid-cols-7 gap-2">
-                    {[14, 13, 12, 11, 10, 9, 8].map((order) => {
-                      const kingDetail = JOSEON_DETAILED_MAP[order - 1];
-                      const isConquered = conqueredKings.includes(order);
-                      const isCurrent = kingIndex === order - 1;
-
-                      return (
-                        <div key={order} className="flex flex-col items-center text-center">
-                          <div className="h-6 flex items-center justify-center">
-                            {isCurrent && <span className="text-2xl animate-bounce">🚋</span>}
-                          </div>
-                          <button
-                            onClick={() => {
-                              setKingIndex(order - 1);
-                              setInputVal('');
-                            }}
-                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
-                              isConquered
-                                ? 'bg-purple-600 text-white ring-2 ring-purple-200'
-                                : isCurrent
-                                ? 'bg-purple-600 text-white ring-4 ring-purple-300 scale-105'
-                                : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
-                            }`}
-                          >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
-
-                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
-
-                              {isConquered ? '✓' : order}
-
-                            </span>
-                          </button>
-                          <div className="mt-1.5 min-h-[34px]">
-                            {isConquered || isCurrent ? (
-                              <>
-                                <div className="text-xs font-black text-gray-900">
-                                  {hideNameMode && isCurrent ? '???' : kingDetail.name}
-                                </div>
-                                <div className="text-[10px] text-gray-400 font-mono scale-90 -mt-0.5">
-                                  {kingDetail.reignYears}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs font-black text-gray-300">.</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* ROW 3: Kings 15 ~ 21 (광인효현숙경영) -> Left to Right */}
-                <div className="relative">
-                  <div className="text-xs font-bold text-purple-600 mb-2 pl-2 tracking-widest">
-                    광 인 효 현 숙 경 영
-                  </div>
-                  {/* Straight Rail Line */}
-                  <div className="absolute top-[52px] left-6 right-6 h-3 bg-purple-600 rounded-full z-0 shadow-inner" />
-                  {/* Right U-Turn Curve: 21 -> 22 (Connecting Row 3 right to Row 4 right) */}
-                  <div className="absolute top-[52px] right-6 w-14 h-28 border-t-[10px] border-r-[10px] border-b-[10px] border-purple-600 rounded-r-3xl z-0 pointer-events-none" />
-
-                  <div className="relative z-10 grid grid-cols-7 gap-2">
-                    {[15, 16, 17, 18, 19, 20, 21].map((order) => {
-                      const kingDetail = JOSEON_DETAILED_MAP[order - 1];
-                      const isConquered = conqueredKings.includes(order);
-                      const isCurrent = kingIndex === order - 1;
-
-                      return (
-                        <div key={order} className="flex flex-col items-center text-center">
-                          <div className="h-6 flex items-center justify-center">
-                            {isCurrent && <span className="text-2xl animate-bounce">🚋</span>}
-                          </div>
-                          <button
-                            onClick={() => {
-                              setKingIndex(order - 1);
-                              setInputVal('');
-                            }}
-                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
-                              isConquered
-                                ? 'bg-purple-600 text-white ring-2 ring-purple-200'
-                                : isCurrent
-                                ? 'bg-purple-600 text-white ring-4 ring-purple-300 scale-105'
-                                : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
-                            }`}
-                          >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
-
-                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
-
-                              {isConquered ? '✓' : order}
-
-                            </span>
-                          </button>
-                          <div className="mt-1.5 min-h-[34px]">
-                            {isConquered || isCurrent ? (
-                              <>
-                                <div className="text-xs font-black text-gray-900">
-                                  {hideNameMode && isCurrent ? '???' : kingDetail.name}
-                                </div>
-                                <div className="text-[10px] text-gray-400 font-mono scale-90 -mt-0.5">
-                                  {kingDetail.reignYears}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs font-black text-gray-300">.</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* ROW 4: Kings 22 ~ 27 (정순헌철고순) -> Right to Left */}
-                <div className="relative">
-                  <div className="text-xs font-bold text-purple-600 mb-2 pr-2 text-right tracking-widest">
-                    정 순 헌 철 고 순
-                  </div>
-                  {/* Straight Rail Line */}
-                  <div className="absolute top-[52px] left-6 right-6 h-3 bg-purple-600 rounded-full z-0 shadow-inner" />
-
-                  <div className="relative z-10 grid grid-cols-7 gap-2">
-                    {/* Render 27, 26, 25, 24, 23, 22 from left to right */}
-                    {[27, 26, 25, 24, 23, 22].map((order) => {
-                      const kingDetail = JOSEON_DETAILED_MAP[order - 1];
-                      const isConquered = conqueredKings.includes(order);
-                      const isCurrent = kingIndex === order - 1;
-
-                      return (
-                        <div key={order} className="flex flex-col items-center text-center">
-                          <div className="h-6 flex items-center justify-center">
-                            {isCurrent && <span className="text-2xl animate-bounce">🚋</span>}
-                          </div>
-                          <button
-                            onClick={() => {
-                              setKingIndex(order - 1);
-                              setInputVal('');
-                            }}
-                            className={`relative w-12 h-12 rounded-full overflow-visible flex items-center justify-center font-black transition cursor-pointer shadow-sm ${
-                              isConquered
-                                ? 'bg-purple-600 text-white ring-2 ring-purple-200'
-                                : isCurrent
-                                ? 'bg-purple-600 text-white ring-4 ring-purple-300 scale-105'
-                                : 'bg-white text-purple-400 border-2 border-purple-200 text-xs font-bold'
-                            }`}
-                          >
-                            <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">{REAL_KING_PORTRAITS[order] ? <KingFace order={order} size={48} fill /> : <KingFace order={order} size={46} className="absolute left-1/2 top-[2px] -translate-x-1/2" />}</span>
-
-                            <span className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black grid place-items-center border-2 border-white ${isConquered ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
-
-                              {isConquered ? '✓' : order}
-
-                            </span>
-                          </button>
-                          <div className="mt-1.5 min-h-[34px]">
-                            {isConquered || isCurrent ? (
-                              <>
-                                <div className="text-xs font-black text-gray-900">
-                                  {hideNameMode && isCurrent ? '???' : kingDetail.name}
-                                </div>
-                                <div className="text-[10px] text-gray-400 font-mono scale-90 -mt-0.5">
-                                  {kingDetail.reignYears}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs font-black text-gray-300">.</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {/* Empty cell for 7-column grid alignment */}
-                    <div />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT (4 cols): HUD + DIRECT HEADLINE TYPING (Pixel-Perfect Match with User Image) */}
-            <div className="lg:col-span-4 space-y-4">
-              {/* 4-Stat Box */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-sky-50/70 border border-sky-100 rounded-2xl p-3.5 text-center">
-                  <div className="text-xs font-bold text-gray-500 mb-0.5">진행</div>
-                  <div className="text-2xl font-black text-blue-600">
-                    {kingIndex + 1}/27
-                  </div>
-                </div>
-                <div className="bg-sky-50/70 border border-sky-100 rounded-2xl p-3.5 text-center">
-                  <div className="text-xs font-bold text-gray-500 mb-0.5">현재 타수</div>
-                  <div className="text-2xl font-black text-blue-600">
-                    {stats.cpm}
-                  </div>
-                </div>
-                <div className="bg-sky-50/70 border border-sky-100 rounded-2xl p-3.5 text-center">
-                  <div className="text-xs font-bold text-gray-500 mb-0.5">시간</div>
-                  <div className="text-xl font-black text-gray-900">
-                    ⏱ {formatTime(stats.elapsedSeconds)}
-                  </div>
-                </div>
-                <div className="bg-sky-50/70 border border-sky-100 rounded-2xl p-3.5 text-center">
-                  <div className="text-xs font-bold text-gray-500 mb-0.5">정확도</div>
-                  <div className="text-xl font-black text-gray-900">
-                    {stats.accuracy}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Blue Pill: Memorization Mode Button */}
-              <button
-                onClick={() => setHideNameMode(!hideNameMode)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-2xl flex items-center justify-center gap-2 text-sm shadow-sm transition cursor-pointer"
-              >
+              <button type="button" onClick={() => setHideNameMode(!hideNameMode)} className={`js-memo ${hideNameMode ? 'is-on' : ''}`}>
                 {hideNameMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                <span>{hideNameMode ? '암기 모드 켜짐 (이름 가림)' : '👁 암기 모드 (이름 숨김)'}</span>
+                <span>{hideNameMode ? '암기 모드 켜짐 (이름 가림)' : '암기 모드 (이름 숨기기)'}</span>
               </button>
 
-              {/* Target Prompt Card (Soft Sky Blue) */}
-              <div className="bg-blue-50/70 rounded-3xl p-6 border-2 border-blue-200 text-center space-y-3 shadow-xs">
-                <div className="flex items-center justify-center gap-2">
-                  <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${
-                    joseonStep === 'name'
-                      ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                      : 'bg-white text-purple-600 border-purple-300'
-                  }`}>
-                    {joseonStep === 'name' ? '👑 1단계 진행 중' : '👑 1단계 완료'}
-                  </span>
-                  <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${
-                    joseonStep === 'achievement'
-                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
-                      : 'bg-white text-blue-600 border-blue-300'
-                  }`}>
-                    {joseonStep === 'achievement' ? '📜 2단계 진행 중' : '📜 2단계 대기'}
-                  </span>
+              <div className="js-now">
+                <div className="js-steps">
+                  <span className={`js-step ${joseonStep === 'name' ? 'is-on' : 'is-done'}`}>{joseonStep === 'name' ? '👑 1단계: 이름' : '✓ 1단계 끝'}</span>
+                  <span className={`js-step ${joseonStep === 'achievement' ? 'is-on' : ''}`}>📜 2단계: 핵심 지식</span>
                 </div>
 
-                <div className="flex justify-center">
-                  <div className="relative">
-                    <div className={`w-[118px] h-[118px] rounded-full bg-gradient-to-b from-amber-100 to-amber-200 border-4 border-amber-400 shadow-md overflow-hidden ${REAL_KING_PORTRAITS[currentKing.order] ? 'block' : 'grid justify-center place-items-end'}`}>
-                      <KingFace order={currentKing.order} size={112} fill={!!REAL_KING_PORTRAITS[currentKing.order]} title={hideNameMode ? '조선 국왕' : `조선 ${currentKing.order}대 ${currentKing.name}`} />
-                    </div>
-                    <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-purple-700 text-white text-[11px] font-black border-2 border-white whitespace-nowrap">
-                      {hideNameMode ? `${currentKing.order}대 ???` : `${currentKing.order}대 ${currentKing.name}`}
-                    </span>
+                <div className="js-frame">
+                  <div className="js-frame-pic">
+                    <KingFace order={currentKing.order} size={168} fill title={hideNameMode ? '조선 국왕' : `조선 ${currentKing.order}대 ${currentKing.name}`} />
                   </div>
+                  <span className="js-frame-plaque">{hideNameMode ? `${currentKing.order}대 ???` : `${currentKing.order}대 ${currentKing.name}`}</span>
                 </div>
-                <p className="text-[10px] font-bold text-slate-400 pt-1">
-                  {REAL_KING_PORTRAITS[currentKing.order]
-                    ? `📜 실제 모습: ${REAL_KING_PORTRAITS[currentKing.order].caption}`
-                    : '🎨 어진(초상화)이 전하지 않아 그림으로 표현했어요'}
-                </p>
-                <div className="text-xs font-bold text-blue-700 flex items-center justify-center gap-1">
-                  <span>📍</span>
-                  <span>
-                    제{currentKing.order}대 국왕 · {currentKingDetailed.reignYears} 재위
-                  </span>
-                </div>
+                <p className="js-caption">{hideNameMode ? (REAL_KING_PORTRAITS[currentKing.order] ? '📜 이 왕의 실제 모습이에요 (암기 모드라 이름을 가렸어요)' : '🏯 이 왕 때의 대표 유산이에요 (암기 모드라 이름을 가렸어요)') : kingPictureCaption(currentKing.order)}</p>
+                {(() => {
+                  const cr = kingPictureCredit(currentKing.order);
+                  return cr ? (
+                    <a className="js-credit" href={cr.page} target="_blank" rel="noopener noreferrer">
+                      사진: {cr.by} · {cr.license} · 위키미디어 공용
+                    </a>
+                  ) : null;
+                })()}
+                <p className="js-reign">📍 제{currentKing.order}대 국왕 · {currentKingDetailed.reignYears} 재위</p>
 
                 {joseonStep === 'name' ? (
-                  <div className="space-y-1.5 py-2">
-                    <span className="text-xs font-black text-purple-600 tracking-wider">
-                      [1단계: 왕조 이름 먼저 치기]
-                    </span>
-                    <h2 className="text-3xl sm:text-4xl font-black text-purple-900 leading-tight tracking-tight">
-                      {hideNameMode ? '???' : currentKing.name}
-                    </h2>
-                    <p className="text-xs text-slate-500 font-medium">
-                      본명: {currentKing.birthName || currentKingDetailed.subdesc.split('.')[0]}
-                    </p>
+                  <div className="js-target">
+                    <span className="js-target-tag">1단계: 왕 이름 먼저 치기</span>
+                    <h2 className="js-target-name">{hideNameMode ? '???' : currentKing.name}</h2>
+                    <p className="js-target-sub">본명: {currentKing.birthName || currentKingDetailed.subdesc.split('.')[0]}</p>
                   </div>
                 ) : (
-                  <div className="space-y-1.5 py-1">
-                    <span className="text-xs font-black text-blue-600 tracking-wider">
-                      [2단계: 핵심 지식 치기]
-                    </span>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug tracking-tight">
-                      {currentKingDetailed.headline}
-                    </h2>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      {currentKingDetailed.subdesc}
-                    </p>
+                  <div className="js-target">
+                    <span className="js-target-tag js-target-tag--2">2단계: 핵심 지식 치기</span>
+                    <h2 className="js-target-line">{currentKingDetailed.headline}</h2>
+                    <p className="js-target-sub">{currentKingDetailed.subdesc}</p>
                   </div>
                 )}
               </div>
 
-              {/* Big Centered Input Box */}
-              <div className="space-y-2">
+              <div className="js-type">
                 <input
                   ref={inputRef}
                   type="text"
@@ -1328,53 +1069,41 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                   onKeyDown={handleKeyDown}
                   onCompositionStart={handleCompositionStart}
                   onCompositionEnd={handleCompositionEnd}
-                  placeholder={
-                    joseonStep === 'name'
-                      ? `1단계: 왕조 이름을 치고 Enter 또는 스페이스 (예: ${currentKing.name})`
-                      : '2단계: 위 문장을 그대로 치고 Enter 또는 스페이스'
-                  }
-                  className="w-full text-center text-lg font-bold py-4 px-6 rounded-2xl border-2 border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition bg-white shadow-inner placeholder-gray-400 text-gray-800"
+                  placeholder={joseonStep === 'name' ? `왕 이름을 치고 Enter (예: ${hideNameMode ? '?' : currentKing.name})` : '위 문장을 그대로 치고 Enter'}
+                  className="js-input"
                   autoFocus
                 />
-                <div className="flex items-center justify-between text-xs text-gray-400 px-2">
-                  <span className="font-bold text-purple-600">
-                    {joseonStep === 'name' ? '👑 왕조 이름 먼저 입력' : '📜 핵심 지식 입력'}
-                  </span>
-                  <span className="font-bold text-blue-600">
+                <div className="js-type-meta">
+                  <span>{joseonStep === 'name' ? '👑 왕 이름 입력' : '📜 핵심 지식 입력'}</span>
+                  <span>
                     {inputVal.length} / {currentExpectedAnswer.length}자
                   </span>
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
 
-          {/* Bottom Reference Table: "📖 조선 왕조 27대 한눈에 보기" */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-4">
-            <div>
-              <h3 className="text-xl font-black text-blue-600 flex items-center gap-2">
-                <span>📖</span>
-                <span>조선 왕조 27대 한눈에 보기</span>
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                시작하기 전이나 완주한 뒤 복습할 때 참고하세요. 표의 순서가 그대로 코스의 진행 순서입니다 (태정태세문단세 · 예성연중인명선 · 광인효현숙경영 · 정순헌철고순).
-              </p>
-            </div>
-
-            <div className="overflow-x-auto border border-gray-200 rounded-2xl">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600 font-bold border-b border-gray-200 text-xs">
+          {/* 아래: 27대 한눈에 보기 (두루마리 표) */}
+          <section className="js-table-card">
+            <header className="js-board-head">
+              <span className="js-sign">📖 조선 왕조 27대 한눈에 보기</span>
+            </header>
+            <p className="js-table-help">시작하기 전이나 다 친 뒤 복습할 때 보세요. 표의 순서가 그대로 치는 순서예요 (태정태세문단세 · 예성연중인명선 · 광인효현숙경영 · 정순헌철고순). 줄을 누르면 그 왕부터 칠 수 있어요.</p>
+            <div className="js-table-scroll">
+              <table className="js-table">
+                <thead>
                   <tr>
-                    <th className="py-3 px-4 w-16 text-center">순서</th>
-                    <th className="py-3 px-4 w-28 text-center">이름</th>
-                    <th className="py-3 px-4 w-32 text-center">시기</th>
-                    <th className="py-3 px-6">핵심 지식</th>
+                    <th>순서</th>
+                    <th>그림</th>
+                    <th>이름</th>
+                    <th>시기</th>
+                    <th>핵심 지식</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {JOSEON_DETAILED_MAP.map((item, idx) => {
-                    const isConquered = conqueredKings.includes(item.order);
-                    const isCurrent = kingIndex === idx;
-
+                    const done = conqueredKings.includes(item.order);
+                    const now = kingIndex === idx;
                     return (
                       <tr
                         key={item.order}
@@ -1382,34 +1111,19 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                           setKingIndex(idx);
                           setInputVal('');
                         }}
-                        className={`transition cursor-pointer ${
-                          isCurrent
-                            ? 'bg-blue-50/70 font-semibold'
-                            : isConquered
-                            ? 'bg-purple-50/30 hover:bg-gray-50'
-                            : 'hover:bg-gray-50'
-                        }`}
+                        className={`${now ? 'is-now' : ''} ${done ? 'is-done' : ''}`}
                       >
-                        <td className="py-3 px-4 text-center font-bold text-gray-500">
-                          {isConquered ? (
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-600 text-white text-[10px]">
-                              ✓
-                            </span>
-                          ) : (
-                            item.order
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-center font-black text-gray-900">
-                          {item.name}
-                        </td>
-                        <td className="py-3 px-4 text-center font-mono text-xs text-gray-500">
-                          {item.reignYears}
-                        </td>
-                        <td className="py-3 px-6 text-xs text-gray-700">
-                          <span className="font-bold text-gray-900 mr-2">
-                            {item.headline}
+                        <td className="js-td-no">{done ? <span className="js-check">✓</span> : item.order}</td>
+                        <td className="js-td-pic">
+                          <span className="js-mini">
+                            <KingFace order={item.order} size={40} fill />
                           </span>
-                          <span className="text-gray-500">{item.subdesc}</span>
+                        </td>
+                        <td className="js-td-name">{item.name}</td>
+                        <td className="js-td-year">{item.reignYears}</td>
+                        <td className="js-td-desc">
+                          <b>{item.headline}</b> <span>{item.subdesc}</span>
+                          {KING_RELICS[item.order] && !REAL_KING_PORTRAITS[item.order] && <em>🏯 {KING_RELICS[item.order].name}</em>}
                         </td>
                       </tr>
                     );
@@ -1417,7 +1131,25 @@ export const JourneyPracticeView: React.FC<JourneyPracticeViewProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
+            <details className="js-credits">
+              <summary>📷 사진 출처 (위키미디어 공용)</summary>
+              <ul>
+                {JOSEON_DETAILED_MAP.map((item) => {
+                  const cr = kingPictureCredit(item.order);
+                  if (!cr) return null;
+                  const what = REAL_KING_PORTRAITS[item.order] ? REAL_KING_PORTRAITS[item.order].caption : KING_RELICS[item.order]?.name;
+                  return (
+                    <li key={item.order}>
+                      {item.order}대 {item.name} — {what}:{' '}
+                      <a href={cr.page} target="_blank" rel="noopener noreferrer">
+                        {cr.by}, {cr.license}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          </section>
         </div>
       )}
 
