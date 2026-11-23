@@ -143,6 +143,8 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
     const inner = innerRef.current;
     if (!area || !inner) return false;
     if (inner.childElementCount === 0 || inner.scrollHeight < 80) return false;
+    // '연습 책상 펼치는 중' 같은 임시 화면으로 크기를 재면 진짜 화면이 잘려 보임 → 진짜 화면이 뜬 뒤에 잼
+    if (inner.querySelector('.acct-loading')) return false;
 
     const areaW = area.clientWidth;
     const areaH = area.clientHeight;
@@ -226,10 +228,30 @@ export const PracticeWindowContainer: React.FC<PracticeWindowContainerProps> = (
     if (ro && areaRef.current) {
       ro.observe(areaRef.current);
     }
+    // 화면 내용이 크게 바뀌면(불러오기가 끝남·단계 바뀜 등) 다시 맞춤. 타자를 칠 때의 작은 흔들림(60px 미만)은 무시
+    let lastInnerH = 0;
+    const roInner =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            const inner = innerRef.current;
+            if (!inner) return;
+            const h = inner.scrollHeight;
+            if (lastInnerH && Math.abs(h - lastInnerH) < 60) return;
+            lastInnerH = h;
+            passes.current = 0;
+            if (raf) cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => {
+              raf = 0;
+              runConvergeMeasure();
+            });
+          })
+        : null;
+    if (roInner && innerRef.current) roInner.observe(innerRef.current);
     window.addEventListener('resize', scheduleForViewportChange);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       ro?.disconnect();
+      roInner?.disconnect();
       window.removeEventListener('resize', scheduleForViewportChange);
     };
   }, [measure]);
