@@ -30,3 +30,8 @@ export const FlameSquadGame: React.FC<{ onBack?: () => void }> = () => (
 export const PpogeulGame: React.FC<{ onBack?: () => void }> = () => (
   <IframeGame src="games/ppogeul/index.html" title="뽀글뽀글" icon="🫧" />
 );
+
+/** 골목대장 대결: 1:1 격투 (캐릭터 8명·무대 6곳) — 11/25 모아팡에 먼저 올린 것을 원본에 옮김 */
+export const GolmokGame: React.FC<{ onBack?: () => void }> = () => (
+  <IframeGame src="games/golmok/index.html" title="골목대장 대결" icon="🥊" />
+);

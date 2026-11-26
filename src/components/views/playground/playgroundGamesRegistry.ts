@@ -13,7 +13,7 @@ import { AirplaneShootingGame } from './games/AirplaneShootingGame';
 import { PocketKartOriginal } from './games/PocketKartOriginal';
 import { BlockCraftGame } from './games/BlockCraftGame';
 import { CookieKingdomRun } from './games/CookieKingdomRun';
-import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame, PpogeulGame } from './games/NewFunfunGames';
+import { PogeunForestGame, AshenHollowGame, BaramIslandGame, LightsaberDuelGame, FlameSquadGame, PpogeulGame, GolmokGame } from './games/NewFunfunGames';
 
 export interface PlaygroundGameDef {
   id: string;
@@ -227,6 +227,16 @@ export const PLAYGROUND_GAMES: PlaygroundGameDef[] = [
     thumb: './assets/playground/thumb-ppogeul.webp',
     description: '같은 색 방울 3개를 붙여 터뜨리는 방울 퍼즐 · 혼자 하기 10판 · 컴퓨터와 대결 · 둘이서 대결(한 키보드)',
     component: PpogeulGame,
+  },
+  {
+    id: 'app-golmok',
+    players: 2,
+    title: '골목대장 대결',
+    category: '펀펀',
+    icon: '🥊',
+    thumb: './assets/playground/thumb-golmok.webp',
+    description: '골목 친구 8명이 붙는 1:1 격투 · 무대 6곳 · 필살기 · 컴퓨터와 대결 · 둘이서 대결(한 키보드)',
+    component: GolmokGame,
   },
 ];
 
