@@ -10,6 +10,7 @@ import { LogIn, Crown, ArrowLeft } from 'lucide-react';
 import { WoodDialog } from './WoodDialog';
 import { UserSession } from '../types';
 import { typangApi } from '../utils/apiClient';
+import { readSchools } from '../utils/tajaSchools';
 import { errText, loginMember, signupMember, teacherResetMail, teacherSession, TEACHER_EMAIL } from '../utils/moaFirebase';
 
 interface Props {
@@ -27,6 +28,9 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
   const [teacher, setTeacher] = useState(false);
   const [signup, setSignup] = useState(false);
   const [grade, setGrade] = useState(0);
+  // 학교: 선생님이 정한 목록에서 고름 (목록이 없으면 안 보임). null = 아직 안 고름, '' = 잘 모르겠어요
+  const [schools, setSchools] = useState<string[]>([]);
+  const [school, setSchool] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [okMsg, setOkMsg] = useState('');
@@ -48,6 +52,8 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
     setTeacher(false);
     setSignup(wantSignup);
     setGrade(0);
+    setSchool(null);
+    void readSchools().then(setSchools);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -73,10 +79,11 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (signup && schools.length && school === null) return setMsg('학교를 골라 주세요.');
     if (signup && !grade) return setMsg('학년을 골라 주세요.');
     run(async () => {
       if (signup) {
-        const r = await signupMember(name, phone, grade);
+        const r = await signupMember(name, phone, grade, school || '');
         if (!r.ok) return setMsg(r.message);
         setOkMsg(`${r.message} 승인되면 이름과 전화번호 뒷자리 4자리로 로그인해요.`);
         setSignup(false);
@@ -116,7 +123,7 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
       {!teacher ? (
         <>
           <p className="wd-lead">
-            {signup ? '이름·전화번호·학년을 쓰면 가입 신청이 돼요. 선생님이 승인하면 로그인할 수 있어요.' : '이름과 전화번호 뒷자리 4자리로 로그인해요. 로그인하면 기록이 저장되고 미니게임·놀이터를 할 수 있어요.'}
+            {signup ? '이름·전화번호·학교·학년을 쓰면 가입 신청이 돼요. 선생님이 승인하면 로그인할 수 있어요.' : '이름과 전화번호 뒷자리 4자리로 로그인해요. 로그인하면 기록이 저장되고 미니게임·놀이터를 할 수 있어요.'}
           </p>
 
           <div className="wd-tabs" role="tablist">
@@ -140,6 +147,15 @@ export const MoaAuthModal: React.FC<Props> = ({ isOpen, onClose, onLoginSuccess 
               autoComplete="tel"
               required
             />
+            {signup && schools.length > 0 && (
+              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="학교" data-testid="pick-school">
+                {[...schools, ''].map((sc) => (
+                  <button key={sc || '-'} type="button" role="radio" aria-checked={school === sc} onClick={() => setSchool(sc)} className={`wd-pick ${school === sc ? 'is-on' : ''}`} style={{ flex: '1 1 auto' }}>
+                    {sc ? `🏫 ${sc}` : '잘 모르겠어요'}
+                  </button>
+                ))}
+              </div>
+            )}
             {signup && (
               <div className="grid grid-cols-6 gap-1.5" role="radiogroup" aria-label="학년">
                 {[1, 2, 3, 4, 5, 6].map((g) => (

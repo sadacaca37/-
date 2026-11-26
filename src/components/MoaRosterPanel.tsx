@@ -13,6 +13,7 @@ import { downloadMoaTemplate, readImportFile, importStudents } from '../utils/mo
 import { fetchStudentFree, saveStudentFree, formatKDate } from '../utils/funfunFree';
 import { readGiftTotals, sendGift } from '../utils/tajaGifts';
 import { hasCheckPin, setCheckPin } from '../utils/teacherCheck';
+import { readSchools, saveSchools, cleanSchool } from '../utils/tajaSchools';
 
 interface Props {
   users: UserSession[];
@@ -37,6 +38,14 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
   // 보관함 (명단에서 뺀 학생, 기록은 그대로)
   const [archived, setArchived] = useState<UserSession[]>([]);
   const [showArc, setShowArc] = useState(false);
+  // 학교별로 묶어 보기 ('*' = 모든 학교, '' = 학교 미정)
+  const [schools, setSchools] = useState<string[]>([]);
+  const [schoolTab, setSchoolTab] = useState<string>('*');
+  const [editSchools, setEditSchools] = useState(false);
+  const [newSchool, setNewSchool] = useState('');
+  useEffect(() => {
+    void readSchools(true).then(setSchools);
+  }, []);
   useEffect(() => {
     void typangApi.getArchivedUsers().then((a) => setArchived([...a]));
   }, [users]);
@@ -139,18 +148,41 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
     await onRefresh();
   };
 
+  // 명단에 보이는 학생 (선생님·보관함 학생 빼고, 이름 찾기·대기만 반영)
+  const visible = useMemo(() => users.filter((u) => u.role !== 'master' && (!q || u.name.includes(q.trim())) && (!onlyPending || !u.isApproved)), [users, q, onlyPending]);
+  /** 학교 차례: 선생님이 정한 목록 순서 → 목록에 없지만 학생이 가진 학교 → 학교 미정 */
+  const schoolOrder = useMemo(() => {
+    const extra = [...new Set(users.map((u) => u.school || '').filter((x) => x && !schools.includes(x)))].sort((a, b) => a.localeCompare(b));
+    return [...schools, ...extra, ''];
+  }, [users, schools]);
+  const countOf = (sc: string) => visible.filter((u) => (u.school || '') === sc).length;
   const groups = useMemo(() => {
-    const map = new Map<string, UserSession[]>();
-    for (const u of users) {
-      if (u.role === 'master') continue;
-      if (q && !u.name.includes(q.trim())) continue;
-      if (onlyPending && u.isApproved) continue;
-      const k = u.grade ? `${u.grade}학년` : '학년 미정';
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(u);
+    const out: [string, UserSession[]][] = [];
+    for (const sc of schoolOrder) {
+      if (schoolTab !== '*' && schoolTab !== sc) continue;
+      const list = visible.filter((u) => (u.school || '') === sc);
+      if (list.length) out.push([sc, list]);
     }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [users, q, onlyPending]);
+    return out;
+  }, [visible, schoolOrder, schoolTab]);
+  const schoolLabel = (sc: string) => (sc ? `🏫 ${sc}` : '❓ 학교 미정');
+
+  const assignSchool = async (list: UserSession[], sc: string) => {
+    if (!list.length) return;
+    setBusy(true);
+    const n = await typangApi.setSchool(
+      list.map((u) => u.id),
+      sc,
+    );
+    setBusy(false);
+    say(n ? `🏫 ${n}명의 학교를 '${sc || '학교 미정'}'(으)로 정했어요.` : '❌ 저장하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+    await onRefresh();
+  };
+  const changeSchools = async (next: string[]) => {
+    const ok = await saveSchools(next);
+    if (ok) setSchools(await readSchools(true));
+    else say('❌ 학교 목록을 저장하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+  };
 
   const btn = 'px-2.5 py-1 rounded-lg text-[12px] font-black cursor-pointer';
 
@@ -287,6 +319,67 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
         </label>
       </div>
 
+      {/* 학교별로 보기 · 학교 목록 고치기 */}
+      <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-emerald-200 bg-emerald-50/60 text-xs font-bold" data-testid="school-bar">
+        <span className="font-black text-emerald-900 mr-1">학교</span>
+        <button type="button" className={`${btn} ${schoolTab === '*' ? 'bg-emerald-600 text-white' : 'bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-50'}`} onClick={() => setSchoolTab('*')}>
+          전체 {visible.length}
+        </button>
+        {schoolOrder.map((sc) =>
+          sc || countOf('') ? (
+            <span key={sc || '-'} className="inline-flex items-center">
+              <button
+                type="button"
+                className={`${btn} ${schoolTab === sc ? 'bg-emerald-600 text-white' : 'bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-50'}`}
+                onClick={() => setSchoolTab(sc)}
+                data-testid="school-tab"
+              >
+                {schoolLabel(sc)} {countOf(sc)}
+              </button>
+              {editSchools && sc && schools.includes(sc) && (
+                <button
+                  type="button"
+                  title="학교 목록에서 빼기 (학생의 학교는 그대로)"
+                  className="ml-0.5 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 hover:bg-rose-200"
+                  onClick={async () => {
+                    if (!(await askConfirm(`'${sc}'을(를) 학교 목록에서 뺄까요?\n가입할 때 고르는 학교에서 사라져요. (이미 이 학교인 학생은 그대로)`, '빼기'))) return;
+                    await changeSchools(schools.filter((x) => x !== sc));
+                    if (schoolTab === sc) setSchoolTab('*');
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </span>
+          ) : null,
+        )}
+        {editSchools ? (
+          <form
+            className="inline-flex items-center gap-1"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const sc = cleanSchool(newSchool);
+              if (!sc) return;
+              await changeSchools([...schools, sc]);
+              setNewSchool('');
+            }}
+          >
+            <input value={newSchool} onChange={(e) => setNewSchool(e.target.value.slice(0, 20))} placeholder="학교 이름 (예: 안골초)" className="w-36 px-2 py-1 rounded-lg border-2 border-emerald-300" data-testid="new-school" />
+            <button type="submit" className={`${btn} bg-emerald-600 text-white hover:bg-emerald-500`}>
+              추가
+            </button>
+            <button type="button" className={`${btn} bg-white border border-slate-300 text-slate-600`} onClick={() => setEditSchools(false)}>
+              다 했어요
+            </button>
+          </form>
+        ) : (
+          <button type="button" className={`${btn} bg-white border border-dashed border-emerald-400 text-emerald-700 hover:bg-emerald-50`} onClick={() => setEditSchools(true)} data-testid="edit-schools">
+            ✏️ 학교 목록 {schools.length ? '고치기' : '만들기'}
+          </button>
+        )}
+        {!schools.length && !editSchools && <span className="text-emerald-700/70">학교를 만들면 학생이 가입할 때 학교를 골라요.</span>}
+      </div>
+
       {/* 학생을 골라서: 포인트 선물 · 펀펀 플레이 무료 개방 */}
       <div className={`shrink-0 px-3 py-1.5 rounded-xl border-2 text-xs font-bold flex flex-wrap items-center gap-2 ${sel.size ? 'bg-violet-50 border-violet-300 text-violet-950' : 'bg-slate-50 border-slate-200 text-slate-500'}`} data-testid="select-bar">
         <span className="font-black">☑️ 고른 학생 {sel.size}명</span>
@@ -301,6 +394,27 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
         </button>
         {sel.size > 0 && (
           <>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-emerald-200">
+              🏫
+              <select
+                value="__"
+                disabled={busy}
+                className="px-1.5 py-1 rounded border border-emerald-200 font-bold"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v !== '__') void assignSchool(selUsers, v === '-' ? '' : v);
+                }}
+                data-testid="bulk-school"
+              >
+                <option value="__">학교 정하기…</option>
+                {schoolOrder.filter(Boolean).map((sc) => (
+                  <option key={sc} value={sc}>
+                    {sc}
+                  </option>
+                ))}
+                <option value="-">학교 미정</option>
+              </select>
+            </span>
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-amber-200">
               🎁
               <input type="number" min={1} max={100000} step={100} value={giftP} onChange={(e) => setGiftP(Number(e.target.value))} className="w-20 px-1.5 py-1 rounded border border-amber-200 text-right" data-testid="gift-points" />
@@ -354,6 +468,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
               <thead className="bg-amber-100 text-amber-900 font-black">
                 <tr>
                   <th className="px-3 py-1.5 text-left">이름</th>
+                  <th className="px-3 py-1.5">학교</th>
                   <th className="px-3 py-1.5">학년</th>
                   <th className="px-3 py-1.5">🔑 비밀번호</th>
                   <th className="px-3 py-1.5">최고 타수</th>
@@ -368,6 +483,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                     <td className="px-3 py-1.5">
                       {u.avatar} {u.name}
                     </td>
+                    <td className="px-3 py-1.5 text-center">{u.school || '-'}</td>
                     <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
                     <td className="px-3 py-1.5 text-center font-mono">{u.parentPhone ? (showPw ? u.parentPhone.replace(/[^0-9]/g, '').slice(-4) : '••••') : '-'}</td>
                     <td className="px-3 py-1.5 text-center">{u.highestCpm || '-'}</td>
@@ -390,13 +506,13 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
       )}
 
       <div className="flex-1 min-h-0 max-h-[56vh] overflow-y-auto space-y-4 pr-1 rounded-xl bg-white/95">
-        {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">아직 학생이 없어요. 학생이 모아팡에 들어오면 생겨요.</div>}
+        {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">{users.some((u) => u.role !== 'master') ? '이 학교에 해당하는 학생이 없어요.' : '아직 학생이 없어요. 학생이 가입하면 생겨요.'}</div>}
         {groups.map(([cls, list]) => (
           <section key={cls}>
             <h3 className="text-sm font-black text-slate-800 mb-1.5 flex items-center gap-2">
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4" checked={list.every((u) => sel.has(u.id))} onChange={(e) => toggle(list.map((u) => u.id), e.target.checked)} title="이 반 모두 고르기" />
-                {cls}
+                <input type="checkbox" className="w-4 h-4" checked={list.every((u) => sel.has(u.id))} onChange={(e) => toggle(list.map((u) => u.id), e.target.checked)} title="이 학교 모두 고르기" />
+                {schoolLabel(cls)}
               </label>
               <span className="text-slate-400">({list.length}명)</span>
             </h3>
@@ -407,6 +523,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                     <th className="px-2 py-2 w-8"></th>
                     <th className="px-3 py-2">승인</th>
                     <th className="px-3 py-2 text-left">이름</th>
+                    <th className="px-3 py-2">학교</th>
                     <th className="px-3 py-2">학년</th>
                     <th className="px-3 py-2">🔑 비밀번호(전화 뒷자리)</th>
                     <th className="px-3 py-2">최고 타수</th>
@@ -467,6 +584,23 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                             🎁 {giftTotals[u.id].toLocaleString()}P
                           </span>
                         )}
+                      </td>
+                      <td className="px-3 py-1.5 text-center">
+                        <select
+                          value={u.school || ''}
+                          disabled={busy}
+                          className="max-w-[8rem] px-1 py-0.5 rounded border border-emerald-200 bg-white font-bold"
+                          onChange={(e) => void assignSchool([u], e.target.value)}
+                          aria-label={`${u.name} 학교`}
+                          data-testid="row-school"
+                        >
+                          {schoolOrder.filter(Boolean).map((sc) => (
+                            <option key={sc} value={sc}>
+                              {sc}
+                            </option>
+                          ))}
+                          <option value="">학교 미정</option>
+                        </select>
                       </td>
                       <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
                       <td className="px-3 py-1.5 text-center whitespace-nowrap">

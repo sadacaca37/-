@@ -163,6 +163,7 @@ class TypangApiClient {
           totalPracticeCount: Number(t.totalPracticeCount) || 0,
           highestCpm: Number(t.highestCpm) || 0,
           moaOutfit: v.outfit || null, // 모아팡 캐릭터 옷차림 (성적표에 그림)
+          school: String(t.school || ''),
         } as UserSession);
         // 보관함에 넣은 학생은 명단에서 빼서 보관함 목록으로
         const ar = arc.a[id];
@@ -274,6 +275,7 @@ class TypangApiClient {
         if (t.phone) keep.phone = t.phone;
         if (t.className) keep.className = t.className;
         if (t.grade) keep.grade = t.grade;
+        if (t.school) keep.school = t.school;
       }
       await updateDoc(doc(fs, 'classes', p.cid, 'students', p.key), { taja: Object.keys(keep).length ? keep : deleteField() }).catch(() => {});
       return true;
@@ -297,6 +299,23 @@ class TypangApiClient {
     } catch {
       return false;
     }
+  }
+
+  /** 선생님: 학생들의 학교 정하기 ('' 이면 학교 미정) */
+  public async setSchool(ids: string[], school: string): Promise<number> {
+    if (!isTeacherUser()) return 0;
+    const sc = String(school || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    let n = 0;
+    for (const id of ids) {
+      const p = parseUserId(id);
+      if (!p || p.cid !== MEMBER_CID) continue;
+      try {
+        // 예전부터 늘 같은 값이던 className('타자팡 회원')은 지워서 칸 수 여유를 둠
+        await updateDoc(doc(fs, 'classes', p.cid, 'students', p.key), { 'taja.school': sc || deleteField(), 'taja.className': deleteField() });
+        n++;
+      } catch {}
+    }
+    return n;
   }
 
   /* ---------------- 보관함 ---------------- */

@@ -290,7 +290,7 @@ const checkInput = (name: string, phone: string) => {
 };
 
 /** 새로 가입하기: 승인 대기로 만듦 */
-export async function signupMember(rawName: string, phone: string, grade = 0): Promise<{ ok: boolean; message: string }> {
+export async function signupMember(rawName: string, phone: string, grade = 0, school = ''): Promise<{ ok: boolean; message: string }> {
   const bad = checkInput(rawName, phone);
   if (bad) return { ok: false, message: bad };
   const name = cleanName(rawName);
@@ -306,6 +306,8 @@ export async function signupMember(rawName: string, phone: string, grade = 0): P
     taja.grade = grade;
     taja.levelTitle = `${grade}학년 타자 꿈나무`;
   }
+  const sc = String(school || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+  if (sc) taja.school = sc;
   await setDoc(memberRef(key), { name, uid: u.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp(), taja });
   return { ok: true, message: `가입 신청 완료! 선생님이 승인하면 '${name}' 이름과 전화번호로 로그인할 수 있어요.` };
 }
