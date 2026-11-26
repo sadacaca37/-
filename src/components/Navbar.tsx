@@ -28,6 +28,7 @@ import { pointsManager, MASTER_POINTS } from '../utils/pointsManager';
 import { longUnlocked, SHORT_TO_LONG_CPM } from '../utils/longGate';
 import { myTier } from '../utils/speedTier';
 import { PixelIcon } from './views/TapangHome';
+import { AttendNavButton } from './AttendButton';
 import { FUNFUN_ENTRY_POINTS, GAME_POINTS, PRACTICE_SET_POINTS } from '../utils/pointRules';
 import { soundManager } from '../utils/sound';
 import { MoaCharacter } from './MoaCharacter';
@@ -198,6 +199,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* 학생: 오늘 출석하기 (하루 한 번 · 선생님 문자함이 부모님께 출석 문자를 보냄) */}
+            <AttendNavButton user={currentUser} />
+
             {/* 학생: 오늘 연습을 선생님께 보내기 */}
             {onOpenSendReport && currentUser && currentUser.role !== 'master' && (
               <button
@@ -229,6 +233,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden md:inline"><span className="whitespace-nowrap">상·하반기</span> 성적표</span>
                 <span className="md:hidden">성적표</span>
               </button>
+            )}
+
+            {/* 선생님: 모아팡 문자함 (출석부 · 부모님 출석 문자 · 안내장) — 새 창 */}
+            {currentUser?.role === 'master' && (
+              <a
+                href="../sms.html"
+                target="_blank"
+                rel="noopener"
+                className="tp-nbtn px-2.5 sm:px-3 py-2 rounded-2xl text-xs font-black bg-amber-50 hover:bg-amber-100 text-amber-800 border-2 border-amber-300 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                title="출석부 · 부모님 출석 문자 · 안내장 보내기 (새 창)"
+                data-testid="nav-sms"
+              >
+                <span>📱</span>
+                <span className="hidden sm:inline">출석·문자</span>
+              </a>
             )}
 
             {/* Master Console Button (Only visible for Master teacher) */}

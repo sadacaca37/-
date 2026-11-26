@@ -29,6 +29,7 @@ import { PracticeWindowContainer } from './components/PracticeWindowContainer';
 import { soundManager } from './utils/sound';
 import { typangApi } from './utils/apiClient';
 import { userPersistenceManager } from './utils/userPersistenceManager';
+import { AttendBanner, AttendPopup } from './components/AttendButton';
 
 // 첫 화면에 필요 없는 화면·창은 필요할 때 불러와서 처음 접속이 빨라지도록 분리
 const ProfileModal = lazy(() => import('./components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
@@ -662,6 +663,9 @@ export default function App() {
         />
       )}
       {!isPopupMode && currentMode === 'home' && <ContestBanner user={currentUser} onLogin={() => setIsAuthOpen(true)} />}
+      {/* 학생: 오늘 아직 출석 안 했으면 첫 화면에 [출석하기] 띠 */}
+      {!isPopupMode && currentMode === 'home' && <AttendBanner user={currentUser} />}
+      {!isPopupMode && <AttendPopup />}
 
       {/* 선생님 승인 전 학생: 타자는 칠 수 있지만 저장은 안 된다는 안내 */}
       {currentUser && currentUser.role !== 'master' && currentUser.isApproved !== true && (
