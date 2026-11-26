@@ -269,6 +269,8 @@ export interface MonthlySpeedRecord {
 }
 
 export interface UserSession {
+  /** 선생님이 보관함에 넣은 시각 (보관함 목록에서만) */
+  archivedAt?: number;
   id: string;
   name: string;
   studentId?: string; // 학생 ID

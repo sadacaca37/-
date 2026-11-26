@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserSession } from '../types';
 import { typangApi } from '../utils/apiClient';
-import { askConfirm } from '../utils/dialog';
+import { askConfirm, askChoice } from '../utils/dialog';
 import { FunfunFreePanel } from './FunfunFreePanel';
 import { ContestPanel } from './ContestPanel';
 import { setApprovals } from '../utils/tajaApproval';
@@ -34,6 +34,12 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
   const [showPw, setShowPw] = useState(true);
   const [pinSet, setPinSet] = useState<boolean | null>(null);
   const [newPin, setNewPin] = useState('');
+  // 보관함 (명단에서 뺀 학생, 기록은 그대로)
+  const [archived, setArchived] = useState<UserSession[]>([]);
+  const [showArc, setShowArc] = useState(false);
+  useEffect(() => {
+    void typangApi.getArchivedUsers().then((a) => setArchived([...a]));
+  }, [users]);
   useEffect(() => {
     void hasCheckPin().then(setPinSet);
   }, []);
@@ -88,6 +94,49 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
   const say = (m: string) => {
     setMsg(m);
     window.setTimeout(() => setMsg(''), 9000);
+  };
+  const namesOf = (list: UserSession[]) => list.map((u) => u.name).slice(0, 6).join(', ') + (list.length > 6 ? ` 외 ${list.length - 6}명` : '');
+
+  /** 삭제: 보관함으로 옮기기 / 완전히 삭제 / 기록만 지우기 중에서 고름 */
+  const removeStudents = async (list: UserSession[]) => {
+    if (!list.length) return;
+    const names = namesOf(list);
+    const pick = await askChoice(`${names}\n${list.length > 1 ? `이 학생들(${list.length}명)을` : '이 학생을'} 어떻게 할까요?`, [
+      { value: 'archive', label: '📦 보관함으로 옮기기', desc: '명단에서 빠지고 로그인은 막혀요. 포인트·연습 기록은 그대로 두었다가 보관함에서 언제든 되살릴 수 있어요.', tone: 'primary' },
+      { value: 'delete', label: '🗑 완전히 삭제', desc: '로그인 정보·포인트·연습 기록이 모두 지워지고 되돌릴 수 없어요.', tone: 'danger' },
+      { value: 'wipe', label: '🧹 기록만 지우기', desc: '명단에는 남기고 포인트·연습 기록만 지워요.', tone: 'plain' },
+    ]);
+    if (!pick) return;
+    if (pick === 'delete' && !(await askConfirm(`정말 완전히 삭제할까요?\n${names}\n되돌릴 수 없어요.`, '완전히 삭제'))) return;
+    setBusy(true);
+    let n = 0;
+    if (pick === 'archive') n = await typangApi.archiveMembers(list);
+    else for (const u of list) if (await (pick === 'delete' ? typangApi.removeMember(u.id) : typangApi.deleteUser(u.id))) n++;
+    setBusy(false);
+    setSel(new Set());
+    if (!n) say('❌ 하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+    else if (pick === 'archive') say(`📦 ${n}명을 보관함으로 옮겼어요. [📦 보관함]에서 되살릴 수 있어요.`);
+    else if (pick === 'delete') say(`🗑️ ${n}명을 완전히 삭제했어요.`);
+    else say(`🧹 ${n}명의 포인트·연습 기록을 지웠어요.`);
+    await onRefresh();
+  };
+
+  const restore = async (list: UserSession[]) => {
+    if (!list.length) return;
+    setBusy(true);
+    const n = await typangApi.restoreMembers(list.map((u) => u.id));
+    setBusy(false);
+    say(n ? `↩️ ${namesOf(list)} 학생을 명단으로 되살렸어요.` : '❌ 되살리지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
+    await onRefresh();
+  };
+  const purge = async (u: UserSession) => {
+    if (!(await askConfirm(`'${u.name}' 학생을 보관함에서 완전히 삭제할까요?\n로그인 정보·포인트·연습 기록이 모두 지워지고 되돌릴 수 없어요.`, '완전히 삭제'))) return;
+    setBusy(true);
+    const ok = await typangApi.removeMember(u.id);
+    setBusy(false);
+    say(ok ? `🗑️ ${u.name} 학생을 완전히 삭제했어요.` : '❌ 삭제하지 못했어요.');
+    setArchived((a) => a.filter((x) => x.id !== u.id));
+    await onRefresh();
   };
 
   const groups = useMemo(() => {
@@ -246,16 +295,7 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
           disabled={busy || !sel.size}
           className={`${btn} bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-default`}
           data-testid="remove-selected"
-          onClick={async () => {
-            if (!(await askConfirm(`${selNames}\n이 학생들(${selUsers.length}명)을 명단에서 삭제할까요?\n로그인 정보·포인트·연습 기록이 모두 지워지고 되돌릴 수 없어요.`, '명단에서 삭제'))) return;
-            setBusy(true);
-            let n = 0;
-            for (const u of selUsers) if (await typangApi.removeMember(u.id)) n++;
-            setBusy(false);
-            setSel(new Set());
-            say(n ? `🗑️ ${n}명을 명단에서 삭제했어요.` : '❌ 삭제하지 못했어요. 선생님 계정으로 다시 로그인해 주세요.');
-            void onRefresh();
-          }}
+          onClick={() => void removeStudents(selUsers)}
         >
           🗑 고른 학생 삭제
         </button>
@@ -287,7 +327,67 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
             </button>
           </>
         )}
+        <button
+          type="button"
+          className={`${btn} ml-auto ${showArc ? 'bg-amber-500 text-white hover:bg-amber-400' : 'bg-white border border-amber-300 text-amber-800 hover:bg-amber-50'}`}
+          onClick={() => setShowArc((v) => !v)}
+          data-testid="archive-toggle"
+        >
+          📦 보관함 {archived.length}명{showArc ? ' ▲' : ''}
+        </button>
       </div>
+
+      {showArc && (
+        <div className="shrink-0 max-h-[30vh] overflow-y-auto rounded-xl border-2 border-amber-300 bg-amber-50/70 p-2" data-testid="archive-list">
+          <div className="flex items-center gap-2 mb-1.5 text-xs font-black text-amber-900">
+            📦 보관함 — 명단에서 뺀 학생 (포인트·연습 기록은 그대로, 로그인은 막혀 있어요)
+            {archived.length > 1 && (
+              <button type="button" disabled={busy} className={`${btn} ml-auto bg-emerald-600 text-white hover:bg-emerald-500`} onClick={() => void restore(archived)}>
+                ↩️ 모두 되살리기
+              </button>
+            )}
+          </div>
+          {!archived.length ? (
+            <div className="py-4 text-center text-xs font-bold text-amber-700/70">보관한 학생이 없어요. 명단에서 [🗑 삭제] → [📦 보관함으로 옮기기]를 누르면 여기로 와요.</div>
+          ) : (
+            <table className="w-full text-xs bg-white rounded-lg overflow-hidden">
+              <thead className="bg-amber-100 text-amber-900 font-black">
+                <tr>
+                  <th className="px-3 py-1.5 text-left">이름</th>
+                  <th className="px-3 py-1.5">학년</th>
+                  <th className="px-3 py-1.5">🔑 비밀번호</th>
+                  <th className="px-3 py-1.5">최고 타수</th>
+                  <th className="px-3 py-1.5">연습</th>
+                  <th className="px-3 py-1.5">보관한 날</th>
+                  <th className="px-3 py-1.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {archived.map((u) => (
+                  <tr key={u.id} className="border-t border-amber-100 font-bold text-slate-700" data-testid="archived-row">
+                    <td className="px-3 py-1.5">
+                      {u.avatar} {u.name}
+                    </td>
+                    <td className="px-3 py-1.5 text-center">{u.grade ? `${u.grade}학년` : '-'}</td>
+                    <td className="px-3 py-1.5 text-center font-mono">{u.parentPhone ? (showPw ? u.parentPhone.replace(/[^0-9]/g, '').slice(-4) : '••••') : '-'}</td>
+                    <td className="px-3 py-1.5 text-center">{u.highestCpm || '-'}</td>
+                    <td className="px-3 py-1.5 text-center">{u.totalPracticeCount || 0}번</td>
+                    <td className="px-3 py-1.5 text-center">{u.archivedAt ? new Date(u.archivedAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '-'}</td>
+                    <td className="px-3 py-1.5 text-right whitespace-nowrap space-x-1">
+                      <button type="button" disabled={busy} className={`${btn} bg-emerald-100 text-emerald-800 hover:bg-emerald-200`} onClick={() => void restore([u])} data-testid="restore-one">
+                        ↩️ 되살리기
+                      </button>
+                      <button type="button" disabled={busy} className={`${btn} bg-rose-50 text-rose-700 hover:bg-rose-100`} onClick={() => void purge(u)}>
+                        완전히 삭제
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 max-h-[56vh] overflow-y-auto space-y-4 pr-1 rounded-xl bg-white/95">
         {!groups.length && <div className="py-10 text-center text-sm font-bold text-slate-400">아직 학생이 없어요. 학생이 모아팡에 들어오면 생겨요.</div>}
@@ -393,16 +493,8 @@ export const MoaRosterPanel: React.FC<Props> = ({ users, onRefresh, onInspect, o
                         <button type="button" className={`${btn} bg-violet-100 text-violet-800 hover:bg-violet-200`} onClick={() => onReport(u)}>
                           성적표
                         </button>
-                        <button
-                          type="button"
-                          className={`${btn} bg-rose-50 text-rose-700 hover:bg-rose-100`}
-                          onClick={async () => {
-                            if (!(await askConfirm(`'${u.name}' 학생의 타자팡 기록(포인트·연습 기록)을 지울까요?\n모아팡 이름·캐릭터는 그대로예요. 되돌릴 수 없어요.`, '지우기'))) return;
-                            say((await typangApi.deleteUser(u.id)) ? `🗑️ ${u.name} 학생의 타자 기록을 지웠어요.` : '❌ 지우지 못했어요.');
-                            void onRefresh();
-                          }}
-                        >
-                          기록 지우기
+                        <button type="button" disabled={busy} className={`${btn} bg-rose-50 text-rose-700 hover:bg-rose-100`} onClick={() => void removeStudents([u])} data-testid="remove-one">
+                          🗑 삭제
                         </button>
                       </td>
                     </tr>

@@ -7,6 +7,7 @@ import { isApprovedNow } from './session';
 import { noteWeekBest } from './weekBest';
 import { readApprovals, setApprovals } from './tajaApproval';
 import { readParentPhones } from './moaStudentImport';
+import { readArchive, putArchive, dropArchive, markGone, ArchiveEntry } from './tajaArchive';
 import { collection, collectionGroup, deleteField, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { get, ref, set } from 'firebase/database';
 import { UserSession, LeaderboardEntry } from '../types';
@@ -132,12 +133,13 @@ class TypangApiClient {
   public async getUsers(): Promise<UserSession[]> {
     if (!isTeacherUser()) return [];
     try {
-      let [sts, approved] = await Promise.all([getDocs(collectionGroup(fs, 'students')), readApprovals(true)]);
-      // 예전에 엑셀로 모아팡 반에 올린 학생(학부모 전화번호 있음)을 타자팡 회원으로 옮김 (한 번만, 승인 그대로)
-      if (await this.migrateRoomStudents(sts.docs, approved)) {
+      let [sts, approved, arc] = await Promise.all([getDocs(collectionGroup(fs, 'students')), readApprovals(true), readArchive(true)]);
+      // 예전에 엑셀로 모아팡 반에 올린 학생(학부모 전화번호 있음)을 타자팡 회원으로 옮김 (한 번만, 승인 그대로, 완전히 삭제한 학생은 빼고)
+      if (await this.migrateRoomStudents(sts.docs, approved, arc.gone)) {
         [sts, approved] = await Promise.all([getDocs(collectionGroup(fs, 'students')), readApprovals(true)]);
       }
       const users: UserSession[] = [];
+      const archived: UserSession[] = [];
       for (const d of sts.docs) {
         const cid = d.ref.parent.parent?.id;
         if (cid !== MEMBER_CID) continue;
@@ -162,7 +164,15 @@ class TypangApiClient {
           highestCpm: Number(t.highestCpm) || 0,
           moaOutfit: v.outfit || null, // 모아팡 캐릭터 옷차림 (성적표에 그림)
         } as UserSession);
+        // 보관함에 넣은 학생은 명단에서 빼서 보관함 목록으로
+        const ar = arc.a[id];
+        if (ar) {
+          const u = users.pop()!;
+          archived.push({ ...u, isApproved: false, archivedAt: Number(ar.at) || 0 });
+        }
       }
+      archived.sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+      this.archivedUsers = archived;
       users.sort((a, b) => Number(!!a.isApproved) - Number(!!b.isApproved) || (a.grade || 9) - (b.grade || 9) || a.name.localeCompare(b.name));
       // 뒷자리 로그인 목록 (승인한 회원만)
       void rebuildLoginIndex(
@@ -180,7 +190,7 @@ class TypangApiClient {
   }
 
   /** 모아팡 반에 있던(엑셀로 올린) 학생 중 학부모 전화번호가 있는 학생 → 타자팡 회원으로 (이미 있으면 건너뜀) */
-  private async migrateRoomStudents(docs: any[], approved: Record<string, number>): Promise<boolean> {
+  private async migrateRoomStudents(docs: any[], approved: Record<string, number>, gone: Record<string, number> = {}): Promise<boolean> {
     const phones = await readParentPhones();
     if (!Object.keys(phones).length) return false;
     const members = new Set(docs.filter((d) => d.ref.parent.parent?.id === MEMBER_CID).map((d) => d.id));
@@ -198,7 +208,7 @@ class TypangApiClient {
       if (!phone) continue;
       const v = d.data() as any;
       const key = await memberKey(String(v.name || ''), phone);
-      if (members.has(key)) continue;
+      if (members.has(key) || gone[key]) continue;
       const t = v.taja || {};
       const taja: Record<string, any> = { ...t, phone: phoneDigits(phone), className: MEMBER_CLASS }; // 모아팡 반 이름은 가져오지 않음
       try {
@@ -272,7 +282,7 @@ class TypangApiClient {
     }
   }
 
-  /** 선생님: 가입 신청 거절 / 회원 삭제 (회원 기록과 승인 모두 지움) */
+  /** 선생님: 가입 신청 거절 / 완전히 삭제 (회원 기록·포인트·연습 기록·승인 모두 지움, 되돌릴 수 없음) */
   public async removeMember(id: string): Promise<boolean> {
     const p = parseUserId(id);
     if (!p || p.cid !== MEMBER_CID || !isTeacherUser()) return false;
@@ -280,10 +290,48 @@ class TypangApiClient {
       await deleteDoc(doc(fs, 'classes', p.cid, 'students', p.key, 'taja', 'progress')).catch(() => {});
       await deleteDoc(doc(fs, 'classes', p.cid, 'students', p.key));
       await setApprovals([id], false);
+      await dropArchive([id]);
+      await markGone([p.key]); // 예전 엑셀 명단에서 저절로 다시 생기지 않게
+      this.archivedUsers = this.archivedUsers.filter((u) => u.id !== id);
       return true;
     } catch {
       return false;
     }
+  }
+
+  /* ---------------- 보관함 ---------------- */
+  private archivedUsers: UserSession[] = [];
+
+  /** 보관함에 있는 학생 (getUsers 를 부를 때 함께 새로 읽음) */
+  public async getArchivedUsers(refresh = false): Promise<UserSession[]> {
+    if (refresh) await this.getUsers();
+    return this.archivedUsers;
+  }
+
+  /** 선생님: 보관하기 — 명단에서 빠지고 로그인은 막히지만, 이름·포인트·연습 기록은 그대로 남음 */
+  public async archiveMembers(list: UserSession[]): Promise<number> {
+    if (!isTeacherUser()) return 0;
+    const items = list.filter((u) => parseUserId(u.id)?.cid === MEMBER_CID);
+    if (!items.length) return 0;
+    const entries: Record<string, ArchiveEntry> = {};
+    for (const u of items) entries[u.id] = { at: Date.now(), name: String(u.name || '').slice(0, 20), ...(u.grade ? { grade: u.grade } : {}), approved: !!u.isApproved };
+    if (!(await putArchive(entries))) return 0;
+    await setApprovals(
+      items.filter((u) => u.isApproved).map((u) => u.id),
+      false,
+    );
+    return items.length;
+  }
+
+  /** 선생님: 보관함에서 되살리기 — 보관하기 전에 승인돼 있던 학생은 다시 승인 */
+  public async restoreMembers(ids: string[]): Promise<number> {
+    if (!isTeacherUser() || !ids.length) return 0;
+    const arc = await readArchive(true);
+    const reApprove = ids.filter((id) => arc.a[id]?.approved);
+    if (reApprove.length && !(await setApprovals(reApprove, true))) return 0;
+    if (!(await dropArchive(ids))) return 0;
+    this.archivedUsers = this.archivedUsers.filter((u) => !ids.includes(u.id));
+    return ids.length;
   }
 
   /* ---------------- 선생님 로그인 ---------------- */
@@ -328,7 +376,7 @@ class TypangApiClient {
   public async downloadMembersFile(): Promise<boolean> {
     if (!isTeacherUser()) return false;
     const users = await this.getUsers();
-    this.download(`타자팡_명단_${this.stamp()}.json`, { version: 2, savedAt: Date.now(), members: users });
+    this.download(`타자팡_명단_${this.stamp()}.json`, { version: 2, savedAt: Date.now(), members: [...users, ...this.archivedUsers] });
     return true;
   }
 
@@ -355,7 +403,7 @@ class TypangApiClient {
       this.download(`타자팡_백업_${this.stamp()}.json`, {
         version: 2,
         savedAt: Date.now(),
-        members: { members: await this.getUsers() },
+        members: { members: [...(await this.getUsers()), ...this.archivedUsers] },
         progress,
         leaderboard: flattenMonth(lbAll[current]),
         leaderboardArchive,

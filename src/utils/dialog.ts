@@ -53,3 +53,71 @@ export const askConfirm = (message: string, okLabel = '확인') =>
   ]);
 
 export const showAlert = (message: string) => makeBox(message, [{ label: '확인', primary: true, value: true }]).then(() => undefined);
+
+/**
+ * 여러 가지 중에서 고르는 창 (예: 보관하기 / 완전히 삭제 / 취소)
+ *  - 고르지 않고 닫으면(취소·Esc·바깥 누르기) null
+ */
+export function askChoice<T extends string>(
+  message: string,
+  options: { value: T; label: string; desc?: string; tone?: 'primary' | 'danger' | 'plain' }[],
+): Promise<T | null> {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-modal', 'true');
+    wrap.style.cssText =
+      'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.55)';
+    const box = document.createElement('div');
+    box.style.cssText =
+      "max-width:420px;width:100%;background:#fff;border:4px solid #1b2340;border-radius:18px;box-shadow:0 6px 0 #1b2340;padding:20px;font-family:'Noto Sans KR',system-ui,sans-serif;text-align:center";
+    const p = document.createElement('p');
+    p.textContent = message;
+    p.style.cssText = 'margin:0 0 14px;font-size:15px;font-weight:800;color:#1e293b;white-space:pre-line;line-height:1.5';
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+    const close = (v: T | null) => {
+      document.removeEventListener('keydown', onKey, true);
+      wrap.remove();
+      resolve(v);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close(null);
+      }
+    };
+    const colors = { primary: 'background:#fff7d6;color:#1e293b', danger: 'background:#ffe4e6;color:#9f1239', plain: 'background:#f1f5f9;color:#1e293b' };
+    for (const o of options) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.style.cssText = `display:block;width:100%;text-align:left;padding:10px 14px;border-radius:12px;cursor:pointer;border:3px solid #1b2340;${colors[o.tone || 'plain']}`;
+      const t = document.createElement('div');
+      t.textContent = o.label;
+      t.style.cssText = 'font-weight:900;font-size:15px';
+      b.appendChild(t);
+      if (o.desc) {
+        const dsc = document.createElement('div');
+        dsc.textContent = o.desc;
+        dsc.style.cssText = 'margin-top:2px;font-weight:700;font-size:12px;opacity:.8;line-height:1.4';
+        b.appendChild(dsc);
+      }
+      b.onclick = () => close(o.value);
+      col.appendChild(b);
+    }
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = '취소';
+    cancel.style.cssText = 'margin-top:4px;padding:8px 12px;border-radius:12px;font-weight:900;font-size:14px;cursor:pointer;border:3px solid #1b2340;background:#fff;color:#1e293b';
+    cancel.onclick = () => close(null);
+    col.appendChild(cancel);
+    wrap.onclick = (e) => {
+      if (e.target === wrap) close(null);
+    };
+    box.append(p, col);
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+    document.addEventListener('keydown', onKey, true);
+    cancel.focus();
+  });
+}
