@@ -155,6 +155,15 @@ export const PlaygroundHome: React.FC<PlaygroundHomeProps> = ({
     }
   };
 
+  // 타팡 의견함이 '방금 한 게임'을 알 수 있게 (이 탭에서만, 40분)
+  useEffect(() => {
+    const g = activeFunfunGame || activeGame;
+    if (!g) return;
+    try {
+      sessionStorage.setItem('tp_last_game', JSON.stringify({ title: getGameTitle(g), at: Date.now() }));
+    } catch {}
+  }, [activeFunfunGame, activeGame]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleLaunchGame = (gameId: string) => {
     setSelectedGameId(gameId);
     setIsFullView(true); // 게임은 처음부터 큰 창으로

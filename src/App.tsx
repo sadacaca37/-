@@ -13,6 +13,7 @@ import { MoaAuthModal } from './components/MoaAuthModal';
 import { WoodGate } from './components/WoodDialog';
 import { ReportArrivalToasts } from './components/ReportArrivalToasts';
 import { GiftReceiver } from './components/GiftReceiver';
+import { TapangHelpBot } from './components/TapangHelpBot';
 import { ContestBanner } from './components/ContestBanner';
 import { finalizeContest } from './utils/contest';
 import { bestShortCpm, longUnlocked, SHORT_TO_LONG_CPM } from './utils/longGate';
@@ -1012,6 +1013,8 @@ export default function App() {
       {/* 선생님: 학생이 보낸 보고가 오면 작은 알림 창 */}
       {!isPopupMode && <ReportArrivalToasts active={currentUser?.role === 'master'} onOpen={() => setIsMasterOpen(true)} />}
       {!isPopupMode && <GiftReceiver user={currentUser} />}
+      {/* 타팡 의견함: 학생은 불편한 점을 보내고, 선생님은 받은 의견을 봄 (타자 치는 화면에서는 숨김) */}
+      {!isPopupMode && !TYPING_SCREENS.has(currentMode) && <TapangHelpBot user={currentUser} mode={currentMode} onLogin={() => setIsAuthOpen(true)} />}
       {rankMsg && (
         <div className="fixed left-1/2 -translate-x-1/2 top-4 z-[96] max-w-[92vw] px-4 py-3 rounded-2xl border-4 border-[#5a3417] bg-[#fdf5dd] shadow-[0_6px_0_rgba(44,21,7,0.55)] text-sm font-black text-[#3d220d] flex items-center gap-3" data-testid="rank-paid">
           <span>{rankMsg}</span>
