@@ -88,6 +88,7 @@
   .rowbtns{ display:flex; gap:5px; flex:none; }
 
   #actionhud{ position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:35; display:flex; gap:10px; align-items:center; }
+  #actionhud .btn{ white-space:nowrap; }
 
   #dialogue{ position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:50; width:min(640px,94vw); padding:14px 18px; display:none; }
   #dialogue.show{ display:block; }
@@ -140,6 +141,39 @@
   .castrow img:nth-child(2n){ animation-delay:.4s } .castrow img:nth-child(3n){ animation-delay:.8s }
   @keyframes castBob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-6px) } }
   .startbtns{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  #startoverlay{ overflow-y:auto; justify-content:safe center; }
+  .modecards{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:2px 0 8px; width:min(740px,94vw); flex-shrink:0; }
+  .modecard{ flex:1 1 190px; max-width:232px; min-height:148px; display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 12px 12px; background:var(--bg-panel); border:3px solid var(--ink); border-radius:20px; box-shadow:0 5px 0 rgba(107,86,69,.35); cursor:pointer; font:inherit; color:var(--ink); text-align:center; transition:transform .12s; }
+  button.modecard:hover{ transform:translateY(-3px); }
+  button.modecard:active{ transform:translateY(2px); box-shadow:0 2px 0 rgba(107,86,69,.35); }
+  .modecard .mi{ font-size:34px; line-height:1.15; }
+  .modecard b{ font-family:'Jua',sans-serif; font-weight:normal; font-size:21px; color:var(--pink-deep); }
+  .modecard small{ font-size:12.5px; line-height:1.4; color:var(--ink); opacity:.8; }
+  .modecard.solo{ background:#eef8ff; } .modecard.solo b{ color:#3f7fb5; }
+  .modecard.create{ background:#fff4cf; } .modecard.create b{ color:#c07d10; }
+  .modecard.join{ background:#e6f7ec; cursor:default; } .modecard.join b{ color:#2f7d4c; }
+  .modecard.join.invited{ animation:inviteGlow 1.3s ease-in-out infinite; }
+  @keyframes inviteGlow{ 0%,100%{ box-shadow:0 0 0 3px #ffd34d, 0 5px 0 rgba(107,86,69,.35) } 50%{ box-shadow:0 0 0 7px #ffd34d, 0 5px 0 rgba(107,86,69,.35) } }
+  .joinrow{ display:flex; gap:6px; margin-top:auto; padding-top:6px; width:100%; }
+  .joinrow input{ flex:1; min-width:0; font-family:'Jua',sans-serif; font-size:22px; letter-spacing:5px; text-align:center; padding:3px 4px; border:2px solid var(--ink); border-radius:10px; background:#fff; color:var(--ink); }
+  .modecards.busy{ pointer-events:none; opacity:.55; }
+  .lobbymsg{ min-height:20px; font-family:'Jua',sans-serif; font-size:15px; color:var(--ink); margin-bottom:4px; }
+  .starterr{ max-width:580px; background:#fff3c4; border:2px solid #e0b840; border-radius:12px; padding:8px 14px; font-size:13.5px; color:var(--ink); margin-bottom:8px; line-height:1.5; }
+  .starterr[hidden]{ display:none; }
+  .savechoice{ font-size:13.5px; color:var(--ink); display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:4px; min-height:30px; }
+  .savechoice b{ font-family:'Jua',sans-serif; font-weight:normal; }
+  .howto{ margin-top:4px; max-width:640px; }
+  .howto summary{ cursor:pointer; font-family:'Jua',sans-serif; font-size:14px; color:var(--ink); }
+  .howto .controls{ margin:10px 0 4px; }
+  .invitebanner{ background:#ffd34d; border:3px solid var(--ink); border-radius:14px; padding:6px 16px; font-family:'Jua',sans-serif; font-size:16px; color:var(--ink); margin:0 0 10px; }
+  .invitebanner[hidden]{ display:none; }
+  #roombadge{ position:absolute; top:12px; right:136px; z-index:35; height:48px; padding:0 14px; border-radius:14px; display:none; align-items:center; gap:6px; font-family:'Jua',sans-serif; font-size:15px; color:var(--ink); cursor:pointer; background:#fff4cf; }
+  #roombadge.show{ display:flex; }
+  #roombadge b{ font-weight:normal; color:#c07d10; letter-spacing:2px; font-size:18px; }
+  @media (max-width:640px){ #roombadge{ top:72px; right:12px; height:40px; font-size:13px; } }
+  @media (max-height:560px){ #startoverlay .castrow{ display:none; } #startoverlay .title-xl{ font-size:44px; } #startoverlay .title-sub{ margin:4px 0 10px; } .modecard{ min-height:0; padding:10px 10px 10px; } .modecard .mi{ font-size:26px; } }
+  .roomhead{ display:flex; justify-content:space-between; align-items:flex-end; margin:2px 0 4px; }
+  .roomcode{ display:block; font-family:'Jua',sans-serif; font-weight:normal; font-size:42px; letter-spacing:8px; color:#c07d10; line-height:1.05; }
   .endstats{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:0 0 22px; }
   .endstats div{ background:var(--bg-panel); border:3px solid var(--ink); border-radius:14px; padding:8px 14px; font-family:'Jua',sans-serif; font-size:14px; }
   .endstats b{ display:block; font-size:20px; color:var(--pink-deep); }
@@ -236,6 +270,7 @@
 
   <div id="bagbtn" class="panel">🎒</div>
   <div id="sndbtn" class="panel" title="음악 + 효과음">🔊</div>
+  <div id="roombadge" class="panel" title="친구 방 — 눌러서 초대하기">👫 <b id="roombadgecode"></b>번 방 · <span id="roombadgen">1</span>명</div>
   <div id="bagpanel" class="panel"><h3>가방</h3><div id="baglist"></div></div>
 
   <div id="actionhud"></div>
@@ -299,6 +334,18 @@
     <div class="castrow" id="castrow"></div>
     <h1 class="title-xl display">포근숲 이야기</h1>
     <div class="title-sub">모아팡 친구들과 꾸리는 작은 농장 · 사계절 · 알과 새끼 동물을 키워요!</div>
+    <div id="invitebanner" class="invitebanner" hidden></div>
+    <div class="modecards" id="modecards">
+      <button class="modecard solo" id="mode-solo"><span class="mi">🌱</span><b>혼자 하기</b><small id="solosub">농장 준비 중…</small></button>
+      <button class="modecard create" id="mode-create"><span class="mi">👫</span><b>친구 초대하기</b><small>방을 만들고 방 번호를<br>친구에게 알려 줘요 (최대 10명)</small></button>
+      <div class="modecard join" id="mode-join"><span class="mi">🚪</span><b>친구 방 들어가기</b><small>친구가 알려 준 방 번호 4자리</small>
+        <div class="joinrow"><input id="startcode" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off"><button class="btn small mint" id="startjoin">들어가기</button></div>
+      </div>
+    </div>
+    <div id="lobbymsg" class="lobbymsg"></div>
+    <div id="starterr" class="starterr" hidden></div>
+    <div id="savechoice" class="savechoice"></div>
+    <details class="howto"><summary>🎮 조작 방법 보기</summary>
     <div class="controls">
       <div><b>바닥 클릭·터치</b>그곳으로 걸어가기</div>
       <div><b>밭·주민 클릭</b>심기·물주기·수확·대화</div>
@@ -312,10 +359,7 @@
       <div><b>👫 친구</b>방 번호로 10명까지 같이 놀기</div>
       <div><b>🏠 우리 집</b>들어가서 가구로 꾸미기</div>
     </div>
-    <div class="startbtns">
-      <button class="btn mint" id="continuebtn" hidden>이어서 하기</button>
-      <button class="btn" id="startbtn" disabled>농장 준비 중…</button>
-    </div>
+    </details>
     <div style="margin-top:14px;font-size:11px;opacity:.65">그림: 제미나이로 그린 도트 · 사람 캐릭터: 모아팡 옷 입히기 · 동물: Kenney Cube Pets(CC0)를 도트로</div>
   </div>
 
@@ -1683,7 +1727,7 @@ function refreshActionHud(){
   if(inHome) html+='<button class="btn yellow" id="outbtn">🚪 밖으로</button>';
   else if(state.tut>=1) html+='<button class="btn yellow" id="seedbtn">'+(sc?sc.icon+' '+sc.name+' 씨앗 x'+cnt:'🌱 씨앗')+'</button>';
   html+='<button class="btn '+(decorateMode?'mint':'ghost')+'" id="decobtn">'+(decorateMode?'✔ 꾸미기 끝':(inHome?'🛋️ 집 꾸미기':'🏡 꾸미기'))+'</button>';
-  html+='<button class="btn ghost" id="netbtn">'+(NET.room?'👫 '+NET.room+' ('+(Object.keys(NET.peers).length+1)+'명)':'👫 친구')+'</button>';
+  html+='<button class="btn ghost" id="netbtn">'+(NET.room?'👫 친구 '+(Object.keys(NET.peers).length+1)+'명':'👫 친구')+'</button>';
   html+='<button class="btn mint" id="chatbtn">💬 대화</button>';
   el.innerHTML=html;
   var sb=$('seedbtn'); if(sb) sb.addEventListener('click', function(){ openSeedPicker(null); });
@@ -3153,10 +3197,8 @@ async function cloudSave(force){
 function cloudBootCheck(){
   var p=cloudPath(); if(!p) return;
   if(sessionStorage.getItem('pf_fresh')){ sessionStorage.removeItem('pf_fresh'); cloudLoad(); return; }
-  var btns=['continuebtn','startbtn'].map($).filter(Boolean), keep=btns.map(function(b){ return b.innerHTML; });
-  btns.forEach(function(b){ b.style.pointerEvents='none'; b.style.opacity='0.6'; });
-  var cb=$('continuebtn'); if(cb) cb.innerHTML='☁️ 기록 확인 중…';
-  var done=false; function fin(){ if(done) return; done=true; btns.forEach(function(b,i){ b.style.pointerEvents=''; b.style.opacity=''; b.innerHTML=keep[i]; }); }
+  lobbyBusy('☁️ 내 농장 기록 확인 중…');
+  var done=false; function fin(){ if(done) return; done=true; lobbyBusy(null); }
   setTimeout(fin, 5000);
   cloudLoad().then(function(c){
     var local=readSave(), lat=(local&&local.savedAt)||0;
@@ -3657,13 +3699,102 @@ function villagerHear(t){
 })();
 
 /* =====================================================================
+   시작 화면에서 놀이 방법 고르기 (마크처럼) — 🌱 혼자 하기 · 👫 친구 초대하기(방 만들기) · 🚪 친구 방 들어가기
+   · 내 농장 기록은 늘 이어서 (처음부터 새로는 아래 작은 단추)
+   · 초대 링크(?room=1234)로 열면 방 번호가 미리 들어가 있음
+   · 방에 있으면 오른쪽 위에 '👫 1234번 방 · N명' 표시 → 누르면 초대 창
+   ===================================================================== */
+var lobbyState={ busy:false, invite:'' };
+function copyText(t){
+  t=String(t||'');
+  if(navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function(){ return true; }, fallback);
+  return Promise.resolve(fallback());
+  function fallback(){ try{ var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); var ok=document.execCommand('copy'); ta.remove(); return !!ok; }catch(e){ return false; } }
+}
+function inviteLink(code){ return location.origin+location.pathname+'?room='+code; }
+function refreshRoomBadge(){
+  var b=$('roombadge'); if(!b) return;
+  var on=!!(NET.room && state.started);
+  b.classList.toggle('show', on);
+  if(on){ $('roombadgecode').textContent=NET.room; $('roombadgen').textContent=1+Object.keys(NET.peers).length; }
+}
+function showInvite(){ renderNetPanel(); $('netpanel').classList.add('show'); }
+function lobbyBusy(msg){
+  lobbyState.busy=!!msg;
+  var mc=$('modecards'); if(mc) mc.classList.toggle('busy', !!msg);
+  var m=$('lobbymsg'); if(m) m.textContent=msg||'';
+}
+function lobbyErr(msg){ var e=$('starterr'); if(!e) return; if(msg){ e.innerHTML=msg; e.hidden=false; } else { e.hidden=true; e.innerHTML=''; } }
+function lobbySaveLine(sv){
+  var el=$('savechoice'); if(!el) return;
+  var has=sv && sv.tut>0;
+  if(!has){ el.innerHTML='🌱 <b>새 농장</b>으로 시작해요'; return; }
+  var bits=[(sv.day||1)+'일차', '🪙 '+(sv.coins||0)];
+  try{ var st=currentStar(); if(st>1) bits.push('★'+st); }catch(e){}
+  el.innerHTML='📒 <b>'+(sv.migrated?'예전 농장을 옮겨 와서 이어서 해요':'내 농장 이어서 하기')+'</b> <span style="opacity:.8">('+bits.join(' · ')+')</span> <button class="btn small ghost" id="lobbyreset">🔄 처음부터 새로</button>';
+  $('lobbyreset').addEventListener('click', function(){
+    el.innerHTML='⚠️ 지금 농장이 모두 지워져요. 정말 새로 시작할까요? <button class="btn small" id="lobbyresetyes">네, 새로 시작</button> <button class="btn small ghost" id="lobbyresetno">아니요</button>';
+    $('lobbyresetyes').addEventListener('click', function(){ try{ sessionStorage.setItem('pf_fresh','1'); localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_KEY); }catch(e){} location.reload(); });
+    $('lobbyresetno').addEventListener('click', function(){ lobbySaveLine(sv); });
+  });
+}
+function lobbyReady(sv){
+  $('solosub').innerHTML=(sv && sv.tut>0) ? '내 농장에서 바로 시작' : '새 농장으로 바로 출발!';
+  lobbySaveLine(sv);
+  var inv='';
+  try{ inv=(new URLSearchParams(location.search).get('room')||'').replace(/\D/g,'').slice(0,4); }catch(e){}
+  if(inv.length===4){
+    lobbyState.invite=inv; $('startcode').value=inv; $('mode-join').classList.add('invited');
+    var ib=$('invitebanner'); ib.innerHTML='💌 친구가 <b>'+inv+'</b>번 방에 초대했어요! 아래 <b>[들어가기]</b>를 눌러요'; ib.hidden=false;
+  }
+}
+async function startMode(mode){
+  if(!world || lobbyState.busy) return;
+  lobbyErr(null);
+  if(mode==='solo'){ startGame(true); return; }
+  var code='';
+  if(mode==='join'){
+    code=($('startcode').value||'').replace(/\D/g,'');
+    if(code.length!==4){ lobbyErr('친구가 알려 준 <b>방 번호 4자리</b>를 넣어 주세요.'); $('startcode').focus(); return; }
+  }
+  lobbyBusy(mode==='create' ? '👫 친구 방을 만드는 중…' : '🚪 '+code+'번 방에 들어가는 중…');
+  var timedOut=false, tmr=setTimeout(function(){ timedOut=true; lobbyBusy(null); lobbyErr('연결이 오래 걸려요. 잠시 뒤 다시 눌러 주세요. 그동안 <b>🌱 혼자 하기</b>로 놀 수 있어요.'); }, 15000);
+  var ok=await netEnter(mode==='create'?'create':'join', code, true);
+  clearTimeout(tmr);
+  if(!timedOut) lobbyBusy(null);
+  if(state.started) return;
+  if(!ok){
+    if(timedOut) return;
+    var m=esc(NET.lastErr||'방에 연결하지 못했어요.');
+    if(NET.ruleMissing) m='⚠️ 아직 친구 방 자리가 열려 있지 않아요. 선생님이 Firebase 규칙에 <b>taja/duo</b> 를 넣으면 친구랑 같이 할 수 있어요.<br>지금은 <b>🌱 혼자 하기</b>로 놀 수 있어요.';
+    lobbyErr(m); return;
+  }
+  lobbyErr(null);
+  startGame(true);
+  refreshRoomBadge();
+  if(mode==='create') setTimeout(showInvite, 500);
+}
+(function(){
+  $('mode-solo').addEventListener('click', function(){ startMode('solo'); });
+  $('mode-create').addEventListener('click', function(){ startMode('create'); });
+  $('startjoin').addEventListener('click', function(){ startMode('join'); });
+  var ci=$('startcode');
+  ci.addEventListener('keydown', function(e){ e.stopPropagation(); if(e.key==='Enter') startMode('join'); });
+  ci.addEventListener('keyup', function(e){ e.stopPropagation(); });
+  ci.addEventListener('input', function(){ var v=ci.value.replace(/\D/g,'').slice(0,4); if(v!==ci.value) ci.value=v; lobbyErr(null); });
+  $('roombadge').addEventListener('click', showInvite);
+  /* 게임이 시작되면(혼자·방 모두) 오른쪽 위 방 표시를 맞춤 */
+  var _sg=startGame; startGame=function(){ var r=_sg.apply(this, arguments); refreshRoomBadge(); return r; };
+})();
+
+/* =====================================================================
    친구들과 함께 (최대 10명) — 모아팡 Firebase(Realtime Database) taja/duo/pogeunforest/<방번호>
    ===================================================================== */
 var NET={ room:null, uid:null, host:null, peers:{}, fb:null, joinedAt:0, offs:[], lastSend:0, lastMons:0, name:'친구',
   isHost:function(){ return !this.room || this.host===this.uid; }, selfId:function(){ return this.uid||'me'; },
   event:function(e){ if(!this.room || !this.fb) return; e.from=this.uid; e.at=Date.now(); var F=this.fb; F.D.push(F.D.ref(F.db, this.base+'/ev'), e).catch(function(){}); } };
 var FB_CFG={ apiKey:'AIzaSyBlA9TN1BKvnsKrzuq2fMalCrATTeFgkUo', authDomain:'moaboard-943a3.firebaseapp.com', projectId:'moaboard-943a3', appId:'1:986530203160:web:b48121b7113f38a49c656d', databaseURL:'https://moaboard-943a3-default-rtdb.asia-southeast1.firebasedatabase.app' };
-var FB_SDK='https://www.gstatic.com/firebasejs/10.12.2/';
+var FB_SDK=window.PF_FB_SDK||'https://www.gstatic.com/firebasejs/10.12.2/';
 var fbReady=null;
 function getFb(){
   if(fbReady) return fbReady;
@@ -3681,20 +3812,22 @@ function getFb(){
   return fbReady;
 }
 function netErr(e){ var m=String((e&&(e.code||e.message))||e); if(/permission|PERMISSION/.test(m)){ NET.ruleMissing=true; setTimeout(renderNetPanel,0); } if(/permission|PERMISSION/.test(m)) return '함께 하기 방 자리가 아직 열려 있지 않아요. 선생님이 Firebase 규칙에 taja/duo 를 추가해 주세요.'; return '방에 연결하지 못했어요. 잠시 뒤 다시 해 보세요.'; }
-async function netEnter(kind, code){
-  var F=await getFb(); if(!F){ toast('인터넷 연결을 확인해 주세요'); return; }
+async function netEnter(kind, code, quiet){
+  function fail(m){ NET.lastErr=m; if(!quiet) toast(m); return false; }
+  if(NET.room) return true;
+  var F=await getFb(); if(!F) return fail('인터넷 연결을 확인해 주세요. 연결이 안 되면 🌱 혼자 하기로 놀 수 있어요.');
   var D=F.D, db=F.db, now=Date.now();
   try{
     var base='';
     if(kind==='create'){
       for(var i=0;i<12 && !base;i++){ var c=String(1000+Math.floor(Math.random()*9000)); var v=(await D.get(D.ref(db,'taja/duo/pogeunforest/'+c))).val(); var busy=v && v.players && Object.keys(v.players).length && now-(v.t||0)<6*3600*1000; if(!busy){ base='taja/duo/pogeunforest/'+c; code=c; } }
-      if(!base){ toast('빈 방 번호를 찾지 못했어요. 다시 눌러 주세요.'); return; }
+      if(!base) return fail('빈 방 번호를 찾지 못했어요. 다시 눌러 주세요.');
       await D.set(D.ref(db,base), { host:F.uid, t:now, players:{} });
     } else {
       base='taja/duo/pogeunforest/'+code;
       var data=(await D.get(D.ref(db,base))).val(), ids=data&&data.players?Object.keys(data.players):[];
-      if(!data || !ids.length){ toast(code+' 번 방이 없어요. 번호를 확인해 주세요.'); return; }
-      if(ids.length>=10 && ids.indexOf(F.uid)<0){ toast('이 방은 벌써 10명이 꽉 찼어요.'); return; }
+      if(!data || !ids.length) return fail(code+'번 방이 없어요. 친구가 알려 준 번호를 다시 확인해 주세요. (방을 만든 친구가 게임을 켜 두고 있어야 해요)');
+      if(ids.length>=10 && ids.indexOf(F.uid)<0) return fail(code+'번 방은 벌써 10명이 꽉 찼어요.');
     }
     var lot=0;
     if(kind!=='create'){ var used=[]; Object.keys(data.players||{}).forEach(function(id){ if(id!==F.uid && data.players[id] && data.players[id].lot!==undefined) used.push(data.players[id].lot); }); lot=freeLot(used); }
@@ -3705,7 +3838,8 @@ async function netEnter(kind, code){
     netListen();
     toast(kind==='create' ? '👫 방을 만들었어요! 친구에게 번호 '+code+' 를 알려 주세요 (최대 10명)' : '👫 '+code+' 번 방에 들어왔어요!', true);
     refreshActionHud(); renderNetPanel();
-  }catch(e){ console.warn('[함께] enter', e); toast(netErr(e)); }
+    return true;
+  }catch(e){ console.warn('[함께] enter', e); return fail(netErr(e)); }
 }
 function myNetState(full){
   var o={ x:Math.round(player.x*100)/100, y:Math.round(player.y*100)/100, d:player.av.dir, mv:player.moving&&!inHome?1:0, a:player.av.oneShot||'', hp:state.hp, t:Date.now(), lot:myLot, ih:inHome?1:0, sw:player.swim?1:0, bt:player.boat?1:0 };
@@ -3799,7 +3933,9 @@ function renderNetPanel(){
     html+='<div class="itemrow"><span>💬 마을 주민과 대화하기 <span class="sub" style="margin:0">(Enter)</span></span><button class="btn small mint" id="netchat">대화</button></div>';
   } else {
     var list=[{ name:NET.name+' (나)', host:NET.host===NET.uid, lot:myLot }].concat(Object.keys(NET.peers).map(function(id){ return { name:NET.peers[id].name, host:NET.host===id, lot:NET.peers[id].lot }; }));
-    html+='<div class="itemrow"><b class="display" style="font-size:20px">방 번호 '+NET.room+'</b><span class="sub" style="margin:0">'+list.length+' / 10명</span></div>';
+    html+='<div class="roomhead"><div><span class="sub" style="margin:0">👫 우리 방 번호</span><b class="roomcode">'+NET.room+'</b></div><span class="sub" style="margin:0">'+list.length+' / 10명</span></div>';
+    html+='<div class="sub" style="margin:0 0 4px">친구는 포근숲 첫 화면의 <b>🚪 친구 방 들어가기</b>에 이 번호를 넣으면 들어와요.</div>';
+    html+='<div class="itemrow"><span class="rowbtns"><button class="btn small yellow" id="netcopycode">📋 번호 복사</button><button class="btn small ghost" id="netcopylink">🔗 초대 링크 복사</button></span></div>';
     html+=list.map(function(p){ return '<div class="itemrow"><span>'+(p.host?'👑 ':'🙂 ')+esc(p.name)+'</span><span class="sub" style="margin:0">'+(p.lot===undefined?'':(p.lot===0?'🌱 집 옆 밭':'🌾 '+p.lot+'번 밭'))+'</span></div>'; }).join('');
     html+='<div class="itemrow"><span>💬 친구와 대화하기 <span class="sub" style="margin:0">(Enter)</span></span><button class="btn small mint" id="netchat">대화</button></div>';
     html+='<div class="itemrow"><span>마음 보내기</span><span class="rowbtns">'+['👋','❤️','😂','👍','⚔️'].map(function(e){ return '<button class="btn small ghost" data-emo="'+e+'">'+e+'</button>'; }).join('')+'</span></div>';
@@ -3810,6 +3946,9 @@ function renderNetPanel(){
   var j=$('netjoin'); if(j) j.addEventListener('click', function(){ var v=($('netcode').value||'').replace(/\D/g,''); if(v.length!==4){ toast('방 번호 4자리를 넣어 주세요'); return; } netEnter('join', v); });
   var ci=$('netcode'); if(ci){ ci.addEventListener('keydown', function(e){ e.stopPropagation(); if(e.key==='Enter' && j) j.click(); }); ci.addEventListener('keyup', function(e){ e.stopPropagation(); }); }
   var l=$('netleave'); if(l) l.addEventListener('click', netLeave);
+  var cc=$('netcopycode'); if(cc) cc.addEventListener('click', function(){ copyText(NET.room).then(function(ok){ toast(ok?'📋 방 번호 '+NET.room+' 를 복사했어요':'방 번호는 '+NET.room+' 이에요'); }); });
+  var cl=$('netcopylink'); if(cl) cl.addEventListener('click', function(){ copyText(inviteLink(NET.room)).then(function(ok){ toast(ok?'🔗 초대 링크를 복사했어요! 친구에게 보내 주세요':'초대 링크를 복사하지 못했어요'); }); });
+  refreshRoomBadge();
   var nc=$('netchat'); if(nc) nc.addEventListener('click', function(){ $('netpanel').classList.remove('show'); openChat(); });
   el.querySelectorAll('[data-emo]').forEach(function(b){ b.addEventListener('click', function(){ player.emo=b.dataset.emo; player.emoT=2.5; NET.event({ t:'emo', e:b.dataset.emo }); }); });
 }
@@ -4094,8 +4233,7 @@ function boot(){
     camX=player.x; camY=player.y; TS=TILE*ZOOM*DPR; ZOOM = VW<700 ? 0.72 : 0.92;
     world=true;
     $('castrow').innerHTML=['tori','nabi','me','badug','pinky'].map(function(k){ return PORTRAIT[k]?'<img src="'+PORTRAIT[k]+'" class="'+(k==='me'?'big':'')+'" alt="">':''; }).join('');
-    var sb=$('startbtn'); sb.disabled=false;
-    if(sv && sv.tut>0){ $('continuebtn').hidden=false; sb.textContent='처음부터 새로 하기'; sb.className='btn ghost'; if(sv.migrated) $('continuebtn').textContent='이어서 하기 (예전 농장 옮겨 옴)'; } else sb.textContent='농장으로 출발!';
+    lobbyReady(sv);
     updateScore(); tickTime(0); cloudBootCheck();
   });
 }
@@ -4115,13 +4253,11 @@ function startGame(fromSave){
   else if(!state.gotMouse) setTimeout(giveStarterMouse, 1200);
   saveGame();
 }
-$('startbtn').addEventListener('click', function(){ if(!world) return; startGame(false); });
-$('continuebtn').addEventListener('click', function(){ if(!world) return; startGame(true); });
 setInterval(saveGame, 10000);
 window.addEventListener('pagehide', function(){ saveGame(); netLeave(); });
 document.addEventListener('visibilitychange', function(){ if(document.hidden) saveGame(); });
 
-if(/[?&]debug/.test(location.search)) window.__pf={ state:state, openChat:openChat, sendChat:sendChat, npcReply:npcReply, chatListener:chatListener, get chatLog(){ return chatLog; }, get player(){ return player; }, npcs:npcs, plots:plots, talk:talkTo, closeDialogue:closeDialogue, addCoins:addCoins, addItem:addItem, setTut:setTut,
+if(/[?&]debug/.test(location.search)) window.__pf={ state:state, get NET(){ return NET; }, get myLot(){ return myLot; }, openChat:openChat, sendChat:sendChat, npcReply:npcReply, chatListener:chatListener, get chatLog(){ return chatLog; }, get player(){ return player; }, npcs:npcs, plots:plots, talk:talkTo, closeDialogue:closeDialogue, addCoins:addCoins, addItem:addItem, setTut:setTut,
   upgrades:upgrades, openBoard:openBoard, openShop:openShop, usePlot:usePlot, growAll:function(){ for(var i=0;i<plotCount();i++){ var d=plotData(i); if(d.crop) d.stage=3; } }, saveGame:saveGame,
   buildVillagerHouse:buildVillagerHouse, score:farmScore, star:currentStar, updateScore:updateScore, spawnPest:spawnPest, get pests(){ return pests; }, startRaid:startRaid, get monsters(){ return monsters; }, spawnMonster:spawnMonster,
   addPet:addPet, petObjs:petObjs, petGrow:petGrow, openPetDialog:openPetDialog, chopTrees:chopTrees, chopHit:chopHit, get world(){ return world; }, setZoom:function(z){ ZOOM=z; }, tickTime:tickTime, NET:NET, swing:swing,
